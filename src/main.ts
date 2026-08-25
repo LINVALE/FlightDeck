@@ -15,9 +15,16 @@ const HERE = resolve(fileURLToPath(import.meta.url), '..');
 const DATA_DIR = resolve(process.env.FLIGHTDECK_DATA ?? resolve(HERE, '..', 'data'));
 const ASSET_DIR = resolve(HERE, '..', 'assets');
 const HOSTNAME = process.env.FLIGHTDECK_NAME ?? 'flightdeck';
-const PORTS = process.env.FLIGHTDECK_PORT === undefined
-  ? [80, 8440]
-  : [Number(process.env.FLIGHTDECK_PORT), 8440];
+/**
+ * The port ladder: 80 first, because only :80 makes a bare hostname work.
+ * Deduped — an explicit FLIGHTDECK_PORT=8440 used to build [8440, 8440] and the
+ * log would claim it was "trying the next" while retrying the same port.
+ */
+const PORTS = [...new Set(
+  process.env.FLIGHTDECK_PORT === undefined
+    ? [80, 8440]
+    : [Number(process.env.FLIGHTDECK_PORT), 8440],
+)].filter((port) => Number.isInteger(port) && port >= 0 && port <= 65535);
 
 function stamp(): string { return new Date().toISOString(); }
 function log(message: string): void { process.stdout.write(stamp() + '  ' + message + '\n'); }
@@ -36,12 +43,14 @@ let signature = '';
 let boundPort = 0;
 let mdns: MdnsResponder | null = null;
 
+const BROWSE = process.env.FLIGHTDECK_BROWSE === '1';
+
 const extension = new FlightDeckExtension(
   {
     dataDir: DATA_DIR, displayVersion: '0.1.0', log,
     // Opt-in: turning this on changes the registration, and Roon then parks the
     // extension until someone re-enables it in Settings.
-    browse: process.env.FLIGHTDECK_BROWSE === '1',
+    browse: BROWSE,
   },
   {
     onZones: (zones: unknown[]): void => { rawZones = zones; republish(); },
@@ -139,6 +148,7 @@ const server = createFlightDeckServer({
   mdns: () => mdns,
   urls,
   port: () => boundPort,
+  browse: () => ({ requested: BROWSE, granted: extension.browseService() !== null }),
   log,
 });
 

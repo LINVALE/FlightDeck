@@ -16,6 +16,8 @@ export interface ServerDeps {
   readonly mdns: () => MdnsResponder | null;
   readonly urls: () => string[];
   readonly port: () => number;
+  /** Whether the Browse service was requested, and whether the Core granted it. */
+  readonly browse?: () => { requested: boolean; granted: boolean };
   readonly log?: (message: string) => void;
 }
 
@@ -112,6 +114,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         urls: deps.urls(),
         clients: deps.hub.clientCount,
         revision: deps.hub.snapshot()?.revision ?? null,
+        browse: deps.browse === undefined ? { requested: false, granted: false } : deps.browse(),
         mdns: mdns === null ? null : mdns.status(),
       });
       return;
