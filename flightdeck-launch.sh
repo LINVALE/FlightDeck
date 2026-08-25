@@ -40,6 +40,16 @@ running_pid() {
     echo "$pid"
 }
 
+# The systemd unit is the AUTHORITATIVE owner when it is installed and running.
+# Two FlightDecks must never run at once: they register with Roon under the SAME
+# extension_id, so the Core sees one identity flapping between two processes —
+# and only one of them can hold the port. This happened for real on 2026-08-25,
+# when a VSCode task started a second copy on :8440 beside the service on :80.
+service_active() {
+    command -v systemctl >/dev/null 2>&1 || return 1
+    systemctl is-active --quiet flightdeck 2>/dev/null
+}
+
 port_holder() {
     ss -ltnp 2>/dev/null | grep -oP ":${1}\s.*pid=\K[0-9]+" | head -1
 }
@@ -53,6 +63,16 @@ bound_port() {
 }
 
 cmd_start() {
+    if service_active; then
+        echo "REFUSING to start: the systemd service already owns FlightDeck."
+        echo
+        systemctl status flightdeck --no-pager 2>/dev/null | sed -n '1,4p'
+        echo
+        echo "  use it:      sudo systemctl restart flightdeck"
+        echo "  watch it:    journalctl -u flightdeck -f"
+        echo "  hand back:   sudo systemctl disable --now flightdeck   (then this script again)"
+        return 1
+    fi
     if pid="$(running_pid)"; then
         echo "FlightDeck already running (pid $pid)"
         cmd_status
@@ -82,6 +102,11 @@ cmd_start() {
 }
 
 cmd_stop() {
+    if service_active && ! running_pid >/dev/null 2>&1; then
+        echo "FlightDeck is run by systemd, not by this script."
+        echo "  stop it:  sudo systemctl stop flightdeck"
+        return 1
+    fi
     if ! pid="$(running_pid)"; then
         # Still report a squatter, because "stopped" while something holds the
         # port is the confusing state.
@@ -111,6 +136,15 @@ cmd_stop() {
 }
 
 cmd_status() {
+    if service_active && ! running_pid >/dev/null 2>&1; then
+        local sport
+        sport="$(curl -s --max-time 2 http://127.0.0.1/api/v1/health 2>/dev/null | grep -o '"port":[0-9]*' | cut -d: -f2)"
+        echo "FlightDeck  RUNNING (systemd)${sport:+  port $sport}"
+        echo "  managed by: systemctl {start,stop,restart} flightdeck  (needs sudo)"
+        echo "  logs      : journalctl -u flightdeck -f"
+        [ -n "$sport" ] && echo "  reach     : http://flightdeck.local${sport:+$([ "$sport" = 80 ] && echo "" || echo ":$sport")}/"
+        return 0
+    fi
     if pid="$(running_pid)"; then
         port="$(bound_port "$pid" || echo '?')"
         printf 'FlightDeck  RUNNING  pid %s  up %s  port %s\n' \

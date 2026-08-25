@@ -18,7 +18,9 @@ via `AmbientCapabilities=CAP_NET_BIND_SERVICE` as user `peter`.
   Changes under `assets/` are served from disk: a browser refresh is enough.
 - Updating `ExecStart` after a node upgrade (the nvm path carries the version).
 
-⚠️ **Never run `flightdeck-launch.sh` while the service is up** — both bind the same port.
+⚠️ **Never run `flightdeck-launch.sh` while the service is up.** It now REFUSES to
+(commit below), after a VSCode task started a second copy on `:8440` beside the service on `:80` — both
+registered with Roon under the same `extension_id`. Use the *"FlightDeck: Restart service (sudo)"* task.
 
 ## What exists (HEAD 7d6f3f1)
 

@@ -2,47 +2,94 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "FlightDeck: Restart service (sudo)",
+      "detail": "Required after ANY change under src/. Changes under assets/ only need a browser refresh.",
+      "type": "shell",
+      "command": "sudo systemctl restart flightdeck && sleep 3 && ./flightdeck-launch.sh status",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "FlightDeck: Service log",
+      "type": "shell",
+      "command": "journalctl -u flightdeck -f -n 40",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
       "label": "FlightDeck: Start",
       "type": "shell",
       "command": "./flightdeck-launch.sh start",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      },
+      "detail": "Only when the systemd service is disabled \u2014 it refuses otherwise, and binds :8440 not :80."
     },
     {
       "label": "FlightDeck: Stop",
       "type": "shell",
       "command": "./flightdeck-launch.sh stop",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "FlightDeck: Restart",
       "type": "shell",
       "command": "./flightdeck-launch.sh restart",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "FlightDeck: Status",
       "type": "shell",
       "command": "./flightdeck-launch.sh status",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "FlightDeck: Tail Log",
       "type": "shell",
       "command": "./flightdeck-launch.sh tail",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated" }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
     },
     {
       "label": "FlightDeck: Restart with Browse",
-      "detail": "Requests the Roon Browse service — you must then re-enable FlightDeck in Roon → Settings → Extensions",
+      "detail": "Requests the Roon Browse service \u2014 you must then re-enable FlightDeck in Roon \u2192 Settings \u2192 Extensions",
       "type": "shell",
       "command": "./flightdeck-launch.sh browse",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     },
     {
       "label": "FlightDeck: Test",
@@ -50,7 +97,11 @@
       "command": "node --test --test-concurrency=1 'test/**/*.test.ts' && node scripts/floor-lint.ts",
       "group": "test",
       "problemMatcher": [],
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
     }
   ]
 }

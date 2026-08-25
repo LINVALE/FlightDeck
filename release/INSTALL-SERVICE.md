@@ -35,6 +35,22 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now flightdeck
 ```
 
+
+## The service and the launcher must never both run
+
+Installing the unit makes systemd the owner. `flightdeck-launch.sh` now refuses
+to start while the service is active, and `status` reports the service instead —
+because on 2026-08-25 a VSCode task started a second copy on `:8440` beside the
+service on `:80`, and both registered with Roon under the same `extension_id`.
+
+```
+$ ./flightdeck-launch.sh start
+REFUSING to start: the systemd service already owns FlightDeck.
+```
+
+**After any change under `src/`:** `sudo systemctl restart flightdeck`.
+Changes under `assets/` are served from disk — a browser refresh is enough.
+
 ## Check
 
 ```bash
