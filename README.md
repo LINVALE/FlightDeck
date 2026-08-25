@@ -44,6 +44,28 @@ Then enable **FlightDeck** in Roon → Settings → Extensions. The log prints e
 FlightDeck runs its own zero-dependency mDNS/DNS-SD responder and claims `flightdeck.local`. It coexists with
 a host `avahi`.
 
+### If another device cannot find `flightdeck.local`
+
+Diagnose the publishing side first — this asks the way a TV or phone does, from an
+ephemeral port, rather than through this host's own resolver (which can succeed
+while a remote query fails):
+
+```bash
+node scripts/mdns-probe.mjs flightdeck.local
+```
+
+An answer of `flightdeck.local -> <the LAN IP>` means FlightDeck is publishing
+correctly and the *other* device is not doing mDNS lookups. That is common:
+Windows with mDNS restricted by policy, Linux without `nss-mdns`, and every TV
+listed below.
+
+**The fix that reaches everything is a router DNS record.** This LAN already
+serves unicast names for its hosts (`asus-study.localdomain -> 192.168.1.114`
+via 192.168.1.1), so adding `flightdeck -> <the LAN IP>` makes
+**`http://flightdeck/`** work on Tizen, webOS, Fire TV, Windows-under-policy and
+everything else, with no mDNS involved at all. In UniFi: Settings → Networks →
+DNS → add a local DNS record.
+
 ⚠️ **`.local` is not universal, so the IP is always printed too.** It resolves on Windows 10 1903+/11, Apple
 devices, Android 12+ (including Chromecast with Google TV) and Linux with nss-mdns. It does **not** resolve on
 Fire OS / Echo Show / Android ≤ 11 (including Nvidia Shield), and is unverified on Samsung Tizen and LG webOS
