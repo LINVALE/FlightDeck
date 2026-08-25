@@ -98,11 +98,20 @@ function setArt(tile, zone) {
   if (art === null) { tile.img.removeAttribute('src'); return; }
   // Decode before swapping so a slow image never shows a broken or half-painted
   // frame. img.decode() is Chromium 64 — above the floor — so it is guarded.
+  load(tile, art.path, 0);
+}
+
+/** One retry after a short delay: a transient miss must not leave a permanent hole. */
+function load(tile, path, attempt) {
   var next = new Image();
   next.onload = function () { tile.img.src = next.src; };
-  next.src = art.path;
+  next.onerror = function () {
+    if (attempt >= 1) return;
+    setTimeout(function () { if (tile.artKey !== null) load(tile, path, attempt + 1); }, 1500);
+  };
+  next.src = path;
   if ('decode' in HTMLImageElement.prototype) {
-    next.decode().then(function () { tile.img.src = next.src; }).catch(function () { /* onload covers it */ });
+    next.decode().then(function () { tile.img.src = next.src; }).catch(function () { /* onload/onerror cover it */ });
   }
 }
 
@@ -129,6 +138,13 @@ function render(snapshot, kind) {
       order = [];
       return;
     }
+
+    // Fit the house into the screen: a TV cannot scroll, so density scales with
+    // the number of zones rather than letting the last rooms fall off the bottom.
+    var count = snapshot.zones.length;
+    // 3 columns absorbs a large house comfortably (22 zones = 8 rows); 4 columns
+    // is reserved for the genuinely huge, where nothing else fits.
+    root.setAttribute('data-density', count > 27 ? 'packed' : (count > 9 ? 'dense' : 'roomy'));
 
     var nextOrder = [];
     for (var i = 0; i < snapshot.zones.length; i += 1) {

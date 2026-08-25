@@ -19,7 +19,41 @@ body { min-height: 100vh; }
 .wall-core { margin-left: auto; font-size: 1.05vw; color: var(--dim); }
 .wall-core.away { color: var(--accent); }
 
-.grid { display: flex; flex-wrap: wrap; align-content: flex-start; flex: 1 1 auto; }
+.grid { display: flex; flex-wrap: wrap; align-content: flex-start; flex: 1 1 auto; overflow: hidden; }
+
+/* A TV cannot scroll, so the Wall must FIT. Density tiers scale the tiles to the
+   size of the house rather than letting the last rooms fall off the bottom. */
+.wall[data-density="dense"] .tile { width: 33.333%; padding: 0.85vh 0.8vw 0.85vh 0; }
+.wall[data-density="dense"] .tile.is-live .tile-art { width: 5.4vw; height: 5.4vw; }
+.wall[data-density="dense"] .tile.is-hero .tile-art { width: 7.6vw; height: 7.6vw; }
+.wall[data-density="dense"] .tile.is-paused .tile-art { width: 3.9vw; height: 3.9vw; }
+.wall[data-density="dense"] .tile.is-idle .tile-art { width: 3.1vw; height: 3.1vw; }
+.wall[data-density="dense"] .tile-title { font-size: 1.06vw; }
+.wall[data-density="dense"] .tile.is-hero .tile-title { font-size: 1.5vw; white-space: nowrap; }
+.wall[data-density="dense"] .tile-zone { font-size: 0.72vw; }
+/* A stopped room must never out-shout a playing one. */
+.wall[data-density="dense"] .tile.is-idle .tile-zone { font-size: 0.72vw; color: var(--ash); }
+.wall[data-density="dense"] .tile.is-idle .tile-title { font-size: 0.95vw; }
+.wall[data-density="dense"] .tile-line2 { font-size: 0.7vw; }
+.wall[data-density="dense"] .tile-times,
+.wall[data-density="dense"] .tile-stamp,
+.wall[data-density="dense"] .tile-state { font-size: 0.62vw; }
+.wall[data-density="dense"] .chip { font-size: 0.56vw; }
+
+.wall[data-density="packed"] .tile { width: 25%; padding: 0.22vh 0.55vw 0.22vh 0; }
+.wall[data-density="packed"] .tile .tile-art { width: 2.6vw; height: 2.6vw; }
+.wall[data-density="packed"] .tile.is-hero .tile-art,
+.wall[data-density="packed"] .tile.is-live .tile-art { width: 3.6vw; height: 3.6vw; }
+.wall[data-density="packed"] .tile-title { font-size: 0.85vw; white-space: nowrap; }
+.wall[data-density="packed"] .tile.is-hero .tile-title { font-size: 0.95vw; }
+.wall[data-density="packed"] .tile-zone { font-size: 0.58vw; }
+.wall[data-density="packed"] .tile.is-idle .tile-zone { font-size: 0.58vw; color: var(--ash); }
+.wall[data-density="packed"] .tile.is-idle .tile-title { font-size: 0.8vw; }
+.wall[data-density="packed"] .tile-line2 { display: none; }
+.wall[data-density="packed"] .tile-times,
+.wall[data-density="packed"] .tile-stamp,
+.wall[data-density="packed"] .tile-state { font-size: 0.55vw; }
+.wall[data-density="packed"] .chip { display: none; }
 .tile { display: flex; align-items: center; width: 50%; padding: 0.7vh 1.1vw 0.7vh 0;
   border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
 .tile.solo { width: 100%; }

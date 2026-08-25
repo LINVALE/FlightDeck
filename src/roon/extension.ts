@@ -63,6 +63,9 @@ export class FlightDeckExtension {
       publisher: 'Linvale',
       email: 'dr.pcrichardson@gmail.com',
       website: 'https://github.com/LINVALE',
+      // Without this the library prints every MOO frame — tens of KB per restart,
+      // including full zone payloads. FlightDeck's own log is the useful one.
+      log_level: 'none',
 
       // The library's default save_config writes config.json into the PROCESS CWD.
       // Pin persistence to DATA_DIR instead, so a service restart from anywhere re-pairs.

@@ -53,6 +53,7 @@ export class ArtRelay {
   private readonly cache = new Map<string, CacheEntry>();
   private readonly inflight = new Map<string, Promise<ArtResource | null>>();
   private active = 0;
+  private readonly waiting: (() => void)[] = [];
   private readonly opts: Required<Omit<RelayOptions, 'fetchImpl' | 'now'>> & { fetchImpl: typeof fetch; now: () => number };
 
   constructor(options: RelayOptions) {
@@ -102,9 +103,14 @@ export class ArtRelay {
     }
     const existing = this.inflight.get(token);
     if (existing !== undefined) return existing;
-    if (this.active >= this.opts.maxConcurrent) return cached === undefined ? null : cached.resource;
 
-    const pending = this.fetchOne(entry.key, entry.size).then((resource) => {
+    // Wait for a slot rather than dropping the request. The first version
+    // returned null the moment the cap was reached, so a wall of 22 zones asking
+    // at once left the losers with a permanent hole — the cap is there to be
+    // gentle with the Core, not to refuse work.
+    const pending = this.acquire()
+      .then(() => this.fetchOne(entry.key, entry.size))
+      .then((resource) => {
       if (resource !== null) {
         this.cache.delete(token);
         this.cache.set(token, { resource, storedAt: this.opts.now() });
@@ -116,12 +122,28 @@ export class ArtRelay {
       }
       return resource;
     }).finally(() => {
-      this.active -= 1;
+      this.release();
       this.inflight.delete(token);
     });
-    this.active += 1;
     this.inflight.set(token, pending);
     return pending;
+  }
+
+  /** A slot in the concurrency window; queued FIFO, bounded by the caller's timeout. */
+  private acquire(): Promise<void> {
+    if (this.active < this.opts.maxConcurrent) {
+      this.active += 1;
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve) => {
+      this.waiting.push(() => { this.active += 1; resolve(); });
+    });
+  }
+
+  private release(): void {
+    this.active -= 1;
+    const next = this.waiting.shift();
+    if (next !== undefined) next();
   }
 
   private async fetchOne(imageKey: string, size: SizeClass): Promise<ArtResource | null> {
