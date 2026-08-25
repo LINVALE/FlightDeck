@@ -1,0 +1,2 @@
+# keep this directory in a fresh clone: the systemd unit lists it in
+# ReadWritePaths, and systemd refuses to start if it is missing.
