@@ -181,6 +181,29 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   assert.ok(!nasty.includes('<script>x</script>'));
 });
 
+test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
+  const server = createFlightDeckServer({
+    hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
+    ledger: new RecentLedger(null), assetDir: ASSETS, mdns: () => null,
+    urls: () => ['http://flightdeck.local/'], port: () => 0,
+  });
+  await listenWithLadder(server, [0], () => {});
+  const address = server.address();
+  const port = typeof address === 'object' && address !== null ? address.port : 0;
+  t.after(() => server.close());
+  const base = 'http://127.0.0.1:' + String(port);
+
+  for (const path of ['/now', '/face', '/face/']) {
+    const page = await (await fetch(base + path)).text();
+    assert.match(page, /data-follow="1"/, path + ' must turn following on');
+    assert.match(page, /data-zone=""/, path + ' must pin no zone');
+  }
+  // An explicit ?follow=0 on a named zone still pins it.
+  const pinned = await (await fetch(base + '/face/abc?follow=0')).text();
+  assert.match(pinned, /data-follow="0"/);
+  assert.match(pinned, /data-zone="abc"/);
+});
+
 test('assets are served, and a path traversal is refused', async (t) => {
   const server = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),

@@ -17,6 +17,52 @@ var root = document.getElementById('face');
 var picker = document.getElementById('picker');
 var zoneId = root.getAttribute('data-zone') || '';
 
+/**
+ * FOLLOW MODE. A screen on a wall should show the music that is actually
+ * playing, not the room someone last opened it on. In follow mode the Face
+ * tracks whichever zone is playing — preferring the one that started most
+ * recently — and holds the last one when the house goes quiet, so it never
+ * blanks between tracks or rooms.
+ *
+ * Choosing a room by hand is an explicit act and turns following off.
+ */
+var STORE_KEY_FOLLOW = 'flightdeck.follow.';
+var STORE_KEY_ZONE = 'flightdeck.zone.';
+function readFlag(key, fallback) {
+  try { var raw = localStorage.getItem(key); return raw === null ? fallback : raw === '1'; }
+  catch (error) { return fallback; }
+}
+function writeFlag(key, value) {
+  try { localStorage.setItem(key, value ? '1' : '0'); } catch (error) { /* private mode */ }
+}
+// /now serves the page with data-follow="1" and no zone: the bookmarkable TV URL.
+var followAttr = root.getAttribute('data-follow');
+var followParam = /[?&]follow=([01])/.exec(window.location.search);
+var following = followAttr !== null ? followAttr === '1'
+  : (followParam !== null ? followParam[1] === '1' : readFlag(STORE_KEY_FOLLOW + zoneId, false));
+// The zone actually on screen: the pinned one, or whatever following resolves to.
+var shownZoneId = zoneId;
+try {
+  var savedZone = localStorage.getItem(STORE_KEY_ZONE + zoneId);
+  if (savedZone !== null && savedZone !== '') shownZoneId = savedZone;
+} catch (error) { /* private mode */ }
+
+function pickFollowed(snapshot) {
+  var best = null;
+  var bestAt = -1;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    var zone = snapshot.zones[i];
+    if (zone.state !== 'playing') continue;
+    var at = zone.runStartedAt === null ? 0 : Date.parse(zone.runStartedAt);
+    if (isNaN(at)) at = 0;
+    // Stay put while the zone already on screen is still playing: a screen that
+    // hops rooms mid-album is worse than one that lags a moment.
+    if (zone.id === shownZoneId) return zone.id;
+    if (at > bestAt) { bestAt = at; best = zone.id; }
+  }
+  return best;   // null when the house is quiet: hold what is on screen
+}
+
 /* ---------- which face ---------- */
 function remembered() {
   try { return localStorage.getItem(STORE_KEY_FACE + zoneId); } catch (error) { return null; }
@@ -212,9 +258,13 @@ function setBackdrop(zone) {
 
 function render(snapshot, kind) {
   if (snapshot === null) return;
+  if (following) {
+    var followed = pickFollowed(snapshot);
+    if (followed !== null && followed !== shownZoneId) { shownZoneId = followed; kind = 'snapshot'; }
+  }
   var zone = null;
   for (var i = 0; i < snapshot.zones.length; i += 1) {
-    if (snapshot.zones[i].id === zoneId) { zone = snapshot.zones[i]; break; }
+    if (snapshot.zones[i].id === shownZoneId) { zone = snapshot.zones[i]; break; }
   }
   if (zone === null) {
     root.setAttribute('data-state', 'stopped');
@@ -281,12 +331,16 @@ function render(snapshot, kind) {
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;
 function showPicker() {
-  picker.replaceChildren.apply(picker, FACES.map(function (name, index) {
+  var nodes = FACES.map(function (name, index) {
     var parts = [];
     if (index > 0) parts.push(el('em', '', '·'));
     parts.push(el('span', name === current ? 'now' : '', name));
     return parts;
-  }).reduce(function (all, part) { return all.concat(part); }, []));
+  }).reduce(function (all, part) { return all.concat(part); }, []);
+  nodes.push(el('em', '', '|'));
+  nodes.push(el('span', following ? 'now' : '', following ? 'following' : (zoneName.textContent || 'room')));
+  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK follow'));
+  picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
   pickerTimer = setTimeout(function () { picker.hidden = true; }, 4000);
@@ -298,9 +352,42 @@ function cycleFace(delta) {
   root.setAttribute('data-face', current);
   showPicker();
 }
+
+/** Up/Down walk the house, in the Wall's order, from a remote. */
+function cycleZone(delta) {
+  var snapshot = store.snapshot();
+  if (snapshot === null || snapshot.zones.length === 0) return;
+  var index = -1;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    if (snapshot.zones[i].id === shownZoneId) { index = i; break; }
+  }
+  var next = (index + delta + snapshot.zones.length) % snapshot.zones.length;
+  shownZoneId = snapshot.zones[next].id;
+  // Choosing a room by hand is explicit: stop following.
+  following = false;
+  writeFlag(STORE_KEY_FOLLOW + zoneId, false);
+  try { localStorage.setItem(STORE_KEY_ZONE + zoneId, shownZoneId); } catch (error) { /* private mode */ }
+  render(snapshot, 'snapshot');
+  showPicker();
+}
+
+function toggleFollow() {
+  following = !following;
+  writeFlag(STORE_KEY_FOLLOW + zoneId, following);
+  if (following) {
+    try { localStorage.removeItem(STORE_KEY_ZONE + zoneId); } catch (error) { /* private mode */ }
+    var snapshot = store.snapshot();
+    if (snapshot !== null) render(snapshot, 'snapshot');
+  }
+  showPicker();
+}
+
 document.addEventListener('keydown', function (event) {
   if (event.key === 'ArrowLeft') { cycleFace(-1); event.preventDefault(); }
   else if (event.key === 'ArrowRight') { cycleFace(1); event.preventDefault(); }
+  else if (event.key === 'ArrowUp') { cycleZone(-1); event.preventDefault(); }
+  else if (event.key === 'ArrowDown') { cycleZone(1); event.preventDefault(); }
+  else if (event.key === 'Enter' || event.key === ' ') { toggleFollow(); event.preventDefault(); }
   else showPicker();
 });
 document.addEventListener('click', showPicker);

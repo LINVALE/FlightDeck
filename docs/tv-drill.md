@@ -38,6 +38,13 @@ Receipts, with denominators. A drill is not passed because it looked fine once.
 
 ## I2 — the faces and the picker
 
+**✅ 2026-08-25: the Presence face renders on Peter's Samsung TV — "looks great on now playing".**
+That is the floor device (Samsung Tizen = Chromium 63, frozen at manufacture), so the discipline it was
+designed under — no `clamp()`, no container queries, no `aspect-ratio`, no `conic-gradient`, ES2018 only,
+blur on a tiny canvas rather than `backdrop-filter` — is now proven on hardware rather than argued from a
+vendor table.
+
+
 - [ ] **Side by side with `http://<core>:9330/display` on the same TV for one album.** Record what each does,
       honestly, including anything Roon's does better.
 - [ ] Track change → paint within 500 ms including artwork.

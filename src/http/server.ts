@@ -173,10 +173,17 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       html(response, 200, renderWallPage(nonce, deps.urls()), nonce);
       return;
     }
+    // The address worth bookmarking on a TV: no zone, always whatever is playing.
+    // Checked BEFORE the prefix route, or '/face/' would fall into it with an
+    // empty zone and no following — a screen pinned to nothing.
+    if (path === '/now' || path === '/face' || path === '/face/') {
+      html(response, 200, renderFacePage(nonce, '', url.searchParams.get('face'), '1'), nonce);
+      return;
+    }
     if (path.startsWith('/face/')) {
       const zoneId = decodeURIComponent(path.slice('/face/'.length));
       const face = url.searchParams.get('face');
-      html(response, 200, renderFacePage(nonce, zoneId, face), nonce);
+      html(response, 200, renderFacePage(nonce, zoneId, face, url.searchParams.get('follow')), nonce);
       return;
     }
     json(response, 404, { error: 'not found' });

@@ -108,6 +108,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .picker span { font-size: 1.2vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
 .picker span.now { color: var(--accent); }
 .picker em { font-style: normal; color: #5f5a53; margin: 0 0.9vw; font-size: 1.05vw; }
+.picker em.hint { color: #40443f; font-size: 0.9vw; letter-spacing: 0.12em; margin-left: 1.4vw; }
+@media (max-width: 900px) { .picker em.hint { display: none; } }
 
 @media (max-width: 900px) {
   .cover { width: 62vw; height: 62vw; }

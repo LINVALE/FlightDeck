@@ -45,12 +45,15 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
     + '<div class="reach"><div class="reach-urls">'
     + (primary === '' ? '' : '<div class="url primary">' + primary + '</div>')
     + secondary.map((url) => '<div class="url alt">' + url + '</div>').join('')
-    + '<div class="reach-note">Type the address on a TV that cannot find <code>.local</code></div>'
+    + '<div class="reach-note">Add <code>/now</code> for a screen that follows the music · '
+    + 'type the address on a TV that cannot find <code>.local</code></div>'
     + '</div><div class="qr">' + qr + '</div></div>'
     + '</footer></main></body></html>';
 }
 
-export function renderFacePage(nonce: string, zoneId: string, faceParam: string | null): string {
+export function renderFacePage(
+  nonce: string, zoneId: string, faceParam: string | null, followParam: string | null = null,
+): string {
   const face = normalizeFace(faceParam);
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   return head(nonce, 'FlightDeck', '/assets/face.css')
@@ -58,6 +61,7 @@ export function renderFacePage(nonce: string, zoneId: string, faceParam: string 
     + ' data-zone="' + safeZone + '"'
     // An explicit ?face= always WINS; otherwise the client reads its own memory.
     + (face === null ? '' : ' data-face-param="' + face + '"')
+    + (followParam === '1' ? ' data-follow="1"' : (followParam === '0' ? ' data-follow="0"' : ''))
     + ' data-state="connecting"></main>'
     + '<div class="picker" id="picker" hidden aria-live="polite"></div>'
     + '</body></html>';
