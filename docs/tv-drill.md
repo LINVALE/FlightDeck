@@ -62,3 +62,21 @@ Receipts, with denominators. A drill is not passed because it looked fine once.
 
 - [ ] 48 h on the TV, then a **7-day soak with heap and RSS numbers recorded** — flat, not "looked fine".
 - [ ] 6 screens live at once.
+
+## Browse (library, genres, search) — blocked on one click
+
+Browse is **built into the extension but off by default** (`FLIGHTDECK_BROWSE=1`).
+
+⚠️ **Turning it on requires re-enabling FlightDeck in Roon → Settings → Extensions.** Roon holds the
+registration — including the list of services an extension asks for — on file. Change that list and Roon
+parks the extension until a human approves it. On 2026-08-25 this was proven the hard way: adding Browse
+silently stopped the extension pairing at all, and every screen went dark until it was reverted.
+
+The sequence when you want it:
+
+1. `FLIGHTDECK_BROWSE=1 npm start`
+2. Roon → Settings → Extensions → **enable FlightDeck again** (it will be waiting).
+3. The log prints `browse service: granted`.
+4. `node scripts/capture-browse.ts` records the REAL shapes into `test/fixtures/browse-capture.json` —
+   the search hierarchy's live behaviour has never been captured anywhere, and two plausible ways to submit
+   a query are both still guesses. Build on the capture, not on the guess.

@@ -37,7 +37,12 @@ let boundPort = 0;
 let mdns: MdnsResponder | null = null;
 
 const extension = new FlightDeckExtension(
-  { dataDir: DATA_DIR, displayVersion: '0.1.0', log },
+  {
+    dataDir: DATA_DIR, displayVersion: '0.1.0', log,
+    // Opt-in: turning this on changes the registration, and Roon then parks the
+    // extension until someone re-enables it in Settings.
+    browse: process.env.FLIGHTDECK_BROWSE === '1',
+  },
   {
     onZones: (zones: unknown[]): void => { rawZones = zones; republish(); },
     onCore: (paired: boolean, name: string | null): void => {

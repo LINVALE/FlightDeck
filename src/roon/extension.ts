@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url);
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const RoonApi = require('node-roon-api');
 const RoonApiTransport = require('node-roon-api-transport');
+const RoonApiBrowse = require('node-roon-api-browse');
 
 export interface ExtensionEvents {
   /** Every zone the Core knows, on every change. FlightDeck is core-wide by design. */
@@ -19,6 +20,16 @@ export interface ExtensionOptions {
   readonly dataDir: string;
   readonly displayVersion: string;
   readonly log?: (message: string) => void;
+  /**
+   * Request the Browse service (library browse, genres, search).
+   *
+   * ⚠️ OFF by default, and that is not timidity. Changing the service list
+   * changes the registration Roon has on file, and Roon then PARKS the
+   * extension until a human re-enables it in Settings → Extensions. Turning
+   * this on without warning silently kills every screen in the house until
+   * someone clicks. Proven the hard way on 2026-08-25.
+   */
+  readonly browse?: boolean;
 }
 
 /**
@@ -33,6 +44,7 @@ export class FlightDeckExtension {
   private readonly events: ExtensionEvents;
   private api: any = null;
   private transport: any = null;
+  private browse: any = null;
   private coreHost: string | null = null;
   private coreHttpPort = 9330;
 
@@ -74,6 +86,8 @@ export class FlightDeckExtension {
 
       core_paired: (core: any): void => {
         this.transport = core.services.RoonApiTransport;
+        this.browse = core.services.RoonApiBrowse ?? null;
+        if (this.options.browse === true) log('browse service: ' + (this.browse === null ? 'NOT granted' : 'granted'));
         const rawHost = core.moo?.transport?.host ?? null;
         const loopback = rawHost === '127.0.0.1' || rawHost === '::1' || rawHost === 'localhost';
         this.coreHost = loopback ? '127.0.0.1' : rawHost;
@@ -102,16 +116,22 @@ export class FlightDeckExtension {
       core_unpaired: (): void => {
         log('core unpaired');
         this.transport = null;
+        this.browse = null;
         this.coreHost = null;
         this.events.onCore(false, null);
       },
     });
 
-    api.init_services({ required_services: [RoonApiTransport] });
+    api.init_services(this.options.browse === true
+      ? { required_services: [RoonApiTransport], optional_services: [RoonApiBrowse] }
+      : { required_services: [RoonApiTransport] });
     api.start_discovery();
     this.api = api;
     log('discovery started — enable "FlightDeck" in Roon Settings → Extensions');
   }
+
+  /** The Browse service, or null when not requested or not granted. */
+  browseService(): any { return this.browse; }
 
   stop(): void {
     try { this.api?.stop_discovery?.(); } catch { /* best effort */ }
