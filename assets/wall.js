@@ -16,6 +16,21 @@ var coreEl = document.getElementById('core');
 var tiles = {};
 var order = [];
 
+/**
+ * A wall shows the zones worth looking at, not every zone that exists. Because
+ * the order is most-recently-played, the cap curates itself: the rooms in use
+ * are the rooms on screen, and a room silent for a week does not need a tile.
+ *
+ * The remainder becomes one quiet line rather than a second page — a TV is
+ * driven by a remote from a sofa, and a wall nobody has to operate is the point.
+ * Override per screen with ?zones=N (0 for all).
+ */
+var MAX_TILES = 16;
+(function readCap() {
+  var match = /[?&]zones=(\d+)/.exec(window.location.search);
+  if (match !== null) MAX_TILES = Math.max(0, Math.min(64, parseInt(match[1], 10)));
+})();
+
 function el(tag, className, text) {
   var node = document.createElement(tag);
   if (className) node.className = className;
@@ -51,6 +66,20 @@ function buildTile(zone) {
     line2: line2, fill: fill, stamp: stamp, state: state, times: times,
     artKey: null, chips: []
   };
+}
+
+var overflowEl = null;
+function setOverflow(zones) {
+  if (overflowEl === null) {
+    overflowEl = el('div', 'overflow');
+    grid.parentNode.insertBefore(overflowEl, grid.nextSibling);
+  }
+  if (zones.length === 0) { overflowEl.textContent = ''; overflowEl.hidden = true; return; }
+  var names = [];
+  for (var i = 0; i < zones.length && i < 8; i += 1) names.push(zones[i].name);
+  overflowEl.hidden = false;
+  overflowEl.textContent = 'quiet since: ' + names.join(' · ')
+    + (zones.length > names.length ? ' and ' + (zones.length - names.length) + ' more' : '');
 }
 
 function stampFor(zone, now) {
@@ -130,8 +159,13 @@ function render(snapshot, kind) {
     summaryEl.textContent = (core.name ? core.name + ' · ' : '')
       + snapshot.zones.length + ' zones · ' + playing + ' playing'
       + (loading > 0 ? ' · ' + loading + ' loading' : '');
-    coreEl.textContent = core.state === 'paired' ? 'paired' : 'Roon is away — showing the last known state';
-    coreEl.className = 'wall-core' + (core.state === 'paired' ? '' : ' away');
+    if (streamState === 'catching-up') {
+      coreEl.textContent = 'catching up…';
+      coreEl.className = 'wall-core away';
+    } else {
+      coreEl.textContent = core.state === 'paired' ? 'paired' : 'Roon is away — showing the last known state';
+      coreEl.className = 'wall-core' + (core.state === 'paired' ? '' : ' away');
+    }
 
     if (snapshot.zones.length === 0) {
       grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
@@ -139,16 +173,16 @@ function render(snapshot, kind) {
       return;
     }
 
-    // Fit the house into the screen: a TV cannot scroll, so density scales with
-    // the number of zones rather than letting the last rooms fall off the bottom.
-    var count = snapshot.zones.length;
-    // 3 columns absorbs a large house comfortably (22 zones = 8 rows); 4 columns
-    // is reserved for the genuinely huge, where nothing else fits.
-    root.setAttribute('data-density', count > 27 ? 'packed' : (count > 9 ? 'dense' : 'roomy'));
+    // Fit the house into the screen: a TV cannot scroll, so shown zones are capped
+    // and density scales with what is left.
+    var shown = MAX_TILES === 0 ? snapshot.zones : snapshot.zones.slice(0, MAX_TILES);
+    var overflow = snapshot.zones.slice(shown.length);
+    var count = shown.length;
+    root.setAttribute('data-density', count > 20 ? 'packed' : (count > 9 ? 'dense' : 'roomy'));
 
     var nextOrder = [];
-    for (var i = 0; i < snapshot.zones.length; i += 1) {
-      var zone = snapshot.zones[i];
+    for (var i = 0; i < shown.length; i += 1) {
+      var zone = shown[i];
       var tile = tiles[zone.id];
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
@@ -170,9 +204,10 @@ function render(snapshot, kind) {
       for (var k = 0; k < order.length; k += 1) nodes.push(tiles[order[k]].node);
       grid.replaceChildren.apply(grid, nodes);
     }
+    setOverflow(overflow);
   }
 
-  // Progress on every frame, including seek ticks.
+  // Progress on every frame, including seek ticks. Only tiles that exist.
   for (var z = 0; z < snapshot.zones.length; z += 1) {
     var azone = snapshot.zones[z];
     var atile = tiles[azone.id];
@@ -191,8 +226,13 @@ function render(snapshot, kind) {
 
 var store = createStore(render);
 store.hydrate();
+var streamState = 'live';
 createStream(store, function (state) {
-  if (state === 'catching-up') coreEl.textContent = 'catching up…';
+  streamState = state;
+  // Restore the truth on heal: a late error frame from the dead socket used to
+  // leave "catching up" on screen after the data was already live again.
+  if (state === 'catching-up') { coreEl.textContent = 'catching up…'; coreEl.className = 'wall-core away'; }
+  else { var snap = store.snapshot(); if (snap !== null) render(snap, 'snapshot'); }
 });
 
 // Repaint at a low rate so interpolated progress moves smoothly between frames

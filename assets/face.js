@@ -232,7 +232,8 @@ function render(snapshot, kind) {
     if (chipHost.childNodes.length !== wanted.length) {
       chipHost.replaceChildren.apply(chipHost, wanted.map(function (o) { return el('span', 'chip', o.name); }));
     }
-    status.textContent = away ? 'Roon is away' : (zone.state === 'playing' ? 'playing' : zone.state);
+    status.textContent = streamState === 'catching-up' ? 'catching up…'
+      : (away ? 'Roon is away' : (zone.state === 'playing' ? 'playing' : zone.state));
 
     var np = zone.nowPlaying;
     if (np === null || zone.state === 'stopped') {
@@ -318,8 +319,11 @@ keepAwake();
 root.setAttribute('data-face', current);
 var store = createStore(render);
 store.hydrate();
+var streamState = 'live';
 createStream(store, function (state) {
+  streamState = state;
   if (state === 'catching-up') status.textContent = 'catching up…';
+  else { var snap = store.snapshot(); if (snap !== null) render(snap, 'snapshot'); }
 });
 setInterval(function () {
   var snapshot = store.snapshot();
