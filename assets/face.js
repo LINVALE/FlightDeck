@@ -98,18 +98,27 @@ function el(tag, className, text) {
 /**
  * The cover is a switch, and pressing it walks one cycle:
  *
- *   0  album blur   the artist blurred behind a sharp cover  (default)
- *   1  cover blur   the ALBUM blurred behind a sharp cover   (Peter, 08-25)
- *   2+ artist       one step per artist image, sharp and full bleed
+ *   0  artist blur  the artist blurred behind a sharp cover  (default)
+ *   1  album blur   the ALBUM blurred behind a sharp cover   (Peter, 08-25)
+ *   2  album big    the cover ITSELF forward, uncropped      (Peter, 08-25)
+ *   3+ artist       one step per artist image, sharp and full bleed
  *   then back to 0
  *
  * Step 1 is a user-triggered blur of the album art. That does NOT breach the
  * cover-sacred rule: the sacred cover is the sharp one in the layout, and a
  * blurred copy painted behind it is a derived backdrop — the same reasoning that
  * lets the Wall resize the cover but never tint it.
+ *
+ * Step 2 exists because artists could come forward and the album never could
+ * (Peter, 08-25: "we need to switch album art back and forward somehow"). It is
+ * `contain`, NOT `cover`: filling a 16:9 screen with a square sleeve would mean
+ * CROPPING it, and the cover is sacred. So it goes as large as it can go whole —
+ * full height, uncropped — floating on a blurred copy of itself.
  */
 var VIEW_ARTIST_BLUR = 0;
 var VIEW_COVER_BLUR = 1;
+var VIEW_COVER_BIG = 2;
+var ARTIST_STEP_0 = 3;      // the first artist image sits at step 3
 var viewStep = VIEW_ARTIST_BLUR;
 var artistIndex = -1;        // -1 = the cover is the hero
 var lastTitle = null;
@@ -283,7 +292,8 @@ function setBackdrop(zone) {
   var np = zone.nowPlaying;
   var source = null;
   if (np) {
-    if (viewStep === VIEW_COVER_BLUR) source = np.art;
+    // The album forward floats on a blurred copy of ITSELF, so the two agree.
+    if (viewStep === VIEW_COVER_BLUR || viewStep === VIEW_COVER_BIG) source = np.art;
     else source = np.artistArt ? np.artistArt : np.art;   // artist first, cover as the fallback
   }
   var key = (source ? source.key : null) + '@' + viewStep;
@@ -391,8 +401,16 @@ function applyArtistView() {
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
   if (artistIndex < 0 || artistIndex >= shots.length) {
     artistIndex = -1;
-    root.removeAttribute('data-view');
     artistLayer.className = 'artistlayer';
+    if (viewStep === VIEW_COVER_BIG) {
+      // The cover comes forward. `data-view="album"` only ever RESIZES it —
+      // no crop, no tint, no overlay — so the sacred rule holds.
+      root.setAttribute('data-view', 'album');
+      artistName.textContent = 'album';
+      artistName.hidden = false;
+      return;
+    }
+    root.removeAttribute('data-view');
     // Name the backdrop so a viewer knows which one they are looking at.
     artistName.textContent = viewStep === VIEW_COVER_BLUR ? 'album blur' : 'artist blur';
     artistName.hidden = viewStep === VIEW_ARTIST_BLUR;
@@ -421,14 +439,15 @@ function applyArtistView() {
 function cycleArtist() {
   var zone = currentZone();
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
-  var steps = 2 + shots.length;          // artist-blur, cover-blur, then each artist
+  var steps = ARTIST_STEP_0 + shots.length;   // artist-blur, album-blur, album-big, then each artist
   viewStep = (viewStep + 1) % steps;
-  artistIndex = viewStep >= 2 ? viewStep - 2 : -1;
+  artistIndex = viewStep >= ARTIST_STEP_0 ? viewStep - ARTIST_STEP_0 : -1;
   backdropKey = null;                    // the backdrop source changed
   applyArtistView();
   var snapshot = store.snapshot();
   if (snapshot !== null) render(snapshot, 'snapshot');
-  showPicker();
+  // Deliberately NOT showPicker(): that raises the FACE list, which landed on
+  // top of the title in album view. The artwork chip already names the step.
 }
 cover.addEventListener('click', function (event) { event.stopPropagation(); cycleArtist(); });
 
@@ -443,7 +462,7 @@ function showPicker() {
   }).reduce(function (all, part) { return all.concat(part); }, []);
   nodes.push(el('em', '', '|'));
   nodes.push(el('span', following ? 'now' : '', following ? 'following' : (zoneName.textContent || 'room')));
-  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK backdrop'));
+  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);

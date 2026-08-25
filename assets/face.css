@@ -101,11 +101,36 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-view="artist"] .cover { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
 .face[data-view="artist"] .lamps b.lit { background: var(--bone); }
 .face[data-view="artist"] .lamps b.head { background: #fff; }
+/* ── ALBUM FORWARD (Peter, 08-25: "switch album art back and forward") ──
+   The cover becomes the hero. It is only ever RESIZED here — `contain`, never
+   `cover`, because filling 16:9 with a square sleeve would CROP it and the cover
+   is sacred. So: as large as it goes whole (full height minus the copy), centred,
+   on a blurred copy of itself. No tint, no filter, no overlay, nothing on top. */
+.face[data-view="album"] .cover {
+  /* leaves room for the copy and the lamps beneath: at 62vh the title had
+     nowhere to sit. */
+  width: auto; height: 54vh;
+  /* a square sleeve stays square; a non-square one keeps its own ratio */
+  max-width: 86vw;
+}
+.face[data-view="album"] .cover img { width: auto; height: 100%; max-width: 86vw; }
+.face[data-view="album"] .title { font-size: 2.6vw; max-width: 74%; }
+.face[data-view="album"] .line2 { font-size: 1.5vw; }
+.face[data-view="album"] .line3 { font-size: 1.2vw; }
+.face[data-view="album"] .copy { margin-top: 1.6vh; }
+.face[data-view="album"] .artistname { display: inline-block; }
+
+@media (max-width: 900px) {
+  .face[data-view="album"] .cover { height: auto; width: 86vw; }
+  .face[data-view="album"] .cover img { width: 100%; height: auto; }
+  .face[data-view="album"] .title { font-size: 5.2vw; }
+}
+
 .artistname {
   margin-left: 1vw; padding: .12em .7em; border: 1px solid rgba(242,238,230,.28); border-radius: 2px;
   font-size: 1.02vw; letter-spacing: .16em; text-transform: uppercase; color: #d7d0c4;
 }
-.face:not([data-view="artist"]) .artistname { display: none; }
+.face:not([data-view="artist"]):not([data-view="album"]) .artistname { display: none; }
 @media (max-width: 900px) {
   .face[data-view="artist"] .cover { width: 26vw; height: 26vw; }
   .face[data-view="artist"] .title { font-size: 5.6vw; }
