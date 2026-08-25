@@ -1,0 +1,83 @@
+/**
+ * The FlightDeck wire contract. Faces never see Roon's own shape — this is the
+ * only vocabulary the browser knows, so a Roon API change stops here.
+ */
+
+export interface ArtRef {
+  /** Same-origin opaque path minted by the art relay. Never a Core URL or key. */
+  readonly path: string;
+  /** Stable identity for the image behind the path, so a client can tell "same art". */
+  readonly key: string;
+}
+
+export interface SeekRef {
+  readonly positionSec: number;
+  /** ISO time the position was observed, so the client interpolates from a known instant. */
+  readonly at: string;
+}
+
+export interface NowPlaying {
+  readonly title: string;
+  readonly line2: string;
+  readonly line3: string;
+  readonly art: ArtRef | null;
+  /**
+   * The artist backdrop. Sourced from Roon's UNDOCUMENTED `artist_image_keys`
+   * (185/192 frames on Peter's Core; vanished once in build 880) — always optional,
+   * never required; faces fall back to the blurred cover.
+   */
+  readonly artistArt: ArtRef | null;
+  readonly lengthSec: number | null;
+  readonly seek: SeekRef | null;
+}
+
+export type ZoneState = 'playing' | 'paused' | 'loading' | 'stopped';
+
+export interface ZoneOutput {
+  readonly id: string;
+  readonly name: string;
+}
+
+export interface Allowed {
+  readonly play: boolean;
+  readonly pause: boolean;
+  readonly next: boolean;
+  readonly previous: boolean;
+  readonly seek: boolean;
+}
+
+export interface Zone {
+  readonly id: string;
+  readonly name: string;
+  readonly state: ZoneState;
+  readonly outputs: readonly ZoneOutput[];
+  readonly nowPlaying: NowPlaying | null;
+  readonly allowed: Allowed;
+  /** ISO time this zone last had playback activity — the House Wall's ordering key. */
+  readonly lastPlayedAt: string | null;
+  /** ISO time the current run of playback began; ties are broken on it so a track change never reshuffles. */
+  readonly runStartedAt: string | null;
+}
+
+export type CoreState = 'paired' | 'away';
+
+export interface Core {
+  readonly state: CoreState;
+  readonly name: string | null;
+  readonly sinceAt: string;
+}
+
+export interface Snapshot {
+  /** Bumps on STRUCTURAL change only. Seek rides its own frame and never bumps this. */
+  readonly revision: number;
+  readonly generatedAt: string;
+  readonly core: Core;
+  readonly zones: readonly Zone[];
+}
+
+/** The 1 Hz seek frame: playing zones only, no revision bump. */
+export interface SeekFrame {
+  readonly revision: number;
+  readonly at: string;
+  readonly zones: readonly { readonly id: string; readonly positionSec: number }[];
+}

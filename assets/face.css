@@ -1,0 +1,117 @@
+/* Zone Face. Floor: Chromium 63 — no clamp(), no container queries, no
+   aspect-ratio, no backdrop-filter. A Face IS the viewport, so vw/vh are right. */
+
+:root {
+  --tarmac: #0a0b0d; --bone: #f2eee6; --ash: #a9a297; --smoke: #7d766c;
+  --accent: #d8a24a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; background: #0a0b0d; overflow: hidden; }
+body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit-font-smoothing: antialiased; }
+
+.face { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+
+/* ---- backdrop layers. The cover is NEVER one of them. ---- */
+.bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #0a0b0d; }
+.bg canvas {
+  position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+  /* Blur is applied to the tiny canvas, then the canvas is scaled up: the GPU
+     blurs ~5k pixels rather than 2M, which is the difference between smooth and
+     stuttering on a 2019 TV SoC. */
+  -webkit-transform: translate(-50%, -50%) scale(1.12);
+  transform: translate(-50%, -50%) scale(1.12);
+  opacity: 0; -webkit-transition: opacity 1.2s ease; transition: opacity 1.2s ease;
+}
+.bg canvas.is-lit { opacity: 1; }
+.bg .wash {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(52% 62% at 50% 46%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.42) 78%),
+    linear-gradient(to bottom, rgba(0,0,0,0.28), rgba(0,0,0,0.66));
+}
+
+/* ---- the safe area: 5% inset for TV overscan ---- */
+.safe {
+  position: absolute; top: 5%; left: 5%; right: 5%; bottom: 5%;
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+}
+
+.head { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.zone { font-size: 1.35vw; letter-spacing: 0.26em; text-transform: uppercase; color: var(--accent); }
+.chip {
+  display: inline-block; margin-left: 0.7vw; padding: 0.15em 0.6em;
+  border: 1px solid rgba(242,238,230,0.26); border-radius: 2px;
+  font-size: 1.05vw; letter-spacing: 0.06em; color: #d7d0c4; text-transform: none;
+}
+.status { margin-left: auto; font-size: 1.1vw; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ash); }
+.status i { display: inline-block; width: 0.6vw; height: 0.6vw; border-radius: 50%;
+  background: var(--accent); margin-right: 0.6vw; vertical-align: middle; }
+
+.body {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  min-height: 0;
+}
+
+/* ---- THE COVER IS SACRED ----
+   It is only ever RESIZED. No opacity, no filter, no transform, no mask, no
+   overlay, and nothing is ever drawn on top of it. State lives in the copy. */
+.cover { width: 26vw; height: 26vw; background: #14161a; box-shadow: 0 2vw 5vw rgba(0,0,0,0.62); }
+.cover img { display: block; width: 100%; height: 100%; }
+
+.copy { text-align: center; margin-top: 2.4vh; width: 100%; }
+.title {
+  font-family: Georgia, "Times New Roman", serif; font-weight: 500;
+  font-size: 4vw; line-height: 1.08; margin: 0 auto; max-width: 82%;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.line2 { font-size: 1.9vw; color: #efe9de; margin-top: 1.1vh; }
+.line3 { font-family: Georgia, serif; font-style: italic; font-size: 1.45vw; color: var(--ash); margin-top: 0.5vh; }
+
+/* ---- the Approach: runway lamps ---- */
+.foot { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.time { font-size: 1.35vw; color: var(--ash); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time.ends { color: #6f6a62; font-size: 1.1vw; }
+.lamps {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-flex; display: flex; -webkit-justify-content: space-between; justify-content: space-between;
+  margin: 0 1.6vw; height: 1.5vw;
+}
+.lamps b { display: block; width: 0.42vw; height: 100%; background: rgba(242,238,230,0.17); border-radius: 0.2vw; }
+.lamps b.lit { background: var(--accent); }
+.lamps b.head { background: #ffd98a; box-shadow: 0 0 1vw rgba(255,217,138,0.75); }
+
+.face[data-state="paused"] .lamps b.head { -webkit-animation: none; animation: none; }
+.face[data-state="paused"] .status { color: var(--accent); }
+.face[data-state="loading"] .lamps b { -webkit-animation: sweep 1.4s linear infinite; animation: sweep 1.4s linear infinite; }
+@-webkit-keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
+@keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
+.face[data-state="stopped"] .copy, .face[data-state="stopped"] .foot { display: none; }
+.face[data-state="away"] .copy { opacity: 0.55; }   /* the COPY, never the cover */
+.face[data-state="connecting"] .copy { opacity: 0.4; }
+
+.idle { text-align: center; }
+.idle .clock { font-family: Georgia, serif; font-size: 9vw; color: rgba(242,238,230,0.5); }
+.idle .note { font-size: 1.3vw; color: #5f5a53; letter-spacing: 0.2em; text-transform: uppercase; }
+
+/* ---- the face picker: raised by any key/tap, auto-hides, never over the cover ---- */
+.picker {
+  position: fixed; left: 50%; bottom: 3vh; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  background: rgba(10,11,13,0.92); border: 1px solid rgba(242,238,230,0.2); border-radius: 0.6vw;
+  padding: 0.8vh 1.4vw; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+}
+.picker[hidden] { display: none; }
+.picker span { font-size: 1.2vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
+.picker span.now { color: var(--accent); }
+.picker em { font-style: normal; color: #5f5a53; margin: 0 0.9vw; font-size: 1.05vw; }
+
+@media (max-width: 900px) {
+  .cover { width: 62vw; height: 62vw; }
+  .title { font-size: 7vw; } .line2 { font-size: 3.6vw; } .line3 { font-size: 3vw; }
+  .zone { font-size: 3vw; } .chip { font-size: 2.4vw; } .status { font-size: 2.4vw; }
+  .time { font-size: 3vw; } .time.ends { font-size: 2.4vw; } .picker span { font-size: 2.6vw; }
+}

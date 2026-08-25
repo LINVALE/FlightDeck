@@ -1,0 +1,150 @@
+import { createHmac, randomBytes } from 'node:crypto';
+import type { ArtRef } from '../model/types.ts';
+
+/**
+ * Parent-owned artwork relay (the shape RHEOS proved, 2026-08-14 Codex ruling):
+ * the browser never sees a Roon Core URL, handle or image key — only an opaque
+ * same-origin path. Bounded on MIME, size, count, TTL and concurrency; a failure
+ * is simply "no artwork" (R5: the face keeps its previous art).
+ */
+
+export const ART_PATH = '/api/v1/art/';
+export const ART_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
+const IMAGE_KEY = /^[A-Za-z0-9]{1,128}$/;
+const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+/**
+ * Two size classes. `bg` is deliberately small: Roon's native artist images are
+ * 1024x448 banners and the backdrop is blurred, so resolution is irrelevant —
+ * asking for 1920 wide only makes the Core upscale (measured 08-25).
+ */
+export const SIZES = {
+  cover: { width: 640, height: 640, scale: 'fit' },
+  bg: { width: 1024, height: 576, scale: 'fit' },
+} as const;
+
+export type SizeClass = keyof typeof SIZES;
+
+export interface ArtResource { readonly contentType: string; readonly bytes: Buffer }
+
+export interface RelayOptions {
+  /** Core artwork URL for a key and size; '' while unpaired. Read per use, never latched. */
+  readonly artworkUrl: (imageKey: string, size: SizeClass) => string;
+  readonly fetchImpl?: typeof fetch;
+  readonly now?: () => number;
+  readonly maxBytes?: number;
+  readonly maxEntries?: number;
+  readonly maxKeys?: number;
+  readonly ttlMs?: number;
+  readonly maxConcurrent?: number;
+  readonly timeoutMs?: number;
+}
+
+interface CacheEntry { resource: ArtResource; storedAt: number }
+
+function bounded(value: number | undefined, fallback: number, low: number, high: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(high, Math.max(low, Math.round(value)));
+}
+
+export class ArtRelay {
+  private readonly secret = randomBytes(32);
+  private readonly keys = new Map<string, { key: string; size: SizeClass }>();
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly inflight = new Map<string, Promise<ArtResource | null>>();
+  private active = 0;
+  private readonly opts: Required<Omit<RelayOptions, 'fetchImpl' | 'now'>> & { fetchImpl: typeof fetch; now: () => number };
+
+  constructor(options: RelayOptions) {
+    this.opts = {
+      artworkUrl: options.artworkUrl,
+      fetchImpl: options.fetchImpl ?? fetch,
+      now: options.now ?? ((): number => Date.now()),
+      maxBytes: bounded(options.maxBytes, 1_048_576, 1024, 8_388_608),
+      maxEntries: bounded(options.maxEntries, 96, 1, 512),
+      maxKeys: bounded(options.maxKeys, 512, 1, 4096),
+      ttlMs: bounded(options.ttlMs, 30 * 60_000, 1000, 24 * 60 * 60_000),
+      maxConcurrent: bounded(options.maxConcurrent, 4, 1, 16),
+      timeoutMs: bounded(options.timeoutMs, 6000, 250, 60_000),
+    };
+  }
+
+  /** Implements ArtMinter for the projection. */
+  pathFor(imageKey: unknown, size: SizeClass): ArtRef | null {
+    if (typeof imageKey !== 'string' || !IMAGE_KEY.test(imageKey)) return null;
+    const token = this.tokenFor(imageKey, size);
+    this.keys.delete(token);
+    this.keys.set(token, { key: imageKey, size });
+    while (this.keys.size > this.opts.maxKeys) {
+      const oldest = this.keys.keys().next().value;
+      if (oldest === undefined) break;
+      this.keys.delete(oldest);
+    }
+    return { path: ART_PATH + token, key: imageKey };
+  }
+
+  static tokenFromPath(path: string): string | null {
+    if (!path.startsWith(ART_PATH)) return null;
+    const token = path.slice(ART_PATH.length);
+    return ART_TOKEN.test(token) ? token : null;
+  }
+
+  async resolve(token: string): Promise<ArtResource | null> {
+    if (typeof token !== 'string' || !ART_TOKEN.test(token)) return null;
+    const entry = this.keys.get(token);
+    if (entry === undefined) return null;
+
+    const cached = this.cache.get(token);
+    if (cached !== undefined && this.opts.now() - cached.storedAt < this.opts.ttlMs) {
+      this.cache.delete(token);
+      this.cache.set(token, cached);
+      return cached.resource;
+    }
+    const existing = this.inflight.get(token);
+    if (existing !== undefined) return existing;
+    if (this.active >= this.opts.maxConcurrent) return cached === undefined ? null : cached.resource;
+
+    const pending = this.fetchOne(entry.key, entry.size).then((resource) => {
+      if (resource !== null) {
+        this.cache.delete(token);
+        this.cache.set(token, { resource, storedAt: this.opts.now() });
+        while (this.cache.size > this.opts.maxEntries) {
+          const oldest = this.cache.keys().next().value;
+          if (oldest === undefined) break;
+          this.cache.delete(oldest);
+        }
+      }
+      return resource;
+    }).finally(() => {
+      this.active -= 1;
+      this.inflight.delete(token);
+    });
+    this.active += 1;
+    this.inflight.set(token, pending);
+    return pending;
+  }
+
+  private async fetchOne(imageKey: string, size: SizeClass): Promise<ArtResource | null> {
+    const url = this.opts.artworkUrl(imageKey, size);
+    if (url === '') return null;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs);
+    try {
+      const response = await this.opts.fetchImpl(url, { signal: controller.signal });
+      if (!response.ok) return null;
+      const contentType = (response.headers.get('content-type') ?? '').split(';')[0].trim();
+      if (!TYPES.has(contentType)) return null;
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength === 0 || buffer.byteLength > this.opts.maxBytes) return null;
+      return { contentType, bytes: buffer };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private tokenFor(imageKey: string, size: SizeClass): string {
+    return createHmac('sha256', this.secret).update(size + ':' + imageKey).digest('base64url').slice(0, 32);
+  }
+}

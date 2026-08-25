@@ -1,0 +1,75 @@
+/* The House Wall — a ruled ledger, ordered by most recently played (Peter, 08-25).
+   Floor: Chromium 63. No container queries, no clamp(), no aspect-ratio. */
+
+:root {
+  --ink: #07080a; --panel: #101216; --line: #23272e;
+  --bone: #e8e3d8; --ash: #9aa0a8; --dim: #666c74;
+  --accent: #d8a24a; --live: #6fbf8f; --pause: #c8a13f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--ink); color: var(--bone);
+  font-family: "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+body { min-height: 100vh; }
+
+.wall { padding: 2.2vh 2.4vw; min-height: 100vh; display: flex; flex-direction: column; }
+.wall-head { display: flex; align-items: baseline; margin-bottom: 1.6vh; }
+.brand { font-size: 1.5vw; letter-spacing: 0.34em; font-weight: 700; color: var(--dim); }
+.brand span { color: var(--accent); }
+.wall-summary { margin-left: 1.6vw; font-size: 1.15vw; color: var(--ash); }
+.wall-core { margin-left: auto; font-size: 1.05vw; color: var(--dim); }
+.wall-core.away { color: var(--accent); }
+
+.grid { display: flex; flex-wrap: wrap; align-content: flex-start; flex: 1 1 auto; }
+.tile { display: flex; align-items: center; width: 50%; padding: 0.7vh 1.1vw 0.7vh 0;
+  border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
+.tile.solo { width: 100%; }
+
+/* THE COVER IS SACRED: only ever RESIZED. Never opacity, filter, transform or mask —
+   state is expressed by the copy around it and by the size of its box. */
+.tile-art { flex: 0 0 auto; background: #17191d; border-radius: 2px; overflow: hidden; }
+.tile-art img { display: block; width: 100%; height: 100%; }
+.tile.is-live .tile-art { width: 7.4vw; height: 7.4vw; }
+.tile.is-paused .tile-art { width: 4.6vw; height: 4.6vw; }
+.tile.is-idle .tile-art { width: 3.1vw; height: 3.1vw; }
+.tile.is-hero .tile-art { width: 11.5vw; height: 11.5vw; }
+
+.tile-copy { min-width: 0; flex: 1 1 auto; padding-left: 1.1vw; }
+.tile-zone { font-size: 0.95vw; letter-spacing: 0.19em; text-transform: uppercase; color: var(--ash); }
+.tile.is-idle .tile-zone { color: var(--bone); font-size: 1.05vw; }
+.chip { display: inline-block; margin-left: 0.5vw; padding: 0.1em 0.5em; border: 1px solid var(--line);
+  border-radius: 2px; font-size: 0.72vw; letter-spacing: 0.08em; color: var(--dim); }
+.tile-title { font-size: 1.5vw; line-height: 1.16; margin: 0.25vh 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.tile.is-hero .tile-title { font-size: 2.1vw; white-space: normal; }
+.tile.is-idle .tile-title { font-size: 1.05vw; color: var(--ash); font-style: italic; }
+.tile-line2 { font-size: 0.98vw; color: var(--ash); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile.is-idle .tile-line2 { display: none; }
+
+.tile-meta { flex: 0 0 auto; text-align: right; padding-left: 1vw; }
+.tile-stamp { font-size: 0.8vw; color: var(--dim); white-space: nowrap; }
+.tile-state { font-size: 0.78vw; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); }
+.tile.is-live .tile-state { color: var(--live); }
+.tile.is-paused .tile-state { color: var(--pause); }
+.tile-times { font-size: 0.92vw; color: var(--ash); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* The ruling line under a live tile IS its progress. */
+.tile-rule { position: relative; height: 2px; background: var(--line); margin-top: 0.5vh; }
+.tile-rule i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); width: 0; }
+
+.wall-foot { margin-top: 1.4vh; padding-top: 1.2vh; border-top: 1px solid var(--line); }
+.reach { display: flex; align-items: center; justify-content: flex-end; }
+.reach-urls { text-align: right; margin-right: 1.2vw; }
+.url { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+.url.primary { font-size: 1.5vw; color: var(--bone); }
+.url.alt { font-size: 1.05vw; color: var(--ash); }
+.reach-note { font-size: 0.8vw; color: var(--dim); margin-top: 0.3vh; }
+.reach-note code { color: var(--ash); }
+.qr { flex: 0 0 auto; line-height: 0; }
+
+.empty { padding: 8vh 0; text-align: center; color: var(--dim); font-size: 1.3vw; }
+@media (max-width: 900px) {
+  .tile { width: 100%; }
+  .tile.is-live .tile-art { width: 18vw; height: 18vw; }
+  .tile-title { font-size: 4vw; } .tile-zone { font-size: 2.6vw; } .tile-line2 { font-size: 2.6vw; }
+  .url.primary { font-size: 4vw; } .url.alt { font-size: 3vw; } .reach-note { font-size: 2.4vw; }
+}
