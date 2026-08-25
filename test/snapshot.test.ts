@@ -102,3 +102,20 @@ test('a malformed zone is dropped rather than crashing the snapshot', () => {
     { zones, coreName: null, corePaired: true, coreSinceAt: AT, revision: 1, at: AT }, art, ledger);
   assert.equal(snapshot.zones.length, ZONES.length);
 });
+
+test('a restart does not re-log the track that is already playing', () => {
+  const ledger = new RecentLedger(null);
+  ledger.observe('z1', 'Study', 'playing', 'Dis-Moi', 'Jill Barber', 'k1', '2026-08-25T16:01:00.000Z');
+  ledger.observe('z1', 'Study', 'playing', 'Dis-Moi', 'Jill Barber', 'k1', '2026-08-25T16:01:30.000Z');
+  assert.equal(ledger.recent().length, 1, 'the same track observed twice is one row');
+
+  // A pause and resume is still the same track.
+  ledger.observe('z1', 'Study', 'paused', 'Dis-Moi', 'Jill Barber', 'k1', '2026-08-25T16:02:00.000Z');
+  ledger.observe('z1', 'Study', 'playing', 'Dis-Moi', 'Jill Barber', 'k1', '2026-08-25T16:02:30.000Z');
+  assert.equal(ledger.recent().length, 1, 'a pause/resume must not log the track twice');
+
+  // A genuinely new track does get a row.
+  ledger.observe('z1', 'Study', 'playing', 'Took Me By Surprise', 'Jill Barber', 'k2', '2026-08-25T16:03:00.000Z');
+  assert.equal(ledger.recent().length, 2);
+  assert.equal(ledger.recent()[0].title, 'Took Me By Surprise');
+});

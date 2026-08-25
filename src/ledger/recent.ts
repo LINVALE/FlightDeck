@@ -71,15 +71,28 @@ export class RecentLedger {
       if (!record.wasLive) record.runStartedAt = at;
       this.dirty = true;
     }
-    // A new title while live is a new track: one ledger row, deduped on (zone,title).
-    if (live && title !== null && title !== record.lastTitle) {
+    // A new title while live is a new track — but "new" has to survive a process
+    // restart and a pause/resume, or every run re-logs whatever is playing.
+    // Checked against the newest row for THIS zone, not just in-memory state.
+    if (live && title !== null && title !== record.lastTitle && !this.alreadyNewest(zoneId, title)) {
       record.lastTitle = title;
       this.tracks.unshift({ zoneId, zoneName, title, line2, artKey, at });
       if (this.tracks.length > MAX_TRACKS) this.tracks.length = MAX_TRACKS;
       this.dirty = true;
     }
-    if (!live) record.lastTitle = null;
+    // Deliberately NOT cleared when a zone stops: resuming the same track is the
+    // same track, and clearing it here is what made a pause/resume log twice.
+    if (live) record.lastTitle = title === null ? record.lastTitle : title;
     record.wasLive = live;
+  }
+
+  /** The newest row for a zone, so a restart does not re-log the current track. */
+  private alreadyNewest(zoneId: string, title: string): boolean {
+    for (const track of this.tracks) {
+      if (track.zoneId !== zoneId) continue;
+      return track.title === title;
+    }
+    return false;
   }
 
   /** Persist at most once per call site; callers throttle. A failed write is never fatal. */
@@ -116,6 +129,12 @@ export class RecentLedger {
         this.tracks = parsed.tracks.filter((t: unknown): t is RecentTrack =>
           t !== null && typeof t === 'object' && typeof (t as RecentTrack).title === 'string')
           .slice(0, MAX_TRACKS);
+        // Re-seed each zone's last title from the newest surviving row, so the
+        // first observation after a restart is not mistaken for a track change.
+        for (const track of this.tracks) {
+          const record = this.zones.get(track.zoneId);
+          if (record !== undefined && record.lastTitle === null) record.lastTitle = track.title;
+        }
       }
     } catch { /* first run, or a corrupt file: start clean rather than refuse to boot */ }
   }
