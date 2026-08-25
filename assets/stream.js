@@ -18,6 +18,10 @@ export function createStream(store, onStatus) {
   var timer = null;
   var backoff = BACKOFF_MIN;
   var stopped = false;
+  // A closed EventSource can still deliver one last error event. Without an
+  // epoch, that stale error lands AFTER the new connection is live and leaves
+  // "catching up" on a screen whose data is already current — the screen lies.
+  var epoch = 0;
 
   function status(state) { if (onStatus) onStatus(state); }
 
@@ -31,6 +35,7 @@ export function createStream(store, onStatus) {
 
   function reopen(immediate) {
     if (stopped) return;
+    epoch += 1;
     if (source !== null) { try { source.close(); } catch (error) { /* already gone */ } source = null; }
     var delay = immediate ? 0 : backoff;
     backoff = Math.min(BACKOFF_MAX, backoff * 2);
@@ -51,13 +56,17 @@ export function createStream(store, onStatus) {
 
   function connect() {
     if (stopped) return;
+    var mine = epoch;
     try {
       source = new EventSource('/api/v1/events');
     } catch (error) {
       reopen(false);
       return;
     }
-    source.addEventListener('open', function () { backoff = BACKOFF_MIN; kick(); status('live'); });
+    source.addEventListener('open', function () {
+      if (mine !== epoch) return;
+      backoff = BACKOFF_MIN; kick(); status('live');
+    });
     source.addEventListener('snapshot', frame(function (data) { store.accept(data); }));
     source.addEventListener('update', frame(function (data) { store.accept(data); }));
     source.addEventListener('resync', frame(function (data) {
@@ -65,6 +74,7 @@ export function createStream(store, onStatus) {
     }));
     source.addEventListener('seek', frame(function (data) { store.acceptSeek(data); }));
     source.addEventListener('error', function () {
+      if (mine !== epoch) return;   // a dying socket must not speak for the live one
       status('catching-up');
       reopen(false);
     });

@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
@@ -144,10 +144,21 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       if (type === undefined) { json(response, 404, { error: 'not found' }); return; }
       try {
         const bytes = readFileSync(join(deps.assetDir, relative));
+        // Revalidate rather than cache blind. A kiosk screen runs for weeks; a
+        // long max-age means it keeps running last month's code after an update
+        // (which is exactly what fooled a test here on 2026-08-25). The ETag
+        // keeps repeat loads cheap without letting a screen go stale.
+        const etag = '"' + createHash('sha256').update(bytes).digest('base64url').slice(0, 24) + '"';
+        if (request.headers['if-none-match'] === etag) {
+          response.writeHead(304, { ETag: etag, 'Cache-Control': 'no-cache' });
+          response.end();
+          return;
+        }
         response.writeHead(200, {
           'Content-Type': type,
           'Content-Length': bytes.byteLength,
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': 'no-cache',
+          ETag: etag,
         });
         response.end(bytes);
       } catch {
