@@ -21,6 +21,16 @@ function head(nonce: string, title: string, styleHref: string): string {
     + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
     + '<meta name="color-scheme" content="dark">'
     + '<title>' + title + '</title>'
+    // Add-to-Home-Screen: gives Fire TV / Android TV / iPad an icon and true
+    // fullscreen with no browser chrome. Samsung and LG browsers ignore it —
+    // there the route is the browser homepage plus Autorun (docs/tv-setup.md).
+    + '<link rel="manifest" href="/assets/app.webmanifest">'
+    + '<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">'
+    + '<link rel="apple-touch-icon" href="/assets/icon-192.png">'
+    + '<meta name="mobile-web-app-capable" content="yes">'
+    + '<meta name="apple-mobile-web-app-capable" content="yes">'
+    + '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
+    + '<meta name="theme-color" content="#0a0b0d">'
     + '<link rel="stylesheet" href="' + styleHref + '">'
     + '<script type="module" nonce="' + nonce + '" src="/assets/' + (styleHref.includes('wall') ? 'wall' : 'face') + '.js"></script>'
     + '</head>';

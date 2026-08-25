@@ -76,6 +76,12 @@ Fire OS / Echo Show / Android ≤ 11 (including Nvidia Shield), and is unverifie
 Binding `:80` unprivileged: systemd `AmbientCapabilities=CAP_NET_BIND_SERVICE`, or root in a host-network
 container. Never require the host-wide sysctl. Bridge networking cannot carry mDNS at all.
 
+## On a TV
+
+Samsung, LG and Fire TV each need a slightly different setup, and one shared trick:
+make the address short with a router DNS record so it is typeable on a remote.
+Step-by-step per platform, including why no native app exists: **`docs/tv-setup.md`**.
+
 ## Faces
 
 All five are **user-selectable** — the ranking below decides what loads first, not what survives.

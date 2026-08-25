@@ -25,6 +25,7 @@ const ASSET_TYPES = new Map<string, string>([
   ['.js', 'application/javascript; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
+  ['.png', 'image/png'],
   ['.woff2', 'font/woff2'],
   ['.webmanifest', 'application/manifest+json'],
 ]);
@@ -39,6 +40,8 @@ function csp(nonce: string): string {
     "script-src 'self' 'nonce-" + nonce + "'",
     "style-src 'self' 'nonce-" + nonce + "'",
     "connect-src 'self'",
+    // default-src 'none' otherwise blocks the manifest fetch outright
+    "manifest-src 'self'",
     "img-src 'self' data:",
     "font-src 'self'",
     "object-src 'none'",

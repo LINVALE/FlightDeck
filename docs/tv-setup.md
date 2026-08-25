@@ -1,0 +1,94 @@
+# Putting FlightDeck on a TV
+
+Samsung, LG and Fire TV all end up in the same place — **the TV's browser, opened
+to a short URL, remembered**. Only Fire TV can go further than that, and none of
+the three can have a real installed app without a store submission (see the end).
+
+## 0. First, make the address short — this is the biggest single win
+
+Typing on a TV remote is the actual pain, not the browser. So make the address as
+short as it can be: add a **router DNS record** (UniFi → Settings → Networks →
+DNS → Create New Record, type `A`):
+
+| Name | Points to | You type |
+|------|-----------|----------|
+| `fd` | `192.168.1.114` | **`fd/`** ← two characters |
+| `flightdeck` | `192.168.1.114` | `flightdeck/` |
+
+Add both — `fd` for the remote, `flightdeck` for humans. This is ordinary unicast
+DNS, so it works on **every** device: Samsung, LG, Fire TV, Windows with mDNS
+locked down, the lot. `.local` does not, and never will on those TVs.
+
+⚠️ Pair it with a **DHCP reservation** for `192.168.1.114`, or the record rots the
+day the box gets a different lease.
+
+Without a DNS record the fallback is always `192.168.1.114/` — and the House Wall
+prints it, with a QR, in its footer.
+
+## 1. Samsung (Tizen)
+
+1. Open **Internet**, go to `fd/`.
+2. **Settings → Hide Tabs and Menu Bar → Use** — removes the browser chrome.
+3. Add it as a bookmark, then **Settings → Set as Homepage**. Opening Internet is
+   now FlightDeck.
+4. **General & Privacy → Start Screen Options → Autorun Last App → On.** The TV
+   now boots into it.
+5. ⚠️ **General → Power and Energy Saving → Auto Power Off → Off.** It is 4 hours
+   by default and a firmware update can turn it back on.
+
+That is as close to an app as Tizen allows without publishing to Samsung's store.
+
+## 2. LG (webOS)
+
+1. Open **Web Browser**, go to `fd/`.
+2. **Settings → Always Show Address Bar → Off** (a thin strip may remain — the 5%
+   safe area covers it).
+3. Bookmark it and set it as the homepage.
+4. ⚠️ **The screensaver will interrupt you.** LG only exempts full-screen *video*,
+   and its `navigator.wakeLock` hangs rather than rejects — FlightDeck races it
+   against a 5-second timeout so the page never stalls, but the screensaver still
+   wins. Turn the screensaver off in **General → Screen Saver** if you want an
+   unattended display. Expect the 2-hour drill to fail here otherwise; that is a
+   webOS limitation, not a FlightDeck defect.
+5. webOS has no boot-into-browser without root.
+
+## 3. Fire TV — the one that can do better
+
+The Silk browser works, but it exits to the home screen after 10–15 minutes and
+Amazon states that timeout cannot be disabled. So do **not** use Silk for a
+permanent display. Two better routes:
+
+**a. Add to Home Screen (free, no sideloading).** FlightDeck now ships a PWA
+manifest, so Fire TV and Android TV can install it: an icon on the home row, true
+fullscreen, no browser chrome.
+
+**b. Fully Kiosk Browser (the signage answer).** Sideload it, point it at `fd/`,
+and enable **Launch on Boot** and **Keep Screen On**. Its WebView is a current
+Chromium, so it is far ahead of the Samsung/LG engines. This is what actually
+gives an always-on wall display.
+
+## 4. On any of them, once it is open
+
+| Key | Does |
+|-----|------|
+| ◀ ▶ | change face |
+| ▲ ▼ | change room |
+| OK  | cycle artwork — artist blur → album blur → album forward → each artist |
+
+`/now` on the end of the URL gives a screen that follows whatever is playing,
+instead of pinning one room.
+
+## 5. Why there is no native app
+
+It is not an oversight — the platforms gate it:
+
+- **Samsung Tizen** — a `.wgt` needs a Samsung developer account, and TV dev mode
+  expires in about 60 days. Permanent use means submitting to their store.
+- **LG webOS** — an `.ipk` needs a dev-mode session that expires in **50 hours**
+  and must be renewed by hand. Unusable for a house display.
+- **Fire TV / Android TV** — the one platform where an APK is realistic. The PWA
+  above gets most of the way; a WebView APK is the remaining step if the icon and
+  boot behaviour ever matter more than the effort.
+
+So: browser + short URL + homepage on Samsung and LG, and Fully Kiosk or the PWA
+on Fire TV. That is the whole answer, and none of it needs code.
