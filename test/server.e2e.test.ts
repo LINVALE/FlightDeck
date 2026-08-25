@@ -204,6 +204,42 @@ test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
   assert.match(pinned, /data-zone="abc"/);
 });
 
+test('the port ladder falls back, and says something useful when it cannot', async (t) => {
+  const blocker = createFlightDeckServer({
+    hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
+    ledger: new RecentLedger(null), assetDir: ASSETS, mdns: () => null,
+    urls: () => [], port: () => 0,
+  });
+  await listenWithLadder(blocker, [0], () => {});
+  const blocked = blocker.address();
+  const taken = typeof blocked === 'object' && blocked !== null ? blocked.port : 0;
+  t.after(() => blocker.close());
+
+  // Falls THROUGH a taken port to a free one.
+  const lines: string[] = [];
+  const second = createFlightDeckServer({
+    hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
+    ledger: new RecentLedger(null), assetDir: ASSETS, mdns: () => null,
+    urls: () => [], port: () => 0,
+  });
+  const bound = await listenWithLadder(second, [taken, 0], (line) => lines.push(line));
+  t.after(() => second.close());
+  assert.notEqual(bound, taken);
+  assert.ok(lines.some((line) => line.includes('trying the next')));
+
+  // With no fallback left it must not claim to be trying one.
+  const doomed = createFlightDeckServer({
+    hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
+    ledger: new RecentLedger(null), assetDir: ASSETS, mdns: () => null,
+    urls: () => [], port: () => 0,
+  });
+  const last: string[] = [];
+  await assert.rejects(() => listenWithLadder(doomed, [taken], (line) => last.push(line)));
+  assert.ok(!last.some((line) => line.includes('trying the next')), 'must not promise a fallback it does not have');
+  assert.ok(last.some((line) => line.includes('already in use')));
+  assert.ok(last.some((line) => line.includes('FLIGHTDECK_PORT')), 'must say how to fix it');
+});
+
 test('assets are served, and a path traversal is refused', async (t) => {
   const server = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),

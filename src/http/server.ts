@@ -200,7 +200,9 @@ export async function listenWithLadder(
   server: Server, preferred: readonly number[], log: (message: string) => void,
 ): Promise<number> {
   let lastError: unknown = null;
-  for (const port of preferred) {
+  for (let index = 0; index < preferred.length; index += 1) {
+    const port = preferred[index];
+    const isLast = index === preferred.length - 1;
     try {
       await new Promise<void>((resolve, reject) => {
         const onError = (error: unknown): void => { server.removeListener('listening', onListening); reject(error); };
@@ -213,7 +215,17 @@ export async function listenWithLadder(
     } catch (error) {
       lastError = error;
       const code = (error as { code?: string }).code;
-      log('port ' + String(port) + ' unavailable (' + String(code) + ') — trying the next');
+      // Say what is actually true: on the last rung there IS no next to try, and
+      // the useful thing to print is what to do about it.
+      if (!isLast) {
+        log('port ' + String(port) + ' unavailable (' + String(code) + ') — trying the next');
+      } else if (code === 'EADDRINUSE') {
+        log('port ' + String(port) + ' is already in use — another FlightDeck is probably running.');
+        log('  find it:  ss -ltnp | grep :' + String(port));
+        log('  or pick another port:  FLIGHTDECK_PORT=8441 npm start');
+      } else {
+        log('port ' + String(port) + ' unavailable (' + String(code) + ') and no fallback remains');
+      }
     }
   }
   throw lastError instanceof Error ? lastError : new Error('no port available');
