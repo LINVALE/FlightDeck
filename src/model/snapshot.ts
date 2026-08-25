@@ -2,7 +2,7 @@ import type { Allowed, ArtRef, NowPlaying, Snapshot, Zone, ZoneOutput, ZoneState
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
 export interface ArtMinter {
-  pathFor(imageKey: unknown, size: 'cover' | 'bg'): ArtRef | null;
+  pathFor(imageKey: unknown, size: 'cover' | 'bg' | 'hero'): ArtRef | null;
 }
 
 /** Per-zone playback recency, owned by the ledger. Roon's API has no history — this is ours. */
@@ -39,6 +39,20 @@ function firstArtistKey(raw: unknown): unknown {
   return typeof first === 'string' && first.length > 0 ? first : null;
 }
 
+const MAX_ARTIST_IMAGES = 4;
+
+function artistKeys(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const keys: string[] = [];
+  for (const candidate of raw) {
+    if (typeof candidate !== 'string' || candidate.length === 0) continue;
+    if (keys.indexOf(candidate) !== -1) continue;
+    keys.push(candidate);
+    if (keys.length >= MAX_ARTIST_IMAGES) break;
+  }
+  return keys;
+}
+
 function projectNowPlaying(raw: unknown, art: ArtMinter, at: string): NowPlaying | null {
   if (raw === null || typeof raw !== 'object') return null;
   const np = raw as Record<string, unknown>;
@@ -54,6 +68,9 @@ function projectNowPlaying(raw: unknown, art: ArtMinter, at: string): NowPlaying
     line3: str(three.line3),
     art: art.pathFor(np.image_key, 'cover'),
     artistArt: art.pathFor(firstArtistKey(np.artist_image_keys), 'bg'),
+    artistArts: artistKeys(np.artist_image_keys)
+      .map((key) => art.pathFor(key, 'hero'))
+      .filter((ref): ref is ArtRef => ref !== null),
     lengthSec: positive(np.length),
     seek: position === null ? null : { positionSec: position, at },
   };
@@ -168,6 +185,7 @@ export function structuralSignature(snapshot: Snapshot): string {
       zone.nowPlaying.title, zone.nowPlaying.line2, zone.nowPlaying.line3,
       zone.nowPlaying.art === null ? '-' : zone.nowPlaying.art.key,
       zone.nowPlaying.artistArt === null ? '-' : zone.nowPlaying.artistArt.key,
+      zone.nowPlaying.artistArts.map((ref) => ref.key).join('+'),
       String(zone.nowPlaying.lengthSec),
     ].join('|'),
     [zone.allowed.play, zone.allowed.pause, zone.allowed.next, zone.allowed.previous, zone.allowed.seek].join(''),

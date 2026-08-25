@@ -1,0 +1,56 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FlightDeck: Start",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh start",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "FlightDeck: Stop",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh stop",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "FlightDeck: Restart",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh restart",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "FlightDeck: Status",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh status",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "FlightDeck: Tail Log",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh tail",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "FlightDeck: Restart with Browse",
+      "detail": "Requests the Roon Browse service — you must then re-enable FlightDeck in Roon → Settings → Extensions",
+      "type": "shell",
+      "command": "./flightdeck-launch.sh browse",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    },
+    {
+      "label": "FlightDeck: Test",
+      "type": "shell",
+      "command": "node --test --test-concurrency=1 'test/**/*.test.ts' && node scripts/floor-lint.ts",
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true }
+    }
+  ]
+}

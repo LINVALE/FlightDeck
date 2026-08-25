@@ -83,11 +83,46 @@ function el(tag, className, text) {
   return node;
 }
 
+/**
+ * ARTIST VIEW. Peter, 2026-08-25: the blurred backdrop reads as atmosphere but
+ * you cannot tell who it is. So the cover is a switch — press OK (or tap it) and
+ * the artist comes forward sharp and full bleed while the cover shrinks into the
+ * corner; press again for the next artist image; press past the last one to come
+ * back to the cover.
+ *
+ * Cycling rather than a single toggle is deliberate: Roon ships up to four keys
+ * per track and which one is the performer rather than the composer has never
+ * been verified. Letting a viewer step through them answers "who is this?" and
+ * settles that question on screen.
+ */
+/**
+ * The cover is a switch, and pressing it walks one cycle:
+ *
+ *   0  album blur   the artist blurred behind a sharp cover  (default)
+ *   1  cover blur   the ALBUM blurred behind a sharp cover   (Peter, 08-25)
+ *   2+ artist       one step per artist image, sharp and full bleed
+ *   then back to 0
+ *
+ * Step 1 is a user-triggered blur of the album art. That does NOT breach the
+ * cover-sacred rule: the sacred cover is the sharp one in the layout, and a
+ * blurred copy painted behind it is a derived backdrop — the same reasoning that
+ * lets the Wall resize the cover but never tint it.
+ */
+var VIEW_ARTIST_BLUR = 0;
+var VIEW_COVER_BLUR = 1;
+var viewStep = VIEW_ARTIST_BLUR;
+var artistIndex = -1;        // -1 = the cover is the hero
+var lastTitle = null;
+var artistLayer = null;
+
 var bg = el('div', 'bg');
 var canvas = document.createElement('canvas');
 canvas.width = 96; canvas.height = 54;
 bg.appendChild(canvas);
 bg.appendChild(el('div', 'wash'));
+
+artistLayer = el('div', 'artistlayer');
+bg.appendChild(artistLayer);
 
 var safe = el('div', 'safe');
 var head = el('div', 'head');
@@ -106,6 +141,9 @@ var title = el('h1', 'title');
 var line2 = el('div', 'line2');
 var line3 = el('div', 'line3');
 copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
+var artistName = el('span', 'artistname');
+head.insertBefore(artistName, status);
+
 var idle = el('div', 'idle');
 var idleClock = el('div', 'clock');
 var idleNote = el('div', 'note');
@@ -244,11 +282,14 @@ function setCover(art) {
 function setBackdrop(zone) {
   var np = zone.nowPlaying;
   var source = null;
-  if (np) source = np.artistArt ? np.artistArt : np.art;   // artist first, cover as the fallback
-  var key = source ? source.key : null;
+  if (np) {
+    if (viewStep === VIEW_COVER_BLUR) source = np.art;
+    else source = np.artistArt ? np.artistArt : np.art;   // artist first, cover as the fallback
+  }
+  var key = (source ? source.key : null) + '@' + viewStep;
   if (key === backdropKey) return;
   backdropKey = key;
-  if (source === null) { canvas.className = ''; return; }
+  if (source === null || source === undefined) { canvas.className = ''; return; }
   var url = source.path;
   readPalette(np.art ? np.art.path : url, function (tones) {
     palette = tones;
@@ -294,6 +335,13 @@ function render(snapshot, kind) {
     } else {
       idle.style.display = 'none';
       cover.style.display = '';
+      if (np.title !== lastTitle) {
+        lastTitle = np.title;
+        // A new track means a new artist; never leave a stale face on screen.
+        if (viewStep !== VIEW_ARTIST_BLUR) {
+          viewStep = VIEW_ARTIST_BLUR; artistIndex = -1; backdropKey = null; applyArtistView();
+        }
+      }
       title.textContent = np.title;
       line2.textContent = np.line2;
       line3.textContent = np.line3;
@@ -328,6 +376,62 @@ function render(snapshot, kind) {
     ? 'ENDS ' + finish.toTimeString().slice(0, 5) : '';
 }
 
+/* ---------- artist view ---------- */
+function currentZone() {
+  var snapshot = store.snapshot();
+  if (snapshot === null) return null;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    if (snapshot.zones[i].id === shownZoneId) return snapshot.zones[i];
+  }
+  return null;
+}
+
+function applyArtistView() {
+  var zone = currentZone();
+  var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
+  if (artistIndex < 0 || artistIndex >= shots.length) {
+    artistIndex = -1;
+    root.removeAttribute('data-view');
+    artistLayer.className = 'artistlayer';
+    // Name the backdrop so a viewer knows which one they are looking at.
+    artistName.textContent = viewStep === VIEW_COVER_BLUR ? 'album blur' : 'artist blur';
+    artistName.hidden = viewStep === VIEW_ARTIST_BLUR;
+    return;
+  }
+  var shot = shots[artistIndex];
+  root.setAttribute('data-view', 'artist');
+  // Decode before showing: a half-painted hero is worse than a beat of delay.
+  var probe = new Image();
+  var reveal = function () {
+    artistLayer.style.backgroundImage = 'url("' + shot.path + '")';
+    artistLayer.className = 'artistlayer is-lit';
+  };
+  probe.onload = reveal;
+  probe.onerror = function () { artistIndex = -1; applyArtistView(); };
+  if ('decode' in HTMLImageElement.prototype) {
+    probe.decode().then(reveal).catch(function () { /* onload covers it */ });
+  }
+  probe.src = shot.path;
+  artistName.textContent = shots.length > 1
+    ? 'artist ' + (artistIndex + 1) + ' of ' + shots.length
+    : 'artist';
+  artistName.hidden = false;
+}
+
+function cycleArtist() {
+  var zone = currentZone();
+  var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
+  var steps = 2 + shots.length;          // artist-blur, cover-blur, then each artist
+  viewStep = (viewStep + 1) % steps;
+  artistIndex = viewStep >= 2 ? viewStep - 2 : -1;
+  backdropKey = null;                    // the backdrop source changed
+  applyArtistView();
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+  showPicker();
+}
+cover.addEventListener('click', function (event) { event.stopPropagation(); cycleArtist(); });
+
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;
 function showPicker() {
@@ -339,7 +443,7 @@ function showPicker() {
   }).reduce(function (all, part) { return all.concat(part); }, []);
   nodes.push(el('em', '', '|'));
   nodes.push(el('span', following ? 'now' : '', following ? 'following' : (zoneName.textContent || 'room')));
-  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK follow'));
+  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK backdrop'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
@@ -354,19 +458,33 @@ function cycleFace(delta) {
 }
 
 /** Up/Down walk the house, in the Wall's order, from a remote. */
+/**
+ * Up/Down walk one list: [Following] then every room in the Wall's order. Making
+ * "following" the first position means it stays reachable from a remote without
+ * spending a key the remote may not have.
+ */
 function cycleZone(delta) {
   var snapshot = store.snapshot();
   if (snapshot === null || snapshot.zones.length === 0) return;
-  var index = -1;
-  for (var i = 0; i < snapshot.zones.length; i += 1) {
-    if (snapshot.zones[i].id === shownZoneId) { index = i; break; }
+  var stops = [null];   // null = the Following position
+  for (var i = 0; i < snapshot.zones.length; i += 1) stops.push(snapshot.zones[i].id);
+  var at = following ? 0 : Math.max(0, stops.indexOf(shownZoneId));
+  var next = (at + delta + stops.length) % stops.length;
+  var chosen = stops[next];
+  if (chosen === null) {
+    following = true;
+    writeFlag(STORE_KEY_FOLLOW + zoneId, true);
+    try { localStorage.removeItem(STORE_KEY_ZONE + zoneId); } catch (error) { /* private mode */ }
+  } else {
+    following = false;
+    shownZoneId = chosen;
+    writeFlag(STORE_KEY_FOLLOW + zoneId, false);
+    try { localStorage.setItem(STORE_KEY_ZONE + zoneId, chosen); } catch (error) { /* private mode */ }
   }
-  var next = (index + delta + snapshot.zones.length) % snapshot.zones.length;
-  shownZoneId = snapshot.zones[next].id;
-  // Choosing a room by hand is explicit: stop following.
-  following = false;
-  writeFlag(STORE_KEY_FOLLOW + zoneId, false);
-  try { localStorage.setItem(STORE_KEY_ZONE + zoneId, shownZoneId); } catch (error) { /* private mode */ }
+  viewStep = VIEW_ARTIST_BLUR;
+  artistIndex = -1;
+  backdropKey = null;
+  applyArtistView();
   render(snapshot, 'snapshot');
   showPicker();
 }
@@ -387,7 +505,7 @@ document.addEventListener('keydown', function (event) {
   else if (event.key === 'ArrowRight') { cycleFace(1); event.preventDefault(); }
   else if (event.key === 'ArrowUp') { cycleZone(-1); event.preventDefault(); }
   else if (event.key === 'ArrowDown') { cycleZone(1); event.preventDefault(); }
-  else if (event.key === 'Enter' || event.key === ' ') { toggleFollow(); event.preventDefault(); }
+  else if (event.key === 'Enter' || event.key === ' ') { cycleArtist(); event.preventDefault(); }
   else showPicker();
 });
 document.addEventListener('click', showPicker);

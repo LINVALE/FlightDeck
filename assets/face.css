@@ -57,10 +57,66 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   min-height: 0;
 }
 
+/* ---- ARTIST VIEW ----
+   Press OK (or tap the cover) and the artist comes forward, sharp and full
+   bleed, while the cover shrinks into the corner. The cover is still only ever
+   RESIZED and MOVED — never cropped, tinted or covered — so "sacred" holds. */
+.artistlayer {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background-position: center; background-size: cover; background-repeat: no-repeat;
+  opacity: 0; -webkit-transition: opacity .5s ease; transition: opacity .5s ease;
+}
+.face[data-view="artist"] .artistlayer.is-lit { opacity: 1; }
+.face[data-view="artist"] .bg canvas { opacity: 0; }
+.face[data-view="artist"] .bg .wash {
+  /* A photograph is not a backdrop until the text survives it. The bottom third
+     carries the title, lamps and times, so it gets a real scrim, plus a soft
+     left column for the copy. Tuned against a bright stage shot where the first
+     attempt left "artist 1 of 2" and the lamps unreadable. */
+  background:
+    linear-gradient(to top, rgba(0,0,0,.94) 0%, rgba(0,0,0,.86) 22%, rgba(0,0,0,.46) 40%, rgba(0,0,0,0) 64%),
+    linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 16%),
+    linear-gradient(to right, rgba(0,0,0,.55) 0%, rgba(0,0,0,.14) 40%, rgba(0,0,0,0) 64%);
+}
+.face[data-view="artist"] .body {
+  -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
+  -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
+}
+.face[data-view="artist"] .cover { width: 11vw; height: 11vw; }
+.face[data-view="artist"] .copy { text-align: left; margin-top: 1.2vh; }
+.face[data-view="artist"] .title { max-width: 74%; margin: 0; font-size: 3.1vw; }
+.face[data-view="artist"] .line2 { font-size: 1.6vw; }
+.face[data-view="artist"] .line3 { font-size: 1.25vw; }
+.face[data-view="artist"] .title,
+.face[data-view="artist"] .line2,
+.face[data-view="artist"] .line3,
+.face[data-view="artist"] .time { text-shadow: 0 .12em .5em rgba(0,0,0,.85); }
+.face[data-view="artist"] .lamps b { box-shadow: 0 0 .35em rgba(0,0,0,.9); }
+.face[data-view="artist"] .lamps b:not(.lit):not(.head) { background: rgba(242,238,230,.34); }
+/* The accent is lifted from the ALBUM, and a photograph is not the album: a red
+   accent on a blue stage shot is unreadable. Over a photo the zone name goes
+   neutral and lets the artist carry the colour. */
+.face[data-view="artist"] .zone { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
+.face[data-view="artist"] .status { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
+.face[data-view="artist"] .cover { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
+.face[data-view="artist"] .lamps b.lit { background: var(--bone); }
+.face[data-view="artist"] .lamps b.head { background: #fff; }
+.artistname {
+  margin-left: 1vw; padding: .12em .7em; border: 1px solid rgba(242,238,230,.28); border-radius: 2px;
+  font-size: 1.02vw; letter-spacing: .16em; text-transform: uppercase; color: #d7d0c4;
+}
+.face:not([data-view="artist"]) .artistname { display: none; }
+@media (max-width: 900px) {
+  .face[data-view="artist"] .cover { width: 26vw; height: 26vw; }
+  .face[data-view="artist"] .title { font-size: 5.6vw; }
+  .artistname { font-size: 2.6vw; }
+}
+
 /* ---- THE COVER IS SACRED ----
    It is only ever RESIZED. No opacity, no filter, no transform, no mask, no
    overlay, and nothing is ever drawn on top of it. State lives in the copy. */
-.cover { width: 26vw; height: 26vw; background: #14161a; box-shadow: 0 2vw 5vw rgba(0,0,0,0.62); }
+.cover { width: 26vw; height: 26vw; background: #14161a; box-shadow: 0 2vw 5vw rgba(0,0,0,0.62);
+  cursor: pointer; -webkit-transition: width .45s ease, height .45s ease; transition: width .45s ease, height .45s ease; }
 .cover img { display: block; width: 100%; height: 100%; }
 
 .copy { text-align: center; margin-top: 2.4vh; width: 100%; }
@@ -99,13 +155,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .idle .note { font-size: 1.3vw; color: #5f5a53; letter-spacing: 0.2em; text-transform: uppercase; }
 
 /* ---- the face picker: raised by any key/tap, auto-hides, never over the cover ---- */
+/* The strip sits ABOVE the progress row, never on it: at 3vh it landed on the
+   lamps and the times, which is the one place a glance needs to stay clean. */
 .picker {
-  position: fixed; left: 50%; bottom: 3vh; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  position: fixed; left: 50%; bottom: 13vh; -webkit-transform: translateX(-50%); transform: translateX(-50%);
   background: rgba(10,11,13,0.92); border: 1px solid rgba(242,238,230,0.2); border-radius: 0.6vw;
   padding: 0.8vh 1.4vw; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
 }
 .picker[hidden] { display: none; }
-.picker span { font-size: 1.2vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
+.picker span { font-size: 1.05vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
 .picker span.now { color: var(--accent); }
 .picker em { font-style: normal; color: #5f5a53; margin: 0 0.9vw; font-size: 1.05vw; }
 .picker em.hint { color: #40443f; font-size: 0.9vw; letter-spacing: 0.12em; margin-left: 1.4vw; }

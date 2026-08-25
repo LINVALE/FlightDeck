@@ -30,7 +30,12 @@ export function stripInert(source: string): string {
     }
     if (ch === '/' && next === '*') {
       index += 2;
-      while (index < n && !(source[index] === '*' && source[index + 1] === '/')) index += 1;
+      // Keep the newlines. Dropping them shifted every reported line number
+      // after a block comment, so findings pointed at innocent lines.
+      while (index < n && !(source[index] === '*' && source[index + 1] === '/')) {
+        if (source[index] === '\n') out += '\n';
+        index += 1;
+      }
       index += 2;
       continue;
     }
@@ -83,8 +88,16 @@ const CSS_RULES: { readonly pattern: RegExp; readonly why: string }[] = [
  * the cover itself, which is why this checks ancestors too.
  */
 const COVER_PROPERTIES = /(opacity|filter|transform|mask|-webkit-mask)\s*:/;
+/**
+ * Scope note (Peter, 2026-08-25): the rule protects the cover ELEMENT in the
+ * layout — the sharp one a listener looks at. A blurred COPY of the album art
+ * painted behind it is a derived backdrop, not the cover, and is allowed; that
+ * is the same reason the Wall may resize the cover but never tint it.
+ */
 
-export interface Finding { readonly file: string; readonly line: number; readonly why: string }
+export interface Finding {
+  readonly file: string; readonly line: number; readonly why: string; readonly text: string;
+}
 
 export function lintSource(file: string, source: string): Finding[] {
   const isCss = file.endsWith('.css');
@@ -95,17 +108,26 @@ export function lintSource(file: string, source: string): Finding[] {
   // The guard is tested against the ORIGINAL source: 'decode' is a string literal,
   // and stripInert empties it, so a stripped file can never show its own guard.
   if (!isCss && DECODE_CALL.test(stripped) && !DECODE_GUARD.test(source)) {
-    findings.push({ file, line: 1, why: "img.decode() is Chromium 64 and is never feature-detected in this file" });
+    findings.push({ file, line: 1, text: '', why: 'img.decode() is Chromium 64 and is never feature-detected in this file' });
   }
   for (let index = 0; index < lines.length; index += 1) {
     for (const rule of rules) {
-      if (rule.pattern.test(lines[index])) findings.push({ file, line: index + 1, why: rule.why });
+      if (rule.pattern.test(lines[index])) {
+        findings.push({ file, line: index + 1, why: rule.why, text: lines[index].trim().slice(0, 90) });
+      }
     }
-    if (isCss && /\.(cover|art)\b[^{]*\{/.test(lines[index])) {
-      // A rule whose selector names the cover must not touch these properties.
-      const block = lines.slice(index, index + 6).join(' ');
+    if (isCss && /\.cover\b[^{]*\{/.test(lines[index])) {
+      // Read the ACTUAL rule body, brace to brace. A fixed six-line window swept
+      // in whatever rules happened to follow and flagged them as cover
+      // violations — a lint that cries wolf gets switched off.
+      const start = stripped.indexOf('{', lines.slice(0, index).join('\n').length);
+      const end = stripped.indexOf('}', start);
+      const block = start === -1 || end === -1 ? '' : stripped.slice(start + 1, end);
       if (COVER_PROPERTIES.test(block)) {
-        findings.push({ file, line: index + 1, why: 'THE COVER IS SACRED: no opacity/filter/transform/mask on the cover or an ancestor' });
+        findings.push({
+          file, line: index + 1, text: lines[index].trim().slice(0, 90),
+          why: 'THE COVER IS SACRED: no opacity/filter/transform/mask on the cover or an ancestor',
+        });
       }
     }
   }
@@ -132,6 +154,7 @@ if (process.argv[1] !== undefined && process.argv[1].endsWith('floor-lint.ts')) 
   } else {
     for (const finding of findings) {
       process.stdout.write('FLOOR  ' + finding.file + ':' + String(finding.line) + '  ' + finding.why + '\n');
+      if (finding.text !== '') process.stdout.write('       > ' + finding.text + '\n');
     }
     process.exitCode = 1;
   }

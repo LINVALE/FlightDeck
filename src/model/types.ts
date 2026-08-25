@@ -27,6 +27,13 @@ export interface NowPlaying {
    * never required; faces fall back to the blurred cover.
    */
   readonly artistArt: ArtRef | null;
+  /**
+   * Every artist image Roon offers for this track (bounded), at foreground size.
+   * Roon ships 1-4 keys and which is the performer rather than the composer has
+   * never been verified — so the Face lets a viewer cycle them, which both
+   * answers "who is this?" and settles the question on screen.
+   */
+  readonly artistArts: readonly ArtRef[];
   readonly lengthSec: number | null;
   readonly seek: SeekRef | null;
 }

@@ -21,6 +21,10 @@ const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 export const SIZES = {
   cover: { width: 640, height: 640, scale: 'fit' },
   bg: { width: 1024, height: 576, scale: 'fit' },
+  // Foreground artist: `fill` returns an exact crop at the asked size (measured
+  // 2026-08-25), which is what a full-bleed 16:9 hero needs. Never used for the
+  // cover — cropping a cover is exactly what "sacred" forbids.
+  hero: { width: 1920, height: 1080, scale: 'fill' },
 } as const;
 
 export type SizeClass = keyof typeof SIZES;
