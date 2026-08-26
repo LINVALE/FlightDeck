@@ -717,10 +717,12 @@ function applyArtistView() {
     probe.decode().then(reveal).catch(function () { /* onload covers it */ });
   }
   probe.src = shot.path;
-  artistName.textContent = shots.length > 1
-    ? 'artist ' + (artistIndex + 1) + ' of ' + shots.length
-    : 'artist';
-  artistName.hidden = false;
+  // No "artist" label: a face full of a photograph of the artist does not need
+  // telling (Peter, 08-26). The COUNT is not obvious, though, so it stays when
+  // there is more than one shot to rotate through.
+  var several = shots.length > 1;
+  artistName.textContent = several ? (artistIndex + 1) + ' / ' + shots.length : '';
+  artistName.hidden = !several;
 }
 
 /**
