@@ -161,3 +161,30 @@ test('a grouped zone is still findable by the ROOM name, which lives on its outp
   assert.equal(resolveZone(zones, 'study'), 'std');
   assert.equal(resolveZone(zones, 'garage'), null);
 });
+
+test('a display binds to its OUTPUT, so grouping the room does not strand it', async () => {
+  const { resolveOutput } = await import('../src/http/pages.ts');
+  // Ungrouped: the Study speaker is its own zone.
+  const alone = [
+    { id: 'zStudy', name: 'Study RHEOS', state: 'playing', outputs: [{ id: 'oStudy', name: 'Study RHEOS' }] },
+    { id: 'zKit', name: 'Kitchen RHEOS', state: 'stopped', outputs: [{ id: 'oKit', name: 'Kitchen RHEOS' }] },
+  ];
+  const bound = resolveOutput(alone, 'study');
+  assert.deepEqual(bound, { outputId: 'oStudy', zoneId: 'zStudy' });
+
+  // Grouped: the SAME output now sits inside Downstairs. The screen must follow
+  // it there, because that is what the speaker beside the TV is playing.
+  const grouped = [
+    {
+      id: 'zDown', name: 'Downstairs', state: 'playing',
+      outputs: [{ id: 'oKit', name: 'Kitchen RHEOS' }, { id: 'oStudy', name: 'Study RHEOS' }],
+    },
+  ];
+  const regrouped = resolveOutput(grouped, 'study');
+  assert.equal(regrouped?.outputId, 'oStudy', 'the output identity is stable');
+  assert.equal(regrouped?.zoneId, 'zDown', 'the ZONE follows the grouping');
+
+  // A group name is not an output, so it does not resolve here — the zone
+  // fallback handles it.
+  assert.equal(resolveOutput(grouped, 'downstairs'), null);
+});

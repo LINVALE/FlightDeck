@@ -107,9 +107,51 @@ export function resolveZone(
   return (playing ?? pool[0]).id;
 }
 
+
+export interface ZoneLike {
+  id: string;
+  name: string;
+  state: string;
+  outputs?: readonly { id?: string; name: string }[];
+}
+
+/**
+ * Resolve what someone typed after /face/ to an OUTPUT — the physical thing in
+ * the room — rather than to a zone.
+ *
+ * Peter, 08-25: a display should show "the zone that is playing and contains the
+ * output this screen is set up for". That is the difference that matters when
+ * rooms are grouped: the Study speaker joins the Downstairs zone, and the TV in
+ * the study should then show what Downstairs is playing, because that IS what is
+ * coming out of the speaker beside it. Binding to a zone cannot express that;
+ * binding to an output can, and the zone is re-derived on every snapshot.
+ */
+export function resolveOutput(zones: readonly ZoneLike[], token: string): { outputId: string; zoneId: string } | null {
+  if (token === '') return null;
+  const wanted = zoneSlug(token);
+  if (wanted === '') return null;
+
+  const candidates: { outputId: string; zoneId: string; exact: boolean; playing: boolean }[] = [];
+  for (const zone of zones) {
+    const playing = zone.state === 'playing' || zone.state === 'loading';
+    for (const output of zone.outputs ?? []) {
+      const slug = zoneSlug(output.name);
+      if (slug === '' || output.id === undefined) continue;
+      if (slug === wanted) candidates.push({ outputId: output.id, zoneId: zone.id, exact: true, playing });
+      else if (slug.startsWith(wanted)) candidates.push({ outputId: output.id, zoneId: zone.id, exact: false, playing });
+    }
+  }
+  if (candidates.length === 0) return null;
+  const exact = candidates.filter((c) => c.exact);
+  const pool = exact.length > 0 ? exact : candidates;
+  const playing = pool.find((c) => c.playing);
+  const chosen = playing ?? pool[0];
+  return { outputId: chosen.outputId, zoneId: chosen.zoneId };
+}
+
 export function renderFacePage(
   nonce: string, zoneId: string, faceParam: string | null, followParam: string | null = null,
-  zoneToken: string | null = null,
+  zoneToken: string | null = null, outputId: string | null = null,
 ): string {
   const face = normalizeFace(faceParam);
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
@@ -121,6 +163,9 @@ export function renderFacePage(
     + '<body><main class="face" id="face"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
+    // The OUTPUT this screen belongs to. The zone is re-derived from it on every
+    // snapshot, so grouping the room does not strand the display.
+    + (outputId === null ? '' : ' data-output="' + outputId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128) + '"')
     // An explicit ?face= always WINS; otherwise the client reads its own memory.
     + (face === null ? '' : ' data-face-param="' + face + '"')
     + (followParam === '1' ? ' data-follow="1"' : (followParam === '0' ? ' data-follow="0"' : ''))

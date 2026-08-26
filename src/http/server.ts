@@ -6,7 +6,7 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderWallPage, resolveZone } from './pages.ts';
+import { renderDocPage, renderFacePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 
 export interface ServerDeps {
   readonly hub: EventHub;
@@ -211,9 +211,15 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       // Accept a NAME as well as an id: /face/study is typeable on a remote,
       // /face/1601d5ff4c9a... is not.
       const snapshot = deps.hub.snapshot();
-      const resolved = snapshot === null ? null : resolveZone(snapshot.zones, token);
+      // Prefer binding to an OUTPUT — the speaker in the room — so the screen
+      // follows that room's audio through grouping. Fall back to a zone match
+      // for a group name like "Downstairs", which is not an output at all.
+      const bound = snapshot === null ? null : resolveOutput(snapshot.zones, token);
+      const resolved = bound !== null ? bound.zoneId
+        : (snapshot === null ? null : resolveZone(snapshot.zones, token));
       html(response, 200,
-        renderFacePage(nonce, resolved ?? token, face, url.searchParams.get('follow'), token), nonce);
+        renderFacePage(nonce, resolved ?? token, face, url.searchParams.get('follow'), token,
+          bound === null ? null : bound.outputId), nonce);
       return;
     }
     json(response, 404, { error: 'not found' });

@@ -42,6 +42,28 @@ var following = followAttr !== null ? followAttr === '1'
   : (followParam !== null ? followParam[1] === '1' : readFlag(STORE_KEY_FOLLOW + zoneId, false));
 // The zone actually on screen: the pinned one, or whatever following resolves to.
 var shownZoneId = zoneId;
+
+/**
+ * THE DISPLAY'S OUTPUT. A screen on a wall belongs to a ROOM, and the room is an
+ * output — the speaker standing next to the TV. The zone is re-derived from it on
+ * every snapshot, so when the room is grouped the screen follows the group it has
+ * joined (which is what that speaker is actually playing) instead of stranding on
+ * a zone that no longer exists.
+ *
+ * Cleared when someone browses rooms by hand; the URL restores it on reload.
+ */
+var boundOutputId = root.getAttribute('data-output') || null;
+
+function zoneForOutput(snapshot) {
+  if (boundOutputId === null) return null;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    var outs = snapshot.zones[i].outputs;
+    for (var j = 0; j < outs.length; j += 1) {
+      if (outs[j].id === boundOutputId) return snapshot.zones[i];
+    }
+  }
+  return null;
+}
 try {
   var savedZone = localStorage.getItem(STORE_KEY_ZONE + zoneId);
   if (savedZone !== null && savedZone !== '') shownZoneId = savedZone;
@@ -309,6 +331,9 @@ function setBackdrop(zone) {
 
 function render(snapshot, kind) {
   if (snapshot === null) return;
+  // The bound output wins over a remembered zone id: it is the durable identity.
+  var byOutput = zoneForOutput(snapshot);
+  if (byOutput !== null && byOutput.id !== shownZoneId) { shownZoneId = byOutput.id; kind = 'snapshot'; }
   if (following) {
     var followed = pickFollowed(snapshot);
     if (followed !== null && followed !== shownZoneId) { shownZoneId = followed; kind = 'snapshot'; }
@@ -519,6 +544,9 @@ function cycleZone(delta) {
   } else {
     following = false;
     shownZoneId = chosen;
+    // Browsing by hand releases the room binding for this session — otherwise the
+    // next snapshot would snap the screen straight back to its own room.
+    boundOutputId = null;
     writeFlag(STORE_KEY_FOLLOW + zoneId, false);
     try { localStorage.setItem(STORE_KEY_ZONE + zoneId, chosen); } catch (error) { /* private mode */ }
   }
