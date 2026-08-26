@@ -529,3 +529,19 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .keylog .k-act { -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 10vw; text-align: right; color: #7fc99b; }
 .keylog .k-act.k-none { color: #b06a6a; }
+
+/* The strip is two rows by structure, not by whatever happens to fit: row one is
+   what the screen IS (its face), row two is what it DOES. Row two is where browse,
+   grouping, genre and recently-played will live. */
+.picker { -webkit-flex-direction: column; flex-direction: column; }
+.picker .row {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  width: 100%;
+}
+.picker .row-faces { margin-bottom: .5vh; }
+.picker .row-actions { border-top: 1px solid rgba(242,238,230,.12); padding-top: 1vh; margin-top: .4vh; }
+/* the faces must fit one line at 1080p: five buttons plus their gaps */
+.picker .row-faces span.opt { min-width: 6.2vw; padding: 1.05vh 1.1vw; }

@@ -741,13 +741,20 @@ function faceOption(name) {
 
 function showPicker() {
   cancelDwell();
-  var nodes = FACES.map(function (name, index) {
-    var parts = [];
-    if (index > 0) parts.push(el('em', '', '·'));
-    parts.push(faceOption(name));
-    return parts;
-  }).reduce(function (all, part) { return all.concat(part); }, []);
-  nodes.push(el('em', '', '|'));
+  /**
+   * Two rows, deliberately. Everything shared one wrapping flex container, so the
+   * fifth face fell onto the second line and sat among the transport buttons — an
+   * accident of width, not a grouping (Peter, 08-25: "keep all faces on top line
+   * and second line should select other options").
+   *
+   * Row one is what the screen IS. Row two is what it DOES — and row two is where
+   * browse, grouping, genre and recently-played will go.
+   */
+  var faceRow = el('div', 'row row-faces');
+  for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
+  var nodes = [faceRow];
+
+  var actionRow = el('div', 'row row-actions');
   var rooms = el('div', 'controls');
   var roomBtn = function (label, title, delta) {
     var b = el('span', 'ctl small');
@@ -760,7 +767,7 @@ function showPicker() {
   rooms.appendChild(roomBtn('left', 'previous room', -1));
   rooms.appendChild(el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room')));
   rooms.appendChild(roomBtn('right', 'next room', 1));
-  nodes.push(rooms);
+  actionRow.appendChild(rooms);
 
   var zone = currentZone();
   var controls = el('div', 'controls');
@@ -787,7 +794,8 @@ function showPicker() {
     hasVolume, function () { nudgeVolume(-1); }));
   controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
-  nodes.push(controls);
+  actionRow.appendChild(controls);
+  nodes.push(actionRow);
   nodes.push(el('em', 'hint', 'keys:  space play  ·  n next  ·  b back  ·  u / d volume  ·  f face  ·  a artwork  ·  r room'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
