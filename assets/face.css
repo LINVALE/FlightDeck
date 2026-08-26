@@ -503,3 +503,29 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .picker .glyph { width: 5vw; height: 5vw; }
   .picker span.ctl.small .glyph { width: 4vw; height: 4vw; }
 }
+
+/* ?keys=1 — the key probe. Deliberately large and persistent: it is read from a
+   sofa, with a remote in hand, and then reported back. A transient chip was
+   useless for that. */
+.keylog {
+  position: fixed; top: 6vh; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  background: rgba(6,7,9,.95); border: 1px solid rgba(242,238,230,.3); border-radius: 8px;
+  padding: 1.6vh 2vw; min-width: 46vw; z-index: 50;
+  box-shadow: 0 1.2vw 3vw rgba(0,0,0,.7);
+}
+.keylog-head {
+  font-size: 1.15vw; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 1.2vh;
+}
+.keylog-row {
+  display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
+  font-size: 1.5vw; line-height: 1.9; color: var(--ash);
+}
+.keylog-row.is-new { color: var(--bone); }
+.keylog .k-key { -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+.keylog .k-code {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 11vw;
+  font-variant-numeric: tabular-nums; color: #8f8a80;
+}
+.keylog .k-act { -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 10vw; text-align: right; color: #7fc99b; }
+.keylog .k-act.k-none { color: #b06a6a; }

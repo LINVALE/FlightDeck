@@ -68,11 +68,43 @@ var boundOutputId = root.getAttribute('data-output') || null;
  * and TV engines disagree about what they report.
  */
 var debugKeys = /[?&]keys=1/.test(location.search);
+var keyLog = null;
+var keySeen = [];
+
 function reportKey(event, name) {
-  var line = (event.key || '(no .key)') + '  code=' + (event.keyCode || event.which || 0)
-    + '  ->  ' + (name === '' ? 'IGNORED' : name);
-  artistName.textContent = line;
-  artistName.hidden = false;
+  if (keyLog === null) {
+    keyLog = el('div', 'keylog');
+    keyLog.appendChild(el('div', 'keylog-head', 'KEY PROBE  \u00B7  press the buttons you want to use'));
+    document.body.appendChild(keyLog);
+  }
+  var code = event.keyCode || event.which || 0;
+  // Report what the key WOULD DO, not the internal name for it: this is read by
+  // a person deciding whether their remote is usable.
+  var does = {
+    left: 'face \u25C0', right: 'face \u25B6',
+    up: 'volume +', down: 'volume \u2212',
+    ok: 'artwork', playpause: 'play / pause',
+    next: 'next track', previous: 'previous track',
+    volup: 'volume +', voldown: 'volume \u2212', stop: 'pause',
+  }[name];
+  keySeen.unshift({
+    key: event.key || '(none)',
+    code: code,
+    acted: does || 'not used',
+  });
+  if (keySeen.length > 10) keySeen.length = 10;
+
+  var rows = [el('div', 'keylog-head', 'KEY PROBE  \u00B7  press the buttons you want to use')];
+  for (var i = 0; i < keySeen.length; i += 1) {
+    var seen = keySeen[i];
+    var row = el('div', i === 0 ? 'keylog-row is-new' : 'keylog-row');
+    row.appendChild(el('span', 'k-key', seen.key));
+    row.appendChild(el('span', 'k-code', 'code ' + seen.code));
+    row.appendChild(el('span', seen.acted === 'not used' ? 'k-act k-none' : 'k-act', seen.acted));
+    rows.push(row);
+  }
+  if (keySeen.length === 0) rows.push(el('div', 'keylog-row', 'nothing received yet'));
+  keyLog.replaceChildren.apply(keyLog, rows);
 }
 
 function zoneForOutput(snapshot) {
@@ -1017,7 +1049,14 @@ function keyName(event) {
 
 function onKey(event) {
   var name = keyName(event);
-  if (debugKeys) reportKey(event, name);
+  if (debugKeys) {
+    // In probe mode, REPORT rather than act: pressing play to find its code
+    // should not also start the music.
+    reportKey(event, name);
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   if (name === '') { showPicker(); return; }
   if (name === 'left') cycleFace(-1);
   else if (name === 'right') cycleFace(1);
