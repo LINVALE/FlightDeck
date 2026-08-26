@@ -1,0 +1,750 @@
+{
+ "root:browse": {
+  "request": {
+   "hierarchy": "browse",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Explore",
+     "subtitle": null,
+     "count": 7,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:browse": {
+  "request": {
+   "hierarchy": "browse",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Explore",
+     "subtitle": null,
+     "count": 7,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "Library",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Playlists",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "My Live Radio",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Genres",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "TIDAL",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Qobuz",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:5",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Settings",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "3:6",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:genres": {
+  "request": {
+   "hierarchy": "genres",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Genres",
+     "subtitle": null,
+     "count": 56,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:genres": {
+  "request": {
+   "hierarchy": "genres",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Genres",
+     "subtitle": null,
+     "count": 56,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "Pop/Rock",
+      "subtitle": "592 Artists, 965 Albums",
+      "imageKey": null,
+      "itemKey": "4:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Jazz",
+      "subtitle": "471 Artists, 824 Albums",
+      "imageKey": null,
+      "itemKey": "4:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Classical",
+      "subtitle": "287 Artists, 154 Albums",
+      "imageKey": null,
+      "itemKey": "4:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Rock",
+      "subtitle": "145 Artists, 211 Albums",
+      "imageKey": null,
+      "itemKey": "4:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Vocal",
+      "subtitle": "136 Artists, 206 Albums",
+      "imageKey": null,
+      "itemKey": "4:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "R&B",
+      "subtitle": "120 Artists, 183 Albums",
+      "imageKey": null,
+      "itemKey": "4:5",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "International",
+      "subtitle": "97 Artists, 89 Albums",
+      "imageKey": null,
+      "itemKey": "4:6",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Folk",
+      "subtitle": "78 Artists, 103 Albums",
+      "imageKey": null,
+      "itemKey": "4:7",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Latin",
+      "subtitle": "71 Artists, 69 Albums",
+      "imageKey": null,
+      "itemKey": "4:8",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Blues",
+      "subtitle": "61 Artists, 98 Albums",
+      "imageKey": null,
+      "itemKey": "4:9",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Country",
+      "subtitle": "49 Artists, 49 Albums",
+      "imageKey": null,
+      "itemKey": "4:10",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Stage & Screen",
+      "subtitle": "46 Artists, 44 Albums",
+      "imageKey": null,
+      "itemKey": "4:11",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:albums": {
+  "request": {
+   "hierarchy": "albums",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Albums",
+     "subtitle": null,
+     "count": 2295,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:albums": {
+  "request": {
+   "hierarchy": "albums",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Albums",
+     "subtitle": null,
+     "count": 2295,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "(What's The Story) Morning Glory? (Remastered)",
+      "subtitle": "Oasis",
+      "imageKey": "89884ad47e5291c7bce4a80b83db5f75",
+      "itemKey": "5:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "#1 Record/Radio City",
+      "subtitle": "Big Star",
+      "imageKey": "673fe724b83fc51bf11a9cfd81eb6549",
+      "itemKey": "5:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "1,039/Smoothed Out Slappy Hours",
+      "subtitle": "Green Day",
+      "imageKey": "7b12762b73455ba50603231b8b105695",
+      "itemKey": "5:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "3.0",
+      "subtitle": "Marc Anthony",
+      "imageKey": "d0d4d57f14ebf715991f36c239f913b0",
+      "itemKey": "5:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "4",
+      "subtitle": "Beyoncé",
+      "imageKey": "63d1e291116cf6cf510e69329e74b4a6",
+      "itemKey": "5:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "4 Way Street",
+      "subtitle": "Crosby, Stills, Nash & Young",
+      "imageKey": "275b471028c283a5aafa215cc8e28178",
+      "itemKey": "5:5",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "9",
+      "subtitle": "Damien Rice",
+      "imageKey": "001981ba5e0c1cde6fd21bec191c768f",
+      "itemKey": "5:6",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "12 Play",
+      "subtitle": "R. Kelly",
+      "imageKey": "89836bb7e345fae5f7a948c2d3d9b5e4",
+      "itemKey": "5:7",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "12 Songs",
+      "subtitle": "Randy Newman",
+      "imageKey": "73437cc1cbcefd4f556aa3785f67d559",
+      "itemKey": "5:8",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "12th of June",
+      "subtitle": "Lyle Lovett",
+      "imageKey": "000bb076e46d200311a6638b72908fbb",
+      "itemKey": "5:9",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "16 Biggest Hits",
+      "subtitle": "Roy Orbison",
+      "imageKey": "a3d2839a45b818e62619fc301c6893dc",
+      "itemKey": "5:10",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "19",
+      "subtitle": "Adele",
+      "imageKey": "c82eabd7c7839f9f9d5ae53f9af37f7c",
+      "itemKey": "5:11",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:artists": {
+  "request": {
+   "hierarchy": "artists",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Artists",
+     "subtitle": null,
+     "count": 1475,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:artists": {
+  "request": {
+   "hierarchy": "artists",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Artists",
+     "subtitle": null,
+     "count": 1475,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "10,000 Maniacs",
+      "subtitle": "3 Albums",
+      "imageKey": "225112c21402d6afde6d07227c67e234",
+      "itemKey": "6:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "10cc",
+      "subtitle": "2 Albums",
+      "imageKey": "0f3e57cef2ff83d0c8e366497d52a847",
+      "itemKey": "6:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "440",
+      "subtitle": "1 Album",
+      "imageKey": "65be486cdabecf172411c8dd283af491",
+      "itemKey": "6:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "The 5th Dimension",
+      "subtitle": "3 Albums",
+      "imageKey": "492096e6fbd653d98e2a3a2b32d90833",
+      "itemKey": "6:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "76th Street",
+      "subtitle": "2 Albums",
+      "imageKey": "bfed54fad8b79d7e822c2e4165890a01",
+      "itemKey": "6:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "A.B. Quintanilla III",
+      "subtitle": "1 Album",
+      "imageKey": "b9abb2b8e0c4e697fdc3a29f9066e142",
+      "itemKey": "6:5",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "A Tribe Called Quest",
+      "subtitle": "2 Albums",
+      "imageKey": "46cd5e2b73f10c6018617573712be9ee",
+      "itemKey": "6:6",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "ABBA",
+      "subtitle": "2 Albums",
+      "imageKey": "05335d2997def13615ecca46c8d3991b",
+      "itemKey": "6:7",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Abby Ahmad",
+      "subtitle": "1 Album",
+      "imageKey": "6d4aecb62d6e8766c500a12ada2ac8c4",
+      "itemKey": "6:8",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "AC/DC",
+      "subtitle": "1 Album",
+      "imageKey": "16c220a0dc42ad65ea74f692499cf5aa",
+      "itemKey": "6:9",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Academy of Ancient Music",
+      "subtitle": "2 Albums",
+      "imageKey": "8aadac14679f3a0467dd1f926e49f1ce",
+      "itemKey": "6:10",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Acoustic Alchemy",
+      "subtitle": "1 Album",
+      "imageKey": "e134707be9e01b47d12df832c83a5b8b",
+      "itemKey": "6:11",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:playlists": {
+  "request": {
+   "hierarchy": "playlists",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Playlists",
+     "subtitle": null,
+     "count": 11,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:playlists": {
+  "request": {
+   "hierarchy": "playlists",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Playlists",
+     "subtitle": null,
+     "count": 11,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "Relax",
+      "subtitle": "2 Tracks",
+      "imageKey": null,
+      "itemKey": "7:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Meditation",
+      "subtitle": "29 Tracks",
+      "imageKey": null,
+      "itemKey": "7:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Relax",
+      "subtitle": "35 Tracks",
+      "imageKey": null,
+      "itemKey": "7:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "dCS Favourites - Spring 2016",
+      "subtitle": "11 Tracks",
+      "imageKey": null,
+      "itemKey": "7:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Elizabeth's Collection",
+      "subtitle": "388 Tracks",
+      "imageKey": null,
+      "itemKey": "7:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Best Audiophile Tracks (The Original)",
+      "subtitle": "65 Tracks",
+      "imageKey": null,
+      "itemKey": "7:5",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Daily Mix: NaKing Colet King ColeNat",
+      "subtitle": "20 Tracks",
+      "imageKey": null,
+      "itemKey": "7:6",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Daily Mix: Diana Krall",
+      "subtitle": "20 Tracks",
+      "imageKey": null,
+      "itemKey": "7:7",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Daily Mix: Al Di Meola",
+      "subtitle": "23 Tracks",
+      "imageKey": null,
+      "itemKey": "7:8",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "test-harness-v1",
+      "subtitle": "41 Tracks",
+      "imageKey": null,
+      "itemKey": "7:9",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "AI Soundiiz Playlist",
+      "subtitle": "42 Tracks",
+      "imageKey": null,
+      "itemKey": "7:10",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:internet_radio": {
+  "request": {
+   "hierarchy": "internet_radio",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "My Live Radio",
+     "subtitle": null,
+     "count": 2,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "load:internet_radio": {
+  "request": {
+   "hierarchy": "internet_radio",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "My Live Radio",
+     "subtitle": null,
+     "count": 2,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "BBC Radio 3",
+      "subtitle": "London, UK FM 91.3 English",
+      "imageKey": "afd611ddf80b5dce68aa13b8e9e99aff8bf23d351d0918d67f032e52c91c6dc24882ed6107bcb78f714d78cf03afae009eb34aedede3c5c6a78a16ed08c7442830f011bdf2621e6cf3194f3cbae77c1cff6f5f8674873ad10b0c86e6792cd0fdd554b5d7da0a67b5a87e4687663e4900",
+      "itemKey": "8:0",
+      "hint": "action",
+      "input": null
+     },
+     {
+      "title": "BBC Radio 4",
+      "subtitle": "London, UK FM 93.5 English",
+      "imageKey": "afd611ddf80b5dce68aa13b8e9e99aff8bf23d351d0918d67f032e52c91c6dc24882ed6107bcb78f714d78cf03afae000ed495d05a30b2a0bb8121d292efce9e841d0b0a223dd18608493e4891e1ce80167801b36a099629a8b886099cbabd49be68962c54711021df89e3d3ccb4e68f",
+      "itemKey": "8:1",
+      "hint": "action",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ }
+}

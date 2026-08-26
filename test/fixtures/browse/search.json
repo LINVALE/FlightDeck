@@ -1,0 +1,159 @@
+{
+ "search:direct": {
+  "request": {
+   "hierarchy": "search",
+   "popAll": true,
+   "input": "miles davis"
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Search",
+     "subtitle": "miles davis",
+     "count": 6,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "search:load": {
+  "request": {
+   "hierarchy": "search",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Search",
+     "subtitle": "miles davis",
+     "count": 6,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "Miles Davis",
+      "subtitle": "42 Albums",
+      "imageKey": "f9a3b88aac7e728c85c92e04e7bafb05",
+      "itemKey": "9:0",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Artists",
+      "subtitle": "22 Results",
+      "imageKey": null,
+      "itemKey": "9:1",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Albums",
+      "subtitle": "53 Results",
+      "imageKey": null,
+      "itemKey": "9:2",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Composers",
+      "subtitle": "10 Results",
+      "imageKey": null,
+      "itemKey": "9:3",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Tracks",
+      "subtitle": "64 Results",
+      "imageKey": null,
+      "itemKey": "9:4",
+      "hint": "list",
+      "input": null
+     },
+     {
+      "title": "Works",
+      "subtitle": "20 Results",
+      "imageKey": null,
+      "itemKey": "9:5",
+      "hint": "list",
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ },
+ "root:search": {
+  "request": {
+   "hierarchy": "search",
+   "popAll": true
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Search",
+     "subtitle": null,
+     "count": 1,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [],
+    "offset": 0
+   }
+  }
+ },
+ "root:search:load": {
+  "request": {
+   "hierarchy": "search",
+   "load": true,
+   "count": 12
+  },
+  "result": {
+   "status": 200,
+   "body": {
+    "action": "list",
+    "list": {
+     "title": "Search",
+     "subtitle": null,
+     "count": 1,
+     "level": 0,
+     "hint": null,
+     "imageKey": null
+    },
+    "message": null,
+    "isError": false,
+    "items": [
+     {
+      "title": "No Results",
+      "subtitle": null,
+      "imageKey": null,
+      "itemKey": "10:0",
+      "hint": null,
+      "input": null
+     }
+    ],
+    "offset": 0
+   }
+  }
+ }
+}
