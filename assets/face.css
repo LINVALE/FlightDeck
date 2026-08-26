@@ -348,7 +348,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    circle — it is sacred — and nothing is drawn on top of it. */
 .cover { position: relative; overflow: visible; }
 .dialbox { display: none; }
-.face[data-face="dial"] .dialbox {
+.face[data-ring] .dialbox {
   display: block; position: absolute;
   /* The ring CLEARS the four corners with a little air, rather than passing through
      them (Peter, 08-26). Three things decide the number, and I had missed two of
@@ -361,12 +361,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   left: -38.6%; top: -38.6%; width: 177.2%; height: 177.2%;
   pointer-events: none;
 }
-.face[data-face="dial"] .dial { width: 100%; height: 100%; display: block; }
-.face[data-face="dial"] .dial-track { stroke: rgba(242,238,230,.10); stroke-width: 1.3; }
+.face[data-ring] .dial { width: 100%; height: 100%; display: block; }
+.face[data-ring] .dial-track { stroke: rgba(242,238,230,.10); stroke-width: 1.3; }
 /* Thicker than the track by a clear margin: at equal weight the played arc read as
    part of the same circle and the progress could not be seen at a glance. */
-.face[data-face="dial"] .dial-arc { stroke: var(--accent-rich, var(--accent)); stroke-width: 3.4; }
-.face[data-face="dial"] .dial-fill {
+.face[data-ring] .dial-arc { stroke: var(--accent-rich, var(--accent)); stroke-width: 3.4; }
+.face[data-ring] .dial-fill {
   fill: var(--disc, #14161a); opacity: .55;
 }
 
@@ -376,89 +376,124 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    which is the safe area. The copy then overlays the lower arc on its own grade,
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
-.face[data-face="dial"] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-face="dial"] .cover { width: 38vh; height: 38vh; }
+.face[data-ring] .cover { width: 52vh; height: 52vh; }
+.face.show-chrome[data-ring] .cover { width: 38vh; height: 38vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
 /* The reading sits AT TWELVE O'CLOCK, on the ring where the arc begins — one pair,
    elapsed of total. The remaining time and "ENDS hh:mm" are gone from this face:
    the ring already shows how much is left, which is the whole point of a ring. */
-.face[data-face="dial"] .dial-reading {
+.face[data-ring] .dial-reading {
   position: absolute; left: 0; right: 0; top: -1.4vh; bottom: auto;
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-justify-content: center; justify-content: center;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-face="dial"] .dial-remain,
-.face[data-face="dial"] .dial-ends { display: none; }
-.face[data-face="dial"] .dial-bead {
+.face[data-ring] .dial-remain,
+.face[data-ring] .dial-ends { display: none; }
+.face[data-ring] .dial-bead {
   fill: var(--accent-rich, var(--accent));
   stroke: rgba(10,11,13,.75); stroke-width: 1;
 }
-.face[data-face="dial"] .dial-remain {
+.face[data-ring] .dial-remain {
   font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
 }
-.face[data-face="dial"] .dial-times {
+.face[data-ring] .dial-times {
   font-size: 1.15vw; margin: 0; color: var(--bone);
   font-variant-numeric: tabular-nums; letter-spacing: .06em;
   background: rgba(10,11,13,.82); padding: .3vh .9vw; border-radius: 99px;
 }
-.face[data-face="dial"] .dial-ends {
+.face[data-ring] .dial-ends {
   font-size: .95vw; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
   margin: 0 0 0 1vw;
 }
-.face[data-face="dial"] .body {
+.face[data-ring] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
 }
-.face[data-face="dial"] .np {
+.face[data-ring] .np {
   -webkit-flex-direction: column; flex-direction: column; width: auto; max-width: 92vw;
 }
-/* Overlaid on the lower arc with a grade of its own, because at this size there is
-   no room beneath the circle for it to sit. */
-.face[data-face="dial"] .copy {
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 6vh 4vw 2vh;
-  background: -webkit-linear-gradient(top, rgba(0,0,0,0), rgba(0,0,0,.72) 45%, rgba(0,0,0,.9));
-  background: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.72) 45%, rgba(0,0,0,.9));
+/* CIRCLE LEFT, WORDS RIGHT (Peter, 08-26).
+
+   Overlaying the copy on the lower arc meant the ring ran through the title, and no
+   amount of grading fixes a picture and a sentence occupying the same space. A
+   16:9 frame is wider than the circle needs, so the words take the room the circle
+   does not — and the copy goes back to being ordinary flowed text with no panel
+   under it. */
+.face[data-ring] .body { position: relative; }
+.face[data-ring] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  width: 100%; max-width: 96vw;
 }
-.face[data-face="dial"] .body { position: relative; }
-.face[data-face="dial"] .title { font-size: 2.1vw; margin-top: 0; max-width: 76vw; }
-.face[data-face="dial"] .line2 { font-size: 1.4vw; }
-.face[data-face="dial"] .line3 { font-size: 1.1vw; }
+.face[data-ring] .cover { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face[data-ring] .copy {
+  position: static; background: none; padding: 0;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  text-align: left; min-width: 0;
+  /* clear of the ring, which overhangs the sleeve by nearly a third of its width */
+  margin-left: 12vh;
+}
+.face[data-ring] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
+.face[data-ring] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
+.face[data-ring] .line3 { font-size: 1.25vw; margin-top: .7vh; }
 /* the ring IS the progress: the runway and the foot's readouts would only repeat it */
-.face[data-face="dial"] .lamps, .face[data-face="dial"] .bar { display: none; }
-.face[data-face="dial"] .foot { display: none; }
+.face[data-ring] .lamps, .face[data-ring] .bar { display: none; }
+.face[data-ring] .foot { display: none; }
 
 /* When the artist comes forward the ring shrinks with the sleeve, because it is a
    child of it. The LAYOUT still needs saying, though: the dial's column beat the
    artist view's row on source order alone — equal specificity — and left the sleeve
    floating above the copy instead of level with it. */
-.face[data-face="dial"][data-view="artist"] .dial-reading { display: none; }
+.face[data-ring][data-view="artist"] .dial-reading { display: none; }
 /* Anchored low, like every other face in artist view: the continuous grade lives
    at the bottom of the frame, and copy floating in the middle sits on whatever the
    photograph happens to be doing there. Dial's centring beat the artist rule on
    source order, so it is said explicitly. */
-.face[data-face="dial"][data-view="artist"] .body {
+.face[data-ring][data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
-.face[data-face="dial"][data-view="artist"] .np {
+.face[data-ring][data-view="artist"] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   width: auto; max-width: 78%;
 }
-.face[data-face="dial"][data-view="artist"] .title { margin-top: 0; font-size: 3.1vw; }
-.face[data-face="dial"][data-view="artist"] .line2 { font-size: 1.6vw; }
-.face[data-face="dial"][data-view="artist"] .line3 { font-size: 1.25vw; }
-/* room for the ring, which overhangs the sleeve on every side */
-.face[data-face="dial"][data-view="artist"] .cover { margin-right: 3.4vw; margin-left: 2vw; }
+.face[data-ring][data-view="artist"] .title { margin-top: 0; font-size: 3.1vw; }
+.face[data-ring][data-view="artist"] .line2 { font-size: 1.6vw; }
+.face[data-ring][data-view="artist"] .line3 { font-size: 1.25vw; }
+/* Room for the ring, which overhangs the sleeve on every side. The artist view
+   anchors its copy bottom-left, and at a 34vh sleeve the ring reaches 13vh past
+   it — so the frame's left inset, the gap to the words and the clearance under
+   the block are all paid in sleeve-widths. Left unpaid the circle ran off two
+   edges at once. */
+.face[data-ring][data-view="artist"] .cover { margin-left: 16vh; margin-right: 17vh; }
+.face[data-ring][data-view="artist"] .np { margin-bottom: 15vh; }
+/* Dial hangs its copy below the sleeve, out of flow, to fill the ring's bottom
+   segment. In the artist view the copy stands BESIDE the sleeve instead, so it
+   has to come back into flow — left absolute it fell out of the bottom of the
+   frame, taking the title with it. */
+.face[data-ring][data-view="artist"] .copy {
+  position: static; left: auto; right: auto; width: 100%;
+  padding-top: 0; text-align: left;
+}
+.face[data-ring][data-view="artist"] .title,
+.face[data-ring][data-view="artist"] .line2,
+.face[data-ring][data-view="artist"] .line3 {
+  margin-left: 0; margin-right: 0; max-width: 100%;
+  white-space: normal; overflow: visible;
+}
 
 @media (max-width: 900px) {
-  .face[data-face="dial"] .cover,
-  .face.show-chrome[data-face="dial"] .cover { width: 74vw; height: 74vw; }
-  .face[data-face="dial"] .title { font-size: 6vw; }
+  /* no room for two columns on a phone: the circle goes back above the words */
+  .face[data-ring] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face[data-ring] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
+  .face[data-ring] .cover,
+  .face.show-chrome[data-ring] .cover { width: 58vw; height: 58vw; }
+  .face[data-ring] .title { font-size: 6vw; }
 }
 
 /* ══ LIBRETTO ═════════════════════════════════════════════════════════════════
@@ -923,4 +958,80 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .alpha-key:hover { background: var(--accent); color: var(--ink); }
 @media (max-width: 900px) {
   .alpha-key { font-size: 3vw; min-width: 7vw; padding: .3vh 0; }
+}
+
+/* ══ DIAL — text in the segments ══════════════════════════════════════════════
+   A circle round a square leaves four segments. The top and bottom ones are
+   exactly the shape of a line of text, so that is where the reading and the copy
+   go (Peter, 08-26) — centred, and touching neither the sleeve nor the ring.
+
+   The clearance decides the room: at 1.15 the stroke's inner edge sits at 0.81 of
+   the sleeve's side, giving a segment of ~15vh at a 48vh sleeve. */
+.face[data-face="dial"] .dialbox {
+  left: -50.3%; top: -50.3%; width: 200.6%; height: 200.6%;
+}
+.face[data-face="dial"] .cover { width: 44vh; height: 44vh; }
+.face.show-chrome[data-face="dial"] .cover { width: 34vh; height: 34vh; }
+/* position, so the copy's `top: 100%` means the SLEEVE's base. Left static it
+   resolved against the frame instead and the title fell off the bottom edge. */
+.face[data-face="dial"] .np {
+  position: relative;
+  -webkit-flex-direction: column; flex-direction: column;
+  width: auto; max-width: none;
+}
+/* The copy fills the bottom segment: anchored to the sleeve, spread to the ring.
+   A segment is a LENS, not a box — it narrows towards the ring — so each line is
+   capped at the chord available where it sits, and elides rather than spilling. */
+.face[data-face="dial"] .copy {
+  position: absolute; top: 100%; left: -12%; right: -12%;
+  width: auto;  /* the base rule's `width: 100%` beat `right` and pushed it off-centre */
+  margin: 0; padding-top: 1.5vh; text-align: center;
+}
+.face[data-face="dial"] .title,
+.face[data-face="dial"] .line2,
+.face[data-face="dial"] .line3 {
+  margin-left: auto; margin-right: auto;
+  /* block, because the title's -webkit-box line-clamp ignores text-overflow */
+  display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.face[data-face="dial"] .title { font-size: 1.9vw; max-width: 100%; }
+.face[data-face="dial"] .line2 { font-size: 1.3vw; margin-top: .8vh; max-width: 85%; }
+.face[data-face="dial"] .line3 { font-size: 1.05vw; margin-top: .4vh; max-width: 68%; }
+/* and the reading fills the top one */
+.face[data-face="dial"] .dial-reading { top: 12%; }
+
+/* ══ ORBIT — the circle to one side, the words to the other ═══════════════════
+   The same ring, composed asymmetrically: a 16:9 frame is wider than the circle
+   needs, so the words take the room the circle does not. */
+/* The ring overhangs the sleeve by 50.3% of its width on EVERY side, and that
+   overhang is out of flow — so the frame's left inset and the gap to the words
+   both have to be paid in sleeve-widths, or the circle runs off the edge and the
+   words sit on top of it. */
+.face[data-face="orbit"] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+  width: 100%; max-width: 92vw; padding-left: 30vh;
+}
+.face[data-face="orbit"] .cover { width: 46vh; height: 46vh; }
+.face.show-chrome[data-face="orbit"] .cover { width: 38vh; height: 38vh; }
+.face[data-face="orbit"] .copy {
+  position: static; background: none; padding: 0;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  text-align: left; min-width: 0; margin-left: 26vh; max-width: 36vw;
+}
+.face[data-face="orbit"] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
+.face[data-face="orbit"] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
+.face[data-face="orbit"] .line3 { font-size: 1.25vw; margin-top: .7vh; }
+/* the reading belongs to the circle, so it goes in the ring's own top segment —
+   the same place Dial puts it — not floating above the frame detached from it */
+.face[data-face="orbit"] .dial-reading { top: 12%; left: 0; right: 0; }
+
+@media (max-width: 900px) {
+  .face[data-face="orbit"] .np { -webkit-flex-direction: column; flex-direction: column; padding-left: 0; }
+  .face[data-face="orbit"] .copy { text-align: center; margin-left: 0; margin-top: 12vw; }
+  .face[data-face="orbit"] .cover,
+  .face.show-chrome[data-face="orbit"] .cover { width: 56vw; height: 56vw; }
+  .face[data-face="dial"] .copy { left: -20%; right: -20%; }
 }

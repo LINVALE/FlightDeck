@@ -17,7 +17,7 @@ import { createStream } from './stream.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic', 'dial', 'libretto', 'canvas'];
+var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'canvas'];
 var STORE_KEY_FACE = 'flightdeck.face.';
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
@@ -810,11 +810,20 @@ function paintFaceName() {
   if (cog !== null) cog.textContent = current;
 }
 
+/** Faces that draw the ring round the sleeve share one marker, so their common
+ *  rules need no comma — and a comma in a selector is what silently applied the
+ *  cover's size to the whole face. */
+function markRing() {
+  if (current === 'dial' || current === 'orbit') root.setAttribute('data-ring', '1');
+  else root.removeAttribute('data-ring');
+}
+
 function applyFace(name) {
   if (FACES.indexOf(name) === -1 || name === current) return;
   current = name;
   remember(current);
   root.setAttribute('data-face', current);
+  markRing();
   paintFaceName();
   fieldRunning(current === 'canvas' && !document.hidden);
   showPicker();
@@ -2220,6 +2229,8 @@ document.addEventListener('visibilitychange', function () { if (!document.hidden
 keepAwake();
 
 root.setAttribute('data-face', current);
+markRing();
+paintFaceName();
 fieldRunning(current === 'canvas');
 if (debugKeys) { reportKey({ key: 'probe ready', keyCode: 0 }, ''); startPointerProbe(); }
 var store = createStore(render);
