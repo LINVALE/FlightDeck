@@ -777,3 +777,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .picker.mode-transport { min-width: 0; }
   .picker.mode-transport .controls { -webkit-flex-wrap: wrap; flex-wrap: wrap; }
 }
+
+/* The mute button carries its own filled frame. That — not an always-crossed
+   glyph — is what keeps it from reading as a third volume control beside the two
+   steppers, and it leaves the symbol free to say the STATE instead. */
+.vol-speaker { background: rgba(242,238,230,.10); border-color: rgba(242,238,230,.34); }
+.vol-speaker:hover { background: rgba(242,238,230,.2); }
+.vol-speaker.is-muted {
+  background: var(--accent); border-color: var(--accent); color: var(--ink);
+}
+.vol-speaker.is-muted:hover { background: var(--accent); }

@@ -573,6 +573,8 @@ function render(snapshot, kind) {
     }
   }
 
+  paintVolume();
+
   var position = store.positionSec(zone);
   var length = zone.nowPlaying ? zone.nowPlaying.lengthSec : null;
   if (position === null || !length) {
@@ -887,22 +889,28 @@ function showPicker(mode) {
   var output = volumeOutput();
   var vol = output === null ? null : output.volume;
   if (vol === null) {
+    volUi = null;
     controls.appendChild(button('minus', 'no volume control', false, function () {}));
     controls.appendChild(button('plus', 'no volume control', false, function () {}));
   } else if (vol.type === 'incremental' || vol.value === null || vol.max === null) {
-    controls.appendChild(volumeSpeaker(output, 0.5));
+    var incSpeaker = volumeSpeaker(output, 0.5);
+    volUi = { speaker: incSpeaker, scale: null, outputId: output.id };
+    controls.appendChild(incSpeaker);
     controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true, function () { nudgeVolume(-1); }));
     controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true, function () { nudgeVolume(1); }));
   } else {
     var min = vol.min === null ? 0 : vol.min;
     var span = Math.max(1, vol.max - min);
     var level = Math.max(0, Math.min(1, (vol.value - min) / span));
-    controls.appendChild(volumeSpeaker(output, vol.muted ? 0 : level));
+    var speakerNode = volumeSpeaker(output, vol.muted ? 0 : level);
+    var scaleNode = volumeScale(output, level, min, span);
+    volUi = { speaker: speakerNode, scale: scaleNode, outputId: output.id };
+    controls.appendChild(speakerNode);
     // The scale is flanked by a quiet speaker and a loud one, and they step the
     // level (Peter, 08-26). They read as the ends of the scale they bracket, so
     // the group says "this is loudness" without a label.
     controls.appendChild(volumeStep(output, 'down'));
-    controls.appendChild(volumeScale(output, level, min, span));
+    controls.appendChild(scaleNode);
     controls.appendChild(volumeStep(output, 'up'));
   }
   actionRow.appendChild(controls);
@@ -1520,19 +1528,80 @@ function seekFromPress(clientX) {
   command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * length) });
 }
 
+/**
+ * The volume widgets, kept so they can be REPAINTED.
+ *
+ * They were built once when the panel opened and never touched again, so turning
+ * the volume up worked but the scale sat still and the mute button never lit
+ * (Peter, 08-26: "they work but not reflected on screen"). The level arrives on
+ * the ordinary zone subscription like everything else; it just had nothing
+ * listening for it.
+ */
+var volUi = null;
+
+function paintVolume() {
+  if (volUi === null || picker.hidden) return;
+  var output = volumeOutput();
+  var vol = output === null ? null : output.volume;
+  if (vol === null || output.id !== volUi.outputId) return;
+
+  var muted = !!vol.muted;
+  var min0 = vol.min === null ? 0 : vol.min;
+  var span0 = Math.max(1, (vol.max === null ? 100 : vol.max) - min0);
+  var level0 = vol.value === null ? 0.5 : Math.max(0, Math.min(1, (vol.value - min0) / span0));
+  if (volUi.speaker !== null) {
+    var want = muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker';
+    if (volUi.speaker.className !== want) volUi.speaker.className = want;
+    // Swap the SYMBOL, not just the colour: repainting only the class left a
+    // crossed speaker sitting there after unmuting (Peter, 08-26).
+    var shownMuted = volUi.speaker.getAttribute('data-muted') === '1';
+    var shownLevel = volUi.speaker.getAttribute('data-level');
+    var levelKey = String(Math.round(level0 * 3));
+    if (shownMuted !== muted || shownLevel !== levelKey) {
+      volUi.speaker.setAttribute('data-muted', muted ? '1' : '0');
+      volUi.speaker.setAttribute('data-level', levelKey);
+      volUi.speaker.replaceChildren(glyphSpeaker(level0, muted));
+      var label = (muted ? 'unmute \u00B7 ' : 'mute \u00B7 ') + output.name;
+      volUi.speaker.setAttribute('aria-label', label);
+      volUi.speaker.setAttribute('title', label);
+    }
+  }
+  if (volUi.scale !== null && vol.value !== null && vol.max !== null) {
+    var min = vol.min === null ? 0 : vol.min;
+    var span = Math.max(1, vol.max - min);
+    var level = Math.max(0, Math.min(1, (vol.value - min) / span));
+    var segs = volUi.scale.childNodes;
+    var lit = Math.round(level * segs.length);
+    for (var i = 0; i < segs.length; i += 1) {
+      var on = i < lit && !muted;
+      var cls = on ? 'on' : '';
+      if (segs[i].className !== cls) segs[i].className = cls;
+    }
+    volUi.scale.setAttribute('title', 'volume ' + Math.round(level * 100) + '%  \u00B7  ' + output.name);
+  }
+}
+
 /** The speaker doubles as the mute control, and shows roughly how loud it is. */
 function volumeSpeaker(output, level) {
   var muted = !!(output.volume && output.volume.muted);
   var node = el('span', muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker');
-  // ALWAYS the crossed speaker, muted or not: this button's job is to mute, and a
-  // plain speaker here sat between two other speakers and read as another volume
-  // control (Peter, 08-26: "looks like volume not mute"). When it has already
-  // muted, it lights instead of changing shape.
-  node.appendChild(glyphSpeaker(0, true));
+  // The glyph SAYS THE STATE: crossed when muted, sounding when not. What keeps it
+  // from reading as a third volume control is its own filled frame, not its shape —
+  // an always-crossed icon told you what the button does but never what it had done.
+  node.appendChild(glyphSpeaker(level, muted));
   node.setAttribute('aria-label', muted ? 'unmute ' + output.name : 'mute ' + output.name);
   node.setAttribute('title', node.getAttribute('aria-label'));
   pressable(node, function () {
-    command({ action: 'mute', output: output.id, muted: !muted });
+    /**
+     * Read the state at PRESS time, not at build time.
+     *
+     * The button captured `muted` when it was created, and repainting only
+     * changed its class — so once muted it kept sending "mute" and could never
+     * unmute. It looked like a toggle and behaved like a latch.
+     */
+    var live = volumeOutput();
+    var isMuted = !!(live && live.volume && live.volume.muted);
+    command({ action: 'mute', output: (live || output).id, muted: !isMuted });
   });
   return node;
 }
