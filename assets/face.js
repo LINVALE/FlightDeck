@@ -1214,13 +1214,86 @@ var BROWSE_ICONS = {
   shuffle:  'M16.6 4.6 21 8l-4.4 3.4V9H14c-1 0-1.7.5-2.4 1.5l-.7 1-1.2-1.7.6-.9C11.3 7.4 12.5 6.6 14 6.6h2.6zM3 6.6h3.2c1.4 0 2.6.8 3.6 2.3l3.4 5c.7 1 1.4 1.5 2.4 1.5h2.2v-2.5L22 16l-4.2 3.4v-2.5h-2.2c-1.5 0-2.7-.8-3.7-2.3l-3.4-5c-.7-1-1.3-1.5-2.3-1.5H3z',
 };
 
+/**
+ * A GENRE GETS ITS OWN INSTRUMENT (Peter, 08-26: "guitar for rock, sax for jazz").
+ *
+ * Matched on substrings, longest-first, because Roon's genre names are compound —
+ * "Pop/Rock", "Jazz Vocal", "Adult Alternative Pop/Rock". Anything unmatched keeps
+ * the musical score, so a library of unusual genres degrades to something sensible
+ * rather than to blanks.
+ */
+var GENRE_ICONS = [
+  ['jazz', 'mic-vocal'], ['blues', 'guitar'], ['classical', 'piano'], ['opera', 'theater'],
+  ['metal', 'zap'], ['punk', 'zap'], ['rock', 'guitar'], ['pop', 'disc-3'],
+  ['electronic', 'audio-lines'], ['dance', 'audio-lines'], ['techno', 'audio-lines'],
+  ['hip hop', 'speaker'], ['hip-hop', 'speaker'], ['rap', 'speaker'],
+  ['r&b', 'speaker'], ['soul', 'heart'], ['funk', 'drum'], ['reggae', 'sun'],
+  ['country', 'guitar'], ['folk', 'guitar'], ['bluegrass', 'guitar'],
+  ['gospel', 'church'], ['spiritual', 'church'], ['religious', 'church'],
+  ['world', 'globe'], ['international', 'globe'], ['latin', 'globe'], ['african', 'globe'],
+  ['vocal', 'mic-vocal'], ['soundtrack', 'clapperboard'], ['film', 'clapperboard'],
+  ['stage', 'theater'], ['screen', 'clapperboard'], ['comedy', 'theater'],
+  ['children', 'baby'], ['holiday', 'snowflake'], ['christmas', 'snowflake'],
+  ['new age', 'sparkles'], ['ambient', 'wind'], ['easy listening', 'wind'],
+  ['sea', 'ship'], ['shanty', 'ship'], ['fusion', 'flame'],
+  ['spoken', 'mic-vocal'], ['audiobook', 'mic-vocal'],
+  ['electronica', 'audio-lines'], ['house', 'audio-lines'],
+
+  // The gaps found against Peter's own 56 genres, 08-26. Each is a real match
+  // rather than a filler: "Score" is a film score, "Suite" and "Symphonic" are
+  // written forms, "Norteño" is regional, "Karaoke" is a microphone and nothing
+  // else. Only the genuinely unclassified ones fall through.
+  ['alternative', 'guitar'], ['indie', 'guitar'], ['acoustic', 'guitar'],
+  ['symphonic', 'music-4'], ['suite', 'file-music'], ['score', 'clapperboard'],
+  ['ballad', 'heart'], ['karaoke', 'mic-vocal'], ['avant', 'venetian-mask'],
+  ['norteño', 'globe'], ['norteno', 'globe'], ['tejano', 'globe'], ['mariachi', 'globe'],
+  ['chamber', 'file-music'], ['choral', 'church'], ['sacred', 'church'],
+  ['march', 'drum'], ['big band', 'mic-vocal'], ['swing', 'mic-vocal'],
+  ['bossa', 'globe'], ['samba', 'globe'], ['salsa', 'globe'], ['tango', 'globe'],
+  ['celtic', 'guitar'], ['americana', 'guitar'], ['singer', 'mic-vocal'],
+  ['soundtrack', 'clapperboard'], ['musical', 'theater'], ['broadway', 'theater'],
+  ['disco', 'disc-3'], ['lounge', 'wind'], ['chill', 'wind'], ['meditation', 'sparkles'],
+  ['experimental', 'shapes'], ['noise', 'shapes'], ['minimal', 'shapes'],
+];
+
+function genreIcon(title) {
+  var t = String(title || '').toLowerCase();
+  var best = null;
+  var bestLen = 0;
+  for (var i = 0; i < GENRE_ICONS.length; i += 1) {
+    var term = GENRE_ICONS[i][0];
+    if (t.indexOf(term) >= 0 && term.length > bestLen) { best = GENRE_ICONS[i][1]; bestLen = term.length; }
+  }
+  return best;
+}
+
+/** The vendored Lucide set, fetched from OUR OWN origin at boot. */
+var LUCIDE = {};
+fetch('/assets/icons/lucide.json')
+  .then(function (r) { return r.json(); })
+  .then(function (data) { LUCIDE = data || {}; })
+  .catch(function () { /* the drawn fallbacks still cover every row */ });
+
 function browseIcon(name) {
-  var d = BROWSE_ICONS[name];
-  if (d === undefined) return null;
   var svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('class', 'glyph browse-icon');
   svg.setAttribute('aria-hidden', 'true');
+
+  // Lucide draws with strokes rather than fills, which is why its icons carry a
+  // consistent weight; ours are filled paths. Both are accepted so the vendored
+  // set and the hand-drawn fallbacks can sit in one list.
+  if (Object.prototype.hasOwnProperty.call(LUCIDE, name)) {
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.innerHTML = LUCIDE[name];
+    return svg;
+  }
+  var d = BROWSE_ICONS[name];
+  if (d === undefined) return null;
   var path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('fill', 'currentColor');
   path.setAttribute('d', d);
@@ -1239,7 +1312,7 @@ function iconFor(item, hierarchy) {
     return 'playnow';
   }
   if (title.indexOf('play ') === 0) return 'playnow';
-  if (hierarchy === 'genres') return 'score';
+  if (hierarchy === 'genres') return genreIcon(item.title) || 'score';
   if (hierarchy === 'composers' || hierarchy === 'artists') return 'person';
   if (hierarchy === 'playlists') return 'list';
   if (hierarchy === 'internet_radio') return 'radio';
