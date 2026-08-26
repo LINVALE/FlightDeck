@@ -658,14 +658,16 @@ function startRotation(count) {
   }, ROTATE_MS);
 }
 
-/** The pointer shortcut: clicking the cover returns to the album view. */
-function showAlbumView() {
-  viewStep = VIEW_ALBUM;
-  artistIndex = -1;
-  backdropKey = null;
-  applyArtistView();
-  var snapshot = store.snapshot();
-  if (snapshot !== null) render(snapshot, 'snapshot');
+/**
+ * The pointer shortcut: pressing the cover FLIPS album <-> artist.
+ *
+ * It used to only ever go TO the album view, which meant pressing the cover while
+ * already showing the album did nothing at all — the commonest case, since album
+ * is the default (Peter, 08-25: "just not flipping album artist on clicking on
+ * album cover"). With two views, the cover is a toggle.
+ */
+function flipArtwork() {
+  cycleArtist();
 }
 
 function cycleArtist() {
@@ -682,7 +684,10 @@ function cycleArtist() {
   // Deliberately NOT showPicker(): that raises the FACE list, which landed on
   // top of the title in album view. The artwork chip already names the step.
 }
-cover.addEventListener('click', function (event) { event.stopPropagation(); showAlbumView(); });
+// `pressable`, not a bare click: a pointer remote may report the press as
+// pointerup/touchend/mouseup, and drifts between down and up — the same fault
+// that made the control buttons unresponsive.
+pressable(cover, flipArtwork);
 
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;

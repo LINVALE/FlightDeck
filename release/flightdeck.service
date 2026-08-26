@@ -4,10 +4,14 @@ Documentation=https://github.com/LINVALE
 # Roon discovery and mDNS both need the network to be up and addressed.
 After=network-online.target
 Wants=network-online.target
-# A restart loop must not hammer Roon's discovery: give up and stay down.
+# A crash loop must not hammer Roon's discovery: give up and stay down.
+# Sized against RestartSec=5, so a genuinely crashing service trips this in about
+# a minute — while leaving room for the hand-restarts that development needs.
+# Tighter values (5 in 300 s) stopped the service mid-session on 2026-08-25 and
+# needed `systemctl reset-failed` to clear, which is a poor trade for the safety.
 # These are [Unit] keys — systemd ignores them silently under [Service].
-StartLimitIntervalSec=300
-StartLimitBurst=5
+StartLimitIntervalSec=120
+StartLimitBurst=12
 
 [Service]
 Type=simple
