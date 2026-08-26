@@ -212,3 +212,65 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .zone { font-size: 3vw; } .chip { font-size: 2.4vw; } .status { font-size: 2.4vw; }
   .time { font-size: 3vw; } .time.ends { font-size: 2.4vw; } .picker span { font-size: 2.6vw; }
 }
+
+/* ══ CLASSIC ══════════════════════════════════════════════════════════════════
+   Roon's own grammar done properly: sleeve left, copy right, a hairline bar
+   sharing its baseline with the cover's bottom edge. It exists so there is
+   something honest to hold the Presence face against — and it is the control in
+   the side-by-side drill against Roon's own Display.
+
+   Same DOM as Presence; only the layout differs. The cover is still only ever
+   RESIZED and repositioned — never cropped, tinted or overlaid. */
+
+.bar { display: none; }
+.face[data-face="classic"] .lamps { display: none; }
+.face[data-face="classic"] .bar {
+  display: block; position: relative;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  height: 0.36vw; margin: 0 1.6vw;
+  background: rgba(242,238,230,.16); border-radius: 2px;
+}
+.face[data-face="classic"] .bar i {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: var(--accent); border-radius: 2px;
+}
+/* the playhead, so position reads as a cursor from the sofa */
+.face[data-face="classic"] .bar i::after {
+  content: ""; position: absolute; right: -0.18vw; top: -0.42vw;
+  width: 0.36vw; height: 1.2vw; background: var(--accent); border-radius: 1px;
+}
+
+/* sleeve left, copy right, both centred on the same axis */
+.face[data-face="classic"] .body {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+}
+.face[data-face="classic"] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+  width: 100%;
+}
+.face[data-face="classic"] .cover {
+  width: 34vw; height: 34vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-right: 3.4vw;
+}
+.face[data-face="classic"] .copy {
+  text-align: left; margin-top: 0; min-width: 0;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+}
+.face[data-face="classic"] .title {
+  font-size: 3.4vw; max-width: 100%; margin: 0;
+  -webkit-line-clamp: 3;
+}
+.face[data-face="classic"] .line2 { font-size: 1.75vw; margin-top: 1.4vh; }
+.face[data-face="classic"] .line3 { font-size: 1.35vw; margin-top: 0.7vh; }
+
+/* Classic keeps a quiet blurred sleeve behind it rather than the artist: it is
+   the conservative face, and a photograph is not conservative. */
+.face[data-face="classic"] .bg canvas { opacity: .55; }
+
+@media (max-width: 900px) {
+  .face[data-face="classic"] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face[data-face="classic"] .cover { width: 62vw; height: 62vw; margin: 0 0 2vh 0; }
+  .face[data-face="classic"] .copy { text-align: center; }
+  .face[data-face="classic"] .title { font-size: 7vw; }
+}

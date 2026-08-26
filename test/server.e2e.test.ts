@@ -168,9 +168,14 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   t.after(() => server.close());
   const base = 'http://127.0.0.1:' + String(port);
 
-  const page = await (await fetch(base + '/face/1601abc?face=dial')).text();
+  const page = await (await fetch(base + '/face/1601abc?face=classic')).text();
   assert.match(page, /data-zone="1601abc"/);
-  assert.match(page, /data-face-param="dial"/);
+  assert.match(page, /data-face-param="classic"/);
+
+  // A face that was DESIGNED but never built must not be selectable: offering it
+  // gave a control that changed an attribute and nothing else.
+  const unbuilt = await (await fetch(base + '/face/1601abc?face=dial')).text();
+  assert.ok(!unbuilt.includes('data-face-param'), 'an unimplemented face is not honoured');
 
   // An unknown face falls back to the screen's own memory rather than erroring.
   const unknown = await (await fetch(base + '/face/1601abc?face=nonsense')).text();

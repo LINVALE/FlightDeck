@@ -6,7 +6,10 @@ import { renderMarkdown } from './markdown.ts';
  * so these are tiny and cacheable-in-spirit: no zone data is ever baked in.
  */
 
-const FACES = ['presence', 'dial', 'classic', 'canvas', 'libretto'] as const;
+// Only faces with a layout behind them. The other three from the design
+// tournament (Dial, Ambient Canvas, Libretto) are designed but not built, and
+// offering them made four controls that did nothing.
+const FACES = ['presence', 'classic'] as const;
 export type FaceName = (typeof FACES)[number];
 export const DEFAULT_FACE: FaceName = 'presence';
 

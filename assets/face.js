@@ -9,7 +9,15 @@ import { createStream } from './stream.js';
  * ES2018 only; the floor is Chromium 63.
  */
 
-var FACES = ['presence', 'dial', 'classic', 'canvas', 'libretto'];
+/**
+ * Faces that are actually IMPLEMENTED. The list was briefly all five from the
+ * design tournament, but only Presence had any code behind it, so choosing the
+ * others changed an attribute and nothing else — four dead controls on a TV
+ * (Peter, 08-25: "classic presence selections do - I see nothing").
+ *
+ * A name only belongs here once its layout exists.
+ */
+var FACES = ['presence', 'classic'];
 var STORE_KEY_FACE = 'flightdeck.face.';
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
@@ -197,7 +205,10 @@ var remaining = el('div', 'time');
 var ends = el('div', 'time ends');
 var rightBox = el('div');
 rightBox.appendChild(remaining); rightBox.appendChild(ends);
-foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(rightBox);
+var bar = el('div', 'bar');
+var barFill = el('i');
+bar.appendChild(barFill);
+foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(bar); foot.appendChild(rightBox);
 
 safe.appendChild(head); safe.appendChild(body); safe.appendChild(foot);
 root.appendChild(bg); root.appendChild(safe);
@@ -273,9 +284,40 @@ function readPalette(url, done) {
         }
         return out;
       };
+      /**
+       * The accent carries the zone name, the state word and the progress — text
+       * that must read from a sofa. Multiplying the dominant tone by a constant
+       * does not achieve that: a dark red sleeve yields a dark red accent, and
+       * "PAUSED" disappears into the ground.
+       *
+       * So lift it until it genuinely clears the ground, measuring rather than
+       * hoping — WCAG relative luminance against the deck, raised toward white
+       * until the contrast ratio passes 4.5:1. The HUE is preserved throughout,
+       * so the accent still belongs to the artwork.
+       */
+      var luminance = function (rgb) {
+        var chan = [];
+        for (var c = 0; c < 3; c += 1) {
+          var v = Math.max(0, Math.min(1, rgb[c] / 255));
+          chan.push(v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4));
+        }
+        return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2];
+      };
+      var GROUND = 0.00518;                       // #0a0b0d, the deck
+      var contrast = function (rgb) {
+        return (luminance(rgb) + 0.05) / (GROUND + 0.05);
+      };
+      var liftToContrast = function (rgb, target) {
+        var out = [rgb[0], rgb[1], rgb[2]];
+        // Up to 24 steps of 8% toward white; stops the moment it is legible.
+        for (var step = 0; step < 24 && contrast(out) < target; step += 1) {
+          for (var c = 0; c < 3; c += 1) out[c] = out[c] + (255 - out[c]) * 0.08;
+        }
+        return out;
+      };
       var deep = toHex(ranked[0].rgb, 0.42);
       var mid = toHex(ranked[Math.min(1, ranked.length - 1)].rgb, 0.8);
-      var lit = toHex(ranked[0].rgb, 1.5);
+      var lit = toHex(liftToContrast(ranked[0].rgb, 4.5), 1);
       done([deep, mid, lit]);
     } catch (error) { done(palette); }
   };
@@ -411,6 +453,7 @@ function render(snapshot, kind) {
     var wantClass = l < litTo ? 'lit' : (l === litTo && zone.state === 'playing' ? 'head' : '');
     if (node.className !== wantClass) node.className = wantClass;
   }
+  barFill.style.width = Math.max(0, Math.min(100, (position / length) * 100)).toFixed(2) + '%';
   elapsed.textContent = formatTime(position);
   remaining.textContent = '−' + formatTime(length - position);
   // ENDS hh:mm — grafted from the Dial face. Practical from a sofa in a way a
