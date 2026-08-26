@@ -88,6 +88,29 @@ click or OK needed, and a line fills under the name while it arms so the wait is
 visible. Moving away before it completes cancels, so passing over a name costs
 nothing. A tap or click applies it immediately.
 
+### ⚖️ On a Samsung TV the D-pad never reaches the browser — use letters
+
+Probed on a 2025 Samsung, 2026-08-25. The browser received keyCodes
+`[32, 65–90, 189]` and **nothing else**: no arrows, no Enter, no media keys, no
+coloured buttons. The television's own navigation consumes them all before the
+page exists. A keyboard, however, reaches it perfectly.
+
+So the controls live on letters, which are free — a Face has no text input:
+
+| Key | Does |
+|-----|------|
+| `space` or `k` | play / pause |
+| `n` | next track |
+| `b` | back a track |
+| `u` / `d` | volume up / down — **this room's speaker only** |
+| `f` / `g` | next / previous face |
+| `a` | album ↔ artist artwork |
+| `r` | next room |
+
+Arrows and media keys are still mapped for desktop browsers, where nothing
+intercepts them. On the TV, pair a cheap USB or Bluetooth keyboard with the set —
+or use the on-screen buttons with the remote's pointer.
+
 ### If the remote does nothing
 
 Add `?keys=1` to the URL. Every key you press then prints its name and keyCode on

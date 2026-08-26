@@ -81,7 +81,7 @@ function reportKey(event, name) {
   // Report what the key WOULD DO, not the internal name for it: this is read by
   // a person deciding whether their remote is usable.
   var does = {
-    left: 'face \u25C0', right: 'face \u25B6',
+    left: 'face \u25C0', right: 'face \u25B6', room: 'next room',
     up: 'volume +', down: 'volume \u2212',
     ok: 'artwork', playpause: 'play / pause',
     next: 'next track', previous: 'previous track',
@@ -93,6 +93,16 @@ function reportKey(event, name) {
     acted: does || 'not used',
   });
   if (keySeen.length > 10) keySeen.length = 10;
+
+  // Report it to FlightDeck as well as the screen: a TV cannot be read from the
+  // other end of the house, but it can send what it saw.
+  try {
+    fetch('/api/v1/keyprobe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: event.key || '(none)', code: code, acted: does || 'not used' }),
+    }).catch(function () { /* the on-screen list still stands */ });
+  } catch (error) { /* older engine without fetch: the panel is enough */ }
 
   var rows = [el('div', 'keylog-head', 'KEY PROBE  \u00B7  press the buttons you want to use')];
   for (var i = 0; i < keySeen.length; i += 1) {
@@ -774,7 +784,7 @@ function showPicker() {
   controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
   nodes.push(controls);
-  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ volume   OK artwork   ·   rest on a name to switch'));
+  nodes.push(el('em', 'hint', 'keys:  space play  ·  n next  ·  b back  ·  u / d volume  ·  f face  ·  a artwork  ·  r room'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
@@ -1034,16 +1044,36 @@ function keyName(event) {
    * Use ?keys=1 on a Face to see what a given remote actually reports.
    */
   if (code === 415 || code === 10252) return 'playpause';   // Tizen Play / PlayPause
-  if (code === 19 || code === 10009 && false) return 'playpause';
   if (code === 413) return 'stop';                          // Tizen Stop
   if (code === 417 || code === 228) return 'next';          // FastForward
   if (code === 412 || code === 227) return 'previous';      // Rewind
-  // The coloured buttons are usually left free for the page: a useful last resort
-  // on a set whose D-pad the browser swallows.
   if (code === 403) return 'previous';                      // red
   if (code === 404) return 'playpause';                     // green
   if (code === 405) return 'voldown';                       // yellow
   if (code === 406) return 'volup';                         // blue
+
+  /**
+   * LETTER KEYS, and they are not a convenience — on this television they are the
+   * only thing that works.
+   *
+   * Probed on Peter's set, 2026-08-25: the browser received codes
+   * [32, 65-90, 189] and NOTHING else. No arrows, no Enter, no media keys, no
+   * coloured buttons — the TV's own navigation consumes every one of them before
+   * the page exists. A keyboard reaches it perfectly.
+   *
+   * So every control has a letter, chosen to be reachable one-handed and not to
+   * collide: there is no text input anywhere on a Face, so a letter is free.
+   */
+  var letter = String.fromCharCode(code).toLowerCase();
+  if (letter === 'k') return 'playpause';
+  if (letter === 'n' || letter === 'j') return 'next';
+  if (letter === 'b') return 'previous';
+  if (letter === 'f') return 'right';                       // next face
+  if (letter === 'g') return 'left';                        // previous face
+  if (letter === 'a') return 'ok';                          // artwork
+  if (letter === 'r') return 'room';                        // next room
+  if (letter === 'u' || code === 187 || code === 107) return 'volup';
+  if (letter === 'd' || code === 189 || code === 109) return 'voldown';
   return '';
 }
 
@@ -1073,6 +1103,7 @@ function onKey(event) {
   else if (name === 'stop') transport('pause');
   else if (name === 'volup') nudgeVolume(1);
   else if (name === 'voldown') nudgeVolume(-1);
+  else if (name === 'room') cycleZone(1);
   event.preventDefault();
   event.stopPropagation();
 }

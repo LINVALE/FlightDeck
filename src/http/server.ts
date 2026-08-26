@@ -17,6 +17,17 @@ export interface Commands {
 }
 
 const TRANSPORT: ReadonlySet<string> = new Set(['play', 'pause', 'playpause', 'next', 'previous', 'stop']);
+
+/**
+ * What a remote actually sent. A television decides which keys ever reach a
+ * browser, and that cannot be determined from the server — but the PAGE knows,
+ * so in ?keys=1 mode it posts each key here and the answer can be read without
+ * anyone transcribing it off a screen across the room.
+ *
+ * Diagnostic only: bounded, in memory, and gone on restart.
+ */
+interface ProbedKey { readonly at: string; readonly key: string; readonly code: number; readonly acted: string }
+const probed: ProbedKey[] = [];
 const MAX_BODY = 2048;
 
 /** Read a small JSON body, refusing anything oversized rather than buffering it. */
@@ -145,6 +156,21 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       return;
     }
 
+    if (request.method === 'POST' && path === '/api/v1/keyprobe') {
+      void readJson(request).then((body) => {
+        if (body !== null) {
+          probed.unshift({
+            at: new Date().toISOString(),
+            key: String(body.key ?? '').slice(0, 40),
+            code: typeof body.code === 'number' ? body.code : 0,
+            acted: String(body.acted ?? '').slice(0, 40),
+          });
+          if (probed.length > 40) probed.length = 40;
+        }
+        json(response, 200, { ok: true });
+      });
+      return;
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       json(response, 405, { error: 'method not allowed' });
       return;
@@ -162,6 +188,11 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       else json(response, 200, snapshot);
       return;
     }
+    if (path === '/api/v1/keyprobe') {
+      json(response, 200, { keys: probed });
+      return;
+    }
+
     if (path === '/api/v1/recent') {
       json(response, 200, { tracks: deps.ledger.recent(24) });
       return;
