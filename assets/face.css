@@ -400,10 +400,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-ring] .dial-remain {
   font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
 }
+/* No plate. A black pill inside the ring reads as a control rather than a
+   reading, and it fights the disc's own colour-matched fill (Peter, 08-26).
+   Contrast comes the way it does everywhere else on a photograph — from a
+   shadow under the type — so the reading sits ON the background whatever the
+   artwork tints it, light or dark, and stays legible either way. */
 .face[data-ring] .dial-times {
   font-size: 1.15vw; margin: 0; color: var(--bone);
   font-variant-numeric: tabular-nums; letter-spacing: .06em;
-  background: rgba(10,11,13,.82); padding: .3vh .9vw; border-radius: 99px;
+  background: none; padding: .3vh .9vw; border-radius: 0;
+  text-shadow: 0 .12em .5em rgba(0,0,0,.85), 0 0 .7em rgba(0,0,0,.65);
 }
 .face[data-ring] .dial-ends {
   font-size: .95vw; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
