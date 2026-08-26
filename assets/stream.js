@@ -67,10 +67,11 @@ export function createStream(store, onStatus) {
       if (mine !== epoch) return;
       backoff = BACKOFF_MIN; kick(); status('live');
     });
-    source.addEventListener('snapshot', frame(function (data) { store.accept(data); }));
+    source.addEventListener('snapshot', frame(function (data) { store.accept(data, true); }));
     source.addEventListener('update', frame(function (data) { store.accept(data); }));
     source.addEventListener('resync', frame(function (data) {
-      if (data.snapshot) store.accept(data.snapshot); else refetch();
+      // A resync is the server saying "here is the truth" — always authoritative.
+      if (data.snapshot) store.accept(data.snapshot, true); else refetch();
     }));
     source.addEventListener('seek', frame(function (data) { store.acceptSeek(data); }));
     source.addEventListener('error', function () {
@@ -84,7 +85,7 @@ export function createStream(store, onStatus) {
   function refetch() {
     fetch('/api/v1/snapshot', { cache: 'no-store' })
       .then(function (response) { return response.ok ? response.json() : null; })
-      .then(function (data) { if (data !== null) { store.accept(data); status('live'); } })
+      .then(function (data) { if (data !== null) { store.accept(data, true); status('live'); } })
       .catch(function () { /* the watchdog will try again */ });
   }
 

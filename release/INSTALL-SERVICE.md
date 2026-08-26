@@ -36,6 +36,25 @@ sudo systemctl enable --now flightdeck
 ```
 
 
+
+## Stop needing sudo to restart it
+
+Every change under `src/` needs a restart, and typing `sudo` each time is the
+friction that makes people stop restarting. Install the polkit rule once:
+
+```bash
+sudo cp ~/dev/FlightDeck/release/50-flightdeck.rules /etc/polkit-1/rules.d/
+```
+
+That is scoped to **this unit and this user**, and grants nothing else. Afterwards:
+
+```bash
+systemctl restart flightdeck      # no sudo, no prompt
+./flightdeck-launch.sh restart    # drives systemd for you
+```
+
+The VSCode task **FlightDeck: Restart** then works with no password prompt.
+
 ## The service and the launcher must never both run
 
 Installing the unit makes systemd the owner. `flightdeck-launch.sh` now refuses

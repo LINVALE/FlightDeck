@@ -112,7 +112,7 @@ async function main(): Promise<void> {
         typeof np?.image_key === 'string' ? np.image_key : null, at);
     }
     hub.publish(buildSnapshot(
-      { zones, coreName: 'ROCK (preview)', corePaired: true, coreSinceAt: at, revision, at }, relay, ledger));
+      { generation: 'test', zones, coreName: 'ROCK (preview)', corePaired: true, coreSinceAt: at, revision, at }, relay, ledger));
   };
   publish();
 

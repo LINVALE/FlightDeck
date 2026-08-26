@@ -182,7 +182,23 @@ cmd_tail() { tail -n "${2:-40}" -f "$LOG_FILE"; }
 case "${1:-status}" in
     start)   cmd_start ;;
     stop)    cmd_stop ;;
-    restart) cmd_stop || true; cmd_start ;;
+    restart)
+        # When systemd owns FlightDeck, restart THROUGH it rather than refusing.
+        # With release/50-flightdeck.rules installed this needs no sudo at all.
+        if service_active; then
+            echo "restarting the systemd service…"
+            if systemctl restart flightdeck 2>/dev/null; then
+                sleep 3; cmd_status
+            else
+                echo "could not restart without elevation. Either:"
+                echo "  sudo systemctl restart flightdeck"
+                echo "  or install the polkit rule once, and this stops asking:"
+                echo "    sudo cp $FD_DIR/release/50-flightdeck.rules /etc/polkit-1/rules.d/"
+                exit 1
+            fi
+        else
+            cmd_stop || true; cmd_start
+        fi ;;
     status)  cmd_status ;;
     tail|log|logs) cmd_tail "$@" ;;
     browse)  FLIGHTDECK_BROWSE=1 export FLIGHTDECK_BROWSE; cmd_stop || true; FLIGHTDECK_BROWSE=1 cmd_start ;;

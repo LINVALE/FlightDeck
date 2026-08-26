@@ -55,7 +55,7 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   const base = 'http://127.0.0.1:' + String(port);
 
   hub.publish(buildSnapshot(
-    { zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
+    { generation: 'test', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
     relay, ledger));
 
   // ---- the Wall renders, and carries the name fallback a TV needs ----
@@ -138,7 +138,7 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   const moved = JSON.parse(JSON.stringify(ZONES)) as Record<string, any>[];
   moved[1].state = 'playing';
   hub.publish(buildSnapshot(
-    { zones: moved, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 2, at: new Date().toISOString() },
+    { generation: 'test', zones: moved, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 2, at: new Date().toISOString() },
     relay, ledger));
   await pump(/event: update/);
   assert.match(buffer, /id: 2/);
@@ -258,4 +258,33 @@ test('assets are served, and a path traversal is refused', async (t) => {
 
   assert.equal((await fetch(base + '/assets/../package.json')).status, 404);
   assert.equal((await fetch(base + '/assets/nope.js')).status, 404);
+});
+
+test('a display survives a server restart without being reloaded', async () => {
+  const { createStore } = await import('./support/store-harness.ts');
+  const store = createStore();
+
+  // A long-running display, holding a high revision from the process that has
+  // been up all evening.
+  store.accept({ generation: 'genA', revision: 700, generatedAt: 'x', core: { state: 'paired', name: 'C', sinceAt: 'x' }, zones: [] }, true);
+  assert.equal(store.snapshot().revision, 700);
+
+  // FlightDeck restarts. Its revision counter begins again near zero.
+  const afterRestart = { generation: 'genB', revision: 3, generatedAt: 'y', core: { state: 'paired', name: 'C', sinceAt: 'y' }, zones: [] };
+
+  // Before the fix this frame was silently discarded and the display froze
+  // forever. A changed generation must be trusted.
+  store.accept(afterRestart, false);
+  assert.equal(store.snapshot().revision, 3, 'a new process must be believed, however low its revision');
+  assert.equal(store.snapshot().generation, 'genB');
+
+  // Within one generation the monotonic guard still holds: a late frame from a
+  // dying socket must not undo a fresher one.
+  store.accept({ ...afterRestart, revision: 9 }, false);
+  store.accept({ ...afterRestart, revision: 5 }, false);
+  assert.equal(store.snapshot().revision, 9, 'stale frames within a generation are still refused');
+
+  // And a seek frame from the previous process must not be applied.
+  store.acceptSeek({ generation: 'genA', revision: 9, at: new Date().toISOString(), zones: [{ id: 'z', positionSec: 5 }] });
+  assert.equal(store.positionFor('z'), null, 'a seek from a dead generation is ignored');
 });

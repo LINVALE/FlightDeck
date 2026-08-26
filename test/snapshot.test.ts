@@ -82,7 +82,7 @@ test('a track change does not reshuffle the wall', () => {
 
 test('the revision signature ignores seek but catches a real change', () => {
   const ledger = new RecentLedger(null);
-  const input = { zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: AT, revision: 1, at: AT };
+  const input = { generation: 'test', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: AT, revision: 1, at: AT };
   const first = buildSnapshot(input, art, ledger);
   const moved = JSON.parse(JSON.stringify(ZONES)) as Record<string, unknown>[];
   (moved[0].now_playing as Record<string, unknown>).seek_position = 600;
@@ -99,7 +99,7 @@ test('a malformed zone is dropped rather than crashing the snapshot', () => {
   const ledger = new RecentLedger(null);
   const zones = [null, 'nonsense', {}, { zone_id: '' }, ...ZONES];
   const snapshot = buildSnapshot(
-    { zones, coreName: null, corePaired: true, coreSinceAt: AT, revision: 1, at: AT }, art, ledger);
+    { generation: 'test', zones, coreName: null, corePaired: true, coreSinceAt: AT, revision: 1, at: AT }, art, ledger);
   assert.equal(snapshot.zones.length, ZONES.length);
 });
 

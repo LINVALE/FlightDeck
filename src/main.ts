@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
@@ -42,6 +43,8 @@ let coreName: string | null = null;
 let coreSinceAt = stamp();
 let revision = 0;
 let signature = '';
+/** New on every start: what tells a client its held revision is from a dead process. */
+const GENERATION = randomBytes(8).toString('hex');
 let boundPort = 0;
 let altPort = 0;
 let mdns: MdnsResponder | null = null;
@@ -94,7 +97,7 @@ function republish(): void {
     );
   }
   const candidate = buildSnapshot(
-    { zones: rawZones, coreName, corePaired, coreSinceAt, revision: revision + 1, at },
+    { generation: GENERATION, zones: rawZones, coreName, corePaired, coreSinceAt, revision: revision + 1, at },
     relay,
     ledger,
   );
@@ -121,7 +124,7 @@ function tickSeek(): void {
     if (id === null || position === null) continue;
     zones.push({ id, positionSec: position });
   }
-  hub.publishSeek({ revision: snapshot.revision, at, zones } as SeekFrame);
+  hub.publishSeek({ generation: GENERATION, revision: snapshot.revision, at, zones } as SeekFrame);
 }
 
 function lanAddresses(): string[] {

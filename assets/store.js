@@ -33,10 +33,22 @@ export function createStore(onChange) {
       } catch (error) { return false; }
     },
 
-    accept: function (next) {
+    /**
+     * `authoritative` marks a full snapshot or a resync — the server stating what
+     * is true right now, rather than an incremental step.
+     *
+     * The monotonic guard below must never outlive the process that produced the
+     * revisions. FlightDeck restarts its counter at zero, so a display holding a
+     * high revision from the previous process rejected EVERY frame the new one
+     * sent and froze until someone reloaded it by hand — which is precisely the
+     * failure this whole project exists to avoid. A changed generation, or an
+     * authoritative frame, clears it.
+     */
+    accept: function (next, authoritative) {
       if (!next || typeof next.revision !== 'number' || !Array.isArray(next.zones)) return;
-      // Never go backwards: a late frame from a dead socket must not undo a fresh one.
-      if (snapshot !== null && next.revision < snapshot.revision) return;
+      var newProcess = snapshot !== null && next.generation !== snapshot.generation;
+      if (!authoritative && !newProcess
+          && snapshot !== null && next.revision < snapshot.revision) return;
       snapshot = next;
       seekAt = {};
       emit('snapshot');
@@ -47,6 +59,7 @@ export function createStore(onChange) {
     acceptSeek: function (frame) {
       if (snapshot === null || !frame || !Array.isArray(frame.zones)) return;
       if (frame.revision !== snapshot.revision) return;
+      if (frame.generation && snapshot.generation && frame.generation !== snapshot.generation) return;
       var when = Date.parse(frame.at);
       for (var i = 0; i < frame.zones.length; i += 1) {
         var entry = frame.zones[i];

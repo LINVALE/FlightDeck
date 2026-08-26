@@ -75,6 +75,13 @@ export interface Core {
 }
 
 export interface Snapshot {
+  /**
+   * Identity of the SERVER PROCESS. The revision counter restarts from zero when
+   * FlightDeck restarts, so a client holding a high revision would otherwise
+   * reject every frame the new process sends and freeze until someone reloaded
+   * it. A changed generation tells the client to trust what it is being given.
+   */
+  readonly generation: string;
   /** Bumps on STRUCTURAL change only. Seek rides its own frame and never bumps this. */
   readonly revision: number;
   readonly generatedAt: string;
@@ -84,6 +91,7 @@ export interface Snapshot {
 
 /** The 1 Hz seek frame: playing zones only, no revision bump. */
 export interface SeekFrame {
+  readonly generation: string;
   readonly revision: number;
   readonly at: string;
   readonly zones: readonly { readonly id: string; readonly positionSec: number }[];

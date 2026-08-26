@@ -1,0 +1,17 @@
+/*
+ * Let the owning user start, stop and restart FlightDeck without a password.
+ *
+ * Scoped deliberately: this one unit, this one user, and only unit management —
+ * it is not a general sudo grant, and it cannot touch any other service.
+ *
+ * Install once (see release/INSTALL-SERVICE.md), and `systemctl restart
+ * flightdeck` then works with no sudo and no prompt, which is what makes the
+ * VSCode task and the launcher usable during development.
+ */
+polkit.addRule(function (action, subject) {
+    if (action.id === "org.freedesktop.systemd1.manage-units"
+        && action.lookup("unit") === "flightdeck.service"
+        && subject.user === "peter") {
+        return polkit.Result.YES;
+    }
+});

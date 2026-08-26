@@ -1,7 +1,7 @@
 import { createSocket, type Socket, type RemoteInfo } from 'node:dgram';
 import { networkInterfaces } from 'node:os';
 import {
-  buildQuery, buildResponse, parseQuestions,
+  buildQuery, buildResponse, parseAnswers, parseQuestions,
   answerA, answerPtr, answerSrv, answerTxt,
   TYPE_A, TYPE_ANY, TYPE_PTR, TYPE_SRV, TYPE_TXT, type Answer,
 } from './dns-wire.ts';
@@ -192,11 +192,20 @@ export class MdnsResponder {
     let parsed;
     try { parsed = parseQuestions(message); } catch { return; }
 
-    // A response for our own name from someone else is a conflict.
+    // A response for our own name is a conflict only when it points SOMEWHERE
+    // ELSE. Judging by the sender's address was wrong: the host's own avahi
+    // caches our previous announcement and replies for it, and multicast
+    // loopback returns our own packets — so every restart looked like a
+    // conflict and the responder renamed itself, reaching flightdeck-10.local
+    // while still advertising flightdeck.local in its URLs.
     const isResponse = (parsed.flags & 0x8000) !== 0;
     if (isResponse) {
-      if (!this.probed && !this.interfaces.some((iface) => iface.address === remote.address)) {
-        this.conflicts += 1;
+      if (this.probed) return;
+      const host = this.fqdn().toLowerCase();
+      const mine = new Set(this.interfaces.map((iface) => iface.address));
+      for (const answer of parseAnswers(message)) {
+        if (answer.name.toLowerCase() !== host || answer.ip === null) continue;
+        if (!mine.has(answer.ip)) { this.conflicts += 1; return; }
       }
       return;
     }

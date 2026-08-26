@@ -15,7 +15,7 @@ export const CLASS_IN = 1;
 export const FLUSH = 0x8000;
 
 /** Parse a name, following compression pointers with a bounded jump count. */
-function readName(buffer: Buffer, offset: number): { name: string; next: number } {
+export function readNameAt(buffer: Buffer, offset: number): { name: string; next: number } {
   const labels: string[] = [];
   let jumps = 0;
   let cursor = offset;
@@ -58,7 +58,7 @@ export function parseQuestions(message: Buffer): { id: number; flags: number; qu
   const questions: Question[] = [];
   let cursor = 12;
   for (let index = 0; index < count && cursor < message.length; index += 1) {
-    const parsed = readName(message, cursor);
+    const parsed = readNameAt(message, cursor);
     cursor = parsed.next;
     if (cursor + 4 > message.length) break;
     const type = message.readUInt16BE(cursor);
@@ -96,6 +96,38 @@ export function answerTxt(name: string, entries: readonly string[], ttl: number)
   }
   if (chunks.length === 0) chunks.push(Buffer.from([0]));
   return { name, type: TYPE_TXT, ttl, data: Buffer.concat(chunks), flush: true };
+}
+
+
+/**
+ * The A records in a response, as dotted-quad strings. Used to tell OUR OWN
+ * name being echoed back (by the host's avahi, or by our own loopback) from a
+ * genuine conflict with another machine.
+ */
+export function parseAnswers(message: Buffer): { name: string; type: number; ip: string | null }[] {
+  const out: { name: string; type: number; ip: string | null }[] = [];
+  if (message.length < 12) return out;
+  const qd = message.readUInt16BE(4);
+  const an = message.readUInt16BE(6);
+  let cursor = 12;
+  for (let i = 0; i < qd && cursor < message.length; i += 1) {
+    cursor = readNameAt(message, cursor).next + 4;
+  }
+  for (let i = 0; i < an && cursor + 10 <= message.length; i += 1) {
+    const parsed = readNameAt(message, cursor);
+    cursor = parsed.next;
+    if (cursor + 10 > message.length) break;
+    const type = message.readUInt16BE(cursor);
+    const rdLength = message.readUInt16BE(cursor + 8);
+    const rd = message.subarray(cursor + 10, cursor + 10 + rdLength);
+    cursor += 10 + rdLength;
+    out.push({
+      name: parsed.name,
+      type,
+      ip: type === TYPE_A && rd.length === 4 ? [...rd].join('.') : null,
+    });
+  }
+  return out;
 }
 
 export function buildResponse(answers: readonly Answer[], id = 0): Buffer {

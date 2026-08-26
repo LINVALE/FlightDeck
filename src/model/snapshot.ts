@@ -147,6 +147,7 @@ export function orderByRecency(zones: readonly Zone[], now: number): Zone[] {
 }
 
 export interface SnapshotInput {
+  readonly generation: string;
   readonly zones: readonly unknown[];
   readonly coreName: string | null;
   readonly corePaired: boolean;
@@ -162,6 +163,7 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
     if (zone !== null) projected.push(zone);
   }
   return {
+    generation: input.generation,
     revision: input.revision,
     generatedAt: input.at,
     core: {
