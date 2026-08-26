@@ -787,3 +787,21 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   background: var(--accent); border-color: var(--accent); color: var(--ink);
 }
 .vol-speaker.is-muted:hover { background: var(--accent); }
+
+/* A longer scale, and finer. There is room for it, and a single step of 1 in 100
+   needs somewhere to show — the boundary segment carries the remainder, so every
+   press moves something. */
+.picker.mode-transport .vol-scale { min-width: 22vw; padding: 0 .6vw; }
+.vol-scale b { width: .26vw; }
+.picker.mode-transport { min-width: 74vw; }
+
+/* ARTIST VIEW: the sleeve is a reference, not the subject. At full size it masked
+   the person it is meant to accompany — it now stands the same height as the three
+   lines beside it. */
+.face[data-view="artist"] .cover,
+.face.show-chrome[data-view="artist"] .cover { width: 8.4vw; height: 8.4vw; }
+@media (max-width: 900px) {
+  .face[data-view="artist"] .cover,
+  .face.show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
+  .picker.mode-transport .vol-scale { min-width: 44vw; }
+}

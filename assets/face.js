@@ -1567,17 +1567,8 @@ function paintVolume() {
     }
   }
   if (volUi.scale !== null && vol.value !== null && vol.max !== null) {
-    var min = vol.min === null ? 0 : vol.min;
-    var span = Math.max(1, vol.max - min);
-    var level = Math.max(0, Math.min(1, (vol.value - min) / span));
-    var segs = volUi.scale.childNodes;
-    var lit = Math.round(level * segs.length);
-    for (var i = 0; i < segs.length; i += 1) {
-      var on = i < lit && !muted;
-      var cls = on ? 'on' : '';
-      if (segs[i].className !== cls) segs[i].className = cls;
-    }
-    volUi.scale.setAttribute('title', 'volume ' + Math.round(level * 100) + '%  \u00B7  ' + output.name);
+    paintScale(volUi.scale, level0, muted);
+    volUi.scale.setAttribute('title', 'volume ' + Math.round(level0 * 100) + '%  \u00B7  ' + output.name);
   }
 }
 
@@ -1618,15 +1609,39 @@ function volumeStep(output, direction) {
 }
 
 /** A pressable level, segmented like the runway. */
+var SEGMENTS = 44;
+
+/**
+ * Paint a level onto the segments.
+ *
+ * The lit run is the whole segments, and the ONE at the boundary carries the
+ * remainder as partial brightness. Without that a single step of 1 in 100 rarely
+ * crossed a segment edge, so the scale sat still for two or three presses and the
+ * control felt broken (Peter, 08-26).
+ */
+function paintScale(scale, level, muted) {
+  var segs = scale.childNodes;
+  var exact = level * segs.length;
+  var whole = Math.floor(exact);
+  var part = exact - whole;
+  for (var i = 0; i < segs.length; i += 1) {
+    var cls = '';
+    var alpha = '';
+    if (!muted) {
+      if (i < whole) cls = 'on';
+      else if (i === whole && part > 0.04) { cls = 'on'; alpha = String(0.25 + part * 0.75); }
+    }
+    if (segs[i].className !== cls) segs[i].className = cls;
+    if (segs[i].style.opacity !== alpha) segs[i].style.opacity = alpha;
+  }
+}
+
 function volumeScale(output, level, min, span) {
-  var SEGMENTS = 24;
   var scale = el('span', 'vol-scale');
   scale.setAttribute('aria-label', 'volume \u00B7 ' + output.name);
   scale.setAttribute('title', 'volume ' + Math.round(level * 100) + '%  \u00B7  ' + output.name);
-  var lit = Math.round(level * SEGMENTS);
-  for (var i = 0; i < SEGMENTS; i += 1) {
-    scale.appendChild(el('b', i < lit ? 'on' : ''));
-  }
+  for (var i = 0; i < SEGMENTS; i += 1) scale.appendChild(el('b'));
+  paintScale(scale, level, !!(output.volume && output.volume.muted));
   var setFrom = function (clientX) {
     var box = scale.getBoundingClientRect();
     if (box.width <= 0) return;
