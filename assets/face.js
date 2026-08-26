@@ -796,6 +796,20 @@ function showPicker() {
     hasVolume, function () { nudgeVolume(1); }));
   actionRow.appendChild(controls);
   nodes.push(actionRow);
+
+  // Row three: what to play, rather than how to play it.
+  var browseRow = el('div', 'row row-browse');
+  var entry = function (label, onPress) {
+    var b = el('span', 'opt browse-entry', label);
+    pressable(b, onPress);
+    return b;
+  };
+  browseRow.appendChild(entry('genres', function () { openHierarchy('genres', 'Genres'); }));
+  browseRow.appendChild(entry('albums', function () { openHierarchy('albums', 'Albums'); }));
+  browseRow.appendChild(entry('artists', function () { openHierarchy('artists', 'Artists'); }));
+  browseRow.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
+  browseRow.appendChild(entry('recent', openRecent));
+  nodes.push(browseRow);
   nodes.push(el('em', 'hint', 'keys:  space play  ·  n next  ·  b back  ·  u / d volume  ·  f face  ·  a artwork  ·  r room'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
@@ -993,6 +1007,118 @@ var glyph = function (name) {
   svg.appendChild(path);
   return svg;
 };
+
+/* ---------- browse ----------
+ * A list overlay driven by Roon's Browse tree, plus our own recent-plays ledger.
+ * Shapes captured from a live Core on 2026-08-25 (docs/browse-shapes.md):
+ * `browse` returns the list, `load` returns the items, and item keys are
+ * session-scoped positions in a server-side stack — never cached.
+ */
+var browsePanel = null;
+var browseStack = [];
+
+function browseCall(body) {
+  return fetch('/api/v1/browse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (r) { return r.json().catch(function () { return {}; }); });
+}
+
+function closeBrowse() {
+  if (browsePanel !== null) { browsePanel.parentNode.removeChild(browsePanel); browsePanel = null; }
+  browseStack = [];
+}
+
+function browseShell(title) {
+  if (browsePanel === null) {
+    browsePanel = el('div', 'browse');
+    document.body.appendChild(browsePanel);
+  }
+  var head = el('div', 'browse-head');
+  var back = el('span', 'ctl small');
+  back.appendChild(glyph('left'));
+  back.setAttribute('aria-label', 'back');
+  pressable(back, function () {
+    browseStack.pop();
+    var prev = browseStack.pop();
+    if (prev === undefined) closeBrowse(); else prev();
+  });
+  head.appendChild(back);
+  head.appendChild(el('span', 'browse-title', title));
+  var shut = el('span', 'ctl small', '\u2715');
+  pressable(shut, closeBrowse);
+  head.appendChild(shut);
+  var list = el('div', 'browse-list', 'loading\u2026');
+  browsePanel.replaceChildren(head, list);
+  return list;
+}
+
+/** One row per item, at the same target size as everything else. */
+function browseRows(list, items, onPick) {
+  if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
+  var rows = items.map(function (item) {
+    var row = el('div', 'browse-row');
+    row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
+    if (item.subtitle) row.appendChild(el('span', 'browse-sub', item.subtitle));
+    pressable(row, function () { onPick(item); });
+    return row;
+  });
+  list.replaceChildren.apply(list, rows);
+}
+
+function openHierarchy(hierarchy, title) {
+  var render = function () {
+    var list = browseShell(title);
+    browseStack.push(render);
+    browseCall({ hierarchy: hierarchy, popAll: true, sessionKey: 'flightdeck-face' })
+      .then(function () { return browseCall({ hierarchy: hierarchy, load: true, count: 100, sessionKey: 'flightdeck-face' }); })
+      .then(function (data) {
+        browseRows(list, data.items || [], function (item) { descend(hierarchy, item); });
+      })
+      .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'browse unavailable')); });
+  };
+  render();
+}
+
+function descend(hierarchy, item) {
+  var zone = currentZone();
+  var render = function () {
+    var list = browseShell(item.title || 'Browse');
+    browseStack.push(render);
+    var call = { hierarchy: hierarchy, itemKey: item.itemKey, sessionKey: 'flightdeck-face' };
+    if (zone !== null) call.zoneId = zone.id;
+    browseCall(call)
+      .then(function (data) {
+        // An `action` item DOES something rather than opening a list — Roon has
+        // already acted by the time this returns, so there is nothing to draw.
+        if (data.action === 'none' || data.action === 'message') {
+          flash(data.message || 'done');
+          closeBrowse();
+          return null;
+        }
+        return browseCall({ hierarchy: hierarchy, load: true, count: 100, sessionKey: 'flightdeck-face' });
+      })
+      .then(function (data) {
+        if (data === null) return;
+        browseRows(list, data.items || [], function (next) { descend(hierarchy, next); });
+      })
+      .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'could not open that')); });
+  };
+  render();
+}
+
+/** Recently played needs no Browse at all: FlightDeck keeps its own ledger. */
+function openRecent() {
+  var list = browseShell('Recently played');
+  browseStack.push(function () { openRecent(); });
+  fetch('/api/v1/recent').then(function (r) { return r.json(); }).then(function (data) {
+    var tracks = (data.tracks || []).map(function (t) {
+      return { title: t.title, subtitle: t.zoneName + ' \u00B7 ' + new Date(t.at).toTimeString().slice(0, 5) };
+    });
+    browseRows(list, tracks, function () { flash('recently played is a record, not a queue'); });
+  }).catch(function () { list.replaceChildren(el('div', 'browse-empty', 'no history yet')); });
+}
 
 /* ---------- transport ----------
  * Every gesture is a USER ACTION translated into a ROON-LED instruction: the
