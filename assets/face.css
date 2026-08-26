@@ -633,3 +633,58 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .cog { min-width: 11vw; min-height: 10vw; }
   .cog .glyph { width: 5vw; height: 5vw; }
 }
+
+/* ══ THE RESTING FACE ═════════════════════════════════════════════════════════
+   At rest it is the music and nothing else: sleeve, title, artist, album, progress.
+   The room and the face name are indicators, not decoration — each NAMES what it
+   changes — and they appear only when someone shows signs of using the screen. */
+.face .zone, .face .status, .face .artistname { opacity: 0; }
+.face.show-chrome .zone, .face.show-chrome .status { opacity: 1; }
+.face.show-chrome .artistname { opacity: .9; }
+
+/* Both indicators read as pressable, and are sized to be pressed. */
+.face .zone, .face .cog {
+  cursor: pointer; padding: .55vh .9vw; border-radius: 6px;
+  border: 1px solid transparent; min-height: 2.6vw;
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+}
+.face.show-chrome .zone, .face.show-chrome .cog { border-color: rgba(242,238,230,.22); }
+.face .zone:hover, .face .cog:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+.cog {
+  margin-left: 1.2vw; font-size: 1.15vw; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--ash); min-width: 6vw; -webkit-justify-content: center; justify-content: center;
+}
+.face.show-chrome .cog { opacity: .9; }
+
+/* The transport bar belongs to the revealed state, so its buttons are the ones
+   reached for most — and are correspondingly bigger. */
+.picker.mode-transport span.ctl { min-width: 6vw; min-height: 4.6vw; }
+.picker.mode-transport .glyph { width: 2.1vw; height: 2.1vw; }
+.picker.mode-transport span.ctl.small { min-width: 3.6vw; min-height: 4.6vw; }
+.picker.mode-transport span.ctl.small .glyph { width: 1.4vw; height: 1.4vw; }
+.picker.mode-rooms { top: 12vh; bottom: auto; }
+.picker span.opt.is-playing { color: var(--bone); }
+
+@media (max-width: 900px) {
+  .cog { font-size: 3vw; min-width: 22vw; }
+  .picker.mode-transport span.ctl { min-width: 17vw; min-height: 15vw; }
+  .picker.mode-transport .glyph { width: 7vw; height: 7vw; }
+}
+
+/* The face MAKES ROOM for its controls rather than being covered by them: the
+   transport bar was landing squarely on the title.
+
+   Padding was the wrong tool — the content is taller than the box and centred, so
+   padding pushed it out of BOTH ends and the cover wrapper ended up on top of the
+   room indicator, swallowing its presses. Shrinking the sleeve frees the space
+   without overflowing anything. */
+.cover, .body { -webkit-transition: all .3s ease; transition: all .3s ease; }
+.face.show-chrome .cover { width: 20vw; height: 20vw; }
+.face.show-chrome[data-face="classic"] .cover { width: 27vw; height: 27vw; }
+.face.show-chrome[data-face="dial"] .cover { width: 19vw; height: 19vw; }
+.picker.mode-transport { bottom: 7vh; top: auto; }
+
+/* The indicators are the topmost thing in their corners: whatever the layout does
+   underneath, a press on the room or the face name must reach them. */
+.head { position: relative; z-index: 5; }

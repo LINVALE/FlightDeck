@@ -269,9 +269,15 @@ head.insertBefore(artistName, status);
  * ignores presses for a moment so the summoning touch cannot fall through onto a
  * control.
  */
-var cog = el('span', 'cog');
-cog.setAttribute('aria-label', 'faces and rooms');
-cog.appendChild(glyphCog());
+/**
+ * The two indicators. They are not decoration: each NAMES the thing it changes,
+ * so the screen explains itself without a legend (Peter, 08-26 — "the top right
+ * changes to indicate what face we have... maybe the cog is not needed").
+ *
+ * Both are hidden at rest. The resting face is the music and nothing else.
+ */
+var cog = el('span', 'cog');           // top right: the FACE, and where to change it
+cog.setAttribute('aria-label', 'change face');
 head.appendChild(cog);
 
 var idle = el('div', 'idle');
@@ -742,11 +748,16 @@ function armDwell(node, name) {
   }, DWELL_MS);
 }
 
+function paintFaceName() {
+  if (cog !== null) cog.textContent = current;
+}
+
 function applyFace(name) {
   if (FACES.indexOf(name) === -1 || name === current) return;
   current = name;
   remember(current);
   root.setAttribute('data-face', current);
+  paintFaceName();
   fieldRunning(current === 'canvas' && !document.hidden);
   showPicker();
 }
@@ -789,6 +800,39 @@ function showPicker(mode) {
    * browse, grouping, genre and recently-played will go.
    */
   var nodes = [];
+
+  /**
+   * ROOMS. A screen bound to a room still wants to look at another one
+   * occasionally, and the Wall is a different page — going there loses your place.
+   * So this lists the rooms, with the Wall offered explicitly at the end for when
+   * the whole house is what you want.
+   */
+  if (mode === 'rooms') {
+    var roomRow = el('div', 'row row-faces');
+    var snapshot = store.snapshot();
+    var zones = snapshot === null ? [] : snapshot.zones;
+    var here = currentZone();
+    for (var r = 0; r < zones.length; r += 1) {
+      (function (z) {
+        var opt = el('span', (here !== null && z.id === here.id) ? 'opt now' : 'opt', z.name);
+        if (z.state === 'playing') opt.className += ' is-playing';
+        pressable(opt, function () {
+          shownZoneId = z.id;
+          boundOutputId = null;          // a deliberate look elsewhere releases the binding
+          following = false;
+          picker.hidden = true;
+          var snap = store.snapshot();
+          if (snap !== null) render(snap, 'snapshot');
+        });
+        roomRow.appendChild(opt);
+      })(zones[r]);
+    }
+    var wall = el('span', 'opt', 'the wall');
+    pressable(wall, function () { location.href = '/'; });
+    roomRow.appendChild(wall);
+    nodes.push(roomRow);
+  }
+
   if (mode === 'faces') {
     var faceRow = el('div', 'row row-faces');
     for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
@@ -796,19 +840,9 @@ function showPicker(mode) {
   }
 
   var actionRow = el('div', 'row row-actions');
-  var rooms = el('div', 'controls');
-  var roomBtn = function (label, title, delta) {
-    var b = el('span', 'ctl small');
-    b.appendChild(glyph(label));
-    b.setAttribute('title', title);
-    b.setAttribute('aria-label', title);
-    pressable(b, function () { cycleZone(delta); });
-    return b;
-  };
-  rooms.appendChild(roomBtn('left', 'previous room', -1));
-  rooms.appendChild(el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room')));
-  rooms.appendChild(roomBtn('right', 'next room', 1));
-  actionRow.appendChild(rooms);
+  var rooms = null;
+  // The room lives in the top-left indicator now, not in this bar.
+
 
   var zone = currentZone();
   var controls = el('div', 'controls');
@@ -836,7 +870,7 @@ function showPicker(mode) {
   controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
   actionRow.appendChild(controls);
-  if (mode === 'transport' || mode === 'faces') nodes.push(actionRow);
+  if (mode === 'transport') nodes.push(actionRow);
 
   // Row three: what to play, rather than how to play it.
   var browseRow = el('div', 'row row-browse');
@@ -1510,10 +1544,15 @@ var chromeTimer = null;
 var panelShownAt = 0;
 
 function revealChrome() {
+  paintFaceName();
   root.className = root.className.indexOf('show-chrome') >= 0 ? root.className : root.className + ' show-chrome';
+  // The transport bar belongs to the revealed state, not to a press: once the
+  // screen is showing its controls, the commonest ones should already be there.
+  if (picker.hidden && browsePanel === null) showPicker('transport');
   if (chromeTimer !== null) clearTimeout(chromeTimer);
   chromeTimer = setTimeout(function () {
     root.className = root.className.replace(' show-chrome', '');
+    if (picker.className.indexOf('mode-transport') >= 0) picker.hidden = true;
   }, CHROME_MS);
 }
 
@@ -1541,6 +1580,7 @@ function onFacePress(event) {
   lastZonePress = now;
 
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
+  if (target !== null && (inNode(target, zoneName) || inNode(target, chipHost))) { openPanel('rooms'); return; }
 
   // Zones by height. The title band is where the music is named, so pressing it
   // asks "what is playing?" — which is browse. Below it is how to play it.
@@ -1548,7 +1588,9 @@ function onFacePress(event) {
   var height = window.innerHeight || 1080;
   if (y < height * 0.16) { openPanel('faces'); return; }
   if (y < height * 0.72) { openBrowseMenu(); return; }
-  openPanel('transport');
+  // The lower band is where the transport bar lives, and revealChrome has already
+  // put it there — pressing again would only re-raise it under the finger.
+  showPicker('transport');
 }
 
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {

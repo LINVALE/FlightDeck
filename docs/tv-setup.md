@@ -87,12 +87,24 @@ jump about as tracks change.
 only fades in the affordances — the room name and a cog — so you can see there is
 something to press. It opens nothing.
 
+**At rest the face is the music and nothing else** — sleeve, title, artist, album,
+progress. No room name, no status, no controls.
+
+**Movement, or a touch anywhere undefined, reveals it**: the room appears top left,
+the face's own name top right, and the transport bar below the music, which shifts
+up to make space. All of it fades again after six seconds.
+
 | Press here | Get |
 |-----------|-----|
 | the **cover** | flips album ↔ artist |
 | the **title band** (beside the cover) | **browse** — change what is playing |
-| the **lower band** | **transport** — play, skip, volume |
-| the **cog**, top right | **faces** and rooms |
+| the **room**, top left | the **room selector**, and "the wall" for the whole house |
+| the **face name**, top right | the **faces** |
+| the **lower band** | the transport bar |
+
+The defined areas work **at rest too** — you do not have to wake the screen first.
+Each indicator NAMES what it changes, so the screen explains itself without a
+legend.
 
 A panel never appears under the press that summoned it, and a freshly raised panel
 ignores presses for half a second — before that, a touch low on the screen raised
