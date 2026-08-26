@@ -140,16 +140,12 @@ cmd_status() {
         local sport
         sport="$(curl -s --max-time 2 http://127.0.0.1/api/v1/health 2>/dev/null | grep -o '"port":[0-9]*' | cut -d: -f2)"
         echo "FlightDeck  RUNNING (systemd)${sport:+  port $sport}"
-        # Say which it actually is. Without the polkit rule a restart works only
-        # while sudo credentials are still cached, which expires quietly and then
-        # starts prompting again mid-task.
-        if [ -f /etc/polkit-1/rules.d/50-flightdeck.rules ]; then
-            echo "  managed by: systemctl {start,stop,restart} flightdeck  (no sudo needed)"
-        else
-            echo "  managed by: sudo systemctl {start,stop,restart} flightdeck"
-            echo "  tip       : install the polkit rule once and sudo is never needed again —"
-            echo "              sudo cp $FD_DIR/release/50-flightdeck.rules /etc/polkit-1/rules.d/"
-        fi
+        # Deliberately NOT testing for the polkit rule file: /etc/polkit-1/rules.d
+        # is mode 700, so a non-root user cannot see it whether it is installed or
+        # not. The old check therefore always reported "needs sudo" and sent people
+        # chasing a rule they had already installed. Restart just tries, and only
+        # mentions polkit if the attempt actually fails.
+        echo "  managed by: systemctl restart flightdeck   (or ./flightdeck-launch.sh restart)"
         echo "  logs      : journalctl -u flightdeck -f"
         [ -n "$sport" ] && echo "  reach     : http://flightdeck.local${sport:+$([ "$sport" = 80 ] && echo "" || echo ":$sport")}/"
         return 0
@@ -196,7 +192,7 @@ case "${1:-status}" in
         # With release/50-flightdeck.rules installed this needs no sudo at all.
         if service_active; then
             echo "restarting the systemd service…"
-            if systemctl restart flightdeck 2>/dev/null; then
+            if systemctl restart flightdeck </dev/null 2>/dev/null; then
                 sleep 3; cmd_status
             else
                 echo "could not restart without elevation. Either:"

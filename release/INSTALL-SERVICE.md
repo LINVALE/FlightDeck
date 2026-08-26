@@ -46,7 +46,19 @@ friction that makes people stop restarting. Install the polkit rule once:
 sudo cp ~/dev/FlightDeck/release/50-flightdeck.rules /etc/polkit-1/rules.d/
 ```
 
-That is scoped to **this unit and this user**, and grants nothing else. Afterwards:
+That is scoped to **this unit and this user**, and grants nothing else.
+
+> ⚠️ **You cannot check whether it worked by looking for the file.**
+> `/etc/polkit-1/rules.d` is mode 700, so a normal user gets "Permission denied"
+> whether the rule is there or not. An early version of the launcher tested for
+> the file and therefore always reported "needs sudo", which sent us chasing a
+> rule that was already installed. The only honest test is to run the command:
+>
+> ```bash
+> systemctl restart flightdeck    # no sudo. If this returns, it is authorised.
+> ```
+
+Afterwards:
 
 ```bash
 systemctl restart flightdeck      # no sudo, no prompt
