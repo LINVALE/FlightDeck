@@ -99,11 +99,35 @@ export interface Finding {
   readonly file: string; readonly line: number; readonly why: string; readonly text: string;
 }
 
+/**
+ * Does it PARSE at all?
+ *
+ * A syntax error in a client asset blanks every display in the house, and the
+ * pattern rules below happily pass a file that cannot run — on 2026-08-25 an edit
+ * removed an `if` and left its `else`, the lint stayed green, and the Face went
+ * blank. Node's parser is newer than the floor, so this catches structural
+ * breakage, not floor violations; the pattern rules still cover the floor.
+ */
+export function parses(source: string): string | null {
+  const body = source.replace(/^\s*import\s.*$/gm, '').replace(/^\s*export\s+/gm, '');
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function(body);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 export function lintSource(file: string, source: string): Finding[] {
   const isCss = file.endsWith('.css');
   const stripped = stripInert(source);
   const rules = isCss ? CSS_RULES : JS_RULES;
   const findings: Finding[] = [];
+  if (!isCss) {
+    const broken = parses(source);
+    if (broken !== null) findings.push({ file, line: 1, why: 'DOES NOT PARSE: ' + broken });
+  }
   const lines = stripped.split('\n');
   // The guard is tested against the ORIGINAL source: 'decode' is a string literal,
   // and stripInert empties it, so a stripped file can never show its own guard.

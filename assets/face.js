@@ -118,20 +118,16 @@ function el(tag, className, text) {
  * settles that question on screen.
  */
 /**
- * Three views, and OK walks them — a TV has no pointer, so everything must be
- * reachable from the remote:
+ * TWO views, and OK toggles them (Peter, 08-25: "we just toggle album / artist"):
  *
- *   0  artist blur  the artist blurred behind a sharp cover  (default)
- *   1  artist       the artist sharp and full bleed, ROTATING every 10 s
- *   2  album        the cover itself forward, uncropped
- *   then back to 0
+ *   0  album   the sleeve is the hero, the artist blurred behind it  (default)
+ *   1  artist  the artist sharp and full bleed, ROTATING every 10 s
  *
- * Clicking the cover jumps straight to the album view, for screens that do have
- * a pointer (Peter, 08-25: "click on the album cover switches to the album
- * display").
+ * There were briefly three, and two of them were both "the cover is the hero" —
+ * one merely larger, wearing an ALBUM label. That is a difference a viewer does
+ * not care about, so the labelled one is gone and the default IS the album view.
  *
- * The album-BLUR step is gone, deliberately: blurring the sleeve in place of the
- * artist was not elegant (Peter, 08-25).
+ * Clicking the cover returns to the album view, for screens with a pointer.
  *
  * Step 1 is a user-triggered blur of the album art. That does NOT breach the
  * cover-sacred rule: the sacred cover is the sharp one in the layout, and a
@@ -144,11 +140,10 @@ function el(tag, className, text) {
  * CROPPING it, and the cover is sacred. So it goes as large as it can go whole —
  * full height, uncropped — floating on a blurred copy of itself.
  */
-var VIEW_ARTIST_BLUR = 0;
+var VIEW_ALBUM = 0;          // the sleeve is the hero; this is the default
 var VIEW_ARTIST = 1;
-var VIEW_ALBUM = 2;
 var ROTATE_MS = 10000;       // how long each artist portrait holds
-var viewStep = VIEW_ARTIST_BLUR;
+var viewStep = VIEW_ALBUM;
 var artistIndex = -1;        // -1 = no portrait on screen
 var rotateTimer = null;
 var lastTitle = null;
@@ -327,9 +322,10 @@ function setBackdrop(zone) {
   var np = zone.nowPlaying;
   var source = null;
   if (np) {
-    // The album forward floats on a blurred copy of ITSELF, so the two agree.
-    if (viewStep === VIEW_ALBUM) source = np.art;
-    else source = np.artistArt ? np.artistArt : np.art;   // artist first, cover as the fallback
+    // Both views use the ARTIST as the backdrop: blurred behind the sleeve in the
+    // album view, sharp and full bleed in the artist view. The cover is only the
+    // fallback when a track has no artist image at all (internet radio).
+    source = np.artistArt ? np.artistArt : np.art;
   }
   var key = (source ? source.key : null) + '@' + viewStep;
   if (key === backdropKey) return;
@@ -386,8 +382,8 @@ function render(snapshot, kind) {
       if (np.title !== lastTitle) {
         lastTitle = np.title;
         // A new track means a new artist; never leave a stale face on screen.
-        if (viewStep !== VIEW_ARTIST_BLUR) {
-          viewStep = VIEW_ARTIST_BLUR; artistIndex = -1; backdropKey = null; applyArtistView();
+        if (viewStep !== VIEW_ALBUM) {
+          viewStep = VIEW_ALBUM; artistIndex = -1; backdropKey = null; applyArtistView();
         }
       }
       title.textContent = np.title;
@@ -463,17 +459,11 @@ function applyArtistView() {
     artistIndex = -1;
     stopRotation();
     artistLayer.className = 'artistlayer';
-    if (viewStep === VIEW_ALBUM) {
-      // The cover comes forward. `data-view="album"` only ever RESIZES it —
-      // no crop, no tint, no overlay — so the sacred rule holds.
-      root.setAttribute('data-view', 'album');
-      artistName.textContent = 'album';
-      artistName.hidden = false;
-      return;
-    }
     root.removeAttribute('data-view');
     // Name the backdrop so a viewer knows which one they are looking at.
-    artistName.textContent = 'artist blur';
+    // The album view carries no label: it is the resting state, and naming it
+    // told a viewer nothing they could not see.
+    artistName.textContent = '';
     artistName.hidden = true;
     return;
   }
@@ -519,7 +509,7 @@ function startRotation(count) {
   }, ROTATE_MS);
 }
 
-/** The pointer shortcut: the cover is a button onto the album view. */
+/** The pointer shortcut: clicking the cover returns to the album view. */
 function showAlbumView() {
   viewStep = VIEW_ALBUM;
   artistIndex = -1;
@@ -532,10 +522,9 @@ function showAlbumView() {
 function cycleArtist() {
   var zone = currentZone();
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
-  viewStep = (viewStep + 1) % 3;
-  // Nothing to show for this track: skip the artist view rather than presenting
-  // an empty one.
-  if (viewStep === VIEW_ARTIST && shots.length === 0) viewStep = VIEW_ALBUM;
+  // A straight toggle. With no portraits for this track there is nothing to
+  // toggle to, so the album view simply stays.
+  viewStep = (viewStep === VIEW_ALBUM && shots.length > 0) ? VIEW_ARTIST : VIEW_ALBUM;
   artistIndex = viewStep === VIEW_ARTIST ? 0 : -1;
   backdropKey = null;                    // the backdrop source changed
   applyArtistView();
@@ -598,7 +587,7 @@ function cycleZone(delta) {
     writeFlag(STORE_KEY_FOLLOW + zoneId, false);
     try { localStorage.setItem(STORE_KEY_ZONE + zoneId, chosen); } catch (error) { /* private mode */ }
   }
-  viewStep = VIEW_ARTIST_BLUR;
+  viewStep = VIEW_ALBUM;
   artistIndex = -1;
   backdropKey = null;
   applyArtistView();
