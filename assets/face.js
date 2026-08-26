@@ -387,11 +387,26 @@ function render(snapshot, kind) {
 }
 
 /* ---------- artist view ---------- */
+function slugOf(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
 function currentZone() {
   var snapshot = store.snapshot();
   if (snapshot === null) return null;
   for (var i = 0; i < snapshot.zones.length; i += 1) {
     if (snapshot.zones[i].id === shownZoneId) return snapshot.zones[i];
+  }
+  // The id is gone — a Core restart can renumber zones. Re-find the room BY NAME
+  // rather than showing "unavailable" forever on a TV nobody is standing at.
+  var slug = root.getAttribute('data-zone-slug');
+  if (slug) {
+    var pool = [];
+    for (var j = 0; j < snapshot.zones.length; j += 1) {
+      if (slugOf(snapshot.zones[j].name).indexOf(slug) === 0) pool.push(snapshot.zones[j]);
+    }
+    for (var k = 0; k < pool.length; k += 1) {
+      if (pool[k].state === 'playing' || pool[k].state === 'loading') { shownZoneId = pool[k].id; return pool[k]; }
+    }
+    if (pool.length > 0) { shownZoneId = pool[0].id; return pool[0]; }
   }
   return null;
 }

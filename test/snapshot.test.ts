@@ -119,3 +119,27 @@ test('a restart does not re-log the track that is already playing', () => {
   assert.equal(ledger.recent().length, 2);
   assert.equal(ledger.recent()[0].title, 'Took Me By Surprise');
 });
+
+test('a face URL accepts a zone NAME, preferring the room that is playing', async () => {
+  const { resolveZone, zoneSlug } = await import('../src/http/pages.ts');
+  const zones = [
+    { id: 'idA', name: 'Study RHEOS', state: 'playing' },
+    { id: 'idB', name: 'Study Airplay', state: 'paused' },
+    { id: 'idC', name: 'Study ROON', state: 'paused' },
+    { id: 'idD', name: 'Dining Room', state: 'stopped' },
+  ];
+  assert.equal(zoneSlug('Study RHEOS'), 'studyrheos');
+  // the real id still wins
+  assert.equal(resolveZone(zones, 'idB'), 'idB');
+  // a partial name lands on the room making sound
+  assert.equal(resolveZone(zones, 'study'), 'idA');
+  // an exact name beats the playing preference
+  assert.equal(resolveZone(zones, 'Study Airplay'), 'idB');
+  assert.equal(resolveZone(zones, 'studyroon'), 'idC');
+  // punctuation and case are irrelevant
+  assert.equal(resolveZone(zones, 'dining-room'), 'idD');
+  assert.equal(resolveZone(zones, 'DINING ROOM'), 'idD');
+  // nothing sensible: null, so the client can say so rather than guess
+  assert.equal(resolveZone(zones, 'garage'), null);
+  assert.equal(resolveZone(zones, ''), null);
+});

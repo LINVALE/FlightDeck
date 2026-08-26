@@ -6,7 +6,7 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderWallPage } from './pages.ts';
+import { renderDocPage, renderFacePage, renderWallPage, resolveZone } from './pages.ts';
 
 export interface ServerDeps {
   readonly hub: EventHub;
@@ -206,9 +206,14 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       return;
     }
     if (path.startsWith('/face/')) {
-      const zoneId = decodeURIComponent(path.slice('/face/'.length));
+      const token = decodeURIComponent(path.slice('/face/'.length));
       const face = url.searchParams.get('face');
-      html(response, 200, renderFacePage(nonce, zoneId, face, url.searchParams.get('follow')), nonce);
+      // Accept a NAME as well as an id: /face/study is typeable on a remote,
+      // /face/1601d5ff4c9a... is not.
+      const snapshot = deps.hub.snapshot();
+      const resolved = snapshot === null ? null : resolveZone(snapshot.zones, token);
+      html(response, 200,
+        renderFacePage(nonce, resolved ?? token, face, url.searchParams.get('follow'), token), nonce);
       return;
     }
     json(response, 404, { error: 'not found' });

@@ -62,14 +62,50 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
     + '</footer></main></body></html>';
 }
 
+
+/** `Study RHEOS` -> `studyrheos`. What a person can type on a TV remote. */
+export function zoneSlug(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Resolve what someone typed after /face/ to a zone id. Accepts the real id, or
+ * a NAME — because a zone id is 36 hex characters and nobody is typing that with
+ * a remote.
+ *
+ * A partial name is allowed and deliberately prefers a zone that is playing:
+ * `/face/study` on a house with Study RHEOS, Study Airplay and Study ROON should
+ * land on the one making sound.
+ */
+export function resolveZone(
+  zones: readonly { id: string; name: string; state: string }[], token: string,
+): string | null {
+  if (token === '') return null;
+  for (const zone of zones) if (zone.id === token) return zone.id;
+  const wanted = zoneSlug(token);
+  if (wanted === '') return null;
+  const exact = zones.filter((zone) => zoneSlug(zone.name) === wanted);
+  const prefix = zones.filter((zone) => zoneSlug(zone.name).startsWith(wanted));
+  const pool = exact.length > 0 ? exact : prefix;
+  if (pool.length === 0) return null;
+  const playing = pool.find((zone) => zone.state === 'playing' || zone.state === 'loading');
+  return (playing ?? pool[0]).id;
+}
+
 export function renderFacePage(
   nonce: string, zoneId: string, faceParam: string | null, followParam: string | null = null,
+  zoneToken: string | null = null,
 ): string {
   const face = normalizeFace(faceParam);
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
+  // The NAME travels with the page as well as the id. A TV is mounted for years;
+  // Roon zone ids do not survive every Core change, and a bookmark that dies
+  // silently is worse than one that re-finds its room by name.
+  const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
   return head(nonce, 'FlightDeck', '/assets/face.css')
     + '<body><main class="face" id="face"'
     + ' data-zone="' + safeZone + '"'
+    + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
     // An explicit ?face= always WINS; otherwise the client reads its own memory.
     + (face === null ? '' : ' data-face-param="' + face + '"')
     + (followParam === '1' ? ' data-follow="1"' : (followParam === '0' ? ' data-follow="0"' : ''))
