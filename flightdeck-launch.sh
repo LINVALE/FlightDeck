@@ -140,7 +140,16 @@ cmd_status() {
         local sport
         sport="$(curl -s --max-time 2 http://127.0.0.1/api/v1/health 2>/dev/null | grep -o '"port":[0-9]*' | cut -d: -f2)"
         echo "FlightDeck  RUNNING (systemd)${sport:+  port $sport}"
-        echo "  managed by: systemctl {start,stop,restart} flightdeck  (needs sudo)"
+        # Say which it actually is. Without the polkit rule a restart works only
+        # while sudo credentials are still cached, which expires quietly and then
+        # starts prompting again mid-task.
+        if [ -f /etc/polkit-1/rules.d/50-flightdeck.rules ]; then
+            echo "  managed by: systemctl {start,stop,restart} flightdeck  (no sudo needed)"
+        else
+            echo "  managed by: sudo systemctl {start,stop,restart} flightdeck"
+            echo "  tip       : install the polkit rule once and sudo is never needed again —"
+            echo "              sudo cp $FD_DIR/release/50-flightdeck.rules /etc/polkit-1/rules.d/"
+        fi
         echo "  logs      : journalctl -u flightdeck -f"
         [ -n "$sport" ] && echo "  reach     : http://flightdeck.local${sport:+$([ "$sport" = 80 ] && echo "" || echo ":$sport")}/"
         return 0
