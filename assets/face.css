@@ -450,48 +450,62 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-ring] .lamps, .face[data-ring] .bar { display: none; }
 .face[data-ring] .foot { display: none; }
 
-/* When the artist comes forward the ring shrinks with the sleeve, because it is a
-   child of it. The LAYOUT still needs saying, though: the dial's column beat the
-   artist view's row on source order alone — equal specificity — and left the sleeve
-   floating above the copy instead of level with it. */
-.face[data-ring][data-view="artist"] .dial-reading { display: none; }
-/* Anchored low, like every other face in artist view: the continuous grade lives
-   at the bottom of the frame, and copy floating in the middle sits on whatever the
-   photograph happens to be doing there. Dial's centring beat the artist rule on
-   source order, so it is said explicitly. */
+/* THE ARTIST VIEW ON A RING FACE.
+ *
+ * The other faces lay the sleeve beside the words when the artist comes forward.
+ * A ring face keeps its OWN composition instead — reading in the top segment,
+ * title in the bottom — and simply shrinks, so the photograph gets the frame and
+ * the dial reads exactly as it does on the album view (Peter, 08-26: "shrink the
+ * dial down but still show title and progress in the ring").
+ *
+ * The artist line goes with it: the picture IS the artist, and at this size the
+ * bottom segment holds a title and an album, not three lines.
+ */
+.face[data-ring][data-view="artist"] .dial-reading { display: -webkit-flex; display: flex; }
+/* Anchored low-left, like every other face in artist view: the continuous grade
+   lives at the bottom of the frame, and a dial floating in the middle sits on
+   whatever the photograph happens to be doing there. */
 .face[data-ring][data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
-.face[data-ring][data-view="artist"] .np {
-  -webkit-flex-direction: row; flex-direction: row;
+/* The ring overhangs the sleeve by ~10vh at this size and that overhang is out
+   of flow, so the inset from each edge is paid here or the circle runs off. */
+.face[data-ring][data-view="artist"] .np,
+.face.show-chrome[data-ring][data-view="artist"] .np {
+  position: relative;
+  -webkit-flex-direction: column; flex-direction: column;
   -webkit-align-items: center; align-items: center;
-  width: auto; max-width: 78%;
+  width: auto; max-width: none;
+  /* no padding: the artist view pads .np for its copy grade, and that padding
+     made the wrapper wider than the sleeve — so the copy, anchored to the
+     wrapper, sat 19px off the ring's centre */
+  padding: 0;
+  margin-left: 13vh; margin-bottom: 14vh;
 }
-.face[data-ring][data-view="artist"] .title { margin-top: 0; font-size: 3.1vw; }
-.face[data-ring][data-view="artist"] .line2 { font-size: 1.6vw; }
-.face[data-ring][data-view="artist"] .line3 { font-size: 1.25vw; }
-/* Room for the ring, which overhangs the sleeve on every side. The artist view
-   anchors its copy bottom-left, and at a 34vh sleeve the ring reaches 13vh past
-   it — so the frame's left inset, the gap to the words and the clearance under
-   the block are all paid in sleeve-widths. Left unpaid the circle ran off two
-   edges at once. */
-.face[data-ring][data-view="artist"] .cover { margin-left: 16vh; margin-right: 17vh; }
-.face[data-ring][data-view="artist"] .np { margin-bottom: 15vh; }
-/* Dial hangs its copy below the sleeve, out of flow, to fill the ring's bottom
-   segment. In the artist view the copy stands BESIDE the sleeve instead, so it
-   has to come back into flow — left absolute it fell out of the bottom of the
-   frame, taking the title with it. */
-.face[data-ring][data-view="artist"] .copy {
-  position: static; left: auto; right: auto; width: 100%;
-  padding-top: 0; text-align: left;
+/* Lifted clear of the transport bar when the chrome is up: the bar is centred on
+   the foot of the frame and lands exactly where the ring's bottom segment — the
+   title — otherwise sits. */
+.face.show-chrome[data-ring][data-view="artist"] .np { margin-bottom: 34vh; }
+.face[data-ring][data-view="artist"] .cover,
+.face.show-chrome[data-ring][data-view="artist"] .cover {
+  width: 26vh; height: 26vh; margin: 0;
+}
+.face[data-ring][data-view="artist"] .copy,
+.face.show-chrome[data-ring][data-view="artist"] .copy {
+  position: absolute; top: 100%; left: -12%; right: -12%;
+  width: auto; max-width: none; margin: 0; padding-top: 1.1vh; text-align: center;
 }
 .face[data-ring][data-view="artist"] .title,
-.face[data-ring][data-view="artist"] .line2,
 .face[data-ring][data-view="artist"] .line3 {
-  margin-left: 0; margin-right: 0; max-width: 100%;
-  white-space: normal; overflow: visible;
+  margin-left: auto; margin-right: auto; display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 .12em .5em rgba(0,0,0,.85);
 }
+.face[data-ring][data-view="artist"] .title { margin-top: 0; font-size: 1.5vw; max-width: 100%; }
+.face[data-ring][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
+/* the photograph already names the artist */
+.face[data-ring][data-view="artist"] .line2 { display: none; }
 
 @media (max-width: 900px) {
   /* no room for two columns on a phone: the circle goes back above the words */
