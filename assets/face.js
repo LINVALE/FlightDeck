@@ -62,6 +62,19 @@ var shownZoneId = zoneId;
  */
 var boundOutputId = root.getAttribute('data-output') || null;
 
+/**
+ * ?keys=1 prints every key the device actually sends, with its keyCode. A remote
+ * that does nothing is impossible to diagnose from the other end of the house,
+ * and TV engines disagree about what they report.
+ */
+var debugKeys = /[?&]keys=1/.test(location.search);
+function reportKey(event, name) {
+  var line = (event.key || '(no .key)') + '  code=' + (event.keyCode || event.which || 0)
+    + '  ->  ' + (name === '' ? 'IGNORED' : name);
+  artistName.textContent = line;
+  artistName.hidden = false;
+}
+
 function zoneForOutput(snapshot) {
   if (boundOutputId === null) return null;
   for (var i = 0; i < snapshot.zones.length; i += 1) {
@@ -649,14 +662,51 @@ function toggleFollow() {
   showPicker();
 }
 
-document.addEventListener('keydown', function (event) {
-  if (event.key === 'ArrowLeft') { cycleFace(-1); event.preventDefault(); }
-  else if (event.key === 'ArrowRight') { cycleFace(1); event.preventDefault(); }
-  else if (event.key === 'ArrowUp') { cycleZone(-1); event.preventDefault(); }
-  else if (event.key === 'ArrowDown') { cycleZone(1); event.preventDefault(); }
-  else if (event.key === 'Enter' || event.key === ' ') { cycleArtist(); event.preventDefault(); }
-  else showPicker();
-});
+/* ---------- the remote ----------
+ * A TV browser is not a desktop one. Two things broke the D-pad here:
+ *
+ *  - the handler listened on `document` in the BUBBLE phase, so the browser's own
+ *    spatial navigation saw the arrows first and could swallow or scroll on them;
+ *  - it read only `event.key`, and TV engines are old (the floor is Chromium 63)
+ *    and inconsistent about populating it for remote keys.
+ *
+ * So: capture phase on window, keyCode as a fallback, and preventDefault on
+ * anything we act on so the page never scrolls underneath the viewer.
+ */
+var KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40, KEY_ENTER = 13, KEY_SPACE = 32;
+
+function keyName(event) {
+  var code = event.keyCode || event.which || 0;
+  var key = event.key || '';
+  if (key === 'ArrowLeft' || code === KEY_LEFT) return 'left';
+  if (key === 'ArrowRight' || code === KEY_RIGHT) return 'right';
+  if (key === 'ArrowUp' || code === KEY_UP) return 'up';
+  if (key === 'ArrowDown' || code === KEY_DOWN) return 'down';
+  if (key === 'Enter' || key === ' ' || code === KEY_ENTER || code === KEY_SPACE) return 'ok';
+  return '';
+}
+
+function onKey(event) {
+  var name = keyName(event);
+  if (debugKeys) reportKey(event, name);
+  if (name === '') { showPicker(); return; }
+  if (name === 'left') cycleFace(-1);
+  else if (name === 'right') cycleFace(1);
+  else if (name === 'up') cycleZone(-1);
+  else if (name === 'down') cycleZone(1);
+  else if (name === 'ok') cycleArtist();
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+// Capture on window AND document: some TV browsers deliver to only one of them.
+window.addEventListener('keydown', onKey, true);
+document.addEventListener('keydown', onKey, true);
+// A page with nothing focusable can be skipped by a TV's key routing entirely.
+root.setAttribute('tabindex', '0');
+try { root.focus(); } catch (error) { /* not focusable on this engine */ }
+window.addEventListener('load', function () { try { root.focus(); } catch (error) { /* ignore */ } });
+
 document.addEventListener('click', showPicker);
 
 /* ---------- keep the screen awake ---------- */

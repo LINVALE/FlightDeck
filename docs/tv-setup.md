@@ -71,9 +71,28 @@ gives an always-on wall display.
 
 | Key | Does |
 |-----|------|
-| ◀ ▶ | change face |
+| ◀ ▶ | change face — Presence or Classic |
 | ▲ ▼ | change room |
-| OK  | cycle artwork — artist blur → album blur → album forward → each artist |
+| OK  | toggle album / artist artwork (portraits rotate every 10 s) |
+
+### If the remote does nothing
+
+Add `?keys=1` to the URL. Every key you press then prints its name and keyCode on
+screen, and says whether FlightDeck acted on it:
+
+```
+http://192.168.1.114/face/study?keys=1
+```
+
+`(no .key) code=39 -> right` means the TV reports only a keyCode, which is
+handled. `-> IGNORED` means that key is not one FlightDeck uses — tell the
+maintainer the code and it can be mapped.
+
+TV browsers use the D-pad for their own on-page navigation, so FlightDeck listens
+in the capture phase on both window and document and calls `preventDefault`, which
+stops the page scrolling under you. If arrows still do nothing, the browser is
+consuming them before the page sees them at all — try the tap targets instead:
+tapping the cover returns to the album view.
 
 `/now` on the end of the URL gives a screen that follows whatever is playing,
 instead of pinning one room.
