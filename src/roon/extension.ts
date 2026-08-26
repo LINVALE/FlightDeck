@@ -133,6 +133,56 @@ export class FlightDeckExtension {
   /** The Browse service, or null when not requested or not granted. */
   browseService(): any { return this.browse; }
 
+  /**
+   * A user's gesture, translated into a Roon-led instruction. FlightDeck never
+   * drives a device directly: Roon owns the queue, the cursor and now-playing, so
+   * every control here goes to the Core and the state comes back on the ordinary
+   * zone subscription. Nothing is optimistically applied.
+   */
+  control(zoneId: string, action: 'play' | 'pause' | 'playpause' | 'next' | 'previous' | 'stop'): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      transport.control(zoneId, action, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
+  /**
+   * Volume acts on ONE OUTPUT — the speaker in that room (Peter's ruling 08-25) —
+   * never on the zone, so a screen in the study cannot turn up a whole grouped
+   * house.
+   *
+   * `relative_step` moves by the device's own step. An `incremental` control has
+   * no readout or step at all and takes `relative` ±1 instead; sending it a step
+   * would be meaningless.
+   */
+  changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      const how = incremental ? 'relative' : 'relative_step';
+      const value = incremental ? (steps > 0 ? 1 : -1) : steps;
+      transport.change_volume(outputId, how, value, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
+  mute(outputId: string, muted: boolean): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      transport.mute(outputId, muted ? 'mute' : 'unmute', (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
   stop(): void {
     try { this.api?.stop_discovery?.(); } catch { /* best effort */ }
   }

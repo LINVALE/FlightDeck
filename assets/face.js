@@ -702,6 +702,33 @@ function showPicker() {
   nodes.push(el('em', '', '|'));
   var room = el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room'));
   nodes.push(room);
+
+  var zone = currentZone();
+  var controls = el('div', 'controls');
+  var button = function (label, title, enabled, onPress) {
+    var b = el('span', enabled ? 'ctl' : 'ctl off', label);
+    b.setAttribute('title', title);
+    if (enabled) {
+      b.addEventListener('click', function (event) { event.stopPropagation(); onPress(); });
+    }
+    return b;
+  };
+  var playing = zone !== null && zone.state === 'playing';
+  controls.appendChild(button('\u23EE', 'previous', zone !== null && zone.allowed.previous,
+    function () { transport('previous'); }));
+  controls.appendChild(button(playing ? '\u23F8' : '\u25B6', playing ? 'pause' : 'play',
+    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); }));
+  controls.appendChild(button('\u23ED', 'next', zone !== null && zone.allowed.next,
+    function () { transport('next'); }));
+
+  // Volume: plus and minus only, no slider — a slider is a drag to miss on a TV.
+  var output = volumeOutput();
+  var hasVolume = output !== null && !!output.volume;
+  controls.appendChild(button('\u2212', hasVolume ? ('quieter \u00B7 ' + output.name) : 'no volume control',
+    hasVolume, function () { nudgeVolume(-1); }));
+  controls.appendChild(button('+', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
+    hasVolume, function () { nudgeVolume(1); }));
+  nodes.push(controls);
   nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork   ·   rest on a name to switch'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
@@ -840,6 +867,61 @@ document.addEventListener('visibilitychange', function () {
   else fieldRunning(current === 'canvas');
 });
 
+/* ---------- transport ----------
+ * Every gesture is a USER ACTION translated into a ROON-LED instruction: the
+ * button posts to FlightDeck, FlightDeck asks the Core, and the new state arrives
+ * on the ordinary zone subscription. Nothing is applied optimistically, so the
+ * screen can never show a state the Core does not agree with.
+ *
+ * Volume acts on the BOUND OUTPUT only — the speaker in this room — so a screen
+ * in the study cannot turn up a whole grouped house.
+ */
+function command(body) {
+  return fetch('/api/v1/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (response) {
+    if (!response.ok) return response.json().catch(function () { return {}; }).then(function (data) {
+      flash(data.error || ('control failed (' + response.status + ')'));
+    });
+    return null;
+  }).catch(function () { flash('could not reach FlightDeck'); });
+}
+
+function flash(message) {
+  artistName.textContent = message;
+  artistName.hidden = false;
+  setTimeout(function () { if (artistName.textContent === message) artistName.hidden = true; }, 2600);
+}
+
+function transport(action) {
+  var zone = currentZone();
+  if (zone === null) return;
+  if (action === 'next' && !zone.allowed.next) { flash('next is not available here'); return; }
+  if (action === 'previous' && !zone.allowed.previous) { flash('previous is not available here'); return; }
+  command({ action: action, zone: zone.id });
+}
+
+/** The output this screen belongs to, falling back to the zone's first output. */
+function volumeOutput() {
+  var zone = currentZone();
+  if (zone === null) return null;
+  if (boundOutputId !== null) {
+    for (var i = 0; i < zone.outputs.length; i += 1) {
+      if (zone.outputs[i].id === boundOutputId) return zone.outputs[i];
+    }
+  }
+  return zone.outputs.length === 1 ? zone.outputs[0] : null;
+}
+
+function nudgeVolume(steps) {
+  var output = volumeOutput();
+  if (output === null) { flash('this screen is not bound to one speaker'); return; }
+  if (!output.volume) { flash(output.name + ' has no volume control'); return; }
+  command({ action: 'volume', output: output.id, steps: steps });
+}
+
 /* ---------- the remote ----------
  * A TV browser is not a desktop one. Two things broke the D-pad here:
  *
@@ -860,7 +942,15 @@ function keyName(event) {
   if (key === 'ArrowRight' || code === KEY_RIGHT) return 'right';
   if (key === 'ArrowUp' || code === KEY_UP) return 'up';
   if (key === 'ArrowDown' || code === KEY_DOWN) return 'down';
-  if (key === 'Enter' || key === ' ' || code === KEY_ENTER || code === KEY_SPACE) return 'ok';
+  if (key === 'Enter' || code === KEY_ENTER) return 'ok';
+  // Media keys: present on most keyboards and reported by many TV remotes.
+  if (key === 'MediaPlayPause' || key === 'MediaPlay' || key === 'MediaPause'
+      || key === ' ' || code === KEY_SPACE || code === 179) return 'playpause';
+  if (key === 'MediaTrackNext' || code === 176) return 'next';
+  if (key === 'MediaTrackPrevious' || code === 177) return 'previous';
+  if (key === 'AudioVolumeUp' || code === 175) return 'volup';
+  if (key === 'AudioVolumeDown' || code === 174) return 'voldown';
+  if (key === 'MediaStop' || code === 178) return 'stop';
   return '';
 }
 
@@ -873,6 +963,12 @@ function onKey(event) {
   else if (name === 'up') cycleZone(-1);
   else if (name === 'down') cycleZone(1);
   else if (name === 'ok') cycleArtist();
+  else if (name === 'playpause') transport('playpause');
+  else if (name === 'next') transport('next');
+  else if (name === 'previous') transport('previous');
+  else if (name === 'stop') transport('pause');
+  else if (name === 'volup') nudgeVolume(1);
+  else if (name === 'voldown') nudgeVolume(-1);
   event.preventDefault();
   event.stopPropagation();
 }

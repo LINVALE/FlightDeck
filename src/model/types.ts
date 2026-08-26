@@ -40,9 +40,27 @@ export interface NowPlaying {
 
 export type ZoneState = 'playing' | 'paused' | 'loading' | 'stopped';
 
+/**
+ * An output's volume control. Absent when the device has none (a fixed-volume
+ * line out), which is why the Face must ask rather than assume.
+ *
+ * `type: 'incremental'` means "+ and - buttons only, no readout" — min, max,
+ * value and step are all absent there, and it takes `relative` ±1 rather than
+ * `relative_step`.
+ */
+export interface OutputVolume {
+  readonly type: string;
+  readonly min: number | null;
+  readonly max: number | null;
+  readonly value: number | null;
+  readonly step: number | null;
+  readonly muted: boolean;
+}
+
 export interface ZoneOutput {
   readonly id: string;
   readonly name: string;
+  readonly volume: OutputVolume | null;
 }
 
 export interface Allowed {

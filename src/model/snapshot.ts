@@ -1,4 +1,4 @@
-import type { Allowed, ArtRef, NowPlaying, Snapshot, Zone, ZoneOutput, ZoneState } from './types.ts';
+import type { Allowed, ArtRef, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneState } from './types.ts';
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
 export interface ArtMinter {
@@ -76,6 +76,20 @@ function projectNowPlaying(raw: unknown, art: ArtMinter, at: string): NowPlaying
   };
 }
 
+function projectVolume(raw: unknown): OutputVolume | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const volume = raw as Record<string, unknown>;
+  const type = typeof volume.type === 'string' ? volume.type : 'number';
+  return {
+    type,
+    min: positive(volume.min) ?? (typeof volume.min === 'number' ? volume.min : null),
+    max: positive(volume.max) ?? (typeof volume.max === 'number' ? volume.max : null),
+    value: typeof volume.value === 'number' ? volume.value : null,
+    step: typeof volume.step === 'number' ? volume.step : null,
+    muted: volume.is_muted === true,
+  };
+}
+
 function projectOutputs(raw: unknown): ZoneOutput[] {
   if (!Array.isArray(raw)) return [];
   const outputs: ZoneOutput[] = [];
@@ -84,7 +98,7 @@ function projectOutputs(raw: unknown): ZoneOutput[] {
     const output = candidate as Record<string, unknown>;
     const id = str(output.output_id);
     if (id === '') continue;
-    outputs.push({ id, name: str(output.display_name, id) });
+    outputs.push({ id, name: str(output.display_name, id), volume: projectVolume(output.volume) });
   }
   return outputs;
 }
@@ -182,7 +196,8 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
 export function structuralSignature(snapshot: Snapshot): string {
   const parts = snapshot.zones.map((zone) => [
     zone.id, zone.name, zone.state,
-    zone.outputs.map((output) => output.id + ':' + output.name).join(','),
+    zone.outputs.map((output) => output.id + ':' + output.name
+      + ':' + (output.volume === null ? '-' : String(output.volume.value) + '/' + String(output.volume.muted))).join(','),
     zone.nowPlaying === null ? '-' : [
       zone.nowPlaying.title, zone.nowPlaying.line2, zone.nowPlaying.line3,
       zone.nowPlaying.art === null ? '-' : zone.nowPlaying.art.key,

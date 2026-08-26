@@ -8,12 +8,48 @@ import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
 import { renderDocPage, renderFacePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 
+export type TransportAction = 'play' | 'pause' | 'playpause' | 'next' | 'previous' | 'stop';
+
+export interface Commands {
+  control(zoneId: string, action: TransportAction): Promise<void>;
+  changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
+  mute(outputId: string, muted: boolean): Promise<void>;
+}
+
+const TRANSPORT: ReadonlySet<string> = new Set(['play', 'pause', 'playpause', 'next', 'previous', 'stop']);
+const MAX_BODY = 2048;
+
+/** Read a small JSON body, refusing anything oversized rather than buffering it. */
+async function readJson(request: IncomingMessage): Promise<Record<string, unknown> | null> {
+  return new Promise((resolve) => {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    request.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_BODY) { request.destroy(); resolve(null); return; }
+      chunks.push(chunk);
+    });
+    request.on('end', () => {
+      try {
+        const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        resolve(parsed !== null && typeof parsed === 'object' ? parsed as Record<string, unknown> : null);
+      } catch { resolve(null); }
+    });
+    request.on('error', () => resolve(null));
+  });
+}
+
 export interface ServerDeps {
   readonly hub: EventHub;
   readonly relay: ArtRelay;
   readonly ledger: RecentLedger;
   readonly assetDir: string;
   readonly docDir: string;
+  /**
+   * The write side. Absent in tests and the preview, where nothing should reach a
+   * real Core — the route then answers 503 rather than pretending it worked.
+   */
+  readonly commands: Commands | null;
   readonly mdns: () => MdnsResponder | null;
   readonly urls: () => string[];
   readonly port: () => number;
@@ -88,6 +124,26 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     const url = new URL(request.url ?? '/', 'http://localhost');
     const path = url.pathname;
     const ip = request.socket.remoteAddress ?? 'unknown';
+
+    /**
+     * THE ONLY WRITE ROUTE. Everything else FlightDeck does is read-only.
+     *
+     * Same-origin only: a page on another site must not be able to pause the
+     * music because someone left this tab open. There is no auth beyond that —
+     * the same trust model as the rest of the LAN surface — but an Origin from
+     * elsewhere is refused outright.
+     */
+    if (request.method === 'POST' && path === '/api/v1/control') {
+      const origin = request.headers.origin;
+      if (typeof origin === 'string' && origin !== '') {
+        const host = request.headers.host ?? '';
+        let ok = false;
+        try { ok = new URL(origin).host === host; } catch { ok = false; }
+        if (!ok) { json(response, 403, { error: 'cross-origin control refused' }); return; }
+      }
+      void handleControl(request, response, deps, log);
+      return;
+    }
 
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       json(response, 405, { error: 'method not allowed' });
@@ -265,4 +321,67 @@ export async function listenWithLadder(
     }
   }
   throw lastError instanceof Error ? lastError : new Error('no port available');
+}
+
+/**
+ * Transport acts on a ZONE (Roon owns the queue and the cursor); volume acts on a
+ * single OUTPUT — the speaker in that room — so a screen in the study can never
+ * turn up a whole grouped house.
+ */
+async function handleControl(
+  request: IncomingMessage, response: ServerResponse, deps: ServerDeps, log: (m: string) => void,
+): Promise<void> {
+  const commands = deps.commands;
+  if (commands === null) { json(response, 503, { error: 'controls unavailable' }); return; }
+
+  const body = await readJson(request);
+  if (body === null) { json(response, 400, { error: 'malformed body' }); return; }
+  const action = typeof body.action === 'string' ? body.action : '';
+
+  try {
+    if (TRANSPORT.has(action)) {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      if (zoneId === '') { json(response, 400, { error: 'zone required' }); return; }
+      // Honour what Roon says is possible: offering `next` on a zone that refuses
+      // it produces a silent failure the viewer cannot explain.
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (action === 'next' && !zone.allowed.next) { json(response, 409, { error: 'next not allowed here' }); return; }
+      if (action === 'previous' && !zone.allowed.previous) { json(response, 409, { error: 'previous not allowed here' }); return; }
+      await commands.control(zoneId, action as TransportAction);
+      log('control ' + action + ' -> ' + zone.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    if (action === 'volume' || action === 'mute') {
+      const outputId = typeof body.output === 'string' ? body.output : '';
+      if (outputId === '') { json(response, 400, { error: 'output required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const output = snapshot === null ? undefined
+        : snapshot.zones.flatMap((z) => z.outputs).find((o) => o.id === outputId);
+      if (output === undefined) { json(response, 404, { error: 'unknown output' }); return; }
+      if (output.volume === null) { json(response, 409, { error: 'this output has no volume control' }); return; }
+
+      if (action === 'mute') {
+        await commands.mute(outputId, body.muted === true);
+        json(response, 200, { ok: true });
+        return;
+      }
+      const raw = typeof body.steps === 'number' ? body.steps : 0;
+      if (raw === 0) { json(response, 400, { error: 'steps required' }); return; }
+      // Bounded hard: a stuck key or a repeated tap must never send the room to
+      // maximum. One press is one step.
+      const steps = Math.max(-4, Math.min(4, Math.round(raw)));
+      await commands.changeVolume(outputId, steps, output.volume.type === 'incremental');
+      log('volume ' + (steps > 0 ? '+' : '') + String(steps) + ' -> ' + output.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    json(response, 400, { error: 'unknown action' });
+  } catch (error) {
+    json(response, 502, { error: String(error instanceof Error ? error.message : error) });
+  }
 }

@@ -158,6 +158,7 @@ const deps = {
   hub, relay, ledger,
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,
+  commands: extension,
   mdns: () => mdns,
   urls,
   port: () => boundPort,

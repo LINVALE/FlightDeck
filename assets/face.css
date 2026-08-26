@@ -456,3 +456,33 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face[data-face="libretto"] .cover { width: 40vw; height: 40vw; margin: 0 0 2vh 0; }
   .face[data-face="libretto"] .title { font-size: 7vw; }
 }
+
+/* Transport and volume. Same target discipline as the face buttons: 65 px tall
+   at 1080p, spaced, with a visible edge — a control you cannot reliably hit is
+   worse than no control, and a TV pointer is not a mouse. */
+.picker .controls {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-justify-content: center; justify-content: center;
+}
+.picker span.ctl {
+  display: inline-block; cursor: pointer;
+  min-width: 4.6vw; min-height: 3.4vw;
+  padding: 0.9vh 1.1vw; margin: 0.4vh 0.35vw;
+  font-size: 1.5vw; line-height: 1.3; letter-spacing: 0;
+  text-align: center; color: var(--bone);
+  border: 1px solid rgba(242,238,230,.24); border-radius: 6px;
+  -webkit-transition: background .18s ease, border-color .18s ease;
+  transition: background .18s ease, border-color .18s ease;
+}
+.picker span.ctl:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+.picker span.ctl:active { background: rgba(242,238,230,.2); }
+/* A control Roon says is unavailable is shown, but plainly inert — hiding it
+   would make the row jump about as tracks change. */
+.picker span.ctl.off { opacity: .3; cursor: default; }
+.picker span.ctl.off:hover { background: none; border-color: rgba(242,238,230,.24); }
+@media (max-width: 900px) {
+  .picker span.ctl { min-width: 14vw; min-height: 11vw; font-size: 5vw; }
+  .picker span.opt { min-width: 26vw; min-height: 11vw; font-size: 3vw; }
+}

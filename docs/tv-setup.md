@@ -74,6 +74,14 @@ gives an always-on wall display.
 | ◀ ▶ | change face — Presence or Classic |
 | ▲ ▼ | change room |
 | OK  | toggle album / artist artwork (portraits rotate every 10 s) |
+| Space / ▶⏸ | play or pause |
+| ⏭ ⏮ | next / previous track |
+| Vol +/− | volume — **this room's speaker only**, never the whole group |
+
+The on-screen strip carries the same controls as buttons, for a pointer or a
+touchscreen. A control Roon reports as unavailable (skipping an internet radio
+stream, say) is shown but plainly inert rather than hidden, so the row does not
+jump about as tracks change.
 
 Resting on a face name in the strip switches to it after about a second — no
 click or OK needed, and a line fills under the name while it arms so the wait is
