@@ -172,6 +172,30 @@ export class FlightDeckExtension {
     });
   }
 
+  /** Absolute position in seconds. Roon refuses it where seeking makes no sense. */
+  seek(zoneId: string, seconds: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      transport.seek(zoneId, 'absolute', Math.max(0, Math.round(seconds)), (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
+  /** An exact level, for a scale you press rather than step. */
+  setVolume(outputId: string, value: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      transport.change_volume(outputId, 'absolute', value, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
   mute(outputId: string, muted: boolean): Promise<void> {
     return new Promise((resolve, reject) => {
       const transport = this.transport;

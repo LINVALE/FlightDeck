@@ -18,6 +18,8 @@ export interface BrowseAccess {
 
 export interface Commands {
   control(zoneId: string, action: TransportAction): Promise<void>;
+  seek(zoneId: string, seconds: number): Promise<void>;
+  setVolume(outputId: string, value: number): Promise<void>;
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
   mute(outputId: string, muted: boolean): Promise<void>;
 }
@@ -411,6 +413,22 @@ async function handleControl(
       return;
     }
 
+    if (action === 'seek') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      const seconds = typeof body.seconds === 'number' ? body.seconds : -1;
+      if (zoneId === '' || seconds < 0) { json(response, 400, { error: 'zone and seconds required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      // Roon says whether this zone can seek at all — a live radio stream cannot.
+      if (!zone.allowed.seek) { json(response, 409, { error: 'seeking is not available here' }); return; }
+      const length = zone.nowPlaying === null ? null : zone.nowPlaying.lengthSec;
+      if (length !== null && seconds > length) { json(response, 400, { error: 'past the end of the track' }); return; }
+      await commands.seek(zoneId, seconds);
+      json(response, 200, { ok: true });
+      return;
+    }
+
     if (action === 'volume' || action === 'mute') {
       const outputId = typeof body.output === 'string' ? body.output : '';
       if (outputId === '') { json(response, 400, { error: 'output required' }); return; }
@@ -422,6 +440,17 @@ async function handleControl(
 
       if (action === 'mute') {
         await commands.mute(outputId, body.muted === true);
+        json(response, 200, { ok: true });
+        return;
+      }
+      // An exact level, for a scale that is pressed rather than stepped. Clamped to
+      // what the device says it accepts, so a mis-scaled UI cannot shout.
+      if (typeof body.value === 'number') {
+        const min = output.volume.min ?? 0;
+        const max = output.volume.max ?? 100;
+        const value = Math.max(min, Math.min(max, Math.round(body.value)));
+        await commands.setVolume(outputId, value);
+        log('volume = ' + String(value) + ' -> ' + output.name);
         json(response, 200, { ok: true });
         return;
       }

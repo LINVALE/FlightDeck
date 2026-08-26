@@ -537,8 +537,17 @@ function render(snapshot, kind) {
     if (chipHost.childNodes.length !== wanted.length) {
       chipHost.replaceChildren.apply(chipHost, wanted.map(function (o) { return el('span', 'chip', o.name); }));
     }
+    /**
+     * Only say something WORTH saying (Peter, 08-26: "we don't need to indicate
+     * playing or paused, just the name of the face").
+     *
+     * Playing and paused are already legible from the transport button's own shape
+     * and from whether the progress is moving — printing them was noise beside the
+     * face name. A Core that has gone away, or a stream still catching up, is not
+     * visible anywhere else, so those still speak.
+     */
     status.textContent = streamState === 'catching-up' ? 'catching up…'
-      : (away ? 'Roon is away' : (zone.state === 'playing' ? 'playing' : zone.state));
+      : (away ? 'Roon is away' : (zone.state === 'loading' ? 'loading' : ''));
 
     var np = zone.nowPlaying;
     if (np === null || zone.state === 'stopped') {
@@ -862,13 +871,35 @@ function showPicker(mode) {
   controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
     function () { transport('next'); }));
 
-  // Volume: plus and minus only, no slider — a slider is a drag to miss on a TV.
+  /**
+   * VOLUME, in the runway's own language.
+   *
+   * A speaker you press to mute, then a scale of segments you press anywhere on.
+   * The segments are the same motif as the Approach progress, so volume and
+   * position belong to one visual family rather than a slider imported from a
+   * different design world. Pressing a position sets it absolutely — dragging with
+   * a pointer remote held in the air is miserable, so press-to-position is the
+   * gesture and drag is only a bonus where the device supports it.
+   *
+   * An `incremental` output has no level to show at all — Roon says so — and falls
+   * back to plus and minus.
+   */
   var output = volumeOutput();
-  var hasVolume = output !== null && !!output.volume;
-  controls.appendChild(button('minus', hasVolume ? ('quieter \u00B7 ' + output.name) : 'no volume control',
-    hasVolume, function () { nudgeVolume(-1); }));
-  controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
-    hasVolume, function () { nudgeVolume(1); }));
+  var vol = output === null ? null : output.volume;
+  if (vol === null) {
+    controls.appendChild(button('minus', 'no volume control', false, function () {}));
+    controls.appendChild(button('plus', 'no volume control', false, function () {}));
+  } else if (vol.type === 'incremental' || vol.value === null || vol.max === null) {
+    controls.appendChild(volumeSpeaker(output, 0.5));
+    controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true, function () { nudgeVolume(-1); }));
+    controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true, function () { nudgeVolume(1); }));
+  } else {
+    var min = vol.min === null ? 0 : vol.min;
+    var span = Math.max(1, vol.max - min);
+    var level = Math.max(0, Math.min(1, (vol.value - min) / span));
+    controls.appendChild(volumeSpeaker(output, vol.muted ? 0 : level));
+    controls.appendChild(volumeScale(output, level, min, span));
+  }
   actionRow.appendChild(controls);
   if (mode === 'transport') nodes.push(actionRow);
 
@@ -1071,6 +1102,41 @@ function pressable(node, onPress) {
   node.addEventListener('keyup', fire);
   node.setAttribute('tabindex', '0');
   node.setAttribute('role', 'button');
+}
+
+function glyphSpeaker(level, muted) {
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var cone = document.createElementNS(SVG_NS, 'path');
+  cone.setAttribute('fill', 'currentColor');
+  cone.setAttribute('d', 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z');
+  svg.appendChild(cone);
+  var wave = function (d) {
+    var w = document.createElementNS(SVG_NS, 'path');
+    w.setAttribute('fill', 'none');
+    w.setAttribute('stroke', 'currentColor');
+    w.setAttribute('stroke-width', '1.5');
+    w.setAttribute('stroke-linecap', 'round');
+    w.setAttribute('d', d);
+    return w;
+  };
+  if (muted) {
+    var slash = document.createElementNS(SVG_NS, 'path');
+    slash.setAttribute('stroke', 'currentColor');
+    slash.setAttribute('stroke-width', '1.7');
+    slash.setAttribute('stroke-linecap', 'round');
+    slash.setAttribute('d', 'M15 9.5l5 5m0-5l-5 5');
+    svg.appendChild(slash);
+  } else {
+    // The cone alone means silence; each wave is a step of loudness, so the icon
+    // says roughly how loud it is before the scale beside it is even read.
+    if (level > 0.02) svg.appendChild(wave('M14.6 10.2a3.4 3.4 0 0 1 0 3.6'));
+    if (level > 0.34) svg.appendChild(wave('M16.9 8.4a6.6 6.6 0 0 1 0 7.2'));
+    if (level > 0.67) svg.appendChild(wave('M19.2 6.6a9.8 9.8 0 0 1 0 10.8'));
+  }
+  return svg;
 }
 
 function glyphCog() {
@@ -1421,6 +1487,76 @@ function reportPointer(label, count) {
   } catch (error) { /* older engine */ }
 }
 
+/**
+ * SEEK BY PRESSING THE PROGRESS.
+ *
+ * The runway, the bar and the leader all mean the same thing — where you are in
+ * the track — so pressing one anywhere means "go there". Roon says whether the
+ * zone can seek at all (a live stream cannot), and the refusal is shown rather
+ * than swallowed.
+ */
+function seekFromPress(clientX) {
+  var zone = currentZone();
+  if (zone === null || zone.nowPlaying === null) return;
+  if (!zone.allowed.seek) { flash('this cannot be scrubbed'); return; }
+  var length = zone.nowPlaying.lengthSec;
+  if (!length) { flash('no track length to seek within'); return; }
+  var box = foot.getBoundingClientRect();
+  if (box.width <= 0) return;
+  var fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
+  command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * length) });
+}
+
+/** The speaker doubles as the mute control, and shows roughly how loud it is. */
+function volumeSpeaker(output, level) {
+  var muted = !!(output.volume && output.volume.muted);
+  var node = el('span', muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker');
+  node.appendChild(glyphSpeaker(level, muted));
+  node.setAttribute('aria-label', muted ? 'unmute ' + output.name : 'mute ' + output.name);
+  node.setAttribute('title', node.getAttribute('aria-label'));
+  pressable(node, function () {
+    command({ action: 'mute', output: output.id, muted: !muted });
+  });
+  return node;
+}
+
+/** A pressable level, segmented like the runway. */
+function volumeScale(output, level, min, span) {
+  var SEGMENTS = 24;
+  var scale = el('span', 'vol-scale');
+  scale.setAttribute('aria-label', 'volume \u00B7 ' + output.name);
+  scale.setAttribute('title', 'volume ' + Math.round(level * 100) + '%  \u00B7  ' + output.name);
+  var lit = Math.round(level * SEGMENTS);
+  for (var i = 0; i < SEGMENTS; i += 1) {
+    scale.appendChild(el('b', i < lit ? 'on' : ''));
+  }
+  var setFrom = function (clientX) {
+    var box = scale.getBoundingClientRect();
+    if (box.width <= 0) return;
+    var fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
+    command({ action: 'volume', output: output.id, value: Math.round(min + fraction * span) });
+  };
+  // Press to position. Drag is a bonus where the pointer supports it; a remote
+  // held in the air cannot really drag, so it is never the only way.
+  var dragging = false;
+  scale.addEventListener('pointerdown', function (event) {
+    if (panelJustAppeared()) return;
+    dragging = true; setFrom(event.clientX); event.preventDefault(); event.stopPropagation();
+  });
+  scale.addEventListener('pointermove', function (event) {
+    if (dragging) { setFrom(event.clientX); event.preventDefault(); }
+  });
+  var stop = function () { dragging = false; };
+  scale.addEventListener('pointerup', stop);
+  scale.addEventListener('pointerleave', stop);
+  // Devices without pointer events still get press-to-position.
+  scale.addEventListener('click', function (event) {
+    if (panelJustAppeared()) return;
+    setFrom(event.clientX); event.stopPropagation();
+  });
+  return scale;
+}
+
 /* ---------- the remote ----------
  * A TV browser is not a desktop one. Two things broke the D-pad here:
  *
@@ -1575,7 +1711,7 @@ function onFacePress(event) {
 
   var target = event ? event.target : null;
   // Anything that handles its own presses is not a zone.
-  if (target !== null && (inNode(target, cover) || inNode(target, picker)
+  if (target !== null && (inNode(target, cover) || inNode(target, picker) || inNode(target, foot)
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 
@@ -1596,6 +1732,21 @@ function onFacePress(event) {
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
   document.addEventListener(kind, onFacePress);
 });
+
+// The progress row is its own zone: pressing it seeks.
+var lastSeekPress = 0;
+['click', 'pointerup', 'touchend'].forEach(function (kind) {
+  foot.addEventListener(kind, function (event) {
+    var now = Date.now();
+    if (now - lastSeekPress < 400 || panelJustAppeared()) return;
+    lastSeekPress = now;
+    var x = typeof event.clientX === 'number' ? event.clientX
+      : (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientX : 0);
+    seekFromPress(x);
+    event.stopPropagation();
+  });
+});
+foot.setAttribute('title', 'press to seek');
 // Movement reveals the affordances but opens nothing.
 ['mousemove', 'pointermove', 'touchstart'].forEach(function (kind) {
   document.addEventListener(kind, revealChrome, true);

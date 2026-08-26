@@ -101,6 +101,9 @@ up to make space. All of it fades again after six seconds.
 | the **room**, top left | the **room selector**, and "the wall" for the whole house |
 | the **face name**, top right | the **faces** |
 | the **lower band** | the transport bar |
+| the **progress row** | **seeks** to that point in the track |
+| the **speaker** | mute / unmute |
+| the **volume scale** | sets the level — press anywhere on it |
 
 The defined areas work **at rest too** — you do not have to wake the screen first.
 Each indicator NAMES what it changes, so the screen explains itself without a

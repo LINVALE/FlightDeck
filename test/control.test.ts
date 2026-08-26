@@ -33,6 +33,8 @@ async function serve(t: { after: (fn: () => void) => void }) {
   const sent: Sent[] = [];
   const commands: Commands = {
     control: async (zone, action) => { sent.push({ kind: 'control', a: zone, b: action }); },
+    seek: async (zone, seconds) => { sent.push({ kind: 'seek', a: zone, b: seconds }); },
+    setVolume: async (output, value) => { sent.push({ kind: 'setVolume', a: output, b: value }); },
     changeVolume: async (output, steps, incremental) => { sent.push({ kind: 'volume', a: output, b: steps, c: incremental }); },
     mute: async (output, muted) => { sent.push({ kind: 'mute', a: output, b: muted }); },
   };
@@ -128,4 +130,27 @@ test('with no Core attached the route says so instead of pretending', async (t) 
     body: JSON.stringify({ action: 'playpause', zone: 'z' }),
   });
   assert.equal(response.status, 503);
+});
+
+test('seek is refused where Roon says it is not allowed, and clamped to the track', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'seek', zone: 'zPlay', seconds: 90 })).status, 200);
+  assert.deepEqual(sent[0], { kind: 'seek', a: 'zPlay', b: 90 });
+  // zRadio reports is_seek_allowed false — a live stream cannot be scrubbed.
+  assert.equal((await post({ action: 'seek', zone: 'zRadio', seconds: 10 })).status, 409);
+  // past the end of a 200s track
+  assert.equal((await post({ action: 'seek', zone: 'zPlay', seconds: 9999 })).status, 400);
+  assert.equal((await post({ action: 'seek', zone: 'zPlay' })).status, 400);
+  assert.equal(sent.length, 1, 'only the valid seek reached the Core');
+});
+
+test('an absolute volume is clamped to what the device accepts', async (t) => {
+  const { post, sent } = await serve(t);
+  await post({ action: 'volume', output: 'oStudy', value: 55 });
+  assert.deepEqual(sent[0], { kind: 'setVolume', a: 'oStudy', b: 55 });
+  // the output reports min 0 max 100
+  await post({ action: 'volume', output: 'oStudy', value: 5000 });
+  assert.equal(sent[1].b, 100, 'clamped to max');
+  await post({ action: 'volume', output: 'oStudy', value: -40 });
+  assert.equal(sent[2].b, 0, 'clamped to min');
 });
