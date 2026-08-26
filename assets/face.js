@@ -1030,7 +1030,26 @@ function browseCall(body) {
   }).then(function (r) { return r.json().catch(function () { return {}; }); });
 }
 
+/**
+ * The panel closes itself when nobody is using it (Peter, 08-25: "the window needs
+ * to disappear after no activity rather than needing to be x'd out"). A browse
+ * list left open on a wall is a screen showing the wrong thing.
+ *
+ * Generously timed and reset by ANY sign of life — a press, a scroll, a pointer
+ * crossing it — because reading a list of two thousand albums is legitimate use
+ * and being dismissed mid-read is worse than never closing at all.
+ */
+var BROWSE_IDLE_MS = 45000;
+var browseIdleTimer = null;
+
+function browseAlive() {
+  if (browseIdleTimer !== null) clearTimeout(browseIdleTimer);
+  if (browsePanel === null) return;
+  browseIdleTimer = setTimeout(function () { closeBrowse(); }, BROWSE_IDLE_MS);
+}
+
 function closeBrowse() {
+  if (browseIdleTimer !== null) { clearTimeout(browseIdleTimer); browseIdleTimer = null; }
   if (browsePanel !== null) { browsePanel.parentNode.removeChild(browsePanel); browsePanel = null; }
   browseCtx = null;
 }
@@ -1039,6 +1058,9 @@ function browseShell(title, canGoBack) {
   if (browsePanel === null) {
     browsePanel = el('div', 'browse');
     document.body.appendChild(browsePanel);
+    // Any sign of life resets the clock, including simply scrolling a long list.
+    ['pointermove', 'mousemove', 'scroll', 'click', 'touchstart', 'wheel', 'keydown']
+      .forEach(function (kind) { browsePanel.addEventListener(kind, browseAlive, true); });
   }
   var head = el('div', 'browse-head');
   var back = el('span', canGoBack ? 'ctl small' : 'ctl small off');
@@ -1052,7 +1074,26 @@ function browseShell(title, canGoBack) {
   head.appendChild(shut);
   var list = el('div', 'browse-list', 'loading\u2026');
   browsePanel.replaceChildren(head, list);
+  browseAlive();
   return list;
+}
+
+function browseRow(item, onPick) {
+  var row = el('div', 'browse-row');
+  var thumbBox = el('span', 'browse-thumb');
+  if (item.art) {
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = item.art;
+    thumbBox.appendChild(img);
+  } else {
+    thumbBox.className = 'browse-thumb is-empty';
+  }
+  row.appendChild(thumbBox);
+  row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
+  if (item.subtitle) row.appendChild(el('span', 'browse-sub', item.subtitle));
+  pressable(row, function () { onPick(item); });
+  return row;
 }
 
 function browseRows(list, items, onPick) {
@@ -1086,16 +1127,63 @@ function browseRows(list, items, onPick) {
  * in that same stack, so a remembered key means something different once the
  * stack has moved. Back is `pop_levels`, which is Roon's own mechanism.
  */
+/**
+ * PAGING. Roon reports the list's true size and `load` takes an offset, but the
+ * client asked for one page of 200 and stopped — so 2095 of Peter's 2295 albums,
+ * and 6095 of his 6295 composers, simply did not exist as far as the screen was
+ * concerned. A library browser that silently shows the first 8% is worse than one
+ * that admits it cannot page.
+ *
+ * Pages arrive as the list is scrolled, and the heading carries the real total so
+ * the size of the thing is never a mystery.
+ */
+var PAGE = 100;
+var browsePaging = false;
+
+function browseAttachPaging(list, hierarchy, total, onPick) {
+  var loaded = list.querySelectorAll('.browse-row').length;
+  var more = function () {
+    if (browsePaging || loaded >= total) return;
+    browsePaging = true;
+    var marker = el('div', 'browse-empty', 'loading\u2026');
+    list.appendChild(marker);
+    browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: loaded, sessionKey: 'flightdeck-face' })
+      .then(function (data) {
+        if (marker.parentNode === list) list.removeChild(marker);
+        var items = data.items || [];
+        for (var i = 0; i < items.length; i += 1) list.appendChild(browseRow(items[i], onPick));
+        loaded += items.length;
+        browsePaging = false;
+        browseAlive();
+        // A short page means the list is exhausted whatever the count claimed.
+        if (items.length === 0) loaded = total;
+      })
+      .catch(function () {
+        if (marker.parentNode === list) list.removeChild(marker);
+        browsePaging = false;
+      });
+  };
+  list.addEventListener('scroll', function () {
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 400) more();
+  });
+  // A tall screen can show the first page without ever scrolling.
+  if (list.scrollHeight <= list.clientHeight + 40) more();
+}
+
 function browseDraw(result) {
   var hierarchy = browseCtx.hierarchy;
   var listInfo = result.list || {};
   var heading = listInfo.title || browseCtx.trail[browseCtx.trail.length - 1] || 'Browse';
   var zone = currentZone();
   if (listInfo.hint === 'action_list' && zone !== null) heading += '  \u2192  ' + zone.name;
+  var total = typeof listInfo.count === 'number' ? listInfo.count : 0;
+  if (total > PAGE) heading += '   ' + total;
   var list = browseShell(heading, browseCtx.trail.length > 1);
-  browseCall({ hierarchy: hierarchy, load: true, count: 200, sessionKey: 'flightdeck-face' })
+  var pick = function (item) { browseInto(item); };
+  browseCall({ hierarchy: hierarchy, load: true, count: PAGE, sessionKey: 'flightdeck-face' })
     .then(function (data) {
-      browseRows(list, data.items || [], function (item) { browseInto(item); });
+      browseRows(list, data.items || [], pick);
+      if (total > (data.items || []).length) browseAttachPaging(list, hierarchy, total, pick);
     })
     .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'could not load that')); });
 }
