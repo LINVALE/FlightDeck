@@ -1095,7 +1095,32 @@ document.addEventListener('visibilitychange', function () {
  */
 function pressable(node, onPress) {
   var last = 0;
+
+  /**
+   * A TAP IS NOT A SCROLL.
+   *
+   * Every touch that ended on a row counted as a press, so dragging a long list
+   * fired whatever the finger happened to lift over — and the list barely moved,
+   * because the press also called preventDefault. Scrolling browse worked with a
+   * mouse and not with a finger (Peter, 08-26).
+   *
+   * A touch that MOVED more than a few pixels is a scroll and is not a press.
+   */
+  var touchStart = null;
+  node.addEventListener('touchstart', function (event) {
+    var t = event.touches && event.touches[0];
+    touchStart = t ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true });
+
   var fire = function (event) {
+    if (event && event.type === 'touchend' && touchStart !== null) {
+      var t = event.changedTouches && event.changedTouches[0];
+      if (t) {
+        var moved = Math.abs(t.clientX - touchStart.x) + Math.abs(t.clientY - touchStart.y);
+        touchStart = null;
+        if (moved > 12) return;        // a drag, not a tap
+      }
+    }
     var now = Date.now();
     if (now - last < 400) return;      // the same press arriving under another name
     // The touch that summoned a panel must not fall through onto a control that
@@ -1103,7 +1128,9 @@ function pressable(node, onPress) {
     if (panelJustAppeared()) return;
     last = now;
     if (event && event.stopPropagation) event.stopPropagation();
-    if (event && event.preventDefault) event.preventDefault();
+    // preventDefault on a touchend cancels the browser's own momentum, so it is
+    // only used where it is needed to stop a duplicate synthetic click.
+    if (event && event.preventDefault && event.type !== 'touchend') event.preventDefault();
     onPress();
   };
   node.addEventListener('click', fire);
@@ -1168,6 +1195,7 @@ function glyphSpeaker(level, muted) {
  * them on the same line as the transport controls, and raises no licence question.
  */
 var BROWSE_ICONS = {
+  dot:      'M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2z',
   note:     'M9 18.2a2.4 2.4 0 1 0 2.4-2.4V6.4l7.2-1.6v8.6a2.4 2.4 0 1 0 2.4 2.4V3l-12 2.6z',
   person:   'M12 12.4a3.9 3.9 0 1 0 0-7.8 3.9 3.9 0 0 0 0 7.8zm0 1.9c-3.5 0-7 1.8-7 4v1.4h14v-1.4c0-2.2-3.5-4-7-4z',
   tag:      'M11.6 3.5H20a.5.5 0 0 1 .5.5v8.4a1 1 0 0 1-.3.7l-7.4 7.4a1 1 0 0 1-1.4 0l-8-8a1 1 0 0 1 0-1.4l7.5-7.3a1 1 0 0 1 .7-.3zm5.4 3.2a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z',
@@ -1263,6 +1291,7 @@ var glyph = function (name) {
  * session-scoped positions in a server-side stack — never cached.
  */
 var browsePanel = null;
+var browseUniform = false;
 var browseCtx = null;      // { hierarchy, trail: [titles] }
 
 function browseCall(body) {
@@ -1316,7 +1345,12 @@ function browseShell(title, canGoBack) {
   pressable(shut, closeBrowse);
   head.appendChild(shut);
   var list = el('div', 'browse-list', 'loading\u2026');
-  browsePanel.replaceChildren(head, list);
+  // The list and the alphabet rail share a row INSIDE the column panel. Making the
+  // panel itself a row removed the list's height constraint, so it grew to its
+  // content and pushed the rail thousands of pixels off screen.
+  var body = el('div', 'browse-body');
+  body.appendChild(list);
+  browsePanel.replaceChildren(head, body);
   browseAlive();
   return list;
 }
@@ -1331,7 +1365,9 @@ function browseRow(item, onPick) {
     thumbBox.appendChild(img);
   } else {
     thumbBox.className = 'browse-thumb is-empty';
-    var icon = browseIcon(iconFor(item, browseCtx === null ? '' : browseCtx.hierarchy));
+    var icon = browseIcon(browseUniform
+      ? 'dot'
+      : iconFor(item, browseCtx === null ? '' : browseCtx.hierarchy));
     if (icon !== null) thumbBox.appendChild(icon);
   }
   row.appendChild(thumbBox);
@@ -1341,8 +1377,26 @@ function browseRow(item, onPick) {
   return row;
 }
 
+/**
+ * An icon earns its place by DISTINGUISHING rows. In a list of genres every row is
+ * a genre, so a wall of identical tags is decoration — and read as such (Peter,
+ * 08-26: "all icons appear the same... a simple filled circle would be good").
+ *
+ * So: distinct icons where the list is mixed (Explore, an album's actions and
+ * tracks), and a quiet dot where they would all be the same.
+ */
+function uniformIcon(items, hierarchy) {
+  if (items.length < 2) return false;
+  var first = iconFor(items[0], hierarchy);
+  for (var i = 1; i < items.length; i += 1) {
+    if (iconFor(items[i], hierarchy) !== first) return false;
+  }
+  return true;
+}
+
 function browseRows(list, items, onPick) {
   if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
+  browseUniform = uniformIcon(items, browseCtx === null ? '' : browseCtx.hierarchy);
   // One row builder for both the first page and every page after it, so an icon
   // never appears on one and not the other.
   var rows = items.map(function (item) { return browseRow(item, onPick); });
@@ -1371,8 +1425,11 @@ function browseRows(list, items, onPick) {
 var PAGE = 100;
 var browsePaging = false;
 
-function browseAttachPaging(list, hierarchy, total, onPick) {
-  var loaded = list.querySelectorAll('.browse-row').length;
+function browseAttachPaging(list, hierarchy, total, onPick, startOffset) {
+  // After an alphabet jump the rows on screen begin partway down the list, so
+  // paging continues from THERE rather than from the count of visible rows.
+  var loaded = typeof startOffset === 'number'
+    ? startOffset : list.querySelectorAll('.browse-row').length;
   var more = function () {
     if (browsePaging || loaded >= total) return;
     browsePaging = true;
@@ -1401,6 +1458,65 @@ function browseAttachPaging(list, hierarchy, total, onPick) {
   if (list.scrollHeight <= list.clientHeight + 40) more();
 }
 
+/**
+ * THE ALPHABET RAIL.
+ *
+ * 2295 albums and 6295 composers cannot be reached by scrolling. The lists are
+ * alphabetical and `load` takes an offset, so a letter is found by BINARY SEARCH
+ * over the offsets — about a dozen single-item probes instead of paging through
+ * thousands of rows.
+ */
+var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+function firstLetter(title) {
+  var t = String(title || '').toUpperCase();
+  // Roon sorts "The Beatles" under B, and numbers ahead of letters.
+  t = t.replace(/^(THE|A|AN)\s+/, '');
+  var c = t.charAt(0);
+  return (c >= 'A' && c <= 'Z') ? c : '#';
+}
+
+function probeTitle(hierarchy, offset) {
+  return browseCall({ hierarchy: hierarchy, load: true, count: 1, offset: offset, sessionKey: 'flightdeck-face' })
+    .then(function (data) {
+      var items = data.items || [];
+      return items.length > 0 ? items[0].title : null;
+    });
+}
+
+/** The offset of the first item at or after `letter`, by bisection. */
+function findLetter(hierarchy, letter, total, done) {
+  var low = 0;
+  var high = Math.max(0, total - 1);
+  var best = null;
+  var steps = 0;
+  var step = function () {
+    if (low > high || steps > 14) { done(best); return; }
+    steps += 1;
+    var mid = Math.floor((low + high) / 2);
+    probeTitle(hierarchy, mid).then(function (title) {
+      if (title === null) { high = mid - 1; step(); return; }
+      if (firstLetter(title) >= letter) { best = mid; high = mid - 1; }
+      else { low = mid + 1; }
+      step();
+    }).catch(function () { done(best); });
+  };
+  step();
+}
+
+function alphabetRail(hierarchy, total, onPick) {
+  var rail = el('div', 'alpha');
+  var letters = ['#'].concat(LETTERS);
+  for (var i = 0; i < letters.length; i += 1) {
+    (function (letter) {
+      var node = el('span', 'alpha-key', letter);
+      pressable(node, function () { onPick(letter); });
+      rail.appendChild(node);
+    })(letters[i]);
+  }
+  return rail;
+}
+
 function browseDraw(result) {
   var hierarchy = browseCtx.hierarchy;
   var listInfo = result.list || {};
@@ -1411,6 +1527,28 @@ function browseDraw(result) {
   if (total > PAGE) heading += '   ' + total;
   var list = browseShell(heading, browseCtx.trail.length > 1);
   var pick = function (item) { browseInto(item); };
+  // Only where it helps: a long list, and one Roon sorts alphabetically.
+  var alphabetical = total > 150 && listInfo.hint !== 'action_list';
+  if (alphabetical) {
+    browsePanel.className = 'browse has-alpha';
+    var body = browsePanel.querySelector('.browse-body');
+    body.appendChild(alphabetRail(hierarchy, total, function (letter) {
+      list.replaceChildren(el('div', 'browse-empty', 'finding \u2026'));
+      findLetter(hierarchy, letter, total, function (offset) {
+        if (offset === null) { list.replaceChildren(el('div', 'browse-empty', 'nothing under ' + letter)); return; }
+        browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: offset, sessionKey: 'flightdeck-face' })
+          .then(function (data) {
+            browseRows(list, data.items || [], pick);
+            list.scrollTop = 0;
+            if (total > offset + (data.items || []).length) {
+              browseAttachPaging(list, hierarchy, total, pick, offset + (data.items || []).length);
+            }
+          });
+      });
+    }));
+  } else {
+    browsePanel.className = 'browse';
+  }
   browseCall({ hierarchy: hierarchy, load: true, count: PAGE, sessionKey: 'flightdeck-face' })
     .then(function (data) {
       browseRows(list, data.items || [], pick);

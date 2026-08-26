@@ -816,3 +816,37 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .browse-icon { width: 55%; height: 55%; }
 .browse-row:hover .browse-thumb.is-empty { color: var(--accent); }
+
+/* The list must be able to scroll under a finger: a row that swallows the gesture
+   makes a long list unusable on a touchscreen. */
+.browse-list { -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+.browse-row { touch-action: pan-y; }
+
+/* The alphabet rail. Only on long lists, where scrolling cannot reach the end. */
+/* The panel stays a COLUMN; the list and the rail share a row inside it. Making
+   the panel itself a row removed the list's height constraint, so it grew to its
+   full content and pushed the rail off screen entirely. */
+.browse-body {
+  display: -webkit-flex; display: flex;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  min-height: 0; overflow: hidden;
+}
+.browse-body .browse-list { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.alpha {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; height: 100%;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  padding: .4vh .5vw; border-left: 1px solid rgba(242,238,230,.12);
+  overflow: hidden;
+}
+.alpha-key {
+  display: block; text-align: center; cursor: pointer;
+  font-size: .95vw; line-height: 1.5; letter-spacing: .04em;
+  color: var(--ash); padding: 0 .35vw; border-radius: 3px;
+  min-width: 1.8vw;
+}
+.alpha-key:hover { background: var(--accent); color: var(--ink); }
+@media (max-width: 900px) {
+  .alpha-key { font-size: 3vw; min-width: 7vw; padding: .3vh 0; }
+}
