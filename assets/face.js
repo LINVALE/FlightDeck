@@ -2210,8 +2210,11 @@ window.addEventListener('load', function () { try { root.focus(); } catch (error
 var CHROME_MS = 6000;
 var chromeTimer = null;
 var panelShownAt = 0;
+/** Set by closeSettings: no reveal until the dismissing gesture is fully over. */
+var chromeHeldUntil = 0;
 
 function revealChrome() {
+  if (Date.now() < chromeHeldUntil) return;
   paintFaceName();
   root.className = root.className.indexOf('show-chrome') >= 0 ? root.className : root.className + ' show-chrome';
   // The transport bar belongs to the revealed state, not to a press: once the
@@ -2235,10 +2238,23 @@ function inNode(target, node) {
   return false;
 }
 
+/**
+ * Put EVERYTHING away and go back to the music.
+ *
+ * Hiding the strip alone was not enough. A touch ends with the browser's
+ * compatibility mouse events — mousemove, then click — and the mousemove reveals
+ * the chrome again before the finger has left the glass, so the screen appeared
+ * not to dismiss at all. The reveal is therefore held off for the rest of the
+ * gesture, and the badges go with the strip: "back to now playing" means the
+ * resting face, not a quieter version of the controls.
+ */
 function closeSettings() {
   closeBrowse();
   if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
   picker.hidden = true;
+  if (chromeTimer !== null) { clearTimeout(chromeTimer); chromeTimer = null; }
+  root.className = root.className.replace(' show-chrome', '');
+  chromeHeldUntil = Date.now() + 900;
 }
 
 var lastZonePress = 0;
