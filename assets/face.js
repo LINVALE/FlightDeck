@@ -1160,6 +1160,67 @@ function glyphSpeaker(level, muted) {
   return svg;
 }
 
+/**
+ * Icons for browse rows that have no artwork — genres, composers, actions,
+ * categories. Drawn here rather than imported: the CSP is `default-src 'none'`,
+ * so an icon font or a CDN set is not reachable, and self-hosting a whole family
+ * for eight glyphs is a lot of weight for very little. Drawing them also keeps
+ * them on the same line as the transport controls, and raises no licence question.
+ */
+var BROWSE_ICONS = {
+  note:     'M9 18.2a2.4 2.4 0 1 0 2.4-2.4V6.4l7.2-1.6v8.6a2.4 2.4 0 1 0 2.4 2.4V3l-12 2.6z',
+  person:   'M12 12.4a3.9 3.9 0 1 0 0-7.8 3.9 3.9 0 0 0 0 7.8zm0 1.9c-3.5 0-7 1.8-7 4v1.4h14v-1.4c0-2.2-3.5-4-7-4z',
+  tag:      'M11.6 3.5H20a.5.5 0 0 1 .5.5v8.4a1 1 0 0 1-.3.7l-7.4 7.4a1 1 0 0 1-1.4 0l-8-8a1 1 0 0 1 0-1.4l7.5-7.3a1 1 0 0 1 .7-.3zm5.4 3.2a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z',
+  list:     'M3.5 5.6h13v2h-13zm0 5.4h13v2h-13zm0 5.4h9v2h-9zM19 11l2.5 2-2.5 2z',
+  radio:    'M12 9.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM7.8 5.4a8.4 8.4 0 0 0 0 13.2l1.3-1.6a6.4 6.4 0 0 1 0-10zm8.4 0-1.3 1.6a6.4 6.4 0 0 1 0 10l1.3 1.6a8.4 8.4 0 0 0 0-13.2z',
+  album:    'M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6zm0 11a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4z',
+  folder:   'M3.5 5.8h6l1.8 2.2H20.5v10H3.5z',
+  playnow:  'M8 5.5v13l11-6.5z',
+  addnext:  'M3.5 6.4h10v2h-10zm0 4.6h10v2h-10zm0 4.6h7v2h-7zM17.4 8.8h2v3.4h3.4v2h-3.4v3.4h-2v-3.4H14v-2h3.4z',
+  queue:    'M3.5 5.6h13v2h-13zm0 4.6h13v2h-13zm0 4.6h8v2h-8zM17 12.4v7l5.4-3.5z',
+  shuffle:  'M16.6 4.6 21 8l-4.4 3.4V9H14c-1 0-1.7.5-2.4 1.5l-.7 1-1.2-1.7.6-.9C11.3 7.4 12.5 6.6 14 6.6h2.6zM3 6.6h3.2c1.4 0 2.6.8 3.6 2.3l3.4 5c.7 1 1.4 1.5 2.4 1.5h2.2v-2.5L22 16l-4.2 3.4v-2.5h-2.2c-1.5 0-2.7-.8-3.7-2.3l-3.4-5c-.7-1-1.3-1.5-2.3-1.5H3z',
+};
+
+function browseIcon(name) {
+  var d = BROWSE_ICONS[name];
+  if (d === undefined) return null;
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph browse-icon');
+  svg.setAttribute('aria-hidden', 'true');
+  var path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('fill', 'currentColor');
+  path.setAttribute('d', d);
+  svg.appendChild(path);
+  return svg;
+}
+
+/** Which icon suits a row, from what Roon says it is and what it is called. */
+function iconFor(item, hierarchy) {
+  var title = String(item.title || '').toLowerCase();
+  if (item.hint === 'action') {
+    if (title.indexOf('play') === 0) return 'playnow';
+    if (title.indexOf('add') === 0) return 'addnext';
+    if (title.indexOf('queue') >= 0) return 'queue';
+    if (title.indexOf('radio') >= 0) return 'shuffle';
+    return 'playnow';
+  }
+  if (title.indexOf('play ') === 0) return 'playnow';
+  if (hierarchy === 'genres') return 'tag';
+  if (hierarchy === 'composers' || hierarchy === 'artists') return 'person';
+  if (hierarchy === 'playlists') return 'list';
+  if (hierarchy === 'internet_radio') return 'radio';
+  if (hierarchy === 'albums') return 'album';
+  // The Explore tree names its own categories.
+  if (title.indexOf('genre') >= 0) return 'tag';
+  if (title.indexOf('artist') >= 0 || title.indexOf('composer') >= 0) return 'person';
+  if (title.indexOf('playlist') >= 0) return 'list';
+  if (title.indexOf('radio') >= 0) return 'radio';
+  if (title.indexOf('album') >= 0) return 'album';
+  if (title.indexOf('track') >= 0 || /^\d+\./.test(String(item.title || ''))) return 'note';
+  return item.hint === 'list' ? 'folder' : 'note';
+}
+
 function glyphCog() {
   var svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -1270,6 +1331,8 @@ function browseRow(item, onPick) {
     thumbBox.appendChild(img);
   } else {
     thumbBox.className = 'browse-thumb is-empty';
+    var icon = browseIcon(iconFor(item, browseCtx === null ? '' : browseCtx.hierarchy));
+    if (icon !== null) thumbBox.appendChild(icon);
   }
   row.appendChild(thumbBox);
   row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
@@ -1280,23 +1343,9 @@ function browseRow(item, onPick) {
 
 function browseRows(list, items, onPick) {
   if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
-  var rows = items.map(function (item) {
-    var row = el('div', 'browse-row');
-    var thumbBox = el('span', 'browse-thumb');
-    if (item.art) {
-      var img = document.createElement('img');
-      img.alt = '';
-      img.src = item.art;
-      thumbBox.appendChild(img);
-    } else {
-      thumbBox.className = 'browse-thumb is-empty';
-    }
-    row.appendChild(thumbBox);
-    row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
-    if (item.subtitle) row.appendChild(el('span', 'browse-sub', item.subtitle));
-    pressable(row, function () { onPick(item); });
-    return row;
-  });
+  // One row builder for both the first page and every page after it, so an icon
+  // never appears on one and not the other.
+  var rows = items.map(function (item) { return browseRow(item, onPick); });
   list.replaceChildren.apply(list, rows);
 }
 

@@ -805,3 +805,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face.show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
   .picker.mode-transport .vol-scale { min-width: 44vw; }
 }
+
+/* A row with no artwork gets an icon rather than an empty grey square: a long list
+   of blanks reads as broken images. Quiet enough to stay a placeholder. */
+.browse-thumb.is-empty {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  color: rgba(242,238,230,.42);
+}
+.browse-icon { width: 55%; height: 55%; }
+.browse-row:hover .browse-thumb.is-empty { color: var(--accent); }
