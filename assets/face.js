@@ -17,7 +17,7 @@ import { createStream } from './stream.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic'];
+var FACES = ['presence', 'classic', 'dial', 'libretto', 'canvas'];
 var STORE_KEY_FACE = 'flightdeck.face.';
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
@@ -174,6 +174,12 @@ var bg = el('div', 'bg');
 var canvas = document.createElement('canvas');
 canvas.width = 96; canvas.height = 54;
 bg.appendChild(canvas);
+/** AMBIENT CANVAS: slow weather in the sleeve's own colours. Tiny and upscaled,
+ *  so a 2019 TV SoC draws ~30k pixels rather than two million. */
+var field = document.createElement('canvas');
+field.className = 'field';
+field.width = 240; field.height = 135;
+bg.appendChild(field);
 bg.appendChild(el('div', 'wash'));
 
 artistLayer = el('div', 'artistlayer');
@@ -221,6 +227,40 @@ rightBox.appendChild(remaining); rightBox.appendChild(ends);
 var bar = el('div', 'bar');
 var barFill = el('i');
 bar.appendChild(barFill);
+
+/**
+ * THE DIAL's ring. SVG stroke-dashoffset, deliberately not conic-gradient: the
+ * floor is Chromium 63 and conic-gradient is 69. This works back to Chromium 53
+ * and needs no mask.
+ */
+var SVG_NS = 'http://www.w3.org/2000/svg';
+var RING_R = 44;
+var RING_C = 2 * Math.PI * RING_R;
+var dial = document.createElementNS(SVG_NS, 'svg');
+dial.setAttribute('class', 'dial');
+dial.setAttribute('viewBox', '0 0 100 100');
+var dialTrack = document.createElementNS(SVG_NS, 'circle');
+var dialArc = document.createElementNS(SVG_NS, 'circle');
+[dialTrack, dialArc].forEach(function (c) {
+  c.setAttribute('cx', '50'); c.setAttribute('cy', '50'); c.setAttribute('r', String(RING_R));
+  c.setAttribute('fill', 'none'); c.setAttribute('stroke-linecap', 'round');
+});
+dialTrack.setAttribute('class', 'dial-track');
+dialArc.setAttribute('class', 'dial-arc');
+dialArc.setAttribute('transform', 'rotate(-90 50 50)');   // start at twelve o'clock
+dialArc.setAttribute('stroke-dasharray', String(RING_C));
+dialArc.setAttribute('stroke-dashoffset', String(RING_C));
+dial.appendChild(dialTrack); dial.appendChild(dialArc);
+var dialReading = el('div', 'dial-reading');
+var dialRemain = el('div', 'dial-remain');
+var dialTimes = el('div', 'dial-times');
+var dialEnds = el('div', 'dial-ends');
+dialReading.appendChild(dialRemain); dialReading.appendChild(dialTimes); dialReading.appendChild(dialEnds);
+var dialBox = el('div', 'dialbox');
+dialBox.appendChild(dial); dialBox.appendChild(dialReading);
+// Appended here rather than beside `np`: it is built with the foot, and a `var`
+// referenced before its assignment is undefined, not an error until appendChild.
+body.insertBefore(dialBox, idle);
 foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(bar); foot.appendChild(rightBox);
 
 safe.appendChild(head); safe.appendChild(body); safe.appendChild(foot);
@@ -466,7 +506,13 @@ function render(snapshot, kind) {
     var wantClass = l < litTo ? 'lit' : (l === litTo && zone.state === 'playing' ? 'head' : '');
     if (node.className !== wantClass) node.className = wantClass;
   }
-  barFill.style.width = Math.max(0, Math.min(100, (position / length) * 100)).toFixed(2) + '%';
+  var fraction = Math.max(0, Math.min(1, position / length));
+  barFill.style.width = (fraction * 100).toFixed(2) + '%';
+  dialArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - fraction)));
+  dialRemain.textContent = '\u2212' + formatTime(length - position);
+  dialTimes.textContent = formatTime(position) + ' / ' + formatTime(length);
+  dialEnds.textContent = zone.state === 'playing'
+    ? 'ENDS ' + new Date(Date.now() + (length - position) * 1000).toTimeString().slice(0, 5) : '';
   elapsed.textContent = formatTime(position);
   remaining.textContent = '−' + formatTime(length - position);
   // ENDS hh:mm — grafted from the Dial face. Practical from a sofa in a way a
@@ -627,6 +673,7 @@ function applyFace(name) {
   current = name;
   remember(current);
   root.setAttribute('data-face', current);
+  fieldRunning(current === 'canvas' && !document.hidden);
   showPicker();
 }
 
@@ -722,6 +769,76 @@ function toggleFollow() {
   showPicker();
 }
 
+/* ---------- the ambient field (the Canvas face) ----------
+ * Slow drifting lights in the sleeve's own tones. Drawn at 240x135 and upscaled
+ * by CSS, at 8 fps, and only while the Canvas face is showing — a living-room
+ * wall does not need a physics engine, and a 2019 TV cannot afford one.
+ */
+var fieldCtx = field.getContext('2d');
+var blobs = [];
+var fieldTimer = null;
+
+function seedField() {
+  blobs = [];
+  // Many small, faint lights read as depth; a few large bright ones read as
+  // polka dots — which is what the first attempt looked like.
+  for (var i = 0; i < 40; i += 1) {
+    blobs.push({
+      x: Math.random() * field.width,
+      y: Math.random() * field.height,
+      r: 4 + Math.random() * 13,
+      dx: (Math.random() - 0.5) * 0.14,
+      dy: (Math.random() - 0.5) * 0.09,
+      tone: i % 3,
+      alpha: 0.05 + Math.random() * 0.07,
+    });
+  }
+}
+
+function drawField() {
+  if (fieldCtx === null) return;
+  fieldCtx.globalCompositeOperation = 'source-over';
+  fieldCtx.fillStyle = 'rgba(7,8,10,0.22)';         // a soft trail, never a hard clear
+  fieldCtx.fillRect(0, 0, field.width, field.height);
+  fieldCtx.globalCompositeOperation = 'lighter';
+  for (var i = 0; i < blobs.length; i += 1) {
+    var b = blobs[i];
+    b.x += b.dx; b.y += b.dy;
+    if (b.x < -b.r) b.x = field.width + b.r;
+    if (b.x > field.width + b.r) b.x = -b.r;
+    if (b.y < -b.r) b.y = field.height + b.r;
+    if (b.y > field.height + b.r) b.y = -b.r;
+    var grad = fieldCtx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+    // Fading well before the edge is what makes a light look out of focus rather
+    // than drawn: a hard rim is the whole difference.
+    grad.addColorStop(0, palette[b.tone] || '#3a2b24');
+    grad.addColorStop(0.45, palette[b.tone] || '#3a2b24');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    fieldCtx.globalAlpha = b.alpha;
+    fieldCtx.fillStyle = grad;
+    fieldCtx.beginPath();
+    fieldCtx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    fieldCtx.fill();
+    fieldCtx.globalAlpha = 1;
+  }
+}
+
+function fieldRunning(on) {
+  if (on && fieldTimer === null) {
+    if (blobs.length === 0) seedField();
+    // A settled first frame: an empty canvas fading in reads as a fault.
+    for (var warm = 0; warm < 40; warm += 1) drawField();
+    fieldTimer = setInterval(drawField, 125);       // 8 fps
+  } else if (!on && fieldTimer !== null) {
+    clearInterval(fieldTimer); fieldTimer = null;
+  }
+}
+// Never animate a screen nobody is looking at.
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) fieldRunning(false);
+  else fieldRunning(current === 'canvas');
+});
+
 /* ---------- the remote ----------
  * A TV browser is not a desktop one. Two things broke the D-pad here:
  *
@@ -781,6 +898,7 @@ document.addEventListener('visibilitychange', function () { if (!document.hidden
 keepAwake();
 
 root.setAttribute('data-face', current);
+fieldRunning(current === 'canvas');
 var store = createStore(render);
 store.hydrate();
 var streamState = 'live';

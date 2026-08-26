@@ -290,3 +290,130 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (prefers-reduced-motion: reduce) {
   .picker span.opt.arming::after { -webkit-transition: none; transition: none; }
 }
+
+/* ══ DIAL ═════════════════════════════════════════════════════════════════════
+   The ring lives where a ring can live on a 16:9 frame: an instrument on the copy
+   side, opposite the sleeve, never touching it. Its centre carries what a
+   listener actually wants from a sofa — time remaining, and when it ends. */
+.dialbox { display: none; }
+.face[data-face="dial"] .dialbox {
+  display: block; position: relative;
+  width: 22vw; height: 22vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-left: 3vw;
+}
+.face[data-face="dial"] .dial { width: 100%; height: 100%; display: block; }
+.face[data-face="dial"] .dial-track { stroke: rgba(242,238,230,.14); stroke-width: 2.4; }
+.face[data-face="dial"] .dial-arc { stroke: var(--accent); stroke-width: 3; }
+.face[data-face="dial"] .dial-reading {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.face[data-face="dial"] .dial-remain {
+  font-size: 3.9vw; color: var(--bone); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+}
+.face[data-face="dial"] .dial-ends {
+  font-size: 1.15vw; letter-spacing: .18em; text-transform: uppercase; color: var(--ash); margin-top: .4vh;
+}
+.face[data-face="dial"] .body {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+}
+.face[data-face="dial"] .np {
+  -webkit-flex-direction: column; flex-direction: column;
+  width: auto; max-width: 52%;
+}
+.face[data-face="dial"] .cover { width: 24vw; height: 24vw; }
+.face[data-face="dial"] .title { font-size: 2.5vw; margin-top: 2vh; }
+.face[data-face="dial"] .line2 { font-size: 1.5vw; }
+.face[data-face="dial"] .line3 { font-size: 1.2vw; }
+/* The ring IS the progress and already reads the remaining time, so the runway
+   and the foot's own readouts are redundant — left in, they printed "5:36−5:17"
+   jammed together in the corner. The elapsed/total pair moves into the dial. */
+.face[data-face="dial"] .lamps, .face[data-face="dial"] .bar { display: none; }
+.face[data-face="dial"] .foot { display: none; }
+.face[data-face="dial"] .dial-times {
+  font-size: 1.15vw; color: var(--ash); font-variant-numeric: tabular-nums; margin-top: .5vh;
+}
+
+/* ══ LIBRETTO ═════════════════════════════════════════════════════════════════
+   Type carries the screen, the way a concert programme does: the work large
+   across the full width, performers a quiet line beneath, the sleeve a plate at
+   the side. Progress is a contents-page leader rather than a bar. */
+.face[data-face="libretto"] .body {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+}
+.face[data-face="libretto"] .np {
+  -webkit-flex-direction: row-reverse; flex-direction: row-reverse;
+  -webkit-align-items: flex-end; align-items: flex-end;
+  width: 100%;
+}
+.face[data-face="libretto"] .cover {
+  width: 15vw; height: 15vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; margin-left: 3vw;
+}
+.face[data-face="libretto"] .copy { text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.face[data-face="libretto"] .title {
+  font-size: 4.6vw; line-height: 1.02; margin: 0; max-width: 100%; -webkit-line-clamp: 3;
+}
+.face[data-face="libretto"] .line2 {
+  font-style: italic; font-size: 1.85vw; margin-top: 1.6vh; color: #e6e0d6;
+}
+.face[data-face="libretto"] .line3 {
+  font-size: 1.2vw; letter-spacing: .1em; text-transform: uppercase; font-style: normal; margin-top: .8vh;
+}
+.face[data-face="libretto"] .lamps { display: none; }
+.face[data-face="libretto"] .bar {
+  display: block; position: relative;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  height: 1vw; margin: 0 1.6vw; background: none;
+}
+/* the leader: dashes drawn with a repeating gradient, so it needs no elements */
+.face[data-face="libretto"] .bar::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 45%; height: 2px;
+  background: -webkit-repeating-linear-gradient(left, rgba(242,238,230,.22) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+  background: repeating-linear-gradient(to right, rgba(242,238,230,.22) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+}
+.face[data-face="libretto"] .bar i {
+  position: absolute; left: 0; top: 45%; height: 2px; background: none;
+}
+.face[data-face="libretto"] .bar i::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: -webkit-repeating-linear-gradient(left, var(--accent) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+  background: repeating-linear-gradient(to right, var(--accent) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+}
+.face[data-face="libretto"] .bg canvas { opacity: .28; }
+
+/* ══ AMBIENT CANVAS ═══════════════════════════════════════════════════════════
+   The sleeve is the still centre; everything else is slow weather made from its
+   own colours. */
+/* Specificity matters here: the blurred-backdrop rule `.bg canvas` is (0,1,1) and
+   starts at opacity 0 until it is marked lit. A bare `.field` (0,1,0) loses to it,
+   so the field drew perfectly and stayed invisible. */
+.bg canvas.field {
+  position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+  -webkit-transform: translate(-50%, -50%) scale(1.06);
+  transform: translate(-50%, -50%) scale(1.06);
+  display: none; opacity: 0;
+}
+.face[data-face="canvas"] .bg canvas.field {
+  display: block; opacity: .62;
+  /* Blurred at the canvas's OWN 240x135 size, before the upscale — ~30k pixels
+     for the GPU rather than two million, the same trick the backdrop uses. */
+  -webkit-filter: blur(1.6px); filter: blur(1.6px);
+}
+.face[data-face="canvas"] .bg canvas.is-lit:not(.field) { opacity: .20; }
+.face[data-face="canvas"] .cover { width: 22vw; height: 22vw; }
+.face[data-face="canvas"] .title { font-size: 3.1vw; }
+.face[data-face="canvas"] .lamps b { width: .3vw; }
+
+@media (max-width: 900px) {
+  .face[data-face="dial"] .body { -webkit-flex-direction: column; flex-direction: column; }
+  .face[data-face="dial"] .dialbox { width: 46vw; height: 46vw; margin: 2vh 0 0 0; }
+  .face[data-face="dial"] .cover { width: 52vw; height: 52vw; }
+  .face[data-face="libretto"] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face[data-face="libretto"] .cover { width: 40vw; height: 40vw; margin: 0 0 2vh 0; }
+  .face[data-face="libretto"] .title { font-size: 7vw; }
+}

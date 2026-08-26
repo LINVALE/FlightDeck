@@ -172,10 +172,15 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   assert.match(page, /data-zone="1601abc"/);
   assert.match(page, /data-face-param="classic"/);
 
-  // A face that was DESIGNED but never built must not be selectable: offering it
-  // gave a control that changed an attribute and nothing else.
-  const unbuilt = await (await fetch(base + '/face/1601abc?face=dial')).text();
-  assert.ok(!unbuilt.includes('data-face-param'), 'an unimplemented face is not honoured');
+  // Every tournament face is built now, so each is honoured...
+  for (const face of ['presence', 'classic', 'dial', 'libretto', 'canvas']) {
+    const page = await (await fetch(base + '/face/1601abc?face=' + face)).text();
+    assert.match(page, new RegExp('data-face-param="' + face + '"'), face + ' must be selectable');
+  }
+  // ...but a name with no layout behind it is still refused, rather than becoming
+  // a control that changes an attribute and nothing else.
+  const unknownFace = await (await fetch(base + '/face/1601abc?face=hologram')).text();
+  assert.ok(!unknownFace.includes('data-face-param'), 'an unknown face is not honoured');
 
   // An unknown face falls back to the screen's own memory rather than erroring.
   const unknown = await (await fetch(base + '/face/1601abc?face=nonsense')).text();
