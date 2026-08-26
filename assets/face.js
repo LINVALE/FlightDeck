@@ -118,13 +118,20 @@ function el(tag, className, text) {
  * settles that question on screen.
  */
 /**
- * The cover is a switch, and pressing it walks one cycle:
+ * Three views, and OK walks them — a TV has no pointer, so everything must be
+ * reachable from the remote:
  *
  *   0  artist blur  the artist blurred behind a sharp cover  (default)
- *   1  album blur   the ALBUM blurred behind a sharp cover   (Peter, 08-25)
- *   2  album big    the cover ITSELF forward, uncropped      (Peter, 08-25)
- *   3+ artist       one step per artist image, sharp and full bleed
+ *   1  artist       the artist sharp and full bleed, ROTATING every 10 s
+ *   2  album        the cover itself forward, uncropped
  *   then back to 0
+ *
+ * Clicking the cover jumps straight to the album view, for screens that do have
+ * a pointer (Peter, 08-25: "click on the album cover switches to the album
+ * display").
+ *
+ * The album-BLUR step is gone, deliberately: blurring the sleeve in place of the
+ * artist was not elegant (Peter, 08-25).
  *
  * Step 1 is a user-triggered blur of the album art. That does NOT breach the
  * cover-sacred rule: the sacred cover is the sharp one in the layout, and a
@@ -138,11 +145,12 @@ function el(tag, className, text) {
  * full height, uncropped — floating on a blurred copy of itself.
  */
 var VIEW_ARTIST_BLUR = 0;
-var VIEW_COVER_BLUR = 1;
-var VIEW_COVER_BIG = 2;
-var ARTIST_STEP_0 = 3;      // the first artist image sits at step 3
+var VIEW_ARTIST = 1;
+var VIEW_ALBUM = 2;
+var ROTATE_MS = 10000;       // how long each artist portrait holds
 var viewStep = VIEW_ARTIST_BLUR;
-var artistIndex = -1;        // -1 = the cover is the hero
+var artistIndex = -1;        // -1 = no portrait on screen
+var rotateTimer = null;
 var lastTitle = null;
 var artistLayer = null;
 
@@ -180,7 +188,12 @@ var idleClock = el('div', 'clock');
 var idleNote = el('div', 'note');
 idle.appendChild(idleClock); idle.appendChild(idleNote);
 idle.style.display = 'none';
-body.appendChild(cover); body.appendChild(copy); body.appendChild(idle);
+// cover and copy share a wrapper so the artist view can put them side by side
+// (Peter, 08-25: "position it to the left of the three line info section at the
+// same level") while the default view keeps them stacked.
+var np = el('div', 'np');
+np.appendChild(cover); np.appendChild(copy);
+body.appendChild(np); body.appendChild(idle);
 
 var foot = el('div', 'foot');
 var elapsed = el('div', 'time');
@@ -315,7 +328,7 @@ function setBackdrop(zone) {
   var source = null;
   if (np) {
     // The album forward floats on a blurred copy of ITSELF, so the two agree.
-    if (viewStep === VIEW_COVER_BLUR || viewStep === VIEW_COVER_BIG) source = np.art;
+    if (viewStep === VIEW_ALBUM) source = np.art;
     else source = np.artistArt ? np.artistArt : np.art;   // artist first, cover as the fallback
   }
   var key = (source ? source.key : null) + '@' + viewStep;
@@ -448,8 +461,9 @@ function applyArtistView() {
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
   if (artistIndex < 0 || artistIndex >= shots.length) {
     artistIndex = -1;
+    stopRotation();
     artistLayer.className = 'artistlayer';
-    if (viewStep === VIEW_COVER_BIG) {
+    if (viewStep === VIEW_ALBUM) {
       // The cover comes forward. `data-view="album"` only ever RESIZES it —
       // no crop, no tint, no overlay — so the sacred rule holds.
       root.setAttribute('data-view', 'album');
@@ -459,12 +473,13 @@ function applyArtistView() {
     }
     root.removeAttribute('data-view');
     // Name the backdrop so a viewer knows which one they are looking at.
-    artistName.textContent = viewStep === VIEW_COVER_BLUR ? 'album blur' : 'artist blur';
-    artistName.hidden = viewStep === VIEW_ARTIST_BLUR;
+    artistName.textContent = 'artist blur';
+    artistName.hidden = true;
     return;
   }
   var shot = shots[artistIndex];
   root.setAttribute('data-view', 'artist');
+  startRotation(shots.length);
   // Decode before showing: a half-painted hero is worse than a beat of delay.
   var probe = new Image();
   var reveal = function () {
@@ -483,12 +498,45 @@ function applyArtistView() {
   artistName.hidden = false;
 }
 
+/**
+ * Roon ships up to four images per track and which is the performer has never
+ * been verified, so a portrait view that sat on one of them answered "who is
+ * this?" badly. Rotating every 10 s shows them all without anyone pressing
+ * anything (Peter, 08-25).
+ */
+function stopRotation() {
+  if (rotateTimer !== null) { clearInterval(rotateTimer); rotateTimer = null; }
+}
+function startRotation(count) {
+  stopRotation();
+  if (count < 2) return;          // one portrait has nothing to rotate to
+  rotateTimer = setInterval(function () {
+    var zone = currentZone();
+    var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
+    if (viewStep !== VIEW_ARTIST || shots.length < 2) { stopRotation(); return; }
+    artistIndex = (artistIndex + 1) % shots.length;
+    applyArtistView();
+  }, ROTATE_MS);
+}
+
+/** The pointer shortcut: the cover is a button onto the album view. */
+function showAlbumView() {
+  viewStep = VIEW_ALBUM;
+  artistIndex = -1;
+  backdropKey = null;
+  applyArtistView();
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+}
+
 function cycleArtist() {
   var zone = currentZone();
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
-  var steps = ARTIST_STEP_0 + shots.length;   // artist-blur, album-blur, album-big, then each artist
-  viewStep = (viewStep + 1) % steps;
-  artistIndex = viewStep >= ARTIST_STEP_0 ? viewStep - ARTIST_STEP_0 : -1;
+  viewStep = (viewStep + 1) % 3;
+  // Nothing to show for this track: skip the artist view rather than presenting
+  // an empty one.
+  if (viewStep === VIEW_ARTIST && shots.length === 0) viewStep = VIEW_ALBUM;
+  artistIndex = viewStep === VIEW_ARTIST ? 0 : -1;
   backdropKey = null;                    // the backdrop source changed
   applyArtistView();
   var snapshot = store.snapshot();
@@ -496,7 +544,7 @@ function cycleArtist() {
   // Deliberately NOT showPicker(): that raises the FACE list, which landed on
   // top of the title in album view. The artwork chip already names the step.
 }
-cover.addEventListener('click', function (event) { event.stopPropagation(); cycleArtist(); });
+cover.addEventListener('click', function (event) { event.stopPropagation(); showAlbumView(); });
 
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;

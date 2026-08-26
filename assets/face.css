@@ -74,14 +74,37 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
      left column for the copy. Tuned against a bright stage shot where the first
      attempt left "artist 1 of 2" and the lamps unreadable. */
   background:
-    linear-gradient(to top, rgba(0,0,0,.94) 0%, rgba(0,0,0,.86) 22%, rgba(0,0,0,.46) 40%, rgba(0,0,0,0) 64%),
+    linear-gradient(to top, rgba(0,0,0,.96) 0%, rgba(0,0,0,.92) 26%, rgba(0,0,0,.62) 42%, rgba(0,0,0,0) 66%),
     linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 16%),
-    linear-gradient(to right, rgba(0,0,0,.55) 0%, rgba(0,0,0,.14) 40%, rgba(0,0,0,0) 64%);
+    linear-gradient(to right, rgba(0,0,0,.72) 0%, rgba(0,0,0,.30) 46%, rgba(0,0,0,0) 72%);
 }
 .face[data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
+/* The cover sits to the LEFT of the three-line block and level with it, rather
+   than stacked above it, so the photograph keeps the rest of the frame. */
+.face[data-view="artist"] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+  width: auto; max-width: 78%;
+}
+
+/* The copy sits ON a photograph, and a photograph is not a backdrop until the
+   text survives it. The frame-wide scrim is tuned for a stage shot; this local
+   one guarantees the row regardless of what the picture happens to be doing
+   behind it. Nothing here touches the cover: it is a sibling layer. */
+.face[data-view="artist"] .np {
+  padding: 1.4vh 2vw 1.4vh 1.6vw;
+  margin-left: -1.6vw;
+  background: -webkit-radial-gradient(left center, ellipse, rgba(0,0,0,.72) 0%, rgba(0,0,0,.42) 55%, rgba(0,0,0,0) 100%);
+  background: radial-gradient(ellipse at left center, rgba(0,0,0,.72) 0%, rgba(0,0,0,.42) 55%, rgba(0,0,0,0) 100%);
+  border-radius: 4px;
+}
+.face[data-view="artist"] .line2,
+.face[data-view="artist"] .line3 { color: #e6e0d6; }
+.face[data-view="artist"] .cover { margin-right: 1.8vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face[data-view="artist"] .copy { min-width: 0; }
 .face[data-view="artist"] .cover { width: 11vw; height: 11vw; }
 .face[data-view="artist"] .copy { text-align: left; margin-top: 1.2vh; }
 .face[data-view="artist"] .title { max-width: 74%; margin: 0; font-size: 3.1vw; }
@@ -118,7 +141,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-view="album"] .line2 { font-size: 1.5vw; }
 .face[data-view="album"] .line3 { font-size: 1.2vw; }
 .face[data-view="album"] .copy { margin-top: 1.6vh; }
-.face[data-view="album"] .artistname { display: inline-block; }
+.face[data-view="album"] 
+/* The accent comes from the ALBUM, and over a photograph it can be invisible —
+   a red "paused" on a blue stage shot. Over a portrait the status stays neutral. */
+.face[data-view="artist"][data-state="paused"] .status,
+.face[data-view="artist"][data-state="loading"] .status { color: var(--bone); }
+.face[data-view="artist"] .status i { background: var(--bone); }
+
+.artistname { display: inline-block; }
 
 @media (max-width: 900px) {
   .face[data-view="album"] .cover { height: auto; width: 86vw; }
@@ -135,6 +165,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face[data-view="artist"] .cover { width: 26vw; height: 26vw; }
   .face[data-view="artist"] .title { font-size: 5.6vw; }
   .artistname { font-size: 2.6vw; }
+}
+
+
+/* cover + copy. Stacked and centred by default; a row in the artist view. */
+.np {
+  display: -webkit-box; display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  min-width: 0; width: 100%;
 }
 
 /* ---- THE COVER IS SACRED ----
