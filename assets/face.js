@@ -2170,6 +2170,24 @@ function inNode(target, node) {
   return false;
 }
 
+/**
+ * IS THE SCREEN IN SETTINGS?
+ *
+ * The transport bar is the resting chrome — it appears with any movement and
+ * goes on its own. A faces list, a rooms list or the browser is a MENU, and a
+ * menu is a mode the viewer is IN.
+ */
+function settingsOpen() {
+  return browsePanel !== null
+    || (!picker.hidden && picker.className.indexOf('mode-transport') === -1);
+}
+
+function closeSettings() {
+  closeBrowse();
+  if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
+  picker.hidden = true;
+}
+
 var lastZonePress = 0;
 function onFacePress(event) {
   var now = Date.now();
@@ -2177,6 +2195,22 @@ function onFacePress(event) {
   revealChrome();
 
   var target = event ? event.target : null;
+  /**
+   * THE WAY OUT OF A MENU IS TO TOUCH PAST IT (Peter, 08-26).
+   *
+   * Without this an outside press was routed by height like any other, so
+   * leaving the faces list meant landing in browse — you could never simply
+   * go back to the music. Everything that owns a press is excluded, the cover
+   * included: it flips to the artist and would otherwise do both at once.
+   */
+  if (settingsOpen() && !panelJustAppeared() && target !== null
+      && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
+      && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
+      && (browsePanel === null || !inNode(target, browsePanel))) {
+    lastZonePress = now;
+    closeSettings();
+    return;
+  }
   // Anything that handles its own presses is not a zone.
   if (target !== null && (inNode(target, cover) || inNode(target, picker) || inNode(target, foot)
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
