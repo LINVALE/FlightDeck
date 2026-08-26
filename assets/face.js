@@ -104,7 +104,12 @@ function reportKey(event, name) {
     }).catch(function () { /* the on-screen list still stands */ });
   } catch (error) { /* older engine without fetch: the panel is enough */ }
 
-  var rows = [el('div', 'keylog-head', 'KEY PROBE  \u00B7  press the buttons you want to use')];
+  drawKeyLog();
+}
+
+function drawKeyLog() {
+  if (keyLog === null) return;
+  var rows = [el('div', 'keylog-head', 'PROBE  \u00B7  press buttons and point at things')];
   for (var i = 0; i < keySeen.length; i += 1) {
     var seen = keySeen[i];
     var row = el('div', i === 0 ? 'keylog-row is-new' : 'keylog-row');
@@ -725,11 +730,7 @@ function faceOption(name) {
   node.addEventListener('mouseenter', function () { armDwell(node, name); });
   node.addEventListener('mouseleave', cancelDwell);
   // A tap or click is an explicit choice: apply it at once rather than dwelling.
-  node.addEventListener('click', function (event) {
-    event.stopPropagation();
-    cancelDwell();
-    applyFace(name);
-  });
+  pressable(node, function () { cancelDwell(); applyFace(name); });
   return node;
 }
 
@@ -748,7 +749,7 @@ function showPicker() {
     b.appendChild(glyph(label));
     b.setAttribute('title', title);
     b.setAttribute('aria-label', title);
-    b.addEventListener('click', function (event) { event.stopPropagation(); cycleZone(delta); });
+    pressable(b, function () { cycleZone(delta); });
     return b;
   };
   rooms.appendChild(roomBtn('left', 'previous room', -1));
@@ -763,9 +764,7 @@ function showPicker() {
     b.appendChild(glyph(label));
     b.setAttribute('title', title);
     b.setAttribute('aria-label', title);
-    if (enabled) {
-      b.addEventListener('click', function (event) { event.stopPropagation(); onPress(); });
-    }
+    if (enabled) pressable(b, onPress);
     return b;
   };
   var playing = zone !== null && zone.state === 'playing';
@@ -928,6 +927,38 @@ document.addEventListener('visibilitychange', function () {
  * (Peter, 08-25: "keep black and white simple pause symbol"). A path inherits
  * currentColor and cannot be re-coloured by a font.
  */
+/**
+ * A press, however the device chooses to report one.
+ *
+ * A Samsung pointer remote is not a mouse: depending on the set it may emit
+ * pointerup, touchend, mouseup or click, and clicking with it can fail to produce
+ * a `click` at all if the pointer drifts a pixel between down and up — which it
+ * does, because it is held in the air (Peter, 08-25: "the browser isn't responding
+ * to the click enter button when its over a part of the screen").
+ *
+ * So bind them all, and de-duplicate: one physical press must never fire twice.
+ */
+function pressable(node, onPress) {
+  var last = 0;
+  var fire = function (event) {
+    var now = Date.now();
+    if (now - last < 400) return;      // the same press arriving under another name
+    last = now;
+    if (event && event.stopPropagation) event.stopPropagation();
+    if (event && event.preventDefault) event.preventDefault();
+    onPress();
+  };
+  node.addEventListener('click', fire);
+  node.addEventListener('pointerup', fire);
+  node.addEventListener('touchend', fire);
+  node.addEventListener('mouseup', fire);
+  // A remote's centre button while hovering can arrive as a key, with the pointer
+  // position deciding the target. Accept a press on a focused/hovered node too.
+  node.addEventListener('keyup', fire);
+  node.setAttribute('tabindex', '0');
+  node.setAttribute('role', 'button');
+}
+
 var glyph = function (name) {
   var svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
@@ -1003,6 +1034,44 @@ function nudgeVolume(steps) {
   if (output === null) { flash('this screen is not bound to one speaker'); return; }
   if (!output.volume) { flash(output.name + ' has no volume control'); return; }
   command({ action: 'volume', output: output.id, steps: steps });
+}
+
+/**
+ * POINTER PROBE (?keys=1). The key probe settled which keys a television sends;
+ * this settles the same question for a pointer remote, which is a different
+ * device pretending to be a mouse. Reports what actually fires and on what.
+ */
+function startPointerProbe() {
+  var counts = {};
+  var note = function (kind, target) {
+    // An SVG element's className is an SVGAnimatedString, which stringifies to
+    // "[object ...]" — useless in a probe someone has to read.
+    var cls = '';
+    if (target && typeof target.className === 'string') cls = target.className.split(' ')[0];
+    else if (target && target.getAttribute) cls = target.getAttribute('class') || '';
+    var where = cls !== '' ? cls.split(' ')[0] : (target ? String(target.nodeName).toLowerCase() : '?');
+    var label = kind + ' on .' + where;
+    counts[label] = (counts[label] || 0) + 1;
+    if (counts[label] > 3 && kind === 'mousemove') return;   // movement is noisy; a few is enough
+    reportPointer(label, counts[label]);
+  };
+  ['click', 'pointerdown', 'pointerup', 'mousedown', 'mouseup', 'touchstart', 'touchend', 'mousemove']
+    .forEach(function (kind) {
+      document.addEventListener(kind, function (event) { note(kind, event.target); }, true);
+    });
+}
+
+function reportPointer(label, count) {
+  if (keyLog === null) return;
+  keySeen.unshift({ key: label, code: count, acted: 'pointer' });
+  if (keySeen.length > 12) keySeen.length = 12;
+  drawKeyLog();
+  try {
+    fetch('/api/v1/keyprobe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: label, code: count, acted: 'POINTER' }),
+    }).catch(function () { /* the panel still shows it */ });
+  } catch (error) { /* older engine */ }
 }
 
 /* ---------- the remote ----------
@@ -1118,6 +1187,28 @@ window.addEventListener('load', function () { try { root.focus(); } catch (error
 
 document.addEventListener('click', showPicker);
 
+/**
+ * MOVING A POINTER RAISES THE CONTROLS.
+ *
+ * The strip only appeared on a key or a click, which leaves a pointer remote with
+ * nothing to aim at: you wave the cursor around a bare screen and no control ever
+ * appears (Peter, 08-25). Movement is the natural affordance for a pointing
+ * device — the same gesture that shows a video player's controls.
+ *
+ * Throttled, and it never re-raises while the strip is already up, so a shaky
+ * remote does not reset the timer forever or thrash the DOM.
+ */
+var lastWake = 0;
+function wakeControls() {
+  var now = Date.now();
+  if (now - lastWake < 500) return;
+  lastWake = now;
+  if (picker.hidden) showPicker();
+}
+document.addEventListener('mousemove', wakeControls, true);
+document.addEventListener('pointermove', wakeControls, true);
+document.addEventListener('touchstart', wakeControls, true);
+
 /* ---------- keep the screen awake ---------- */
 function keepAwake() {
   if (!('wakeLock' in navigator) || !window.isSecureContext) return;
@@ -1131,6 +1222,7 @@ keepAwake();
 
 root.setAttribute('data-face', current);
 fieldRunning(current === 'canvas');
+if (debugKeys) { reportKey({ key: 'probe ready', keyCode: 0 }, ''); startPointerProbe(); }
 var store = createStore(render);
 store.hydrate();
 var streamState = 'live';
