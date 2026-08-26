@@ -83,6 +83,10 @@ touchscreen. A control Roon reports as unavailable (skipping an internet radio
 stream, say) is shown but plainly inert rather than hidden, so the row does not
 jump about as tracks change.
 
+**Raising the controls is a deliberate press**, not a movement: press anywhere
+*outside* the album cover and the strip appears. Pressing the **cover itself**
+flips album ↔ artist, so the strip never covers the thing it is about to flip.
+
 Resting on a face name in the strip switches to it after about a second — no
 click or OK needed, and a line fills under the name while it arms so the wait is
 visible. Moving away before it completes cancels, so passing over a name costs

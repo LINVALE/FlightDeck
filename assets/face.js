@@ -1190,29 +1190,35 @@ root.setAttribute('tabindex', '0');
 try { root.focus(); } catch (error) { /* not focusable on this engine */ }
 window.addEventListener('load', function () { try { root.focus(); } catch (error) { /* ignore */ } });
 
-document.addEventListener('click', showPicker);
-
 /**
- * MOVING A POINTER RAISES THE CONTROLS.
+ * RAISING THE CONTROLS IS A DELIBERATE ACT.
  *
- * The strip only appeared on a key or a click, which leaves a pointer remote with
- * nothing to aim at: you wave the cursor around a bare screen and no control ever
- * appears (Peter, 08-25). Movement is the natural affordance for a pointing
- * device — the same gesture that shows a video player's controls.
+ * Movement used to raise them, which is right for a mouse and wrong for a remote
+ * held in the hand: the strip appeared at the slightest drift and sat over the
+ * music (Peter, 08-25: "comes up too easily - on any mouse movement - only on
+ * clicking outside of the album area should bring it up").
  *
- * Throttled, and it never re-raises while the strip is already up, so a shaky
- * remote does not reset the timer forever or thrash the DOM.
+ * So: a PRESS, and only outside the cover. The cover is its own control — it
+ * flips album and artist — and the picker never covers what it is about to flip.
  */
 var lastWake = 0;
-function wakeControls() {
+function wakeControls(event) {
   var now = Date.now();
-  if (now - lastWake < 500) return;
+  if (now - lastWake < 400) return;         // one press, however many names it arrives under
+
+  var node = event ? event.target : null;
+  while (node !== null && node !== document.body) {
+    var cls = typeof node.className === 'string' ? node.className : '';
+    // The cover flips artwork, and the strip handles its own presses.
+    if (node === cover || cls.indexOf('cover') >= 0 || node === picker || cls.indexOf('picker') >= 0) return;
+    node = node.parentNode;
+  }
   lastWake = now;
   if (picker.hidden) showPicker();
 }
-document.addEventListener('mousemove', wakeControls, true);
-document.addEventListener('pointermove', wakeControls, true);
-document.addEventListener('touchstart', wakeControls, true);
+['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
+  document.addEventListener(kind, wakeControls);
+});
 
 /* ---------- keep the screen awake ---------- */
 function keepAwake() {
