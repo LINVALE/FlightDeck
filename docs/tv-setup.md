@@ -83,9 +83,21 @@ touchscreen. A control Roon reports as unavailable (skipping an internet radio
 stream, say) is shown but plainly inert rather than hidden, so the row does not
 jump about as tracks change.
 
-**Raising the controls is a deliberate press**, not a movement: press anywhere
-*outside* the album cover and the strip appears. Pressing the **cover itself**
-flips album ↔ artist, so the strip never covers the thing it is about to flip.
+**Where you press decides what appears.** Moving the pointer, or a first touch,
+only fades in the affordances — the room name and a cog — so you can see there is
+something to press. It opens nothing.
+
+| Press here | Get |
+|-----------|-----|
+| the **cover** | flips album ↔ artist |
+| the **title band** (beside the cover) | **browse** — change what is playing |
+| the **lower band** | **transport** — play, skip, volume |
+| the **cog**, top right | **faces** and rooms |
+
+A panel never appears under the press that summoned it, and a freshly raised panel
+ignores presses for half a second — before that, a touch low on the screen raised
+the strip beneath the finger and the same touch fell through onto the play button,
+which is why music started at random on a touchscreen.
 
 Resting on a face name in the strip switches to it after about a second — no
 click or OK needed, and a line fills under the name while it arms so the wait is

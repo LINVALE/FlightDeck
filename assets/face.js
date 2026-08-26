@@ -252,6 +252,28 @@ copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
 var artistName = el('span', 'artistname');
 head.insertBefore(artistName, status);
 
+/**
+ * ZONED INTERACTION (Peter, 08-26).
+ *
+ * Before this, a press ANYWHERE raised one strip — and it appeared under the
+ * finger that summoned it, so the next press landed on whatever button had
+ * materialised there. That is why play started at random on a touchscreen.
+ *
+ * Now the screen has places:
+ *   the cover        flips album / artist
+ *   the title band   opens BROWSE — change what is playing
+ *   the lower band   raises TRANSPORT — play, skip, volume
+ *   the cog          raises the FACES picker
+ *
+ * Nothing appears under the press that summoned it, and a freshly raised panel
+ * ignores presses for a moment so the summoning touch cannot fall through onto a
+ * control.
+ */
+var cog = el('span', 'cog');
+cog.setAttribute('aria-label', 'faces and rooms');
+cog.appendChild(glyphCog());
+head.appendChild(cog);
+
 var idle = el('div', 'idle');
 var idleClock = el('div', 'clock');
 var idleNote = el('div', 'note');
@@ -739,8 +761,24 @@ function faceOption(name) {
   return node;
 }
 
-function showPicker() {
+/**
+ * The strip in one of two modes. Splitting it is the point: pressing low used to
+ * raise faces, rooms, transport and a hint all at once, right where the finger
+ * was — so the next touch hit whatever had appeared there.
+ */
+function openPanel(mode) {
+  showPicker(mode);
+}
+
+/** The title band asks "what is playing?" — so it opens the library, not a strip. */
+function openBrowseMenu() {
+  if (browsePanel !== null) { closeBrowse(); return; }
+  showPicker('browse');
+}
+
+function showPicker(mode) {
   cancelDwell();
+  mode = mode || 'transport';
   /**
    * Two rows, deliberately. Everything shared one wrapping flex container, so the
    * fifth face fell onto the second line and sat among the transport buttons — an
@@ -750,9 +788,12 @@ function showPicker() {
    * Row one is what the screen IS. Row two is what it DOES — and row two is where
    * browse, grouping, genre and recently-played will go.
    */
-  var faceRow = el('div', 'row row-faces');
-  for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
-  var nodes = [faceRow];
+  var nodes = [];
+  if (mode === 'faces') {
+    var faceRow = el('div', 'row row-faces');
+    for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
+    nodes.push(faceRow);
+  }
 
   var actionRow = el('div', 'row row-actions');
   var rooms = el('div', 'controls');
@@ -795,7 +836,7 @@ function showPicker() {
   controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
   actionRow.appendChild(controls);
-  nodes.push(actionRow);
+  if (mode === 'transport' || mode === 'faces') nodes.push(actionRow);
 
   // Row three: what to play, rather than how to play it.
   var browseRow = el('div', 'row row-browse');
@@ -814,10 +855,14 @@ function showPicker() {
   browseRow.appendChild(entry('playlists', function () { openHierarchy('playlists', 'Playlists'); }));
   browseRow.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
   browseRow.appendChild(entry('recent', openRecent));
-  nodes.push(browseRow);
-  nodes.push(el('em', 'hint', 'keys:  space play  ·  n next  ·  b back  ·  u / d volume  ·  f face  ·  a artwork  ·  r room'));
+  if (mode === 'browse') nodes.push(browseRow);
+  if (mode === 'faces') {
+    nodes.push(el('em', 'hint', 'keys:  space play  \u00B7  n next  \u00B7  b back  \u00B7  u / d volume  \u00B7  f face  \u00B7  a artwork'));
+  }
   picker.replaceChildren.apply(picker, nodes);
+  picker.className = 'picker mode-' + mode;
   picker.hidden = false;
+  panelShownAt = Date.now();
   if (pickerTimer !== null) clearTimeout(pickerTimer);
   pickerTimer = setTimeout(function () { picker.hidden = true; }, 8000);
 }
@@ -975,6 +1020,9 @@ function pressable(node, onPress) {
   var fire = function (event) {
     var now = Date.now();
     if (now - last < 400) return;      // the same press arriving under another name
+    // The touch that summoned a panel must not fall through onto a control that
+    // appeared beneath it — the cause of music starting at random.
+    if (panelJustAppeared()) return;
     last = now;
     if (event && event.stopPropagation) event.stopPropagation();
     if (event && event.preventDefault) event.preventDefault();
@@ -989,6 +1037,19 @@ function pressable(node, onPress) {
   node.addEventListener('keyup', fire);
   node.setAttribute('tabindex', '0');
   node.setAttribute('role', 'button');
+}
+
+function glyphCog() {
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('fill', 'currentColor');
+  path.setAttribute('d', 'M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2zm0 5.6a2 2 0 1 1 0-4 2 2 0 0 1 0 4z'
+    + 'M20.6 12c0-.5 0-1-.1-1.4l2-1.5-2-3.4-2.3 1a7.6 7.6 0 0 0-2.5-1.4L15.3 2.7h-4l-.4 2.6c-.9.3-1.7.8-2.5 1.4l-2.3-1-2 3.4 2 1.5a8 8 0 0 0 0 2.8l-2 1.5 2 3.4 2.3-1c.8.6 1.6 1.1 2.5 1.4l.4 2.6h4l.4-2.6c.9-.3 1.7-.8 2.5-1.4l2.3 1 2-3.4-2-1.5c.1-.4.1-.9.1-1.4z');
+  svg.appendChild(path);
+  return svg;
 }
 
 var glyph = function (name) {
@@ -1438,33 +1499,64 @@ try { root.focus(); } catch (error) { /* not focusable on this engine */ }
 window.addEventListener('load', function () { try { root.focus(); } catch (error) { /* ignore */ } });
 
 /**
- * RAISING THE CONTROLS IS A DELIBERATE ACT.
+ * RAISING THINGS IS A DELIBERATE ACT, AND WHERE YOU PRESS DECIDES WHAT APPEARS.
  *
- * Movement used to raise them, which is right for a mouse and wrong for a remote
- * held in the hand: the strip appeared at the slightest drift and sat over the
- * music (Peter, 08-25: "comes up too easily - on any mouse movement - only on
- * clicking outside of the album area should bring it up").
- *
- * So: a PRESS, and only outside the cover. The cover is its own control — it
- * flips album and artist — and the picker never covers what it is about to flip.
+ * Movement only REVEALS the affordances — the room name and the cog fade in so a
+ * viewer can see there is something to press — it never opens a panel. Opening is
+ * a press, and the press's position chooses between browse, transport and faces.
  */
-var lastWake = 0;
-function wakeControls(event) {
-  var now = Date.now();
-  if (now - lastWake < 400) return;         // one press, however many names it arrives under
+var CHROME_MS = 6000;
+var chromeTimer = null;
+var panelShownAt = 0;
 
-  var node = event ? event.target : null;
-  while (node !== null && node !== document.body) {
-    var cls = typeof node.className === 'string' ? node.className : '';
-    // The cover flips artwork, and the strip handles its own presses.
-    if (node === cover || cls.indexOf('cover') >= 0 || node === picker || cls.indexOf('picker') >= 0) return;
-    node = node.parentNode;
-  }
-  lastWake = now;
-  if (picker.hidden) showPicker();
+function revealChrome() {
+  root.className = root.className.indexOf('show-chrome') >= 0 ? root.className : root.className + ' show-chrome';
+  if (chromeTimer !== null) clearTimeout(chromeTimer);
+  chromeTimer = setTimeout(function () {
+    root.className = root.className.replace(' show-chrome', '');
+  }, CHROME_MS);
 }
+
+/** True while a panel is too freshly raised to be pressed by the touch that raised it. */
+function panelJustAppeared() { return Date.now() - panelShownAt < 500; }
+
+function inNode(target, node) {
+  while (target !== null && target !== document.body) {
+    if (target === node) return true;
+    target = target.parentNode;
+  }
+  return false;
+}
+
+var lastZonePress = 0;
+function onFacePress(event) {
+  var now = Date.now();
+  if (now - lastZonePress < 400) return;     // one press, however many names it arrives under
+  revealChrome();
+
+  var target = event ? event.target : null;
+  // Anything that handles its own presses is not a zone.
+  if (target !== null && (inNode(target, cover) || inNode(target, picker)
+      || (browsePanel !== null && inNode(target, browsePanel)))) return;
+  lastZonePress = now;
+
+  if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
+
+  // Zones by height. The title band is where the music is named, so pressing it
+  // asks "what is playing?" — which is browse. Below it is how to play it.
+  var y = event && typeof event.clientY === 'number' ? event.clientY : 0;
+  var height = window.innerHeight || 1080;
+  if (y < height * 0.16) { openPanel('faces'); return; }
+  if (y < height * 0.72) { openBrowseMenu(); return; }
+  openPanel('transport');
+}
+
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
-  document.addEventListener(kind, wakeControls);
+  document.addEventListener(kind, onFacePress);
+});
+// Movement reveals the affordances but opens nothing.
+['mousemove', 'pointermove', 'touchstart'].forEach(function (kind) {
+  document.addEventListener(kind, revealChrome, true);
 });
 
 /* ---------- keep the screen awake ---------- */

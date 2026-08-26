@@ -605,3 +605,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .browse-head .ctl { min-width: 3vw; min-height: 2.6vw; padding: 0.7vh 0.7vw; margin: 0; }
 .browse-head .ctl.off { opacity: .25; }
 @media (max-width: 900px) { .browse-head .ctl { min-width: 11vw; min-height: 10vw; } }
+
+/* ══ ZONED CHROME ═════════════════════════════════════════════════════════════
+   At rest the face is only the music. Movement fades in the two affordances that
+   say "there is something here": the room, and a cog. Neither opens anything —
+   opening is a press, and where you press decides what appears. */
+.zone, .status, .cog { -webkit-transition: opacity .35s ease; transition: opacity .35s ease; }
+.face .cog { opacity: 0; }
+.face.show-chrome .cog { opacity: .85; }
+.cog {
+  margin-left: 1.2vw; cursor: pointer; display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  padding: .6vh .6vw; border: 1px solid rgba(242,238,230,.22); border-radius: 6px;
+  min-width: 3vw; min-height: 2.6vw;
+  -webkit-justify-content: center; justify-content: center;
+}
+.cog:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+.cog .glyph { width: 1.4vw; height: 1.4vw; }
+
+/* Each mode sits where its zone is not, so a panel never lands under the press
+   that summoned it. */
+.picker.mode-faces { top: 12vh; bottom: auto; }
+.picker.mode-browse { top: 30vh; bottom: auto; }
+.picker.mode-transport { bottom: 4vh; top: auto; }
+
+@media (max-width: 900px) {
+  .cog { min-width: 11vw; min-height: 10vw; }
+  .cog .glyph { width: 5vw; height: 5vw; }
+}
