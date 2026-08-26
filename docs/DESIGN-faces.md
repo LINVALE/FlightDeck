@@ -257,7 +257,7 @@ to fire even over video; Samsung's Auto Power Off kills the set after 4 h and fi
 Fire TV is reported not to autoplay video at all. So `docs/tv-drill.md` carries per-device setup steps with their own
 receipts (Samsung: Auto Power Off → Off, Hide Tabs and Menu Bar; LG: Always Show Address Bar → Off; Fire/Android TV:
 **Fully Kiosk, not Silk**; iPad: Guided Access + Auto-Lock Never) — and **expect the 2 h receipt to FAIL on LG in the
-bare browser; record that honestly.** ⚖️ **Echo Show is NOT a Face host** — Silk exits to home after 10–15 min and
+bare browser; record that honestly.** ⚠️ **Echo Show: WORKS (08-25, kitchen Show, Silk, touch).** The earlier ruling was wrong. Silk is still reported to exit to home after 10–15 min idle and
 Amazon states the timeout cannot be disabled. Later, if boot-launch matters: thin Tizen `.wgt` / webOS `.ipk` hosted-web
 shells are the only real route (that is what signage vendors do).
 

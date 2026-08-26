@@ -1020,7 +1020,7 @@ var glyph = function (name) {
  * session-scoped positions in a server-side stack — never cached.
  */
 var browsePanel = null;
-var browseStack = [];
+var browseCtx = null;      // { hierarchy, trail: [titles] }
 
 function browseCall(body) {
   return fetch('/api/v1/browse', {
@@ -1032,23 +1032,19 @@ function browseCall(body) {
 
 function closeBrowse() {
   if (browsePanel !== null) { browsePanel.parentNode.removeChild(browsePanel); browsePanel = null; }
-  browseStack = [];
+  browseCtx = null;
 }
 
-function browseShell(title) {
+function browseShell(title, canGoBack) {
   if (browsePanel === null) {
     browsePanel = el('div', 'browse');
     document.body.appendChild(browsePanel);
   }
   var head = el('div', 'browse-head');
-  var back = el('span', 'ctl small');
+  var back = el('span', canGoBack ? 'ctl small' : 'ctl small off');
   back.appendChild(glyph('left'));
   back.setAttribute('aria-label', 'back');
-  pressable(back, function () {
-    browseStack.pop();
-    var prev = browseStack.pop();
-    if (prev === undefined) closeBrowse(); else prev();
-  });
+  if (canGoBack) pressable(back, browseBack);
   head.appendChild(back);
   head.appendChild(el('span', 'browse-title', title));
   var shut = el('span', 'ctl small', '\u2715');
@@ -1059,13 +1055,10 @@ function browseShell(title) {
   return list;
 }
 
-/** One row per item, at the same target size as everything else. */
 function browseRows(list, items, onPick) {
   if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
   var rows = items.map(function (item) {
     var row = el('div', 'browse-row');
-    // A thumbnail where there is one, and a reserved space where there is not —
-    // otherwise the names jump left and right as images arrive down a long list.
     var thumbBox = el('span', 'browse-thumb');
     if (item.art) {
       var img = document.createElement('img');
@@ -1084,55 +1077,66 @@ function browseRows(list, items, onPick) {
   list.replaceChildren.apply(list, rows);
 }
 
-function openHierarchy(hierarchy, title) {
-  var render = function () {
-    var list = browseShell(title);
-    browseStack.push(render);
-    browseCall({ hierarchy: hierarchy, popAll: true, sessionKey: 'flightdeck-face' })
-      .then(function () { return browseCall({ hierarchy: hierarchy, load: true, count: 100, sessionKey: 'flightdeck-face' }); })
-      .then(function (data) {
-        browseRows(list, data.items || [], function (item) { descend(hierarchy, item); });
-      })
-      .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'browse unavailable')); });
-  };
-  render();
+/**
+ * Draw whatever level the Core is currently on.
+ *
+ * Roon keeps the browse stack SERVER-side, so the client holds only a trail of
+ * titles for the heading — it never replays calls. Re-running an earlier call was
+ * the first attempt and it could not work: item keys are session-scoped positions
+ * in that same stack, so a remembered key means something different once the
+ * stack has moved. Back is `pop_levels`, which is Roon's own mechanism.
+ */
+function browseDraw(result) {
+  var hierarchy = browseCtx.hierarchy;
+  var listInfo = result.list || {};
+  var heading = listInfo.title || browseCtx.trail[browseCtx.trail.length - 1] || 'Browse';
+  var zone = currentZone();
+  if (listInfo.hint === 'action_list' && zone !== null) heading += '  \u2192  ' + zone.name;
+  var list = browseShell(heading, browseCtx.trail.length > 1);
+  browseCall({ hierarchy: hierarchy, load: true, count: 200, sessionKey: 'flightdeck-face' })
+    .then(function (data) {
+      browseRows(list, data.items || [], function (item) { browseInto(item); });
+    })
+    .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'could not load that')); });
 }
 
-function descend(hierarchy, item) {
+function openHierarchy(hierarchy, title) {
+  browseCtx = { hierarchy: hierarchy, trail: [title] };
+  browseShell(title, false);
+  browseCall({ hierarchy: hierarchy, popAll: true, sessionKey: 'flightdeck-face' })
+    .then(function (result) { browseDraw(result); })
+    .catch(function () { closeBrowse(); flash('browse unavailable'); });
+}
+
+function browseInto(item) {
+  if (browseCtx === null) return;
   var zone = currentZone();
-  var render = function () {
-    // Name the room in the title of an action list: "Play now" is a different
-    // proposition depending on which speakers it comes out of, and a screen on a
-    // wall is often not the room someone is standing in.
-    var where = zone === null ? '' : '  \u2192  ' + zone.name;
-    var list = browseShell((item.title || 'Browse') + (item.hint === 'action_list' ? where : ''));
-    browseStack.push(render);
-    var call = { hierarchy: hierarchy, itemKey: item.itemKey, sessionKey: 'flightdeck-face' };
-    if (zone !== null) call.zoneId = zone.id;
-    browseCall(call)
-      .then(function (data) {
-        // An `action` item DOES something rather than opening a list — Roon has
-        // already acted by the time this returns, so there is nothing to draw.
-        if (data.action === 'none' || data.action === 'message') {
-          flash(data.message || 'done');
-          closeBrowse();
-          return null;
-        }
-        return browseCall({ hierarchy: hierarchy, load: true, count: 100, sessionKey: 'flightdeck-face' });
-      })
-      .then(function (data) {
-        if (data === null) return;
-        browseRows(list, data.items || [], function (next) { descend(hierarchy, next); });
-      })
-      .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'could not open that')); });
-  };
-  render();
+  var call = { hierarchy: browseCtx.hierarchy, itemKey: item.itemKey, sessionKey: 'flightdeck-face' };
+  if (zone !== null) call.zoneId = zone.id;
+  browseCall(call).then(function (result) {
+    // An `action` item has already done its thing — there is no list coming.
+    if (result.action === 'none' || result.action === 'message') {
+      flash(result.message || (item.title + ' \u2713'));
+      closeBrowse();
+      return;
+    }
+    browseCtx.trail.push(item.title || 'Browse');
+    browseDraw(result);
+  }).catch(function () { flash('could not open that'); });
+}
+
+function browseBack() {
+  if (browseCtx === null || browseCtx.trail.length <= 1) { closeBrowse(); return; }
+  browseCtx.trail.pop();
+  browseCall({ hierarchy: browseCtx.hierarchy, popLevels: 1, sessionKey: 'flightdeck-face' })
+    .then(function (result) { browseDraw(result); })
+    .catch(function () { closeBrowse(); });
 }
 
 /** Recently played needs no Browse at all: FlightDeck keeps its own ledger. */
 function openRecent() {
-  var list = browseShell('Recently played');
-  browseStack.push(function () { openRecent(); });
+  browseCtx = null;
+  var list = browseShell('Recently played', false);
   fetch('/api/v1/recent').then(function (r) { return r.json(); }).then(function (data) {
     var tracks = (data.tracks || []).map(function (t) {
       return { title: t.title, subtitle: t.zoneName + ' \u00B7 ' + new Date(t.at).toTimeString().slice(0, 5) };

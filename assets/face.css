@@ -466,7 +466,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-justify-content: center; justify-content: center;
 }
-.picker span.ctl {
+.ctl {
   display: -webkit-inline-flex; display: inline-flex;
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: center; justify-content: center;
@@ -479,29 +479,29 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: background .18s ease, border-color .18s ease;
   transition: background .18s ease, border-color .18s ease;
 }
-.picker span.ctl:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
-.picker span.ctl:active { background: rgba(242,238,230,.2); }
+.ctl:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+.ctl:active { background: rgba(242,238,230,.2); }
 /* A control Roon says is unavailable is shown, but plainly inert — hiding it
    would make the row jump about as tracks change. */
-.picker span.ctl.off { opacity: .3; cursor: default; }
-.picker span.ctl.off:hover { background: none; border-color: rgba(242,238,230,.24); }
+.ctl.off { opacity: .3; cursor: default; }
+.ctl.off:hover { background: none; border-color: rgba(242,238,230,.24); }
 @media (max-width: 900px) {
-  .picker span.ctl { min-width: 14vw; min-height: 11vw; font-size: 5vw; }
+  .ctl { min-width: 14vw; min-height: 11vw; font-size: 5vw; }
   .picker span.opt { min-width: 26vw; min-height: 11vw; font-size: 3vw; }
 }
 
 /* The room stepper sits with the transport, since ▲▼ now carries volume. */
-.picker span.ctl.small { min-width: 3.2vw; font-size: 1.7vw; padding: 0.9vh 0.7vw; }
+.ctl.small { min-width: 3.2vw; font-size: 1.7vw; padding: 0.9vh 0.7vw; }
 .picker span.roomchip { min-height: 3.4vw; line-height: 3.4vw; }
 
 /* Monochrome, and monochrome by construction: an SVG path inherits currentColor,
    where a media-symbol CHARACTER gets replaced by a colour emoji font — which is
    why the pause button arrived bright blue. */
-.picker .glyph { width: 1.5vw; height: 1.5vw; display: block; color: inherit; }
-.picker span.ctl.small .glyph { width: 1.2vw; height: 1.2vw; }
+.glyph { width: 1.5vw; height: 1.5vw; display: block; color: inherit; }
+.ctl.small .glyph { width: 1.2vw; height: 1.2vw; }
 @media (max-width: 900px) {
-  .picker .glyph { width: 5vw; height: 5vw; }
-  .picker span.ctl.small .glyph { width: 4vw; height: 4vw; }
+  .glyph { width: 5vw; height: 5vw; }
+  .ctl.small .glyph { width: 4vw; height: 4vw; }
 }
 
 /* ?keys=1 — the key probe. Deliberately large and persistent: it is read from a
@@ -596,3 +596,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .browse-thumb.is-empty { background: rgba(242,238,230,.04); }
 .browse-row { -webkit-align-items: center; align-items: center; }
 @media (max-width: 900px) { .browse-thumb { width: 11vw; height: 11vw; } }
+
+/* The browse header's buttons are the same control class as the strip's, and they
+   were invisible until this: `.ctl` was scoped under `.picker`, so a back button
+   outside it had no width at all and a click passed straight through to the title
+   behind it. Anything that looks like a button must be sized like one, wherever
+   it is. */
+.browse-head .ctl { min-width: 3vw; min-height: 2.6vw; padding: 0.7vh 0.7vw; margin: 0; }
+.browse-head .ctl.off { opacity: .25; }
+@media (max-width: 900px) { .browse-head .ctl { min-width: 11vw; min-height: 10vw; } }

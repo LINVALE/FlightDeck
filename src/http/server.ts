@@ -468,6 +468,7 @@ async function handleBrowse(
   if (typeof body.itemKey === 'string') call.itemKey = body.itemKey;
   if (typeof body.input === 'string') call.input = body.input;
   if (body.popAll === true) call.popAll = true;
+  if (typeof body.popLevels === 'number') call.popLevels = body.popLevels;
   if (typeof body.zoneId === 'string') call.zoneId = body.zoneId;
   if (typeof body.offset === 'number') call.offset = body.offset;
   if (typeof body.count === 'number') call.count = body.count;

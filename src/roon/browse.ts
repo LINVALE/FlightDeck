@@ -87,6 +87,8 @@ export interface BrowseCall {
   readonly itemKey?: string;
   readonly input?: string;
   readonly popAll?: boolean;
+  /** Roon keeps the browse stack server-side, so going BACK is popping levels. */
+  readonly popLevels?: number;
   readonly zoneId?: string;
   readonly offset?: number;
   readonly count?: number;
@@ -112,6 +114,8 @@ export class BrowseGateway {
       ...(call.itemKey === undefined ? {} : { item_key: call.itemKey }),
       ...(call.input === undefined ? {} : { input: call.input.slice(0, MAX_TEXT) }),
       ...(call.popAll === true ? { pop_all: true } : {}),
+      ...(typeof call.popLevels === 'number' && call.popLevels > 0
+        ? { pop_levels: Math.min(16, Math.round(call.popLevels)) } : {}),
       // The JSDoc says this is required only for playback, but every prior
       // implementation passed it on every call; a play action fails without it.
       ...(call.zoneId === undefined ? {} : { zone_or_output_id: call.zoneId }),
