@@ -898,7 +898,12 @@ function showPicker(mode) {
     var span = Math.max(1, vol.max - min);
     var level = Math.max(0, Math.min(1, (vol.value - min) / span));
     controls.appendChild(volumeSpeaker(output, vol.muted ? 0 : level));
+    // The scale is flanked by a quiet speaker and a loud one, and they step the
+    // level (Peter, 08-26). They read as the ends of the scale they bracket, so
+    // the group says "this is loudness" without a label.
+    controls.appendChild(volumeStep(output, 'down'));
     controls.appendChild(volumeScale(output, level, min, span));
+    controls.appendChild(volumeStep(output, 'up'));
   }
   actionRow.appendChild(controls);
   if (mode === 'transport') nodes.push(actionRow);
@@ -1123,12 +1128,20 @@ function glyphSpeaker(level, muted) {
     return w;
   };
   if (muted) {
-    var slash = document.createElementNS(SVG_NS, 'path');
-    slash.setAttribute('stroke', 'currentColor');
-    slash.setAttribute('stroke-width', '1.7');
-    slash.setAttribute('stroke-linecap', 'round');
-    slash.setAttribute('d', 'M15 9.5l5 5m0-5l-5 5');
-    svg.appendChild(slash);
+    // A bold bar THROUGH the whole icon, not a small cross beside it: the first
+    // attempt read as a volume symbol rather than a muted one (Peter, 08-26).
+    var cross = document.createElementNS(SVG_NS, 'path');
+    cross.setAttribute('stroke', 'currentColor');
+    cross.setAttribute('stroke-width', '2.4');
+    cross.setAttribute('stroke-linecap', 'round');
+    cross.setAttribute('d', 'M14.6 8.6l6.2 6.8');
+    svg.appendChild(cross);
+    var cross2 = document.createElementNS(SVG_NS, 'path');
+    cross2.setAttribute('stroke', 'currentColor');
+    cross2.setAttribute('stroke-width', '2.4');
+    cross2.setAttribute('stroke-linecap', 'round');
+    cross2.setAttribute('d', 'M20.8 8.6l-6.2 6.8');
+    svg.appendChild(cross2);
   } else {
     // The cone alone means silence; each wave is a step of loudness, so the icon
     // says roughly how loud it is before the scale beside it is even read.
@@ -1511,12 +1524,27 @@ function seekFromPress(clientX) {
 function volumeSpeaker(output, level) {
   var muted = !!(output.volume && output.volume.muted);
   var node = el('span', muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker');
-  node.appendChild(glyphSpeaker(level, muted));
+  // ALWAYS the crossed speaker, muted or not: this button's job is to mute, and a
+  // plain speaker here sat between two other speakers and read as another volume
+  // control (Peter, 08-26: "looks like volume not mute"). When it has already
+  // muted, it lights instead of changing shape.
+  node.appendChild(glyphSpeaker(0, true));
   node.setAttribute('aria-label', muted ? 'unmute ' + output.name : 'mute ' + output.name);
   node.setAttribute('title', node.getAttribute('aria-label'));
   pressable(node, function () {
     command({ action: 'mute', output: output.id, muted: !muted });
   });
+  return node;
+}
+
+/** The ends of the scale: a quiet speaker and a loud one, which step the level. */
+function volumeStep(output, direction) {
+  var node = el('span', 'ctl vol-step');
+  node.appendChild(glyphSpeaker(direction === 'up' ? 1 : 0.2, false));
+  var label = (direction === 'up' ? 'louder \u00B7 ' : 'quieter \u00B7 ') + output.name;
+  node.setAttribute('aria-label', label);
+  node.setAttribute('title', label);
+  pressable(node, function () { nudgeVolume(direction === 'up' ? 1 : -1); });
   return node;
 }
 

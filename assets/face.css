@@ -94,13 +94,22 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    text survives it. The frame-wide scrim is tuned for a stage shot; this local
    one guarantees the row regardless of what the picture happens to be doing
    behind it. Nothing here touches the cover: it is a sibling layer. */
-.face[data-view="artist"] .np {
-  padding: 1.4vh 2vw 1.4vh 1.6vw;
-  margin-left: -1.6vw;
-  background: -webkit-radial-gradient(left center, ellipse, rgba(0,0,0,.72) 0%, rgba(0,0,0,.42) 55%, rgba(0,0,0,0) 100%);
-  background: radial-gradient(ellipse at left center, rgba(0,0,0,.72) 0%, rgba(0,0,0,.42) 55%, rgba(0,0,0,0) 100%);
-  border-radius: 4px;
+/* ONE CONTINUOUS GRADE, not a patch behind the words.
+   The copy used to sit on its own little ellipse, which stopped short and left the
+   progress row bare on the photograph — two scrims where there should be one
+   (Peter, 08-26: "should extend all the way over the progress bar... more
+   elegant"). The grade now runs from mid-frame to the bottom edge, carrying the
+   copy AND the runway on the same darkening. */
+.face[data-view="artist"] .np { padding: 1.4vh 2vw 1.4vh 1.6vw; margin-left: -1.6vw; }
+.face[data-view="artist"] .safe::before {
+  content: ""; position: absolute;
+  left: -6vw; right: -6vw; bottom: -6vh; top: 42%;
+  background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 38%, rgba(0,0,0,.86) 72%, rgba(0,0,0,.94) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 38%, rgba(0,0,0,.86) 72%, rgba(0,0,0,.94) 100%);
+  pointer-events: none;
 }
+/* everything in the safe area rides above that grade */
+.face[data-view="artist"] .safe > * { position: relative; z-index: 1; }
 .face[data-view="artist"] .line2,
 .face[data-view="artist"] .line3 { color: #e6e0d6; }
 .face[data-view="artist"] .cover { margin-right: 1.8vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
@@ -729,3 +738,42 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   padding-top: 2vh;
 }
 .status:empty { display: none; }
+
+/* The face name belongs in the TOP RIGHT CORNER, at the room's own size — not
+   beside the room. It sat there because the auto-margin lived on the status, and
+   the status is empty now, so it took the margin with it when it hid. */
+/* THE FACE NAME LIVES IN THE CORNER. Twice this failed to specificity: first
+   `.status + .cog` beat a bare `.cog`, then `.status ~ .cog` beat both — and the
+   status is an empty hidden sibling, so it matched anyway. There is now exactly
+   ONE rule for it, and nothing to lose to. */
+.cog { margin-left: auto !important; }
+.face .zone, .face .cog {
+  font-size: 1.15vw; letter-spacing: .2em; text-transform: uppercase;
+}
+.face .cog { color: var(--ash); min-width: 0; }
+
+/* Volume: [mute] [quiet] [======scale======] [loud]. The flanking speakers read as
+   the ends of the scale they bracket. */
+.vol-step { min-width: 3.4vw; }
+.vol-step .glyph { width: 1.5vw; height: 1.5vw; }
+.vol-speaker.is-muted { color: var(--accent); border-color: var(--accent); }
+.vol-scale { min-width: 12vw; }
+@media (max-width: 900px) {
+  .vol-step { min-width: 12vw; }
+  .vol-step .glyph { width: 5vw; height: 5vw; }
+}
+
+/* The transport bar must fit ONE row: it wrapped to two, grew tall, and covered
+   the title it was supposed to sit below. Seven controls need room, so the bar
+   claims the width it needs and each control gives some back. */
+.picker.mode-transport { min-width: 66vw; }
+.picker.mode-transport span.ctl { min-width: 5vw; min-height: 4.4vw; margin: 0.3vh 0.3vw; }
+.picker.mode-transport .vol-step { min-width: 3.6vw; }
+.picker.mode-transport .vol-speaker { min-width: 4vw; }
+.picker.mode-transport .vol-scale { min-width: 14vw; min-height: 4.4vw; margin: 0.3vh 0.5vw; }
+.picker.mode-transport .row-actions { -webkit-flex-wrap: nowrap; flex-wrap: nowrap; }
+.picker.mode-transport .controls { -webkit-flex-wrap: nowrap; flex-wrap: nowrap; }
+@media (max-width: 900px) {
+  .picker.mode-transport { min-width: 0; }
+  .picker.mode-transport .controls { -webkit-flex-wrap: wrap; flex-wrap: wrap; }
+}
