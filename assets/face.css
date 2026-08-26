@@ -340,51 +340,93 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 
 /* ══ DIAL ═════════════════════════════════════════════════════════════════════
-   The ring lives where a ring can live on a 16:9 frame: an instrument on the copy
-   side, opposite the sleeve, never touching it. Its centre carries what a
-   listener actually wants from a sofa — time remaining, and when it ends. */
+   The sleeve nearly fills the frame and the ring runs round it, so the progress IS
+   the frame of the picture rather than a bar underneath it.
+
+   The ring CIRCUMSCRIBES the square: a circle around a square of side s has
+   diameter s√2, hence 141% and a −20.5% offset. The cover is never cropped to a
+   circle — it is sacred — and nothing is drawn on top of it. */
+.cover { position: relative; overflow: visible; }
 .dialbox { display: none; }
 .face[data-face="dial"] .dialbox {
-  display: block; position: relative;
-  width: 22vw; height: 22vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
-  margin-left: 3vw;
+  display: block; position: absolute;
+  left: -20.5%; top: -20.5%; width: 141%; height: 141%;
+  pointer-events: none;
 }
 .face[data-face="dial"] .dial { width: 100%; height: 100%; display: block; }
-.face[data-face="dial"] .dial-track { stroke: rgba(242,238,230,.14); stroke-width: 2.4; }
-.face[data-face="dial"] .dial-arc { stroke: var(--accent); stroke-width: 3; }
+.face[data-face="dial"] .dial-track { stroke: rgba(242,238,230,.10); stroke-width: 1.3; }
+/* Thicker than the track by a clear margin: at equal weight the played arc read as
+   part of the same circle and the progress could not be seen at a glance. */
+.face[data-face="dial"] .dial-arc { stroke: var(--accent); stroke-width: 3.2; }
+
+/* The sleeve takes the frame. 52vh inscribed leaves the ring at ~73vh, which fits
+   1080 lines with air for the copy beneath. */
+.face[data-face="dial"] .cover { width: 56vh; height: 56vh; }
+.face.show-chrome[data-face="dial"] .cover { width: 42vh; height: 42vh; }
+.face.show-chrome[data-face="dial"] .title { margin-top: 13vh; }
+
+/* The reading sits under the ring, not inside it — the middle is the picture. */
+/* The reading sits just under the ring. The ring overhangs the sleeve by 20.5%, so
+   the copy below must clear BOTH — the first attempt let the title run into the
+   times, because the title flows under the COVER and not under the circle. */
 .face[data-face="dial"] .dial-reading {
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  position: absolute; left: 0; right: 0; bottom: -4.2vh; top: auto;
+  /* display:flex was lost when this block was rewritten, so the three readings
+     stacked and hugged the left edge instead of sitting on one centred line. */
   display: -webkit-flex; display: flex;
-  -webkit-flex-direction: column; flex-direction: column;
-  -webkit-align-items: center; align-items: center;
+  -webkit-flex-direction: row; flex-direction: row;
   -webkit-justify-content: center; justify-content: center;
+  -webkit-align-items: baseline; align-items: baseline;
 }
 .face[data-face="dial"] .dial-remain {
-  font-size: 3.9vw; color: var(--bone); font-variant-numeric: tabular-nums; letter-spacing: -.02em;
+  font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
 }
+.face[data-face="dial"] .dial-times { font-size: 1.1vw; margin: 0 0 0 1vw; color: var(--ash); }
 .face[data-face="dial"] .dial-ends {
-  font-size: 1.15vw; letter-spacing: .18em; text-transform: uppercase; color: var(--ash); margin-top: .4vh;
+  font-size: .95vw; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
+  margin: 0 0 0 1vw;
 }
 .face[data-face="dial"] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
-  -webkit-flex-direction: row; flex-direction: row;
-  -webkit-align-items: center; align-items: center;
 }
 .face[data-face="dial"] .np {
-  -webkit-flex-direction: column; flex-direction: column;
-  width: auto; max-width: 52%;
+  -webkit-flex-direction: column; flex-direction: column; width: auto; max-width: 92vw;
 }
-.face[data-face="dial"] .cover { width: 24vw; height: 24vw; }
-.face[data-face="dial"] .title { font-size: 2.5vw; margin-top: 2vh; }
-.face[data-face="dial"] .line2 { font-size: 1.5vw; }
-.face[data-face="dial"] .line3 { font-size: 1.2vw; }
-/* The ring IS the progress and already reads the remaining time, so the runway
-   and the foot's own readouts are redundant — left in, they printed "5:36−5:17"
-   jammed together in the corner. The elapsed/total pair moves into the dial. */
+.face[data-face="dial"] .title { font-size: 2.1vw; margin-top: 17vh; max-width: 76vw; }
+.face[data-face="dial"] .line2 { font-size: 1.4vw; }
+.face[data-face="dial"] .line3 { font-size: 1.1vw; }
+/* the ring IS the progress: the runway and the foot's readouts would only repeat it */
 .face[data-face="dial"] .lamps, .face[data-face="dial"] .bar { display: none; }
 .face[data-face="dial"] .foot { display: none; }
-.face[data-face="dial"] .dial-times {
-  font-size: 1.15vw; color: var(--ash); font-variant-numeric: tabular-nums; margin-top: .5vh;
+
+/* When the artist comes forward the ring shrinks with the sleeve, because it is a
+   child of it. The LAYOUT still needs saying, though: the dial's column beat the
+   artist view's row on source order alone — equal specificity — and left the sleeve
+   floating above the copy instead of level with it. */
+.face[data-face="dial"][data-view="artist"] .dial-reading { display: none; }
+/* Anchored low, like every other face in artist view: the continuous grade lives
+   at the bottom of the frame, and copy floating in the middle sits on whatever the
+   photograph happens to be doing there. Dial's centring beat the artist rule on
+   source order, so it is said explicitly. */
+.face[data-face="dial"][data-view="artist"] .body {
+  -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
+  -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
+}
+.face[data-face="dial"][data-view="artist"] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+  width: auto; max-width: 78%;
+}
+.face[data-face="dial"][data-view="artist"] .title { margin-top: 0; font-size: 3.1vw; }
+.face[data-face="dial"][data-view="artist"] .line2 { font-size: 1.6vw; }
+.face[data-face="dial"][data-view="artist"] .line3 { font-size: 1.25vw; }
+/* room for the ring, which overhangs the sleeve on every side */
+.face[data-face="dial"][data-view="artist"] .cover { margin-right: 3.4vw; margin-left: 2vw; }
+
+@media (max-width: 900px) {
+  .face[data-face="dial"] .cover,
+  .face.show-chrome[data-face="dial"] .cover { width: 74vw; height: 74vw; }
+  .face[data-face="dial"] .title { font-size: 6vw; }
 }
 
 /* ══ LIBRETTO ═════════════════════════════════════════════════════════════════

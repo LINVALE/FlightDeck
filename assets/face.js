@@ -333,9 +333,19 @@ var dialEnds = el('div', 'dial-ends');
 dialReading.appendChild(dialRemain); dialReading.appendChild(dialTimes); dialReading.appendChild(dialEnds);
 var dialBox = el('div', 'dialbox');
 dialBox.appendChild(dial); dialBox.appendChild(dialReading);
-// Appended here rather than beside `np`: it is built with the foot, and a `var`
-// referenced before its assignment is undefined, not an error until appendChild.
-body.insertBefore(dialBox, idle);
+/**
+ * The ring lives INSIDE the cover element and CIRCUMSCRIBES it.
+ *
+ * Peter, 08-26: the art should fill the circle. It cannot be cropped to one — the
+ * cover is sacred — so the circle goes round the OUTSIDE of the square instead.
+ * A circle drawn around a square of side s has diameter s√2, which is why the ring
+ * is 141% of the cover and offset by 20.5% on each side.
+ *
+ * Being a child means it follows the cover everywhere: full size on the dial face,
+ * shrunk into the corner when the artist comes forward, without a line of layout
+ * code for either.
+ */
+cover.appendChild(dialBox);
 foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(bar); foot.appendChild(rightBox);
 
 safe.appendChild(head); safe.appendChild(body); safe.appendChild(foot);
