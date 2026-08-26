@@ -195,10 +195,17 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The strip sits ABOVE the progress row, never on it: at 3vh it landed on the
    lamps and the times, which is the one place a glance needs to stay clean. */
 .picker {
-  position: fixed; left: 50%; bottom: 13vh; -webkit-transform: translateX(-50%); transform: translateX(-50%);
-  background: rgba(10,11,13,0.92); border: 1px solid rgba(242,238,230,0.2); border-radius: 0.6vw;
-  padding: 0.8vh 1.4vw; display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  position: fixed; left: 50%; bottom: 4vh; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  background: rgba(10,11,13,0.94); border: 1px solid rgba(242,238,230,0.2); border-radius: 0.6vw;
+  padding: 1.2vh 1.6vw; max-width: 92vw;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-justify-content: center; justify-content: center;
 }
+/* Space between targets matters as much as their size: adjacent buttons with no
+   gap are one stray pixel away from the wrong choice. */
+.picker > * { margin: 0.4vh 0.45vw; }
 .picker[hidden] { display: none; }
 .picker span { font-size: 1.05vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
 .picker span.now { color: var(--accent); }
@@ -277,9 +284,26 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
 /* Dwell-to-select in the picker: resting on a name applies it after a beat, and
    the beat is visible so the wait reads as intent rather than lag. */
-.picker span.opt { position: relative; cursor: pointer; padding-bottom: .28em; }
+/* A HIT TARGET, not a word.
+   These were 29 px tall and as little as 63 px wide — under the 44 px minimum for
+   a mouse, and a TV's pointer is far less steady than a mouse. Peter, 08-25:
+   "we need to get the mouse / pointer to work over area buttons... at present
+   very unreliable." Each option is now a padded button with a visible edge, well
+   past 44 px in both directions at 1080p. */
+.picker span.opt {
+  position: relative; cursor: pointer;
+  display: inline-block; overflow: hidden;
+  padding: 1.05vh 1.5vw; min-width: 7vw; min-height: 3.4vw;
+  line-height: 1.4;
+  border: 1px solid rgba(242,238,230,.22); border-radius: 6px;
+  text-align: center; vertical-align: middle;
+  -webkit-transition: background .18s ease, border-color .18s ease;
+  transition: background .18s ease, border-color .18s ease;
+}
+.picker span.opt:hover { background: rgba(242,238,230,.10); border-color: rgba(242,238,230,.45); }
+.picker span.opt.now { color: var(--accent); border-color: var(--accent); }
 .picker span.opt::after {
-  content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
+  content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0;
   background: var(--accent);
 }
 .picker span.opt.arming::after {
@@ -287,6 +311,21 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: width .9s linear; transition: width .9s linear;
 }
 .picker span.opt.now::after { width: 100%; background: var(--accent); }
+/* the separators are noise once the options are buttons */
+.picker em { display: none; }
+.picker em.hint {
+  display: block; width: 100%; margin-top: 1vh; text-align: center;
+  font-size: .95vw; letter-spacing: .1em; color: #6f6a62;
+}
+/* The room is a label, not a choice — it must not look like a button you can press
+   until ▲▼ room selection is exposed here too. */
+.picker span.roomchip {
+  border: 0; color: var(--bone); opacity: .85;
+  padding: 1.05vh 0.6vw; letter-spacing: .18em;
+}
+/* A transient panel sits ON the copy, so it must read as floating above it rather
+   than as part of it. */
+.picker { box-shadow: 0 1.2vw 3vw rgba(0,0,0,.6); }
 @media (prefers-reduced-motion: reduce) {
   .picker span.opt.arming::after { -webkit-transition: none; transition: none; }
 }

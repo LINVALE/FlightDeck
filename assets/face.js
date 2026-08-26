@@ -700,12 +700,13 @@ function showPicker() {
     return parts;
   }).reduce(function (all, part) { return all.concat(part); }, []);
   nodes.push(el('em', '', '|'));
-  nodes.push(el('span', following ? 'now' : '', following ? 'following' : (zoneName.textContent || 'room')));
+  var room = el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room'));
+  nodes.push(room);
   nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork   ·   rest on a name to switch'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
-  pickerTimer = setTimeout(function () { picker.hidden = true; }, 4000);
+  pickerTimer = setTimeout(function () { picker.hidden = true; }, 8000);
 }
 
 // Hovering anywhere in the strip holds it open — it must not vanish mid-choice.
