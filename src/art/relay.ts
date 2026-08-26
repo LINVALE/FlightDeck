@@ -25,6 +25,9 @@ export const SIZES = {
   // 2026-08-25), which is what a full-bleed 16:9 hero needs. Never used for the
   // cover — cropping a cover is exactly what "sacred" forbids.
   hero: { width: 1920, height: 1080, scale: 'fill' },
+  // Browse rows: small, many at once, and scrolled — the Core scales them, so a
+  // list of two thousand albums never sends a full-size sleeve down the wire.
+  thumb: { width: 160, height: 160, scale: 'fit' },
 } as const;
 
 export type SizeClass = keyof typeof SIZES;

@@ -804,9 +804,14 @@ function showPicker() {
     pressable(b, onPress);
     return b;
   };
+  // Every hierarchy the Browse API offers, plus our own ledger. `browse` is the
+  // Core's own Explore tree — the way in to anything not listed separately.
+  browseRow.appendChild(entry('explore', function () { openHierarchy('browse', 'Explore'); }));
   browseRow.appendChild(entry('genres', function () { openHierarchy('genres', 'Genres'); }));
   browseRow.appendChild(entry('albums', function () { openHierarchy('albums', 'Albums'); }));
   browseRow.appendChild(entry('artists', function () { openHierarchy('artists', 'Artists'); }));
+  browseRow.appendChild(entry('composers', function () { openHierarchy('composers', 'Composers'); }));
+  browseRow.appendChild(entry('playlists', function () { openHierarchy('playlists', 'Playlists'); }));
   browseRow.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
   browseRow.appendChild(entry('recent', openRecent));
   nodes.push(browseRow);
@@ -1059,6 +1064,18 @@ function browseRows(list, items, onPick) {
   if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
   var rows = items.map(function (item) {
     var row = el('div', 'browse-row');
+    // A thumbnail where there is one, and a reserved space where there is not —
+    // otherwise the names jump left and right as images arrive down a long list.
+    var thumbBox = el('span', 'browse-thumb');
+    if (item.art) {
+      var img = document.createElement('img');
+      img.alt = '';
+      img.src = item.art;
+      thumbBox.appendChild(img);
+    } else {
+      thumbBox.className = 'browse-thumb is-empty';
+    }
+    row.appendChild(thumbBox);
     row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
     if (item.subtitle) row.appendChild(el('span', 'browse-sub', item.subtitle));
     pressable(row, function () { onPick(item); });
@@ -1084,7 +1101,11 @@ function openHierarchy(hierarchy, title) {
 function descend(hierarchy, item) {
   var zone = currentZone();
   var render = function () {
-    var list = browseShell(item.title || 'Browse');
+    // Name the room in the title of an action list: "Play now" is a different
+    // proposition depending on which speakers it comes out of, and a screen on a
+    // wall is often not the room someone is standing in.
+    var where = zone === null ? '' : '  \u2192  ' + zone.name;
+    var list = browseShell((item.title || 'Browse') + (item.hint === 'action_list' ? where : ''));
     browseStack.push(render);
     var call = { hierarchy: hierarchy, itemKey: item.itemKey, sessionKey: 'flightdeck-face' };
     if (zone !== null) call.zoneId = zone.id;

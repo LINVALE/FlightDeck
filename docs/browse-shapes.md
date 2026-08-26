@@ -57,3 +57,20 @@ Calling `search` with no input returns a single item, `No Results`.
   `action` items, so choosing one starts playback. `zone_or_output_id` decides
   where, which is why a browse call can start music and the route is guarded like
   a control rather than a GET.
+
+## Playing from browse — the chain, captured
+
+```
+albums                       -> 2295 items, hint list
+  an album                   -> 13 items: "Play Album" then each track, all action_list
+    Play Album               -> 4 items, all hint action:
+                                Play Now · Add Next · Queue · Start Radio
+```
+
+Pressing an `action` item performs it and returns `action: "none"` — there is no
+list to draw afterwards, which is why the panel closes rather than waiting.
+
+`zone_or_output_id` on the call decides WHERE it plays, so the panel puts the room
+in its title ("Play Album → Study RHEOS"): a screen on a wall is often not the
+room the person is standing in, and "Play Now" means something different depending
+on which speakers answer.

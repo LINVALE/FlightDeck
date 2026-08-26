@@ -473,8 +473,19 @@ async function handleBrowse(
   if (typeof body.count === 'number') call.count = body.count;
 
   try {
-    const result = body.load === true ? await access.load(call) : await access.browse(call);
-    json(response, 200, result as Record<string, unknown>);
+    const result = await (body.load === true ? access.load(call) : access.browse(call)) as Record<string, unknown>;
+    // Mint an opaque art path for every item that has one. The browser never sees
+    // a Core image key here either — the same discipline as now-playing artwork.
+    const items = result.items;
+    if (Array.isArray(items)) {
+      result.items = items.map((raw) => {
+        if (raw === null || typeof raw !== 'object') return raw;
+        const item = raw as Record<string, unknown>;
+        const art = deps.relay.pathFor(item.imageKey, 'thumb');
+        return art === null ? item : { ...item, art: art.path };
+      });
+    }
+    json(response, 200, result);
   } catch (error) {
     json(response, 502, { error: String(error instanceof Error ? error.message : error) });
   }
