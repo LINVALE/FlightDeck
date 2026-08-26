@@ -702,40 +702,44 @@ function showPicker() {
   nodes.push(el('em', '', '|'));
   var rooms = el('div', 'controls');
   var roomBtn = function (label, title, delta) {
-    var b = el('span', 'ctl small', label);
+    var b = el('span', 'ctl small');
+    b.appendChild(glyph(label));
     b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
     b.addEventListener('click', function (event) { event.stopPropagation(); cycleZone(delta); });
     return b;
   };
-  rooms.appendChild(roomBtn('\u2039', 'previous room', -1));
+  rooms.appendChild(roomBtn('left', 'previous room', -1));
   rooms.appendChild(el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room')));
-  rooms.appendChild(roomBtn('\u203A', 'next room', 1));
+  rooms.appendChild(roomBtn('right', 'next room', 1));
   nodes.push(rooms);
 
   var zone = currentZone();
   var controls = el('div', 'controls');
   var button = function (label, title, enabled, onPress) {
-    var b = el('span', enabled ? 'ctl' : 'ctl off', label);
+    var b = el('span', enabled ? 'ctl' : 'ctl off');
+    b.appendChild(glyph(label));
     b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
     if (enabled) {
       b.addEventListener('click', function (event) { event.stopPropagation(); onPress(); });
     }
     return b;
   };
   var playing = zone !== null && zone.state === 'playing';
-  controls.appendChild(button('\u23EE', 'previous', zone !== null && zone.allowed.previous,
+  controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
     function () { transport('previous'); }));
-  controls.appendChild(button(playing ? '\u23F8' : '\u25B6', playing ? 'pause' : 'play',
+  controls.appendChild(button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
     zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); }));
-  controls.appendChild(button('\u23ED', 'next', zone !== null && zone.allowed.next,
+  controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
     function () { transport('next'); }));
 
   // Volume: plus and minus only, no slider — a slider is a drag to miss on a TV.
   var output = volumeOutput();
   var hasVolume = output !== null && !!output.volume;
-  controls.appendChild(button('\u2212', hasVolume ? ('quieter \u00B7 ' + output.name) : 'no volume control',
+  controls.appendChild(button('minus', hasVolume ? ('quieter \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(-1); }));
-  controls.appendChild(button('+', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
+  controls.appendChild(button('plus', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
   nodes.push(controls);
   nodes.push(el('em', 'hint', '◀▶ face   ▲▼ volume   OK artwork   ·   rest on a name to switch'));
@@ -876,6 +880,34 @@ document.addEventListener('visibilitychange', function () {
   else fieldRunning(current === 'canvas');
 });
 
+/**
+ * SVG, not characters. U+23F8 and friends are EMOJI codepoints, so a browser
+ * substitutes a colour emoji font and the pause button arrived bright blue
+ * (Peter, 08-25: "keep black and white simple pause symbol"). A path inherits
+ * currentColor and cannot be re-coloured by a font.
+ */
+var glyph = function (name) {
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var d = {
+    prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
+    next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
+    play: 'M8 5.5v13l11-6.5z',
+    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
+    minus: 'M5.5 10.9h13v2.2h-13z',
+    plus: 'M10.9 5.5h2.2v13h-2.2zM5.5 10.9h13v2.2h-13z',
+    left: 'M15 5.5 8.5 12 15 18.5z',
+    right: 'M9 5.5 15.5 12 9 18.5z',
+  }[name];
+  var path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'currentColor');
+  svg.appendChild(path);
+  return svg;
+};
+
 /* ---------- transport ----------
  * Every gesture is a USER ACTION translated into a ROON-LED instruction: the
  * button posts to FlightDeck, FlightDeck asks the Core, and the new state arrives
@@ -960,6 +992,26 @@ function keyName(event) {
   if (key === 'AudioVolumeUp' || code === 175) return 'volup';
   if (key === 'AudioVolumeDown' || code === 174) return 'voldown';
   if (key === 'MediaStop' || code === 178) return 'stop';
+
+  /**
+   * TV remote codes. A television's own volume and channel keys are handled by
+   * its firmware and never reach a browser — that is why volume moved to the
+   * D-pad. These are the ones that CAN arrive on Tizen and webOS, mapped
+   * defensively: costing nothing if the device never sends them.
+   *
+   * Use ?keys=1 on a Face to see what a given remote actually reports.
+   */
+  if (code === 415 || code === 10252) return 'playpause';   // Tizen Play / PlayPause
+  if (code === 19 || code === 10009 && false) return 'playpause';
+  if (code === 413) return 'stop';                          // Tizen Stop
+  if (code === 417 || code === 228) return 'next';          // FastForward
+  if (code === 412 || code === 227) return 'previous';      // Rewind
+  // The coloured buttons are usually left free for the page: a useful last resort
+  // on a set whose D-pad the browser swallows.
+  if (code === 403) return 'previous';                      // red
+  if (code === 404) return 'playpause';                     // green
+  if (code === 405) return 'voldown';                       // yellow
+  if (code === 406) return 'volup';                         // blue
   return '';
 }
 
