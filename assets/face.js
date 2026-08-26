@@ -593,26 +593,86 @@ cover.addEventListener('click', function (event) { event.stopPropagation(); show
 
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;
+/**
+ * DWELL TO SELECT (Peter, 08-25: "perhaps just highlighting for a second should
+ * change rather than having to confirm").
+ *
+ * Resting on a face applies it after a beat — no second gesture. That suits both
+ * ends of the room: a pointer hovers, and a remote's focus lands. Leaving before
+ * the beat is up cancels, so passing over a name costs nothing, and the option
+ * fills with a line while it arms so the wait is visible rather than mysterious.
+ */
+var DWELL_MS = 900;
+var dwellTimer = null;
+var dwellNode = null;
+
+function cancelDwell() {
+  if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
+  if (dwellNode !== null) { dwellNode.className = dwellNode.className.replace(' arming', ''); dwellNode = null; }
+}
+
+function armDwell(node, name) {
+  if (name === current) return;            // already showing: nothing to arm
+  cancelDwell();
+  dwellNode = node;
+  node.className += ' arming';
+  dwellTimer = setTimeout(function () {
+    cancelDwell();
+    applyFace(name);
+  }, DWELL_MS);
+}
+
+function applyFace(name) {
+  if (FACES.indexOf(name) === -1 || name === current) return;
+  current = name;
+  remember(current);
+  root.setAttribute('data-face', current);
+  showPicker();
+}
+
+function faceOption(name) {
+  var node = el('span', name === current ? 'opt now' : 'opt', name);
+  node.setAttribute('data-face-option', name);
+  node.addEventListener('mouseenter', function () { armDwell(node, name); });
+  node.addEventListener('mouseleave', cancelDwell);
+  // A tap or click is an explicit choice: apply it at once rather than dwelling.
+  node.addEventListener('click', function (event) {
+    event.stopPropagation();
+    cancelDwell();
+    applyFace(name);
+  });
+  return node;
+}
+
 function showPicker() {
+  cancelDwell();
   var nodes = FACES.map(function (name, index) {
     var parts = [];
     if (index > 0) parts.push(el('em', '', '·'));
-    parts.push(el('span', name === current ? 'now' : '', name));
+    parts.push(faceOption(name));
     return parts;
   }).reduce(function (all, part) { return all.concat(part); }, []);
   nodes.push(el('em', '', '|'));
   nodes.push(el('span', following ? 'now' : '', following ? 'following' : (zoneName.textContent || 'room')));
-  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork'));
+  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork   ·   rest on a name to switch'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
   pickerTimer = setTimeout(function () { picker.hidden = true; }, 4000);
 }
+
+// Hovering anywhere in the strip holds it open — it must not vanish mid-choice.
+picker.addEventListener('mouseenter', function () {
+  if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
+});
+picker.addEventListener('mouseleave', function () {
+  cancelDwell();
+  if (pickerTimer !== null) clearTimeout(pickerTimer);
+  pickerTimer = setTimeout(function () { picker.hidden = true; }, 1500);
+});
 function cycleFace(delta) {
   var index = FACES.indexOf(current);
-  current = FACES[(index + delta + FACES.length) % FACES.length];
-  remember(current);
-  root.setAttribute('data-face', current);
+  applyFace(FACES[(index + delta + FACES.length) % FACES.length]);
   showPicker();
 }
 

@@ -274,3 +274,19 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face[data-face="classic"] .copy { text-align: center; }
   .face[data-face="classic"] .title { font-size: 7vw; }
 }
+
+/* Dwell-to-select in the picker: resting on a name applies it after a beat, and
+   the beat is visible so the wait reads as intent rather than lag. */
+.picker span.opt { position: relative; cursor: pointer; padding-bottom: .28em; }
+.picker span.opt::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 2px; width: 0;
+  background: var(--accent);
+}
+.picker span.opt.arming::after {
+  width: 100%;
+  -webkit-transition: width .9s linear; transition: width .9s linear;
+}
+.picker span.opt.now::after { width: 100%; background: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .picker span.opt.arming::after { -webkit-transition: none; transition: none; }
+}

@@ -75,6 +75,11 @@ gives an always-on wall display.
 | ▲ ▼ | change room |
 | OK  | toggle album / artist artwork (portraits rotate every 10 s) |
 
+Resting on a face name in the strip switches to it after about a second — no
+click or OK needed, and a line fills under the name while it arms so the wait is
+visible. Moving away before it completes cancels, so passing over a name costs
+nothing. A tap or click applies it immediately.
+
 ### If the remote does nothing
 
 Add `?keys=1` to the URL. Every key you press then prints its name and keyCode on
