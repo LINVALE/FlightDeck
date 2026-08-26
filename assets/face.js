@@ -325,7 +325,26 @@ dialArc.setAttribute('class', 'dial-arc');
 dialArc.setAttribute('transform', 'rotate(-90 50 50)');   // start at twelve o'clock
 dialArc.setAttribute('stroke-dasharray', String(RING_C));
 dialArc.setAttribute('stroke-dashoffset', String(RING_C));
-dial.appendChild(dialTrack); dial.appendChild(dialArc);
+/**
+ * A filled disc behind the ring. The sleeve covers the middle, so what shows is the
+ * four corners between the square and the circle — exactly where the shape needs to
+ * separate itself from the blurred backdrop (Peter, 08-26). Tinted from the art's
+ * own deep tone, so it belongs to the picture rather than sitting on it.
+ */
+var dialFill = document.createElementNS(SVG_NS, 'circle');
+dialFill.setAttribute('cx', '50'); dialFill.setAttribute('cy', '50');
+dialFill.setAttribute('r', String(RING_R));
+dialFill.setAttribute('class', 'dial-fill');
+/**
+ * A bead riding the head of the arc, so the position reads as a point on a clock
+ * rather than as the end of a line (Peter, 08-26). Its centre is the arc's own
+ * angle: twelve o'clock is -90 degrees, and the fraction carries it clockwise.
+ */
+var dialBead = document.createElementNS(SVG_NS, 'circle');
+dialBead.setAttribute('r', '3.1');
+dialBead.setAttribute('class', 'dial-bead');
+dial.appendChild(dialFill);
+dial.appendChild(dialTrack); dial.appendChild(dialArc); dial.appendChild(dialBead);
 var dialReading = el('div', 'dial-reading');
 var dialRemain = el('div', 'dial-remain');
 var dialTimes = el('div', 'dial-times');
@@ -453,10 +472,20 @@ function readPalette(url, done) {
         }
         return out;
       };
+      /**
+       * A SECOND accent, for large coloured shapes rather than text.
+       *
+       * `--accent` is lifted until it clears 4.5:1, which is right for a zone name
+       * and wrong for a progress ring: by the time small text is legible the colour
+       * has been washed most of the way to white. A ring is hundreds of pixels of
+       * line and needs far less lift to be seen, so it keeps its colour (Peter,
+       * 08-26: "more coloured, to blend but stand out").
+       */
+      var rich = toHex(liftToContrast(ranked[0].rgb, 2.6), 1);
       var deep = toHex(ranked[0].rgb, 0.42);
       var mid = toHex(ranked[Math.min(1, ranked.length - 1)].rgb, 0.8);
       var lit = toHex(liftToContrast(ranked[0].rgb, 4.5), 1);
-      done([deep, mid, lit]);
+      done([deep, mid, lit, rich]);
     } catch (error) { done(palette); }
   };
   image.src = url;
@@ -488,7 +517,10 @@ function setCover(art) {
     // The palette comes from the COVER, always — it is what the backdrop agrees with.
     readPalette(next.src, function (tones) {
       palette = tones;
-      document.documentElement.style.setProperty('--accent', tones[2]);
+      var root2 = document.documentElement.style;
+      root2.setProperty('--accent', tones[2]);
+      root2.setProperty('--accent-rich', tones[3] || tones[2]);
+      root2.setProperty('--disc', tones[0]);
     });
   };
   next.onload = swap;
@@ -605,8 +637,13 @@ function render(snapshot, kind) {
   var fraction = Math.max(0, Math.min(1, position / length));
   barFill.style.width = (fraction * 100).toFixed(2) + '%';
   dialArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - fraction)));
+  var angle = (-90 + fraction * 360) * Math.PI / 180;
+  dialBead.setAttribute('cx', String(50 + RING_R * Math.cos(angle)));
+  dialBead.setAttribute('cy', String(50 + RING_R * Math.sin(angle)));
   dialRemain.textContent = '\u2212' + formatTime(length - position);
   dialTimes.textContent = formatTime(position) + ' / ' + formatTime(length);
+  // "ENDS hh:mm" is dropped on the Dial: the ring already says how much is left,
+  // and the pair at twelve o'clock says it in numbers (Peter, 08-26).
   dialEnds.textContent = zone.state === 'playing'
     ? 'ENDS ' + new Date(Date.now() + (length - position) * 1000).toTimeString().slice(0, 5) : '';
   elapsed.textContent = formatTime(position);
