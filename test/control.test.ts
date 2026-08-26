@@ -40,7 +40,7 @@ async function serve(t: { after: (fn: () => void) => void }) {
   const relay = new ArtRelay({ artworkUrl: () => '' });
   const ledger = new RecentLedger(null);
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands,
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
     mdns: () => null, urls: () => [], port: () => 0,
   });
   const at = new Date().toISOString();

@@ -5,6 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { ArtRelay } from './art/relay.ts';
 import { EventHub } from './http/events.ts';
 import { FlightDeckExtension } from './roon/extension.ts';
+import { BrowseGateway } from './roon/browse.ts';
 import { MdnsResponder } from './net/mdns.ts';
 import { RecentLedger } from './ledger/recent.ts';
 import { buildSnapshot, structuralSignature } from './model/snapshot.ts';
@@ -71,6 +72,8 @@ const extension = new FlightDeckExtension(
 );
 
 const relay = new ArtRelay({ artworkUrl: extension.artworkUrl });
+// Present only when Browse was requested at startup; the route answers 503 otherwise.
+const browseGateway = new BrowseGateway(() => extension.browseService());
 
 /**
  * One snapshot per change. The revision bumps ONLY when the structural signature
@@ -159,6 +162,7 @@ const deps = {
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,
   commands: extension,
+  browseAccess: browseGateway,
   mdns: () => mdns,
   urls,
   port: () => boundPort,

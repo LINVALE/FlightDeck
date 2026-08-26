@@ -44,7 +44,7 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
 
   let port = 0;
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null,
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null,
     mdns: () => null,
     urls: () => ['http://flightdeck.local:' + String(port) + '/', 'http://192.168.1.114:' + String(port) + '/'],
     port: () => port,
@@ -160,7 +160,7 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   const relay = new ArtRelay({ artworkUrl: () => '' });
   let port = 0;
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => ['http://flightdeck.local/'], port: () => port,
   });
   port = await listenWithLadder(server, [0], () => {});
@@ -195,7 +195,7 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
 test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
   const server = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
-    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => ['http://flightdeck.local/'], port: () => 0,
   });
   await listenWithLadder(server, [0], () => {});
@@ -218,7 +218,7 @@ test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
 test('the port ladder falls back, and says something useful when it cannot', async (t) => {
   const blocker = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
-    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => [], port: () => 0,
   });
   await listenWithLadder(blocker, [0], () => {});
@@ -230,7 +230,7 @@ test('the port ladder falls back, and says something useful when it cannot', asy
   const lines: string[] = [];
   const second = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
-    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => [], port: () => 0,
   });
   const bound = await listenWithLadder(second, [taken, 0], (line) => lines.push(line));
@@ -241,7 +241,7 @@ test('the port ladder falls back, and says something useful when it cannot', asy
   // With no fallback left it must not claim to be trying one.
   const doomed = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
-    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => [], port: () => 0,
   });
   const last: string[] = [];
@@ -254,7 +254,7 @@ test('the port ladder falls back, and says something useful when it cannot', asy
 test('assets are served, and a path traversal is refused', async (t) => {
   const server = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
-    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, mdns: () => null,
+    ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
     urls: () => [], port: () => 0,
   });
   const port = await listenWithLadder(server, [0], () => {});

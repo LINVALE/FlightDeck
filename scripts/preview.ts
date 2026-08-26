@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   });
   let bound = PORT;
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands: null,
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands: null, browseAccess: null,
     urls: () => ['http://flightdeck.local/', 'http://192.168.1.114/'],
     port: () => bound,
   });

@@ -34,9 +34,11 @@ NoNewPrivileges=yes
 
 Environment=FLIGHTDECK_DATA=/home/peter/dev/FlightDeck/data
 Environment=FLIGHTDECK_NAME=flightdeck
-# Browse changes the registration Roon holds on file, so enabling it parks the
-# extension until a human re-enables it in Roon Settings. Opt in deliberately.
-Environment=FLIGHTDECK_BROWSE=0
+# Browse changes the registration Roon holds on file, so the FIRST start after
+# changing this parks the extension until a human re-enables FlightDeck in
+# Roon -> Settings -> Extensions. Changing it back parks it again, so it is set
+# once rather than toggled.
+Environment=FLIGHTDECK_BROWSE=1
 
 Restart=on-failure
 RestartSec=5

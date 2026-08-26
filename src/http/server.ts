@@ -10,6 +10,12 @@ import { renderDocPage, renderFacePage, renderWallPage, resolveOutput, resolveZo
 
 export type TransportAction = 'play' | 'pause' | 'playpause' | 'next' | 'previous' | 'stop';
 
+export interface BrowseAccess {
+  available(): boolean;
+  browse(call: Record<string, unknown>): Promise<unknown>;
+  load(call: Record<string, unknown>): Promise<unknown>;
+}
+
 export interface Commands {
   control(zoneId: string, action: TransportAction): Promise<void>;
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
@@ -61,6 +67,8 @@ export interface ServerDeps {
    * real Core — the route then answers 503 rather than pretending it worked.
    */
   readonly commands: Commands | null;
+  /** Roon's Browse tree. Null when Browse was not requested at startup. */
+  readonly browseAccess: BrowseAccess | null;
   readonly mdns: () => MdnsResponder | null;
   readonly urls: () => string[];
   readonly port: () => number;
@@ -153,6 +161,23 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         if (!ok) { json(response, 403, { error: 'cross-origin control refused' }); return; }
       }
       void handleControl(request, response, deps, log);
+      return;
+    }
+
+    /**
+     * Browse. Same-origin and read-only against the Core's library — but it can
+     * START PLAYBACK when an item is played, so it is guarded like the control
+     * route rather than like a GET.
+     */
+    if (request.method === 'POST' && path === '/api/v1/browse') {
+      const origin = request.headers.origin;
+      if (typeof origin === 'string' && origin !== '') {
+        const host = request.headers.host ?? '';
+        let ok = false;
+        try { ok = new URL(origin).host === host; } catch { ok = false; }
+        if (!ok) { json(response, 403, { error: 'cross-origin browse refused' }); return; }
+      }
+      void handleBrowse(request, response, deps);
       return;
     }
 
@@ -412,6 +437,44 @@ async function handleControl(
     }
 
     json(response, 400, { error: 'unknown action' });
+  } catch (error) {
+    json(response, 502, { error: String(error instanceof Error ? error.message : error) });
+  }
+}
+
+/**
+ * A thin pass-through to Roon's Browse tree. Deliberately not opinionated: the
+ * live shapes have never been captured, so this shows what the Core actually
+ * returns rather than reshaping it into something we have guessed at.
+ */
+async function handleBrowse(
+  request: IncomingMessage, response: ServerResponse, deps: ServerDeps,
+): Promise<void> {
+  const access = deps.browseAccess;
+  if (access === null || !access.available()) {
+    json(response, 503, {
+      error: 'browse unavailable',
+      hint: 'start with FLIGHTDECK_BROWSE=1, then re-enable FlightDeck in Roon → Settings → Extensions',
+    });
+    return;
+  }
+  const body = await readJson(request);
+  if (body === null) { json(response, 400, { error: 'malformed body' }); return; }
+
+  const call: Record<string, unknown> = {
+    hierarchy: typeof body.hierarchy === 'string' ? body.hierarchy : 'browse',
+    sessionKey: typeof body.sessionKey === 'string' ? body.sessionKey : 'flightdeck',
+  };
+  if (typeof body.itemKey === 'string') call.itemKey = body.itemKey;
+  if (typeof body.input === 'string') call.input = body.input;
+  if (body.popAll === true) call.popAll = true;
+  if (typeof body.zoneId === 'string') call.zoneId = body.zoneId;
+  if (typeof body.offset === 'number') call.offset = body.offset;
+  if (typeof body.count === 'number') call.count = body.count;
+
+  try {
+    const result = body.load === true ? await access.load(call) : await access.browse(call);
+    json(response, 200, result as Record<string, unknown>);
   } catch (error) {
     json(response, 502, { error: String(error instanceof Error ? error.message : error) });
   }
