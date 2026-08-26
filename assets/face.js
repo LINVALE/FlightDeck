@@ -1274,7 +1274,35 @@ fetch('/assets/icons/lucide.json')
   .then(function (data) { LUCIDE = data || {}; })
   .catch(function () { /* the drawn fallbacks still cover every row */ });
 
+/**
+ * A treble clef, stroked. Lucide has no clef, and this is the case where drawing
+ * one is reasonable — a single distinctive shape rather than two dozen instruments.
+ * Composers WRITE music, so a clef says something a portrait does not (Peter,
+ * 08-26).
+ */
+var CLEF_PATH = 'M12.9 21.8c-1.9 0-3.2-1.2-3.2-2.8 0-1.3 1-2.3 2.3-2.3 1.1 0 1.9.8 1.9 1.8 0 .9-.6 1.5-1.4 1.5'
+  + 'M13.5 2.6c-2.2 1.9-3.4 4.1-3.4 6.4 0 1.9.6 3.4 2 5.6 1.2 1.9 1.8 3.2 1.8 4.6'
+  + 'M13.9 2.6c1.4 1 2.1 2.4 2.1 4 0 2.5-1.7 4.4-4.4 5.6-2.2 1-3.6 2.5-3.6 4.4 0 2 1.6 3.5 3.9 3.5'
+  + '2.4 0 4.1-1.6 4.1-3.9 0-1.6-.9-2.9-2.4-3.5';
+
+function drawnStroke(d) {
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph browse-icon');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.7');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  var path = document.createElementNS(SVG_NS, 'path');
+  path.setAttribute('d', d);
+  svg.appendChild(path);
+  return svg;
+}
+
 function browseIcon(name) {
+  if (name === 'clef') return drawnStroke(CLEF_PATH);
   var svg = document.createElementNS(SVG_NS, 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('class', 'glyph browse-icon');
@@ -1313,13 +1341,16 @@ function iconFor(item, hierarchy) {
   }
   if (title.indexOf('play ') === 0) return 'playnow';
   if (hierarchy === 'genres') return genreIcon(item.title) || 'score';
-  if (hierarchy === 'composers' || hierarchy === 'artists') return 'person';
+  // A composer WRITES the music; a performer plays it. Different icons.
+  if (hierarchy === 'composers') return 'clef';
+  if (hierarchy === 'artists') return 'person';
   if (hierarchy === 'playlists') return 'list';
   if (hierarchy === 'internet_radio') return 'radio';
   if (hierarchy === 'albums') return 'album';
   // The Explore tree names its own categories.
   if (title.indexOf('genre') >= 0) return 'score';
-  if (title.indexOf('artist') >= 0 || title.indexOf('composer') >= 0) return 'person';
+  if (title.indexOf('composer') >= 0) return 'clef';
+  if (title.indexOf('artist') >= 0) return 'person';
   if (title.indexOf('playlist') >= 0) return 'list';
   if (title.indexOf('radio') >= 0) return 'radio';
   if (title.indexOf('album') >= 0) return 'album';
