@@ -487,10 +487,6 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   padding: 0;
   margin-left: 13vh; margin-bottom: 14vh;
 }
-/* Lifted clear of the transport bar when the chrome is up: the bar is centred on
-   the foot of the frame and lands exactly where the ring's bottom segment — the
-   title — otherwise sits. */
-.face.show-chrome[data-ring][data-view="artist"] .np { margin-bottom: 34vh; }
 .face[data-ring][data-view="artist"] .cover,
 .face.show-chrome[data-ring][data-view="artist"] .cover {
   width: 26vh; height: 26vh; margin: 0;
@@ -510,6 +506,19 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-ring][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
 /* the photograph already names the artist */
 .face[data-ring][data-view="artist"] .line2 { display: none; }
+/* With the chrome up the bar is centred on the foot of the frame and lands
+   exactly where the ring's bottom segment — the title — otherwise sits. Lifting
+   the ring at full size cleared the bar but carried it up near the badges
+   (Peter, 08-26: "too close to the top — reduce size if needed"). So it SHRINKS
+   as it lifts, and sits just above the bar with the frame open above it. */
+.face.show-chrome[data-ring][data-view="artist"] .np { margin-bottom: 31vh; }
+.face.show-chrome[data-ring][data-view="artist"] .cover { width: 18vh; height: 18vh; }
+.face.show-chrome[data-ring][data-view="artist"] .title { font-size: 1.25vw; }
+/* Two lines will not fit a 47px lens at this size — the album spilled past the
+   arc — and the title is the half that has to survive. */
+.face.show-chrome[data-ring][data-view="artist"] .line3 { display: none; }
+.face.show-chrome[data-ring][data-view="artist"] .copy { padding-top: .7vh; }
+
 
 @media (max-width: 900px) {
   /* no room for two columns on a phone: the circle goes back above the words */
@@ -763,6 +772,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-justify-content: center; justify-content: center;
 }
 .cog:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+/* A setting that is ON is LIT, not depressed: the button says what the queue will
+   do, and that reads at across-the-room distance where a pressed state does not. */
+.ctl.lit { color: var(--accent); }
 .cog .glyph { width: 1.4vw; height: 1.4vw; }
 
 /* Each mode sits where its zone is not, so a panel never lands under the press

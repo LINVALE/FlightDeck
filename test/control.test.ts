@@ -18,6 +18,7 @@ const ZONES: unknown[] = [
     outputs: [{ output_id: 'oStudy', display_name: 'Study', volume: { type: 'number', min: 0, max: 100, value: 40, step: 1, is_muted: false } }],
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
     now_playing: { seek_position: 10, length: 200, image_key: 'k1', three_line: { line1: 'A Track', line2: 'An Artist', line3: 'An Album' } },
+    settings: { shuffle: true, loop: 'loop', auto_radio: false },
   },
   {
     zone_id: 'zRadio', display_name: 'Garden', state: 'playing',
@@ -37,6 +38,7 @@ async function serve(t: { after: (fn: () => void) => void }) {
     setVolume: async (output, value) => { sent.push({ kind: 'setVolume', a: output, b: value }); },
     changeVolume: async (output, steps, incremental) => { sent.push({ kind: 'volume', a: output, b: steps, c: incremental }); },
     mute: async (output, muted) => { sent.push({ kind: 'mute', a: output, b: muted }); },
+    changeSettings: async (zone, settings) => { sent.push({ kind: 'settings', a: zone, b: settings }); },
   };
   const hub = new EventHub();
   const relay = new ArtRelay({ artworkUrl: () => '' });
@@ -153,4 +155,39 @@ test('an absolute volume is clamped to what the device accepts', async (t) => {
   assert.equal(sent[1].b, 100, 'clamped to max');
   await post({ action: 'volume', output: 'oStudy', value: -40 });
   assert.equal(sent[2].b, 0, 'clamped to min');
+});
+
+/**
+ * Shuffle reads the LIVE snapshot and sends the inverse. If it trusted what the
+ * screen last drew, two displays — or one stale one — would fight over it, and
+ * the mute button taught us that lesson already: it latched because its handler
+ * captured the state at build time instead of reading it at press time.
+ */
+test('shuffle sends the inverse of what Roon currently reports', async (t) => {
+  const { post, sent } = await serve(t);
+  const response = await post({ action: 'shuffle', zone: 'zPlay' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(sent.at(-1), { kind: 'settings', a: 'zPlay', b: { shuffle: false } });
+});
+
+/** Repeat asks the CORE to cycle, so off/all/one is Roon's order, not ours. */
+test('repeat asks the core to cycle rather than naming a state', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'repeat', zone: 'zPlay' })).status, 200);
+  assert.deepEqual(sent.at(-1), { kind: 'settings', a: 'zPlay', b: { loop: 'next' } });
+});
+
+test('a zone the Core reports no settings for refuses both', async (t) => {
+  const { post, sent } = await serve(t);
+  for (const action of ['shuffle', 'repeat']) {
+    const response = await post({ action, zone: 'zRadio' });
+    assert.equal(response.status, 409, action + ' on a zone with no settings');
+  }
+  assert.equal(sent.filter((s) => s.kind === 'settings').length, 0);
+});
+
+test('an unknown zone is refused before any command is sent', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'shuffle', zone: 'nope' })).status, 404);
+  assert.equal(sent.length, 0);
 });

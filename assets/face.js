@@ -924,6 +924,25 @@ function showPicker(mode) {
     return b;
   };
   var playing = zone !== null && zone.state === 'playing';
+  /**
+   * SHUFFLE and REPEAT bracket the line (Peter, 08-26). They are not transport —
+   * they say how the queue will be READ — so they sit at the ends rather than
+   * among play and volume, and they are LIT rather than pressed-looking: their
+   * state is the point, and the state belongs to Roon.
+   */
+  var settings = zone === null ? null : zone.settings;
+  var lit = function (name, title, on, onPress) {
+    var b = el('span', settings === null ? 'ctl off' : (on ? 'ctl lit' : 'ctl'));
+    b.appendChild(glyph(name));
+    b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
+    if (settings !== null) pressable(b, onPress);
+    return b;
+  };
+  controls.appendChild(lit('shuffle',
+    settings !== null && settings.shuffle ? 'shuffle is on' : 'shuffle',
+    settings !== null && settings.shuffle,
+    function () { command({ action: 'shuffle', zone: zone.id }); }));
   controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
     function () { transport('previous'); }));
   controls.appendChild(button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
@@ -971,6 +990,13 @@ function showPicker(mode) {
     controls.appendChild(scaleNode);
     controls.appendChild(volumeStep(output, 'up'));
   }
+  // Repeat closes the line. The glyph itself carries which of the three states
+  // Roon is in — a bare circuit for "all", a circuit with a 1 for "this track".
+  var loop = settings === null ? 'disabled' : settings.loop;
+  controls.appendChild(lit(loop === 'loop_one' ? 'repeat-one' : 'repeat',
+    loop === 'loop_one' ? 'repeating this track' : (loop === 'loop' ? 'repeating the queue' : 'repeat'),
+    loop !== 'disabled',
+    function () { command({ action: 'repeat', zone: zone.id }); }));
   actionRow.appendChild(controls);
   if (mode === 'transport') nodes.push(actionRow);
 
@@ -1444,6 +1470,45 @@ var glyph = function (name) {
     left: 'M15 5.5 8.5 12 15 18.5z',
     right: 'M9 5.5 15.5 12 9 18.5z',
   }[name];
+  if (d === undefined) {
+    /**
+     * Shuffle and repeat are LINES, not solids: two crossing paths and a circuit
+     * with arrowheads. Drawn here rather than vendored because the icon set we
+     * carry has neither, and a face must never fetch anything at runtime.
+     */
+    var strokes = {
+      shuffle: [
+        'M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
+        'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
+        'M18.2 5.6 20.6 7.5 18.2 9.4',
+        'M18.2 14.6 20.6 16.5 18.2 18.4',
+      ],
+      repeat: [
+        'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
+        'M16 13.8 18 16 20 13.8',
+        'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
+        'M4 10.2 6 8 8 10.2',
+      ],
+      'repeat-one': [
+        'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
+        'M16 13.8 18 16 20 13.8',
+        'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
+        'M4 10.2 6 8 8 10.2',
+        'M11 11.2 12.6 10.2V14',
+      ],
+    }[name] || [];
+    for (var i = 0; i < strokes.length; i += 1) {
+      var line = document.createElementNS(SVG_NS, 'path');
+      line.setAttribute('d', strokes[i]);
+      line.setAttribute('fill', 'none');
+      line.setAttribute('stroke', 'currentColor');
+      line.setAttribute('stroke-width', '1.7');
+      line.setAttribute('stroke-linecap', 'round');
+      line.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(line);
+    }
+    return svg;
+  }
   var path = document.createElementNS(SVG_NS, 'path');
   path.setAttribute('d', d);
   path.setAttribute('fill', 'currentColor');
@@ -2170,18 +2235,6 @@ function inNode(target, node) {
   return false;
 }
 
-/**
- * IS THE SCREEN IN SETTINGS?
- *
- * The transport bar is the resting chrome — it appears with any movement and
- * goes on its own. A faces list, a rooms list or the browser is a MENU, and a
- * menu is a mode the viewer is IN.
- */
-function settingsOpen() {
-  return browsePanel !== null
-    || (!picker.hidden && picker.className.indexOf('mode-transport') === -1);
-}
-
 function closeSettings() {
   closeBrowse();
   if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
@@ -2192,18 +2245,27 @@ var lastZonePress = 0;
 function onFacePress(event) {
   var now = Date.now();
   if (now - lastZonePress < 400) return;     // one press, however many names it arrives under
+  // Read this BEFORE revealing: revealChrome raises the transport bar itself, so
+  // afterwards every press would look like a press with the chrome already up.
+  var wasUp = !picker.hidden || browsePanel !== null;
   revealChrome();
 
   var target = event ? event.target : null;
   /**
-   * THE WAY OUT OF A MENU IS TO TOUCH PAST IT (Peter, 08-26).
+   * THE WAY BACK TO THE MUSIC IS TO TOUCH PAST WHAT IS UP (Peter, 08-26).
    *
-   * Without this an outside press was routed by height like any other, so
-   * leaving the faces list meant landing in browse — you could never simply
-   * go back to the music. Everything that owns a press is excluded, the cover
-   * included: it flips to the artist and would otherwise do both at once.
+   * Anything raised — the transport bar, the faces list, the rooms list, the
+   * browser — is put away by a press outside it, and that press does nothing
+   * else. Without this an outside press was routed by height like any other, so
+   * leaving a panel meant landing in another one.
+   *
+   * `panelJustAppeared` is what keeps the zones working: the touch that raises
+   * the chrome is the SAME gesture as the press that follows it, so that first
+   * press still routes. Only a later one dismisses. Everything that owns a press
+   * is excluded, the cover included — it flips to the artist, and would
+   * otherwise do both at once.
    */
-  if (settingsOpen() && !panelJustAppeared() && target !== null
+  if (wasUp && !panelJustAppeared() && target !== null
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {

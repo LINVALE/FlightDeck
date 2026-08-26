@@ -71,6 +71,16 @@ export interface Allowed {
   readonly seek: boolean;
 }
 
+/**
+ * How the zone plays through its queue. Roon owns these — they are per-zone and
+ * survive us — so they are read from the wire and never held locally.
+ */
+export interface ZoneSettings {
+  readonly shuffle: boolean;
+  readonly loop: 'disabled' | 'loop' | 'loop_one';
+  readonly autoRadio: boolean;
+}
+
 export interface Zone {
   readonly id: string;
   readonly name: string;
@@ -78,6 +88,8 @@ export interface Zone {
   readonly outputs: readonly ZoneOutput[];
   readonly nowPlaying: NowPlaying | null;
   readonly allowed: Allowed;
+  /** Shuffle and repeat, as Roon reports them; null if the Core did not say. */
+  readonly settings: ZoneSettings | null;
   /** ISO time this zone last had playback activity — the House Wall's ordering key. */
   readonly lastPlayedAt: string | null;
   /** ISO time the current run of playback began; ties are broken on it so a track change never reshuffles. */

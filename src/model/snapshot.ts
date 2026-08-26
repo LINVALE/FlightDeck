@@ -1,4 +1,4 @@
-import type { Allowed, ArtRef, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneState } from './types.ts';
+import type { Allowed, ArtRef, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState } from './types.ts';
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
 export interface ArtMinter {
@@ -113,6 +113,19 @@ function projectAllowed(zone: Record<string, unknown>): Allowed {
   };
 }
 
+const LOOPS = ['disabled', 'loop', 'loop_one'] as const;
+
+function projectSettings(raw: unknown): ZoneSettings | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const settings = raw as Record<string, unknown>;
+  const loop = String(settings.loop ?? '');
+  return {
+    shuffle: settings.shuffle === true,
+    loop: (LOOPS as readonly string[]).includes(loop) ? (loop as ZoneSettings['loop']) : 'disabled',
+    autoRadio: settings.auto_radio === true,
+  };
+}
+
 export function projectZone(raw: unknown, art: ArtMinter, recency: RecencyReader, at: string): Zone | null {
   if (raw === null || typeof raw !== 'object') return null;
   const zone = raw as Record<string, unknown>;
@@ -125,6 +138,7 @@ export function projectZone(raw: unknown, art: ArtMinter, recency: RecencyReader
     outputs: projectOutputs(zone.outputs),
     nowPlaying: projectNowPlaying(zone.now_playing, art, at),
     allowed: projectAllowed(zone),
+    settings: projectSettings(zone.settings),
     lastPlayedAt: recency.lastPlayedAt(id),
     runStartedAt: recency.runStartedAt(id),
   };
@@ -206,6 +220,9 @@ export function structuralSignature(snapshot: Snapshot): string {
       String(zone.nowPlaying.lengthSec),
     ].join('|'),
     [zone.allowed.play, zone.allowed.pause, zone.allowed.next, zone.allowed.previous, zone.allowed.seek].join(''),
+    // shuffle and repeat are drawn as lit or unlit buttons, so a change to either
+    // has to reach the screen — without this the toggle would appear to do nothing
+    zone.settings === null ? '-' : String(zone.settings.shuffle) + '/' + zone.settings.loop,
     String(zone.lastPlayedAt),
   ].join('~'));
   return snapshot.core.state + '#' + String(snapshot.core.name) + '#' + parts.join(';');

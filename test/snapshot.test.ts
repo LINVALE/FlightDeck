@@ -188,3 +188,31 @@ test('a display binds to its OUTPUT, so grouping the room does not strand it', a
   // fallback handles it.
   assert.equal(resolveOutput(grouped, 'downstairs'), null);
 });
+
+/**
+ * Roon's own vocabulary, kept verbatim: 'disabled' | 'loop' | 'loop_one'. A Core
+ * that says something else, or nothing, must read as OFF rather than as a value
+ * the buttons cannot draw.
+ */
+test('queue settings are projected, and anything unrecognised reads as off', () => {
+  const build = (settings: unknown) =>
+    projectZone({ zone_id: 'z', display_name: 'Z', state: 'playing', outputs: [], settings },
+      art, noRecency, AT)?.settings ?? null;
+
+  assert.deepEqual(build({ shuffle: true, loop: 'loop_one', auto_radio: true }),
+    { shuffle: true, loop: 'loop_one', autoRadio: true });
+  assert.deepEqual(build({ shuffle: false, loop: 'nonsense', auto_radio: false }),
+    { shuffle: false, loop: 'disabled', autoRadio: false });
+  assert.deepEqual(build({}), { shuffle: false, loop: 'disabled', autoRadio: false });
+  assert.equal(build(undefined), null, 'a Core that never said must stay null, not guess');
+});
+
+test('a change to shuffle or repeat reaches the screen', () => {
+  const build = (settings: unknown) => buildSnapshot({
+    generation: 'g', revision: 1, at: AT, coreName: 'C', corePaired: true, coreSinceAt: AT,
+    zones: [{ zone_id: 'z', display_name: 'Z', state: 'playing', outputs: [], settings }],
+  }, art, new RecentLedger(null));
+  const off = structuralSignature(build({ shuffle: false, loop: 'disabled' }));
+  assert.notEqual(off, structuralSignature(build({ shuffle: true, loop: 'disabled' })));
+  assert.notEqual(off, structuralSignature(build({ shuffle: false, loop: 'loop' })));
+});

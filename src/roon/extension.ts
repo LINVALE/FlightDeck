@@ -173,6 +173,22 @@ export class FlightDeckExtension {
   }
 
   /** Absolute position in seconds. Roon refuses it where seeking makes no sense. */
+  /**
+   * Shuffle and repeat. Roon owns both, per zone, and `loop: 'next'` asks the
+   * Core itself to cycle disabled -> loop -> loop_one — so the button never has
+   * to guess the order, and two screens pressing it cannot disagree.
+   */
+  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void> {
+    const transport = this.transport;
+    if (transport === null) return Promise.reject(new Error('no core'));
+    return new Promise((resolve, reject) => {
+      transport.change_settings(zoneId, settings, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
   seek(zoneId: string, seconds: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const transport = this.transport;

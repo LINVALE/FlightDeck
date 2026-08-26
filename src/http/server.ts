@@ -21,6 +21,7 @@ export interface Commands {
   seek(zoneId: string, seconds: number): Promise<void>;
   setVolume(outputId: string, value: number): Promise<void>;
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
+  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void>;
   mute(outputId: string, muted: boolean): Promise<void>;
 }
 
@@ -410,6 +411,27 @@ async function handleControl(
       if (action === 'previous' && !zone.allowed.previous) { json(response, 409, { error: 'previous not allowed here' }); return; }
       await commands.control(zoneId, action as TransportAction);
       log('control ' + action + ' -> ' + zone.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    /**
+     * SHUFFLE and REPEAT. Both are zone settings rather than transport verbs, so
+     * they take their own branch. Shuffle is a flat toggle read from the live
+     * snapshot — never from what the screen last drew, which may be stale or may
+     * belong to another screen. Repeat asks the CORE to cycle, so the order of
+     * off/all/one is Roon's and cannot drift between screens.
+     */
+    if (action === 'shuffle' || action === 'repeat') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      if (zoneId === '') { json(response, 400, { error: 'zone required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (zone.settings === null) { json(response, 409, { error: 'this zone has no queue settings' }); return; }
+      await commands.changeSettings(zoneId,
+        action === 'shuffle' ? { shuffle: !zone.settings.shuffle } : { loop: 'next' });
+      log(action + ' -> ' + zone.name);
       json(response, 200, { ok: true });
       return;
     }
