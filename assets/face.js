@@ -1199,6 +1199,11 @@ var BROWSE_ICONS = {
   note:     'M9 18.2a2.4 2.4 0 1 0 2.4-2.4V6.4l7.2-1.6v8.6a2.4 2.4 0 1 0 2.4 2.4V3l-12 2.6z',
   person:   'M12 12.4a3.9 3.9 0 1 0 0-7.8 3.9 3.9 0 0 0 0 7.8zm0 1.9c-3.5 0-7 1.8-7 4v1.4h14v-1.4c0-2.2-3.5-4-7-4z',
   tag:      'M11.6 3.5H20a.5.5 0 0 1 .5.5v8.4a1 1 0 0 1-.3.7l-7.4 7.4a1 1 0 0 1-1.4 0l-8-8a1 1 0 0 1 0-1.4l7.5-7.3a1 1 0 0 1 .7-.3zm5.4 3.2a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2z',
+  // A musical score, drawn rather than borrowed from U+1F3BC — that codepoint is an
+  // EMOJI, so a browser substitutes a colour font and it arrives in full colour,
+  // exactly as the pause button once did. Staff lines with a note sitting on them.
+  score:    'M2.6 5.2h18.8v1.5H2.6zm0 3.6h18.8v1.5H2.6zm0 3.6h18.8v1.5H2.6zm0 3.6h18.8v1.5H2.6z'
+            + 'M13.4 3.6v8.7a2.6 2.6 0 1 0 1.7 2.4V7.4l4.3-1v5.4a2.6 2.6 0 1 0 1.7 2.4V2.6z',
   list:     'M3.5 5.6h13v2h-13zm0 5.4h13v2h-13zm0 5.4h9v2h-9zM19 11l2.5 2-2.5 2z',
   radio:    'M12 9.6a2.4 2.4 0 1 0 0 4.8 2.4 2.4 0 0 0 0-4.8zM7.8 5.4a8.4 8.4 0 0 0 0 13.2l1.3-1.6a6.4 6.4 0 0 1 0-10zm8.4 0-1.3 1.6a6.4 6.4 0 0 1 0 10l1.3 1.6a8.4 8.4 0 0 0 0-13.2z',
   album:    'M12 3.2a8.8 8.8 0 1 0 0 17.6 8.8 8.8 0 0 0 0-17.6zm0 11a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4z',
@@ -1234,13 +1239,13 @@ function iconFor(item, hierarchy) {
     return 'playnow';
   }
   if (title.indexOf('play ') === 0) return 'playnow';
-  if (hierarchy === 'genres') return 'tag';
+  if (hierarchy === 'genres') return 'score';
   if (hierarchy === 'composers' || hierarchy === 'artists') return 'person';
   if (hierarchy === 'playlists') return 'list';
   if (hierarchy === 'internet_radio') return 'radio';
   if (hierarchy === 'albums') return 'album';
   // The Explore tree names its own categories.
-  if (title.indexOf('genre') >= 0) return 'tag';
+  if (title.indexOf('genre') >= 0) return 'score';
   if (title.indexOf('artist') >= 0 || title.indexOf('composer') >= 0) return 'person';
   if (title.indexOf('playlist') >= 0) return 'list';
   if (title.indexOf('radio') >= 0) return 'radio';
@@ -1365,9 +1370,10 @@ function browseRow(item, onPick) {
     thumbBox.appendChild(img);
   } else {
     thumbBox.className = 'browse-thumb is-empty';
-    var icon = browseIcon(browseUniform
-      ? 'dot'
-      : iconFor(item, browseCtx === null ? '' : browseCtx.hierarchy));
+    // The uniform-list dot is gone: a list of genres carrying the SAME icon is fine
+    // once that icon is a good one. Peter chose a musical score, which answers
+    // "they all look the same" by making the sameness worth looking at.
+    var icon = browseIcon(iconFor(item, browseCtx === null ? '' : browseCtx.hierarchy));
     if (icon !== null) thumbBox.appendChild(icon);
   }
   row.appendChild(thumbBox);
