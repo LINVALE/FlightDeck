@@ -119,6 +119,64 @@ export function parses(source: string): string | null {
   }
 }
 
+/**
+ * A LOPSIDED SELECTOR LIST.
+ *
+ * A comma makes two INDEPENDENT selectors, so extending one rule to a second
+ * face by find-and-replacing its prefix produces this:
+ *
+ *     .face[data-face="dial"], .face[data-face="orbit"] .cover { width: 44vh }
+ *
+ * which sizes the FACE for dial and the cover for orbit. It is valid CSS, it
+ * lints clean on every other rule here, and it is silent — on 2026-08-26 one
+ * such edit collapsed the sleeve to 0x0 and another put `display: none` on a
+ * whole face. Both were found by screenshot, which is far too late.
+ *
+ * The signature is narrow on purpose: every branch rooted at the SAME token, and
+ * some branches carrying a descendant the others lack. `h1, .prose p` is rooted
+ * differently and is left alone.
+ */
+export function lopsidedSelectorLists(stripped: string): { line: number; text: string }[] {
+  const found: { line: number; text: string }[] = [];
+  let at = 0;
+  while (at < stripped.length) {
+    const brace = stripped.indexOf('{', at);
+    if (brace === -1) break;
+    const prior = stripped.lastIndexOf('}', brace);
+    const opener = stripped.lastIndexOf('{', brace - 1);
+    const from = Math.max(prior, opener) + 1;
+    const selector = stripped.slice(from, brace);
+    at = brace + 1;
+    // an at-rule body (@media) is a block of rules, not a selector
+    if (selector.indexOf('@') !== -1 || selector.indexOf(',') === -1) continue;
+
+    const branches: string[] = [];
+    let depth = 0;
+    let current = '';
+    for (const ch of selector) {
+      if (ch === '[' || ch === '(') depth += 1;
+      else if (ch === ']' || ch === ')') depth -= 1;
+      if (ch === ',' && depth === 0) { branches.push(current); current = ''; } else current += ch;
+    }
+    branches.push(current);
+
+    const trimmed = branches.map((b) => b.trim().replace(/\s+/g, ' ')).filter((b) => b !== '');
+    if (trimmed.length < 2) continue;
+    const roots = trimmed.map((b) => (/^[.#]?[A-Za-z0-9_-]+/.exec(b) ?? [''])[0]);
+    if (new Set(roots).size !== 1) continue;
+    const deep = trimmed.map((b) => / |>|\+|~/.test(b.replace(/\[[^\]]*\]/g, '')));
+    if (deep.indexOf(true) === -1 || deep.indexOf(false) === -1) continue;
+
+    // the line the SELECTOR starts on, not the line the previous rule closed on
+    const lead = selector.length - selector.replace(/^\s+/, '').length;
+    found.push({
+      line: stripped.slice(0, from + lead).split('\n').length,
+      text: selector.trim().replace(/\s+/g, ' ').slice(0, 90),
+    });
+  }
+  return found;
+}
+
 export function lintSource(file: string, source: string): Finding[] {
   const isCss = file.endsWith('.css');
   const stripped = stripInert(source);
@@ -126,7 +184,15 @@ export function lintSource(file: string, source: string): Finding[] {
   const findings: Finding[] = [];
   if (!isCss) {
     const broken = parses(source);
-    if (broken !== null) findings.push({ file, line: 1, why: 'DOES NOT PARSE: ' + broken });
+    if (broken !== null) findings.push({ file, line: 1, text: '', why: 'DOES NOT PARSE: ' + broken });
+  }
+  if (isCss) {
+    for (const hit of lopsidedSelectorLists(stripped)) {
+      findings.push({
+        file, line: hit.line, text: hit.text,
+        why: 'LOPSIDED SELECTOR LIST: one branch lost the descendant its siblings have — a comma makes two whole selectors',
+      });
+    }
   }
   const lines = stripped.split('\n');
   // The guard is tested against the ORIGINAL source: 'decode' is a string literal,
