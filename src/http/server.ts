@@ -6,13 +6,14 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderFacePage, renderWallPage } from './pages.ts';
+import { renderDocPage, renderFacePage, renderWallPage } from './pages.ts';
 
 export interface ServerDeps {
   readonly hub: EventHub;
   readonly relay: ArtRelay;
   readonly ledger: RecentLedger;
   readonly assetDir: string;
+  readonly docDir: string;
   readonly mdns: () => MdnsResponder | null;
   readonly urls: () => string[];
   readonly port: () => number;
@@ -175,6 +176,24 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
 
     // ---- pages ----
     const nonce = randomBytes(18).toString('base64');
+
+    // Repo documents, rendered from their Markdown. Useful on the phone in your
+    // hand while you stand in front of the TV you are setting up.
+    const DOCS: Record<string, { file: string; title: string }> = {
+      '/setup': { file: 'tv-setup.md', title: 'Putting FlightDeck on a TV' },
+      '/drill': { file: 'tv-drill.md', title: 'The TV drill' },
+    };
+    const doc = DOCS[path];
+    if (doc !== undefined) {
+      try {
+        const markdown = readFileSync(join(deps.docDir, doc.file), 'utf8');
+        html(response, 200, renderDocPage(nonce, doc.title, markdown), nonce);
+      } catch {
+        json(response, 404, { error: 'document unavailable' });
+      }
+      return;
+    }
+
     if (path === '/' || path === '/wall') {
       html(response, 200, renderWallPage(nonce, deps.urls()), nonce);
       return;

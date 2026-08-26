@@ -1,4 +1,5 @@
 import { qrSvg } from './qr.ts';
+import { renderMarkdown } from './markdown.ts';
 
 /**
  * Page shells only. Everything live is rendered by the client from the snapshot,
@@ -75,4 +76,23 @@ export function renderFacePage(
     + ' data-state="connecting"></main>'
     + '<div class="picker" id="picker" hidden aria-live="polite"></div>'
     + '</body></html>';
+}
+
+/**
+ * A repo document, rendered. Served from the Markdown at request time so the file
+ * in docs/ stays the single source of truth — there is no generated copy to drift.
+ */
+export function renderDocPage(nonce: string, title: string, markdown: string): string {
+  return '<!doctype html><html lang="en"><head>'
+    + '<meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+    + '<meta name="color-scheme" content="dark">'
+    + '<title>' + title + ' — FlightDeck</title>'
+    + '<link rel="stylesheet" href="/assets/doc.css">'
+    + '<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">'
+    + '</head><body><main>'
+    + '<nav class="docnav"><span class="brand">FLIGHT<span>DECK</span></span>'
+    + '<a href="/">&larr; the Wall</a></nav>'
+    + renderMarkdown(markdown)
+    + '</main></body></html>';
 }

@@ -14,12 +14,14 @@ import { networkInterfaces } from 'node:os';
 const HERE = resolve(fileURLToPath(import.meta.url), '..');
 const DATA_DIR = resolve(process.env.FLIGHTDECK_DATA ?? resolve(HERE, '..', 'data'));
 const ASSET_DIR = resolve(HERE, '..', 'assets');
+const DOC_DIR = resolve(HERE, '..', 'docs');
 const HOSTNAME = process.env.FLIGHTDECK_NAME ?? 'flightdeck';
 /**
  * The port ladder: 80 first, because only :80 makes a bare hostname work.
  * Deduped — an explicit FLIGHTDECK_PORT=8440 used to build [8440, 8440] and the
  * log would claim it was "trying the next" while retrying the same port.
  */
+const ALT_PORT = 8440;
 const PORTS = [...new Set(
   process.env.FLIGHTDECK_PORT === undefined
     ? [80, 8440]
@@ -41,6 +43,7 @@ let coreSinceAt = stamp();
 let revision = 0;
 let signature = '';
 let boundPort = 0;
+let altPort = 0;
 let mdns: MdnsResponder | null = null;
 
 const BROWSE = process.env.FLIGHTDECK_BROWSE === '1';
@@ -139,22 +142,46 @@ function urls(): string[] {
   const suffix = boundPort === 80 ? '' : ':' + String(boundPort);
   const list = ['http://' + HOSTNAME + '.local' + suffix + '/'];
   for (const address of lanAddresses()) list.push('http://' + address + suffix + '/');
+  // A port-bearing URL as well. Some TV browsers (Samsung's among them) rewrite a
+  // typed bare address to https:// — nothing listens there, so the page fails.
+  // An explicit non-standard port is not upgraded, so this one can always be typed.
+  if (altPort !== 0 && altPort !== boundPort) {
+    for (const address of lanAddresses()) list.push('http://' + address + ':' + String(altPort) + '/');
+  }
   return list;
 }
 
-const server = createFlightDeckServer({
+const deps = {
   hub, relay, ledger,
   assetDir: ASSET_DIR,
+  docDir: DOC_DIR,
   mdns: () => mdns,
   urls,
   port: () => boundPort,
   browse: () => ({ requested: BROWSE, granted: extension.browseService() !== null }),
   log,
-});
+};
+const server = createFlightDeckServer(deps);
+let altServer: ReturnType<typeof createFlightDeckServer> | null = null;
 
 async function main(): Promise<void> {
   boundPort = await listenWithLadder(server, PORTS, log);
   log('http listening on :' + String(boundPort));
+
+  // The same handler on a second, high port. Costs one socket and removes a whole
+  // class of TV-browser grief: a typed address with an explicit port is not
+  // silently upgraded to https, and it needs no privileges if :80 was refused.
+  if (boundPort !== ALT_PORT) {
+    try {
+      altServer = createFlightDeckServer(deps);
+      altPort = await listenWithLadder(altServer, [ALT_PORT], log);
+      log('http also listening on :' + String(altPort) + ' (type this one on a TV that forces https)');
+    } catch {
+      altPort = 0;
+      altServer = null;
+      log('second port ' + String(ALT_PORT) + ' unavailable — the primary port still serves');
+    }
+  }
 
   mdns = new MdnsResponder({ hostname: HOSTNAME, instance: 'FlightDeck', port: boundPort, log });
   try { await mdns.start(); } catch (error) { log('mdns unavailable: ' + String(error)); mdns = null; }
@@ -175,6 +202,7 @@ async function main(): Promise<void> {
     mdns?.stop();
     hub.closeAll();
     extension.stop();
+    altServer?.close();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 2000).unref();
   };
