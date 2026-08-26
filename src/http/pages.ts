@@ -78,14 +78,29 @@ export function zoneSlug(name: string): string {
  * land on the one making sound.
  */
 export function resolveZone(
-  zones: readonly { id: string; name: string; state: string }[], token: string,
+  zones: readonly { id: string; name: string; state: string; outputs?: readonly { name: string }[] }[],
+  token: string,
 ): string | null {
   if (token === '') return null;
   for (const zone of zones) if (zone.id === token) return zone.id;
   const wanted = zoneSlug(token);
   if (wanted === '') return null;
-  const exact = zones.filter((zone) => zoneSlug(zone.name) === wanted);
-  const prefix = zones.filter((zone) => zoneSlug(zone.name).startsWith(wanted));
+
+  /**
+   * A zone is matched on its own name AND on its OUTPUT names (Peter, 08-25:
+   * "the actual name is the display name on the output"). This matters the moment
+   * zones are grouped: Roon renames the ZONE to the group, and the room's real
+   * name survives only in the outputs — so /face/kitchen must still find the
+   * kitchen when the kitchen is playing as part of a group.
+   */
+  const names = (zone: { name: string; outputs?: readonly { name: string }[] }): string[] => {
+    const all = [zoneSlug(zone.name)];
+    for (const output of zone.outputs ?? []) all.push(zoneSlug(output.name));
+    return all.filter((n) => n !== '');
+  };
+
+  const exact = zones.filter((zone) => names(zone).includes(wanted));
+  const prefix = zones.filter((zone) => names(zone).some((n) => n.startsWith(wanted)));
   const pool = exact.length > 0 ? exact : prefix;
   if (pool.length === 0) return null;
   const playing = pool.find((zone) => zone.state === 'playing' || zone.state === 'loading');

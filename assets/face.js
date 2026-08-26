@@ -401,7 +401,14 @@ function currentZone() {
   if (slug) {
     var pool = [];
     for (var j = 0; j < snapshot.zones.length; j += 1) {
-      if (slugOf(snapshot.zones[j].name).indexOf(slug) === 0) pool.push(snapshot.zones[j]);
+      var zone = snapshot.zones[j];
+      // Match the zone's own name AND its OUTPUT names: when rooms are grouped,
+      // Roon renames the zone and only the outputs still carry the room's name.
+      var names = [slugOf(zone.name)];
+      for (var o = 0; o < zone.outputs.length; o += 1) names.push(slugOf(zone.outputs[o].name));
+      for (var n = 0; n < names.length; n += 1) {
+        if (names[n].indexOf(slug) === 0) { pool.push(zone); break; }
+      }
     }
     for (var k = 0; k < pool.length; k += 1) {
       if (pool[k].state === 'playing' || pool[k].state === 'loading') { shownZoneId = pool[k].id; return pool[k]; }

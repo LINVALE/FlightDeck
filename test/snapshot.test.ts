@@ -143,3 +143,21 @@ test('a face URL accepts a zone NAME, preferring the room that is playing', asyn
   assert.equal(resolveZone(zones, 'garage'), null);
   assert.equal(resolveZone(zones, ''), null);
 });
+
+test('a grouped zone is still findable by the ROOM name, which lives on its outputs', async () => {
+  const { resolveZone } = await import('../src/http/pages.ts');
+  // What Roon does when rooms are grouped: the ZONE takes the group's name and
+  // the rooms survive only as outputs.
+  const zones = [
+    {
+      id: 'grp', name: 'Downstairs', state: 'playing',
+      outputs: [{ name: 'Kitchen' }, { name: 'Dining Room' }, { name: 'Family Room' }],
+    },
+    { id: 'std', name: 'Study RHEOS', state: 'paused', outputs: [{ name: 'Study RHEOS' }] },
+  ];
+  assert.equal(resolveZone(zones, 'kitchen'), 'grp', 'a room inside a group must still resolve');
+  assert.equal(resolveZone(zones, 'dining-room'), 'grp');
+  assert.equal(resolveZone(zones, 'downstairs'), 'grp', 'the group name works too');
+  assert.equal(resolveZone(zones, 'study'), 'std');
+  assert.equal(resolveZone(zones, 'garage'), null);
+});
