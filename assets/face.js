@@ -700,8 +700,17 @@ function showPicker() {
     return parts;
   }).reduce(function (all, part) { return all.concat(part); }, []);
   nodes.push(el('em', '', '|'));
-  var room = el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room'));
-  nodes.push(room);
+  var rooms = el('div', 'controls');
+  var roomBtn = function (label, title, delta) {
+    var b = el('span', 'ctl small', label);
+    b.setAttribute('title', title);
+    b.addEventListener('click', function (event) { event.stopPropagation(); cycleZone(delta); });
+    return b;
+  };
+  rooms.appendChild(roomBtn('\u2039', 'previous room', -1));
+  rooms.appendChild(el('span', 'roomchip', following ? 'following' : (zoneName.textContent || 'room')));
+  rooms.appendChild(roomBtn('\u203A', 'next room', 1));
+  nodes.push(rooms);
 
   var zone = currentZone();
   var controls = el('div', 'controls');
@@ -729,7 +738,7 @@ function showPicker() {
   controls.appendChild(button('+', hasVolume ? ('louder \u00B7 ' + output.name) : 'no volume control',
     hasVolume, function () { nudgeVolume(1); }));
   nodes.push(controls);
-  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ room   OK artwork   ·   rest on a name to switch'));
+  nodes.push(el('em', 'hint', '◀▶ face   ▲▼ volume   OK artwork   ·   rest on a name to switch'));
   picker.replaceChildren.apply(picker, nodes);
   picker.hidden = false;
   if (pickerTimer !== null) clearTimeout(pickerTimer);
@@ -960,8 +969,12 @@ function onKey(event) {
   if (name === '') { showPicker(); return; }
   if (name === 'left') cycleFace(-1);
   else if (name === 'right') cycleFace(1);
-  else if (name === 'up') cycleZone(-1);
-  else if (name === 'down') cycleZone(1);
+  // UP/DOWN IS VOLUME, not room. A TV steals the hard volume keys before the
+  // browser ever sees them (Peter, 08-25: "seem to control tv volume"), and this
+  // screen is BOUND to its room — changing room is a setup-time act, while volume
+  // is reached for constantly. Room moved to the on-screen strip.
+  else if (name === 'up') nudgeVolume(1);
+  else if (name === 'down') nudgeVolume(-1);
   else if (name === 'ok') cycleArtist();
   else if (name === 'playpause') transport('playpause');
   else if (name === 'next') transport('next');

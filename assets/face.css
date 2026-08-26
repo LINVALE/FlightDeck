@@ -486,3 +486,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .picker span.ctl { min-width: 14vw; min-height: 11vw; font-size: 5vw; }
   .picker span.opt { min-width: 26vw; min-height: 11vw; font-size: 3vw; }
 }
+
+/* The room stepper sits with the transport, since ▲▼ now carries volume. */
+.picker span.ctl.small { min-width: 3.2vw; font-size: 1.7vw; padding: 0.9vh 0.7vw; }
+.picker span.roomchip { min-height: 3.4vw; line-height: 3.4vw; }
