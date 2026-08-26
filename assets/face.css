@@ -350,13 +350,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .dialbox { display: none; }
 .face[data-face="dial"] .dialbox {
   display: block; position: absolute;
-  /* The circle must pass THROUGH the four corners, and the arithmetic has two
-     steps, not one. The SVG's circle is r=44 in a 100 viewBox, so it fills only 88%
-     of its own box — sizing that box to 141% of the sleeve gave a circle of 124%,
-     smaller than the diagonal, and the corners stuck out.
-       box = √2 ÷ 0.88 = 160.7% of the sleeve, offset −30.4% each side
-     which puts the circle's diameter exactly on the diagonal. */
-  left: -30.4%; top: -30.4%; width: 160.7%; height: 160.7%;
+  /* The ring CLEARS the four corners with a little air, rather than passing through
+     them (Peter, 08-26). Three things decide the number, and I had missed two of
+     them in turn:
+       · the SVG circle is r=44 in a 100 viewBox, so it fills 88% of its own box;
+       · the STROKE straddles that line, so what can touch a corner is its INNER
+         edge at r=42.3, which is 84.6% of the box;
+       · the corner sits on the diagonal, at √2 of the sleeve's side.
+     box = √2 × 1.06 ÷ 0.846 = 177.2%, offset −38.6% — a 6% gap at the corners. */
+  left: -38.6%; top: -38.6%; width: 177.2%; height: 177.2%;
   pointer-events: none;
 }
 .face[data-face="dial"] .dial { width: 100%; height: 100%; display: block; }
@@ -373,8 +375,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The ring reaches top and bottom of the frame: 62vh inscribed puts it at ~88vh,
    which is the safe area. The copy then overlays the lower arc on its own grade,
    rather than being pushed off the bottom. */
-.face[data-face="dial"] .cover { width: 55vh; height: 55vh; }
-.face.show-chrome[data-face="dial"] .cover { width: 40vh; height: 40vh; }
+/* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
+.face[data-face="dial"] .cover { width: 52vh; height: 52vh; }
+.face.show-chrome[data-face="dial"] .cover { width: 38vh; height: 38vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
