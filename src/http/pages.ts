@@ -1,4 +1,3 @@
-import { qrSvg } from './qr.ts';
 import { renderMarkdown } from './markdown.ts';
 
 /**
@@ -39,13 +38,23 @@ function head(nonce: string, title: string, styleHref: string): string {
     + '</head>';
 }
 
+/**
+ * ONE address, and no QR.
+ *
+ * The QR was here because `.local` does not resolve on Fire OS, Echo Show or
+ * Android <= 11, so a TV may only ever be able to show a typeable or scannable
+ * address. That reasoning still holds for the ADDRESS — which is why the one
+ * shown is the numeric one, not the pretty one — but the code itself was never
+ * once scanned successfully, and a broken affordance taking a corner of the wall
+ * is worse than none (Peter, 08-26). `qrSvg` and its tests stay put, for a
+ * click-to-show once a phone has actually read one.
+ *
+ * Three lines were two too many: whoever is reading this already reached the
+ * page, and the address is for the NEXT device, which needs one that works.
+ */
 export function renderWallPage(nonce: string, urls: readonly string[]): string {
-  const primary = urls[0] ?? '';
-  const secondary = urls.slice(1);
-  // ⚠️ The QR is REQUIRED, not decorative: .local does not resolve on Fire OS,
-  // Echo Show or Android <= 11, so a TV may only ever show a typeable/scannable IP.
-  const qr = secondary.length > 0 ? qrSvg(secondary[0], 132, '#0b0c0e', '#e8e3d8')
-    : (primary === '' ? '' : qrSvg(primary, 132, '#0b0c0e', '#e8e3d8'));
+  const numeric = urls.find((url) => /^https?:\/\/\d+\.\d+\.\d+\.\d+(\/|:|$)/.test(url));
+  const reach = numeric ?? urls[0] ?? '';
   return head(nonce, 'FlightDeck', '/assets/wall.css')
     + '<body><main class="wall" id="wall" data-state="connecting">'
     + '<header class="wall-head">'
@@ -56,12 +65,10 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
     + '<nav class="wall-tabs" id="tabs" hidden></nav>'
     + '<div class="grid" id="grid"></div>'
     + '<footer class="wall-foot">'
-    + '<div class="reach"><div class="reach-urls">'
-    + (primary === '' ? '' : '<div class="url primary">' + primary + '</div>')
-    + secondary.map((url) => '<div class="url alt">' + url + '</div>').join('')
-    + '<div class="reach-note">Add <code>/now</code> for a screen that follows the music · '
-    + 'type the address on a TV that cannot find <code>.local</code></div>'
-    + '</div><div class="qr">' + qr + '</div></div>'
+    + '<div class="reach">'
+    + (reach === '' ? '' : '<span class="url primary">' + reach + '</span>')
+    + '<span class="reach-note">add <code>/now</code> for a screen that follows the music</span>'
+    + '</div>'
     + '</footer></main></body></html>';
 }
 

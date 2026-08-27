@@ -99,14 +99,16 @@ body { min-height: 100vh; }
 @media (max-width: 900px) { .overflow { font-size: 2.2vw; } }
 
 .wall-foot { margin-top: 1.4vh; padding-top: 1.2vh; border-top: 1px solid var(--line); }
-.reach { display: flex; align-items: center; justify-content: flex-end; }
-.reach-urls { text-align: right; margin-right: 1.2vw; }
+.reach {
+  display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-align-items: baseline; align-items: baseline;
+  -webkit-justify-content: center; justify-content: center;
+}
 .url { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
 .url.primary { font-size: 1.5vw; color: var(--bone); }
 .url.alt { font-size: 1.05vw; color: var(--ash); }
-.reach-note { font-size: 0.8vw; color: var(--dim); margin-top: 0.3vh; }
+.reach-note { font-size: 0.8vw; color: var(--dim); margin-left: 1.2vw; }
 .reach-note code { color: var(--ash); }
-.qr { flex: 0 0 auto; line-height: 0; }
 
 .empty { padding: 8vh 0; text-align: center; color: var(--dim); font-size: 1.3vw; }
 @media (max-width: 900px) {
