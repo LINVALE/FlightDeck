@@ -827,6 +827,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   cursor: default; opacity: .55;
 }
 .picker span.opt.off:hover { background: none; border-color: rgba(242,238,230,.10); }
+/* an action carries its mark beside its word */
+.picker span.opt.act {
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+}
+.picker span.opt.act .glyph {
+  width: 1.18vw; height: 1.18vw; margin-right: .5vw;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+}
+@media (max-width: 900px) { .picker span.opt.act .glyph { width: 3.4vw; height: 3.4vw; margin-right: 1.6vw; } }
 
 @media (max-width: 900px) {
   .cog { font-size: 3vw; min-width: 22vw; }

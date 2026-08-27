@@ -928,17 +928,26 @@ function zoneActionRow(here) {
   var hasPeer = island.length > 1;
   var isGroup = here.outputs.length > 1;
 
-  var act = function (label, enabled, onPress) {
-    var b = el('span', enabled ? 'opt' : 'opt off', label);
+  /**
+   * Icon AND word. These three are rare enough that nobody has learned their
+   * shapes, and "two circles apart" is only obviously ungroup once you have seen
+   * it beside group — so the mark speeds up recognition rather than carrying the
+   * meaning on its own (Peter, 08-26: "or replace with icon if meaning is
+   * evident" — here it is not).
+   */
+  var act = function (mark, label, enabled, onPress) {
+    var b = el('span', enabled ? 'opt act' : 'opt act off');
+    b.appendChild(glyph(mark));
+    b.appendChild(document.createTextNode(label));
     if (enabled) pressable(b, onPress);
     return b;
   };
-  row.appendChild(act('group\u2026', hasPeer, function () { groupPick = []; showPicker('group'); }));
-  row.appendChild(act('ungroup', isGroup, function () {
+  row.appendChild(act('group', 'group\u2026', hasPeer, function () { groupPick = []; showPicker('group'); }));
+  row.appendChild(act('ungroup', 'ungroup', isGroup, function () {
     picker.hidden = true;
     command({ action: 'ungroup', zone: here.id });
   }));
-  row.appendChild(act('send to\u2026', here.nowPlaying !== null, function () { showPicker('transfer'); }));
+  row.appendChild(act('send-to', 'send to\u2026', here.nowPlaying !== null, function () { showPicker('transfer'); }));
   return row;
 }
 
@@ -1659,6 +1668,24 @@ var glyph = function (name) {
         'M16 13.8 18 16 20 13.8',
         'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
         'M4 10.2 6 8 8 10.2',
+      ],
+      /* A CHAIN, whole and broken. Two circles overlapping vs two circles apart
+         read as the same small "oo" at 20px — the difference was the gap, which
+         is exactly what vanishes at that size. A link is also already Peter's own
+         word for a group: the fixed groups are named 🔗 Garden, 🔗 Downstairs. */
+      group: [
+        'M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
+        'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4',
+      ],
+      ungroup: [
+        'M14.5 9.5 16.8 7.2a3.6 3.6 0 1 1 5.1 5.1l-2.3 2.3',
+        'M9.5 14.5 7.2 16.8a3.6 3.6 0 1 1-5.1-5.1l2.3-2.3',
+      ],
+      /* out of this room, into another */
+      'send-to': [
+        'M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
+        'M10.8 12h9.1',
+        'M16.8 8.7 20.3 12l-3.5 3.3',
       ],
       'repeat-one': [
         'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
