@@ -1082,6 +1082,29 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    the same place Dial puts it — not floating above the frame detached from it */
 .face[data-face="orbit"] .dial-reading { top: 12%; left: 0; right: 0; }
 
+/**
+ * ORBIT'S RING IS A LINE, NOT A BAND.
+ *
+ * Dial's arc is 3.4 against a 1.3 track — nearly three times the weight — which
+ * works when the words sit INSIDE the circle and the ring is the frame of the
+ * picture. Orbit stands the words beside it, and a band that heavy reads as a
+ * second object competing with them (Peter, 08-26: "only a hair wider than the
+ * main ring but with clear contrast").
+ *
+ * So the contrast comes from LIGHTNESS rather than thickness — ten to one against
+ * the unplayed track, which reads on any album. It cannot come from the accent:
+ * that is sampled from the artwork, and on this Tony Bennett sleeve it resolved to
+ * #837e83 with --accent-rich DARKER still, so a thin arc in it vanished into the
+ * track completely. Thickness had been hiding that.
+ *
+ * The album's colour stays on the bead, which is where it can be seen. The bead
+ * shrinks too — it marks the position, it was never meant to be the loudest thing
+ * on the face — which also keeps the ring's widest point clear of the words.
+ */
+.face[data-face="orbit"] .dial-arc { stroke-width: 1.8; stroke: rgba(242,238,230,.9); }
+.face[data-face="orbit"] .dial-track { stroke-width: 1.3; stroke: rgba(242,238,230,.09); }
+.face[data-face="orbit"] .dial-bead { r: 2.1; stroke-width: .7; }
+
 @media (max-width: 900px) {
   .face[data-face="orbit"] .np { -webkit-flex-direction: column; flex-direction: column; padding-left: 0; }
   .face[data-face="orbit"] .copy { text-align: center; margin-left: 0; margin-top: 12vw; }
