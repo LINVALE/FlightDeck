@@ -30,11 +30,32 @@ try { activeIsland = localStorage.getItem('flightdeck.island') || ''; } catch (e
 var tabsKey = '';
 
 /**
+ * A FAMILY HAS A COLOUR.
+ *
+ * Roon groups rooms by how they connect and never says what those groups are, so
+ * naming them needs a person. A colour does not (Peter, 08-26: "each family
+ * identified by a distinct but elegant subtle colour — no need to name"). The
+ * same colour marks the tab and every tile in that family, so the wall teaches
+ * the association itself, without a legend and without a word.
+ *
+ * Assigned by size order, which is stable: an island's rank does not move as the
+ * music does. Muted on purpose — these sit behind the artwork, not in front of it.
+ */
+var FAMILY_COLOURS = ['#7fa6b0', '#b39b78', '#a08bb0', '#8faa8a', '#b08f92', '#8b95b5'];
+
+function familyColour(index) {
+  return FAMILY_COLOURS[index % FAMILY_COLOURS.length];
+}
+
+/**
  * The server orders and counts the islands; the names come with them. Roon says
  * nothing about what a set of outputs IS — no protocol field, no MAC, and
  * `source_controls` names the device, not the transport — so an island shows the
  * name a person gave it, and only falls back to naming itself by its members.
  */
+/** membership hash (what an output carries) -> the server's stable island id */
+var serverIsland = {};
+
 function islandsOf(snapshot) {
   var members = {};
   for (var i = 0; i < snapshot.zones.length; i += 1) {
@@ -48,20 +69,23 @@ function islandsOf(snapshot) {
   var islands = snapshot.islands || [];
   for (var j = 0; j < islands.length; j += 1) {
     var names = (members[islands[j].id] || []).slice().sort();
+    serverIsland[islands[j].id] = islands[j].id;
     /**
-     * An unnamed island is TYPE N, not the first device in it. Roon does give us
+     * An unnamed island is ROON N, not the first device in it. Roon does give us
      * the types — the partition is exactly that — it just does not say what any
-     * of them IS (Peter, 08-26: "so we basically know they can be type 1, 2, 3").
-     * Naming one after a member was arbitrary: it made the Squeezebox family look
-     * like it was called Cobalt. A number claims nothing, and asks to be named.
+     * of them IS. Naming one after a member was arbitrary: it made the Squeezebox
+     * family look as though it were called Cobalt. A number claims nothing, and
+     * asks to be named — which is done in Roon's own Settings → Extensions.
      */
     list.push({
       id: islands[j].id,
       count: islands[j].count,
       members: names,
+      colour: familyColour(j),
       named: islands[j].label !== null,
-      label: islands[j].label !== null ? islands[j].label
-        : 'type ' + String(j + 1),
+      // A name is optional now. Unnamed, the tab is its colour and its size —
+      // which is all you need to pick one, and claims nothing that is not true.
+      label: islands[j].label !== null ? islands[j].label : String(islands[j].count) + ' rooms',
     });
   }
   return list;
@@ -122,11 +146,11 @@ function drawTabs(islands, total) {
   for (var i = 0; i < islands.length; i += 1) {
     (function (island) {
       var node = tab(island.id, island.label);
-      if (!island.named) {
-        node.className += ' unnamed';
-        // what is in it, for anyone wondering which type this is
-        node.setAttribute('title', String(island.count) + ' rooms: ' + island.members.join(' · '));
-      }
+      var swatch = el('span', 'wall-swatch');
+      swatch.style.background = island.colour;
+      node.insertBefore(swatch, node.firstChild);
+      if (!island.named) node.className += ' unnamed';
+      node.setAttribute('title', String(island.count) + ' rooms: ' + island.members.join(' · '));
       // A second press on the tab you are already on asks what it should be called.
       node.addEventListener('dblclick', function () { renameIsland(island, node); });
       var pen = el('span', 'wall-tab-pen', '\u270E');
@@ -336,6 +360,19 @@ function render(snapshot, kind) {
 
     var islands = islandsOf(snapshot);
     drawTabs(islands, snapshot.zones.length);
+    // every tile wears its family's colour, which is how the tab's colour comes
+    // to mean something without a legend anywhere
+    var colourOf = {};
+    for (var ci = 0; ci < islands.length; ci += 1) colourOf[islands[ci].id] = islands[ci].colour;
+    /**
+     * And the wall itself takes the family's colour while you are in it (Peter,
+     * 08-26). Choosing a tab is choosing a room family, so the brand mark, the
+     * progress fills and the tab all move together — you can tell which family
+     * you are looking at from across the room without reading anything.
+     * `all` goes back to FlightDeck's own amber.
+     */
+    root.style.setProperty('--accent',
+      activeIsland !== '' && colourOf[activeIsland] !== undefined ? colourOf[activeIsland] : '#d8a24a');
     var inTab = snapshot.zones;
     if (activeIsland !== '') {
       inTab = [];
@@ -351,6 +388,9 @@ function render(snapshot, kind) {
     var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
     var overflow = held.slice(shown.length);
     var count = shown.length;
+    // Density follows what is ON THE PAGE, which is now a family rather than the
+    // house: three rooms in a tab should look like three rooms, not like a corner
+    // of twenty-two.
     root.setAttribute('data-density', count > 20 ? 'packed' : (count > 9 ? 'dense' : 'roomy'));
 
     var nextOrder = [];
@@ -359,7 +399,11 @@ function render(snapshot, kind) {
       var tile = tiles[zone.id];
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
-      tile.node.className = classFor(zone, isHero) + (snapshot.zones.length <= 3 ? ' solo' : '');
+      tile.node.className = classFor(zone, isHero) + (count <= 3 ? ' solo' : '');
+      // In one family's tab every tile is that family: the edge would say nothing.
+      var family = activeIsland !== '' || zone.outputs.length === 0
+        ? undefined : colourOf[serverIsland[zone.outputs[0].island]];
+      tile.node.style.boxShadow = family === undefined ? '' : 'inset 0.22vw 0 0 ' + family;
       tile.name.textContent = zone.name;
       setChips(tile, zone);
       var np = zone.nowPlaying;
