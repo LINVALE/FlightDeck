@@ -53,6 +53,7 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
     + '<div class="wall-summary" id="summary">Connecting…</div>'
     + '<div class="wall-core" id="core"></div>'
     + '</header>'
+    + '<nav class="wall-tabs" id="tabs" hidden></nav>'
     + '<div class="grid" id="grid"></div>'
     + '<footer class="wall-foot">'
     + '<div class="reach"><div class="reach-urls">'

@@ -15,6 +15,96 @@ var summaryEl = document.getElementById('summary');
 var coreEl = document.getElementById('core');
 var tiles = {};
 var order = [];
+var tabsEl = document.getElementById('tabs');
+
+/**
+ * ISLAND TABS.
+ *
+ * Roon partitions grouping by protocol and says so per output, but names the
+ * protocol nowhere — so the tabs are built from the RELATION itself, and labelled
+ * from the rooms in them rather than from a word we would have had to guess.
+ * Dividing the house this way is also what makes the tile cap unnecessary.
+ */
+var activeIsland = '';
+try { activeIsland = localStorage.getItem('flightdeck.island') || ''; } catch (e) { activeIsland = ''; }
+var tabsKey = '';
+
+function islandsOf(zones) {
+  var byId = {};
+  for (var i = 0; i < zones.length; i += 1) {
+    var zone = zones[i];
+    var key = zone.outputs.length > 0 ? zone.outputs[0].island : '';
+    if (key === '') continue;
+    if (byId[key] === undefined) byId[key] = { id: key, names: [], count: 0 };
+    byId[key].names.push(zone.name);
+    byId[key].count += 1;
+  }
+  var list = [];
+  for (var k in byId) if (Object.prototype.hasOwnProperty.call(byId, k)) list.push(byId[k]);
+  // largest first, then by id: a stable order that does not move as music does
+  list.sort(function (a, b) { return b.count - a.count || (a.id < b.id ? -1 : 1); });
+  for (var j = 0; j < list.length; j += 1) {
+    list[j].names.sort();
+    list[j].label = list[j].count > 1
+      ? list[j].names[0] + '  +' + String(list[j].count - 1)
+      : list[j].names[0];
+  }
+  return list;
+}
+
+function drawTabs(islands, total) {
+  var key = islands.map(function (i) { return i.id + ':' + String(i.count); }).join('|') + '#' + activeIsland;
+  if (key === tabsKey) return;
+  tabsKey = key;
+  if (islands.length < 2) { tabsEl.hidden = true; tabsEl.replaceChildren(); return; }
+  tabsEl.hidden = false;
+  var nodes = [];
+  var tab = function (id, label) {
+    var node = el('span', activeIsland === id ? 'wall-tab now' : 'wall-tab', label);
+    node.addEventListener('click', function () {
+      activeIsland = id;
+      try { localStorage.setItem('flightdeck.island', id); } catch (e) { /* private window */ }
+      tabsKey = '';
+      order = [];                        // a deliberate switch may reorder freely
+      var snap = store.snapshot();
+      if (snap !== null) render(snap, 'snapshot');
+    });
+    return node;
+  };
+  nodes.push(tab('', 'all  ' + String(total)));
+  for (var i = 0; i < islands.length; i += 1) nodes.push(tab(islands[i].id, islands[i].label));
+  tabsEl.replaceChildren.apply(tabsEl, nodes);
+}
+
+/**
+ * HOLDING YOUR PLACE.
+ *
+ * The wall is ordered most-recently-played first, which is right, but re-sorting
+ * on every frame moved every tile each time any room changed track — and a wall
+ * you cannot keep your place on is not a wall (Peter, 08-26: "things change
+ * dynamically and I can get lost"). So it re-sorts when a room STARTS or STOPS,
+ * which is news, and holds still through track changes, which are not.
+ */
+var lastLive = null;
+function holdOrder(zones) {
+  var live = [];
+  for (var i = 0; i < zones.length; i += 1) {
+    if (zones[i].state === 'playing' || zones[i].state === 'loading') live.push(zones[i].id);
+  }
+  var signature = live.sort().join(',');
+  var resort = lastLive === null || signature !== lastLive || order.length === 0;
+  lastLive = signature;
+  if (resort) return zones;
+
+  var held = [];
+  for (var k = 0; k < order.length; k += 1) {
+    for (var z = 0; z < zones.length; z += 1) if (zones[z].id === order[k]) { held.push(zones[z]); break; }
+  }
+  for (var n = 0; n < zones.length; n += 1) {
+    if (order.indexOf(zones[n].id) === -1) held.push(zones[n]);
+  }
+  return held;
+}
 
 /**
  * A wall shows the zones worth looking at, not every zone that exists. Because
@@ -25,7 +115,13 @@ var order = [];
  * driven by a remote from a sofa, and a wall nobody has to operate is the point.
  * Override per screen with ?zones=N (0 for all).
  */
-var MAX_TILES = 16;
+/**
+ * No cap by default. It existed because a TV cannot scroll and 22 rooms at once
+ * is a wall of postage stamps — but the island tabs now do that job by dividing
+ * the house rather than truncating it (Peter, 08-26: "we don't need to limit
+ * anymore to 16"). `?tiles=N` still puts a cap back for a small screen.
+ */
+var MAX_TILES = 0;
 (function readCap() {
   var match = /[?&]zones=(\d+)/.exec(window.location.search);
   if (match !== null) MAX_TILES = Math.max(0, Math.min(64, parseInt(match[1], 10)));
@@ -173,10 +269,22 @@ function render(snapshot, kind) {
       return;
     }
 
-    // Fit the house into the screen: a TV cannot scroll, so shown zones are capped
-    // and density scales with what is left.
-    var shown = MAX_TILES === 0 ? snapshot.zones : snapshot.zones.slice(0, MAX_TILES);
-    var overflow = snapshot.zones.slice(shown.length);
+    var islands = islandsOf(snapshot.zones);
+    drawTabs(islands, snapshot.zones.length);
+    var inTab = snapshot.zones;
+    if (activeIsland !== '') {
+      inTab = [];
+      for (var t = 0; t < snapshot.zones.length; t += 1) {
+        var outs = snapshot.zones[t].outputs;
+        if (outs.length > 0 && outs[0].island === activeIsland) inTab.push(snapshot.zones[t]);
+      }
+      // an island that has gone away must not leave an empty wall
+      if (inTab.length === 0) { activeIsland = ''; inTab = snapshot.zones; tabsKey = ''; }
+    }
+    var held = holdOrder(inTab);
+    // A TV cannot scroll, so density scales with what is on the page.
+    var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
+    var overflow = held.slice(shown.length);
     var count = shown.length;
     root.setAttribute('data-density', count > 20 ? 'packed' : (count > 9 ? 'dense' : 'roomy'));
 
