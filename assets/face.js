@@ -955,7 +955,6 @@ function showPicker(mode) {
     var head = currentZone();
     var island = head === null || head.outputs.length === 0 ? '' : head.outputs[0].island;
     var pickRow = el('div', 'row row-faces');
-    var restRow = el('div', 'row row-faces');
     var snap2 = store.snapshot();
     var all = snap2 === null ? [] : snap2.zones;
     for (var g = 0; g < all.length; g += 1) {
@@ -966,29 +965,21 @@ function showPicker(mode) {
         var joinable = island !== '' && z.outputs.length > 0 && z.outputs.every(function (o) {
           return o.island === island;
         });
+        // A room Roon will not join is simply NOT HERE (Peter, 08-26). Showing it
+        // greyed explained the rule but made the list twice as long to read, and
+        // the list is what you are trying to choose from.
+        if (!joinable) return;
         var chosen = groupPick.indexOf(z.id) !== -1;
-        var opt = el('span', joinable ? (chosen ? 'opt now' : 'opt') : 'opt off', z.name);
-        if (joinable) {
-          pressable(opt, function () {
-            var at = groupPick.indexOf(z.id);
-            if (at === -1) groupPick.push(z.id); else groupPick.splice(at, 1);
-            showPicker('group');
-          });
-        } else {
-          opt.setAttribute('title', 'Roon cannot group ' + z.name + ' with ' + (head === null ? 'this room' : head.name));
-        }
-        (joinable ? pickRow : restRow).appendChild(opt);
+        var opt = el('span', chosen ? 'opt now' : 'opt', z.name);
+        pressable(opt, function () {
+          var at = groupPick.indexOf(z.id);
+          if (at === -1) groupPick.push(z.id); else groupPick.splice(at, 1);
+          showPicker('group');
+        });
+        pickRow.appendChild(opt);
       })(all[g]);
     }
-    /**
-     * The rooms that CAN join come first, together, and the rest follow in their
-     * own row. Roon's grouping relation is a closed partition — 22 outputs, three
-     * membership lists, each identical for all its members — so this is the
-     * house's real structure rather than a sort we invented, and it is the same
-     * structure a saved group will live inside.
-     */
     nodes.push(pickRow);
-    if (restRow.children.length > 0) nodes.push(restRow);
 
     var doneRow = el('div', 'row row-faces');
     var form = el('span', groupPick.length === 0 ? 'opt off' : 'opt', 
