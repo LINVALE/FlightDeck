@@ -900,6 +900,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-box-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start;
   padding-top: 2vh;
 }
+/**
+ * ...but a RING face overhangs its sleeve by more than half the sleeve's width in
+ * every direction, upward included. Pushing the group to the top of the frame
+ * therefore pushes the circle off it — 21px of the arc were being cut away
+ * (Peter, 08-26: "ring now perfect on now playing, not on control screens").
+ *
+ * A ring face is instead centred in the band it actually has: below the badges,
+ * above the transport bar. The sleeve sits lower than on a flat face, which is
+ * what keeps the whole circle on screen.
+ */
+.face.show-chrome[data-ring] .body { padding-top: 12.4vh; }
+
 .status:empty { display: none; }
 
 /* The face name belongs in the TOP RIGHT CORNER, at the room's own size — not
@@ -1059,6 +1071,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-face="dial"] .title { font-size: 1.9vw; max-width: 100%; }
 .face[data-face="dial"] .line2 { font-size: 1.3vw; margin-top: .8vh; max-width: 85%; }
 .face[data-face="dial"] .line3 { font-size: 1.05vw; margin-top: .4vh; max-width: 68%; }
+/**
+ * WITH THE CHROME UP THE WHOLE FACE SCALES, WORDS INCLUDED.
+ *
+ * The sleeve goes 44vh -> 34vh and the ring goes with it, because the ring is a
+ * percentage of the sleeve. The copy is sized in vw and did not, so the segment
+ * shrank around type that stayed put and the words crossed the arc again — right
+ * after the resting face had been fixed (Peter, 08-26: "ring now perfect on now
+ * playing, not on control screens").
+ *
+ * Everything in the segments is therefore scaled by the same 34/44 the sleeve is.
+ */
+.face.show-chrome[data-face="dial"] .title { font-size: 1.47vw; }
+.face.show-chrome[data-face="dial"] .line2 { font-size: 1vw; margin-top: .6vh; }
+.face.show-chrome[data-face="dial"] .line3 { font-size: .81vw; margin-top: .3vh; }
+.face.show-chrome[data-face="dial"] .copy { padding-top: 1.15vh; }
+.face.show-chrome[data-face="dial"] .dial-times { font-size: .89vw; }
+
 /* and the reading fills the top one */
 .face[data-face="dial"] .dial-reading { top: 12%; }
 
