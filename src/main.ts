@@ -60,12 +60,13 @@ const extension = new FlightDeckExtension(
     // Opt-in: turning this on changes the registration, and Roon then parks the
     // extension until someone re-enables it in Settings.
     browse: BROWSE,
-    // ⚠️ NOT wired on purpose. The settings page is built and one line away —
-    //   settings: { layout: (values) => settingsLayout(values), save: saveSettings }
-    // — but providing a service changes the registration Roon holds, and Roon then
-    // PARKS the extension until someone re-enables it in Settings → Extensions.
-    // Since the families now identify themselves by colour, a name is optional,
-    // and that click is not worth spending until it is asked for.
+    /**
+     * ⚠️ Providing a service changes the registration Roon holds, and Roon PARKS
+     * the extension until a human re-enables it in Settings → Extensions. Peter
+     * asked for it on 08-26 knowing that, so the click is expected — but it is
+     * the reason this cannot be switched on quietly in someone else's house.
+     */
+    settings: { layout: (values) => settingsLayout(values), save: saveSettings },
   },
   {
     onZones: (zones: unknown[]): void => { rawZones = zones; republish(); },
@@ -176,7 +177,6 @@ function urls(): string[] {
  * Each field is titled with the rooms in that island, because "roon 2" means
  * nothing until you can see it is the three AirPlay ones.
  */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 function settingsLayout(values?: Record<string, unknown>): {
   values: Record<string, unknown>; layout: unknown[]; has_error: boolean;
 } {
