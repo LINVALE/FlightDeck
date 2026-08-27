@@ -706,9 +706,19 @@ function updateBar() {
     if (zone !== null) rooms += zone.outputs.length;
   }
 
+  // Same measured rule as the drag hint: a group formed from a head that is not
+  // playing lands stopped and stays that way until somebody presses play.
+  var leadLive = lead !== null && (lead.state === 'playing' || lead.state === 'loading');
   if (lead === null) barHint.textContent = 'choose rooms to group — the first chosen leads';
-  else if (selected.length === 1) barHint.textContent = lead.name + ' leads — its music plays in every room you add';
-  else barHint.textContent = String(rooms) + ' rooms — ' + lead.name + '’s music plays in all of them';
+  else if (selected.length === 1) {
+    barHint.textContent = leadLive
+      ? lead.name + ' leads — its music plays in every room you add'
+      : lead.name + ' leads — it is not playing, so the group will be silent until you press play';
+  } else {
+    barHint.textContent = leadLive
+      ? String(rooms) + ' rooms — ' + lead.name + '’s music plays in all of them'
+      : String(rooms) + ' rooms — ' + lead.name + ' leads, silent until you press play';
+  }
 
   var acts = [];
   if (selected.length >= 2) acts.push(doBtn('group ' + String(rooms) + ' rooms', formGroup));
@@ -919,8 +929,22 @@ function dragHint(overId) {
   if (overId !== null && drag.valid[overId] === true) {
     var target = zoneOf(overId);
     if (target !== null) {
-      var line = 'release: ' + src.name + ' joins ' + target.name + ' — ' + target.name + '’s music plays';
-      if (srcZone !== null && (srcZone.state === 'playing' || srcZone.state === 'loading')) {
+      /**
+       * ⚖️ MEASURED ON THE LIVE CORE, 08-27: Roon auto-plays a newly grouped zone
+       * ONLY when its first output was already playing. Grouped from a PAUSED
+       * head, the zone lands `stopped` with no now-playing at all and never
+       * resumes on its own. (RHEOS proved the same thing on 08-18 across three
+       * Downstairs cycles; the counter-example there was decisive.)
+       *
+       * So the promise has to depend on the target's state. Saying "Study's music
+       * plays" over a paused Study would be a lie the viewer discovers by hearing
+       * silence — the worst way to learn it.
+       */
+      var live = target.state === 'playing' || target.state === 'loading';
+      var line = 'release: ' + src.name + ' joins ' + target.name
+        + (live ? ' — ' + target.name + '’s music plays'
+                : ' — ' + target.name + ' is not playing, so press play after');
+      if (live && srcZone !== null && (srcZone.state === 'playing' || srcZone.state === 'loading')) {
         line += ' · ' + src.name + '’s stops';
       }
       return line;

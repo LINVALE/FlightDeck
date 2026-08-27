@@ -186,6 +186,42 @@ the 🔗 room itself rather than rebuilding it, and the picker sorts 🔗 rooms 
 their island. This is documented as a limitation, not solved, because pretending to solve it
 with name-matching would be exactly the unreliability islands.ts exists to bury.
 
+## 2a. ⚖️ MEASURED AFTER THIS DESIGN WAS WRITTEN (2026-08-27)
+
+A live experiment on the silent RAAT island, prompted by the survey's completeness critic
+noticing that the whole design rested on one JSDoc sentence:
+
+```
+group_outputs([Study ROON (paused), M and S (paused)])
+  +2s / +5s / +9s -> zone "Study ROON + 1"  state=stopped  nowPlaying: none
+ungroup_outputs(both)
+  Study ROON  paused   now playing: Instead      <- the head's queue came BACK
+  M and S     stopped  now playing: none         <- the joiner's queue was destroyed
+```
+
+Three findings, and the first changes this design:
+
+1. **A group formed from a head that is not playing lands `stopped`, shows no
+   now-playing at all, and never resumes on its own.** Roon auto-plays a newly grouped
+   zone ONLY when its first output was already playing. RHEOS proved the same on
+   2026-08-18 across three Downstairs formation cycles, with the no-halt formation as the
+   decisive counter-example (`rheos_v2/src/group/preset-formation-pause-recovery.ts`), and
+   the canon cure is named there: **ONE ungroup + an explicit Roon-led resume**.
+2. The head's queue survives the round trip — it returns, paused, on ungroup.
+3. The joiner's queue is destroyed, permanently. Not restored on ungroup.
+
+**Consequence for this design: `andPlay` is not §9.5 polish, it is the core of recall.**
+A preset whose promise is "form on play" does not work at all without it, because the
+overwhelmingly common case — pressing a preset while the house is quiet — produces a
+silent, stopped group. Move it into increment 2, and make its Play the same single gated
+Roon-led Play RHEOS already proved on 2026-08-16, not a manufactured Pause→Play (refuted
+2026-07-14).
+
+**Consequence for §3's busy-skip:** the "does `group_outputs` steal a playing output"
+question stands, but the "does a superset regroup interrupt the playing group" question
+now has a partial answer — if the head is playing, Roon carries it; the risk is confined
+to what happens to the OTHER members' audio.
+
 ## 3. Forming (recall)
 
 Recall is a **pure plan computed from the live snapshot, then at most ONE `group_outputs`
