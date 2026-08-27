@@ -856,6 +856,42 @@ function openBrowseMenu() {
   showPicker('browse');
 }
 
+/** Rooms chosen in the grouping picker, kept across its redraws. */
+var groupPick = [];
+
+function zoneById(id) {
+  var snap = store.snapshot();
+  if (snap === null) return null;
+  for (var i = 0; i < snap.zones.length; i += 1) if (snap.zones[i].id === id) return snap.zones[i];
+  return null;
+}
+
+/**
+ * What can be DONE with this room, as opposed to which room to look at. Only what
+ * is actually possible is offered: no "ungroup" on a room that is not a group, no
+ * "group" where Roon has no peer to offer, no "transfer" with nothing playing.
+ */
+function zoneActionRow(here) {
+  var row = el('div', 'row row-actions');
+  if (here === null) return row;
+  var island = here.outputs.length === 0 ? [] : here.outputs[0].groupableWith;
+  var hasPeer = island.length > 1;
+  var isGroup = here.outputs.length > 1;
+
+  var act = function (label, enabled, onPress) {
+    var b = el('span', enabled ? 'opt' : 'opt off', label);
+    if (enabled) pressable(b, onPress);
+    return b;
+  };
+  row.appendChild(act('group\u2026', hasPeer, function () { groupPick = []; showPicker('group'); }));
+  row.appendChild(act('ungroup', isGroup, function () {
+    picker.hidden = true;
+    command({ action: 'ungroup', zone: here.id });
+  }));
+  row.appendChild(act('send to\u2026', here.nowPlaying !== null, function () { showPicker('transfer'); }));
+  return row;
+}
+
 function showPicker(mode) {
   cancelDwell();
   mode = mode || 'transport';
@@ -900,6 +936,90 @@ function showPicker(mode) {
     pressable(wall, function () { location.href = '/'; });
     roomRow.appendChild(wall);
     nodes.push(roomRow);
+    nodes.push(zoneActionRow(here));
+  }
+
+  /**
+   * PICKING ROOMS TO GROUP.
+   *
+   * Roon partitions grouping by protocol and says so per output, so a room
+   * outside this zone's island is drawn GREYED rather than hidden: "why is the
+   * Study not in this list" is a worse question than seeing it there, unavailable,
+   * and understanding that Roon will not join those two.
+   *
+   * The zone we came from is the head, and Roon preserves the head's queue — so
+   * grouping from a room that is playing carries that music to the others, which
+   * is what pressing "group" from a playing room ought to mean.
+   */
+  if (mode === 'group') {
+    var head = currentZone();
+    var island = head === null || head.outputs.length === 0 ? [] : head.outputs[0].groupableWith;
+    var pickRow = el('div', 'row row-faces');
+    var snap2 = store.snapshot();
+    var all = snap2 === null ? [] : snap2.zones;
+    for (var g = 0; g < all.length; g += 1) {
+      (function (z) {
+        if (head !== null && z.id === head.id) return;
+        var joinable = z.outputs.length > 0 && z.outputs.every(function (o) {
+          return island.indexOf(o.id) !== -1;
+        });
+        var chosen = groupPick.indexOf(z.id) !== -1;
+        var opt = el('span', joinable ? (chosen ? 'opt now' : 'opt') : 'opt off', z.name);
+        if (joinable) {
+          pressable(opt, function () {
+            var at = groupPick.indexOf(z.id);
+            if (at === -1) groupPick.push(z.id); else groupPick.splice(at, 1);
+            showPicker('group');
+          });
+        } else {
+          opt.setAttribute('title', 'Roon cannot group ' + z.name + ' with ' + (head === null ? 'this room' : head.name));
+        }
+        pickRow.appendChild(opt);
+      })(all[g]);
+    }
+    nodes.push(pickRow);
+
+    var doneRow = el('div', 'row row-faces');
+    var form = el('span', groupPick.length === 0 ? 'opt off' : 'opt', 
+      groupPick.length === 0 ? 'choose rooms to add' : 'group with ' + String(groupPick.length));
+    if (groupPick.length > 0 && head !== null) {
+      pressable(form, function () {
+        var ids = head.outputs.map(function (o) { return o.id; });
+        for (var i = 0; i < groupPick.length; i += 1) {
+          var z = zoneById(groupPick[i]);
+          if (z !== null) ids = ids.concat(z.outputs.map(function (o) { return o.id; }));
+        }
+        groupPick = [];
+        picker.hidden = true;
+        command({ action: 'group', outputs: ids });
+      });
+    }
+    doneRow.appendChild(form);
+    var cancel = el('span', 'opt', 'cancel');
+    pressable(cancel, function () { groupPick = []; showPicker('rooms'); });
+    doneRow.appendChild(cancel);
+    nodes.push(doneRow);
+  }
+
+  /** WHERE SHOULD THIS MUSIC GO? One press, and the queue and position go with it. */
+  if (mode === 'transfer') {
+    var fromZone = currentZone();
+    var toRow = el('div', 'row row-faces');
+    var snap3 = store.snapshot();
+    var others = snap3 === null ? [] : snap3.zones;
+    for (var x = 0; x < others.length; x += 1) {
+      (function (z) {
+        if (fromZone !== null && z.id === fromZone.id) return;
+        var opt = el('span', 'opt', z.name);
+        pressable(opt, function () {
+          picker.hidden = true;
+          command({ action: 'transfer', zone: fromZone.id, to: z.id });
+          shownZoneId = z.id;
+        });
+        toRow.appendChild(opt);
+      })(others[x]);
+    }
+    nodes.push(toRow);
   }
 
   if (mode === 'faces') {
@@ -1026,7 +1146,10 @@ function showPicker(mode) {
   picker.hidden = false;
   panelShownAt = Date.now();
   if (pickerTimer !== null) clearTimeout(pickerTimer);
-  pickerTimer = setTimeout(function () { picker.hidden = true; }, 8000);
+  // Choosing several rooms takes longer than choosing one face, and a strip that
+  // vanishes mid-choice loses the choice. Touch has no hover to hold it open.
+  var linger = (mode === 'group' || mode === 'transfer' || mode === 'rooms') ? 22000 : 8000;
+  pickerTimer = setTimeout(function () { picker.hidden = true; }, linger);
 }
 
 // Hovering anywhere in the strip holds it open — it must not vanish mid-choice.

@@ -61,6 +61,13 @@ export interface ZoneOutput {
   readonly id: string;
   readonly name: string;
   readonly volume: OutputVolume | null;
+  /**
+   * The outputs Roon will let this one join, ITSELF INCLUDED. Roon partitions
+   * grouping by protocol — measured on a live Core, 08-26: RAAT with RAAT,
+   * AirPlay with AirPlay, Squeezebox with Squeezebox, never across — so this is
+   * the only honest way to know what may be offered. Never inferred from a name.
+   */
+  readonly groupableWith: readonly string[];
 }
 
 export interface Allowed {

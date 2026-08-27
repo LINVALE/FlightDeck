@@ -189,6 +189,40 @@ export class FlightDeckExtension {
     });
   }
 
+  /**
+   * Form a group. The ORDER matters and is not ours to choose lightly: Roon
+   * preserves "the first output's zone's queue", so the head of this list is the
+   * room whose music the others join. Everything else's queue is discarded.
+   */
+  groupOutputs(outputIds: readonly string[]): Promise<void> {
+    return this.transportCall((transport, done) => transport.group_outputs(outputIds.slice(), done));
+  }
+
+  /**
+   * Dissolve a group. Kept to ONE call for the whole set on purpose: Roon tears a
+   * Squeezebox grouped zone down on every ungroup, so repeated calls are repeated
+   * damage rather than a more thorough job.
+   */
+  ungroupOutputs(outputIds: readonly string[]): Promise<void> {
+    return this.transportCall((transport, done) => transport.ungroup_outputs(outputIds.slice(), done));
+  }
+
+  /** Move what is playing from one zone to another, queue and position intact. */
+  transferZone(fromZoneId: string, toZoneId: string): Promise<void> {
+    return this.transportCall((transport, done) => transport.transfer_zone(fromZoneId, toZoneId, done));
+  }
+
+  private transportCall(run: (transport: any, done: (error: unknown) => void) => void): Promise<void> {
+    const transport = this.transport;
+    if (transport === null) return Promise.reject(new Error('no core'));
+    return new Promise((resolve, reject) => {
+      run(transport, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
   seek(zoneId: string, seconds: number): Promise<void> {
     return new Promise((resolve, reject) => {
       const transport = this.transport;

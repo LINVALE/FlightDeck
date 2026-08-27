@@ -15,16 +15,22 @@ const DOCS = resolve(fileURLToPath(import.meta.url), '..', '..', 'docs');
 const ZONES: unknown[] = [
   {
     zone_id: 'zPlay', display_name: 'Study', state: 'playing',
-    outputs: [{ output_id: 'oStudy', display_name: 'Study', volume: { type: 'number', min: 0, max: 100, value: 40, step: 1, is_muted: false } }],
+    outputs: [{ output_id: 'oStudy', display_name: 'Study', can_group_with_output_ids: ['oStudy', 'oPeer'], volume: { type: 'number', min: 0, max: 100, value: 40, step: 1, is_muted: false } }],
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
     now_playing: { seek_position: 10, length: 200, image_key: 'k1', three_line: { line1: 'A Track', line2: 'An Artist', line3: 'An Album' } },
     settings: { shuffle: true, loop: 'loop', auto_radio: false },
   },
   {
     zone_id: 'zRadio', display_name: 'Garden', state: 'playing',
-    outputs: [{ output_id: 'oFixed', display_name: 'Garden Fixed' }],   // no volume control at all
+    outputs: [{ output_id: 'oFixed', display_name: 'Garden Fixed' }],   // no volume control, and its own island
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: false, is_previous_allowed: false, is_seek_allowed: false,
     now_playing: { seek_position: 3, image_key: 'k2', three_line: { line1: 'Radio', line2: 'Station', line3: '' } },
+  },
+  {
+    // same island as Study, and silent: the room a group would be formed with
+    zone_id: 'zPeer', display_name: 'Kitchen', state: 'stopped',
+    outputs: [{ output_id: 'oPeer', display_name: 'Kitchen', can_group_with_output_ids: ['oStudy', 'oPeer'] }],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: false, is_previous_allowed: false, is_seek_allowed: false,
   },
 ];
 
@@ -39,6 +45,9 @@ async function serve(t: { after: (fn: () => void) => void }) {
     changeVolume: async (output, steps, incremental) => { sent.push({ kind: 'volume', a: output, b: steps, c: incremental }); },
     mute: async (output, muted) => { sent.push({ kind: 'mute', a: output, b: muted }); },
     changeSettings: async (zone, settings) => { sent.push({ kind: 'settings', a: zone, b: settings }); },
+    groupOutputs: async (ids) => { sent.push({ kind: 'group', a: ids.join('+'), b: null }); },
+    ungroupOutputs: async (ids) => { sent.push({ kind: 'ungroup', a: ids.join('+'), b: null }); },
+    transferZone: async (from, to) => { sent.push({ kind: 'transfer', a: from, b: to }); },
   };
   const hub = new EventHub();
   const relay = new ArtRelay({ artworkUrl: () => '' });
@@ -190,4 +199,53 @@ test('an unknown zone is refused before any command is sent', async (t) => {
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'shuffle', zone: 'nope' })).status, 404);
   assert.equal(sent.length, 0);
+});
+
+/**
+ * Roon partitions grouping by protocol — measured on a live Core, 08-26 — and
+ * refuses across the partition silently. The rule is therefore enforced HERE and
+ * not only drawn: a stale screen, or a request that never came from our page,
+ * must not be able to ask for a group the viewer would see quietly fail.
+ */
+test('a group across Roon\u2019s protocol islands is refused, by name', async (t) => {
+  const { post, sent } = await serve(t);
+  const response = await post({ action: 'group', outputs: ['oStudy', 'oFixed'] });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /Garden Fixed cannot be grouped with Study/);
+  assert.equal(sent.length, 0, 'nothing should reach the Core');
+});
+
+test('a group inside one island is sent in the order given', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group', outputs: ['oStudy', 'oPeer'] })).status, 200);
+  // the HEAD leads: Roon preserves the first output's queue
+  assert.deepEqual(sent.at(-1), { kind: 'group', a: 'oStudy+oPeer', b: null });
+});
+
+test('a group of one is not a group', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group', outputs: ['oStudy'] })).status, 400);
+  assert.equal(sent.length, 0);
+});
+
+test('an unknown output never reaches the Core', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group', outputs: ['oStudy', 'ghost'] })).status, 404);
+  assert.equal(sent.length, 0);
+});
+
+/** One call for the whole set: Roon tears a Squeezebox zone down on every ungroup. */
+test('ungroup refuses a zone that is not a group, and sends one call when it is', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'ungroup', zone: 'zPlay' })).status, 409);
+  assert.equal(sent.length, 0);
+});
+
+test('transfer refuses the room it is already in, and one with nothing playing', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPlay' })).status, 409);
+  assert.equal((await post({ action: 'transfer', zone: 'zPeer', to: 'zPlay' })).status, 409);
+  assert.equal(sent.length, 0);
+  assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPeer' })).status, 200);
+  assert.deepEqual(sent.at(-1), { kind: 'transfer', a: 'zPlay', b: 'zPeer' });
 });

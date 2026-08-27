@@ -98,7 +98,13 @@ function projectOutputs(raw: unknown): ZoneOutput[] {
     const output = candidate as Record<string, unknown>;
     const id = str(output.output_id);
     if (id === '') continue;
-    outputs.push({ id, name: str(output.display_name, id), volume: projectVolume(output.volume) });
+    const peers = Array.isArray(output.can_group_with_output_ids)
+      ? output.can_group_with_output_ids.filter((v): v is string => typeof v === 'string')
+      : [];
+    outputs.push({
+      id, name: str(output.display_name, id), volume: projectVolume(output.volume),
+      groupableWith: peers,
+    });
   }
   return outputs;
 }
@@ -210,6 +216,7 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
 export function structuralSignature(snapshot: Snapshot): string {
   const parts = snapshot.zones.map((zone) => [
     zone.id, zone.name, zone.state,
+    // the output LIST is the group: forming or dissolving one must redraw
     zone.outputs.map((output) => output.id + ':' + output.name
       + ':' + (output.volume === null ? '-' : String(output.volume.value) + '/' + String(output.volume.muted))).join(','),
     zone.nowPlaying === null ? '-' : [

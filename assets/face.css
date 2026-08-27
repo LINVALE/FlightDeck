@@ -819,6 +819,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .picker.mode-transport span.ctl.small .glyph { width: 1.4vw; height: 1.4vw; }
 .picker.mode-rooms { top: 12vh; bottom: auto; }
 .picker span.opt.is-playing { color: var(--bone); }
+/* Offered but not available — a room Roon will not group with this one, or an
+   action that does not apply. Shown rather than hidden: "why is the Study missing"
+   is a worse question than seeing it there and understanding why it is out. */
+.picker span.opt.off {
+  color: var(--smoke); border-color: rgba(242,238,230,.10);
+  cursor: default; opacity: .55;
+}
+.picker span.opt.off:hover { background: none; border-color: rgba(242,238,230,.10); }
 
 @media (max-width: 900px) {
   .cog { font-size: 3vw; min-width: 22vw; }

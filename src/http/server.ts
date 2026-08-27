@@ -22,6 +22,9 @@ export interface Commands {
   setVolume(outputId: string, value: number): Promise<void>;
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
   changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void>;
+  groupOutputs(outputIds: readonly string[]): Promise<void>;
+  ungroupOutputs(outputIds: readonly string[]): Promise<void>;
+  transferZone(fromZoneId: string, toZoneId: string): Promise<void>;
   mute(outputId: string, muted: boolean): Promise<void>;
 }
 
@@ -432,6 +435,63 @@ async function handleControl(
       await commands.changeSettings(zoneId,
         action === 'shuffle' ? { shuffle: !zone.settings.shuffle } : { loop: 'next' });
       log(action + ' -> ' + zone.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    /**
+     * GROUPING. Roon partitions grouping by protocol and says so per output, so
+     * the rule is enforced HERE as well as drawn in the UI: a screen that has a
+     * stale snapshot, or a request that never came from our page at all, must not
+     * be able to ask for a group Roon would refuse — the failure is silent and
+     * the viewer cannot explain it.
+     *
+     * The head of the list leads: Roon preserves the first output's queue.
+     */
+    if (action === 'group') {
+      const wanted = Array.isArray(body.outputs) ? body.outputs.filter((v): v is string => typeof v === 'string') : [];
+      if (wanted.length < 2) { json(response, 400, { error: 'a group needs at least two outputs' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const all = snapshot === null ? [] : snapshot.zones.flatMap((z) => z.outputs);
+      const found = wanted.map((id) => all.find((o) => o.id === id));
+      if (found.some((o) => o === undefined)) { json(response, 404, { error: 'unknown output' }); return; }
+      const head = found[0] as NonNullable<(typeof found)[number]>;
+      const stranger = found.find((o) => !head.groupableWith.includes((o as { id: string }).id));
+      if (stranger !== undefined) {
+        json(response, 409, { error: (stranger as { name: string }).name + ' cannot be grouped with ' + head.name });
+        return;
+      }
+      await commands.groupOutputs(wanted);
+      log('group ' + found.map((o) => (o as { name: string }).name).join(' + '));
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    if (action === 'ungroup') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (zone.outputs.length < 2) { json(response, 409, { error: zone.name + ' is not a group' }); return; }
+      // ONE call for the whole set: Roon tears a Squeezebox grouped zone down on
+      // every ungroup, so a second call is a second injury, not a tidier job.
+      await commands.ungroupOutputs(zone.outputs.map((o) => o.id));
+      log('ungroup ' + zone.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    if (action === 'transfer') {
+      const fromId = typeof body.zone === 'string' ? body.zone : '';
+      const toId = typeof body.to === 'string' ? body.to : '';
+      const snapshot = deps.hub.snapshot();
+      const from = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === fromId);
+      const to = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === toId);
+      if (from === undefined || to === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (from.id === to.id) { json(response, 409, { error: 'that is where it is already playing' }); return; }
+      if (from.nowPlaying === null) { json(response, 409, { error: 'there is nothing playing in ' + from.name }); return; }
+      await commands.transferZone(fromId, toId);
+      log('transfer ' + from.name + ' -> ' + to.name);
       json(response, 200, { ok: true });
       return;
     }
