@@ -49,11 +49,17 @@ async function serve(t: { after: (fn: () => void) => void }) {
     ungroupOutputs: async (ids) => { sent.push({ kind: 'ungroup', a: ids.join('+'), b: null }); },
     transferZone: async (from, to) => { sent.push({ kind: 'transfer', a: from, b: to }); },
   };
+  const named: Record<string, string> = {};
+  const islandLabels = {
+    get: (id: string) => named[id] ?? null,
+    all: () => named,
+    set: (id: string, label: string) => { if (label === '') delete named[id]; else named[id] = label; },
+  };
   const hub = new EventHub();
   const relay = new ArtRelay({ artworkUrl: () => '' });
   const ledger = new RecentLedger(null);
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
+    hub, relay, ledger, islandLabels, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
     mdns: () => null, urls: () => [], port: () => 0,
   });
   const at = new Date().toISOString();
@@ -66,7 +72,7 @@ async function serve(t: { after: (fn: () => void) => void }) {
     fetch('http://127.0.0.1:' + String(port) + '/api/v1/control', {
       method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body),
     });
-  return { post, sent, port };
+  return { post, sent, port, named };
 }
 
 test('transport reaches Roon as a zone-level instruction', async (t) => {
@@ -248,4 +254,32 @@ test('transfer refuses the room it is already in, and one with nothing playing',
   assert.equal(sent.length, 0);
   assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPeer' })).status, 200);
   assert.deepEqual(sent.at(-1), { kind: 'transfer', a: 'zPlay', b: 'zPeer' });
+});
+
+/**
+ * Roon says which outputs group together and never says what they ARE — no
+ * protocol field, no MAC, and `source_controls` names the device rather than the
+ * transport. So the name is a person's, stored against the island's own identity
+ * and republished, because every display in the house should call the same set of
+ * rooms the same thing.
+ */
+test('an island can be named, and only one the Core actually reported', async (t) => {
+  const { post, port, named } = await serve(t);
+  const snapshot = await (await fetch('http://127.0.0.1:' + String(port) + '/api/v1/snapshot')).json() as
+    { islands: { id: string; count: number; label: string | null }[] };
+  assert.equal(snapshot.islands.length, 1, 'Study and Kitchen share one island; Garden can group with nothing');
+  const island = snapshot.islands[0];
+  assert.equal(island.count, 2);
+  assert.equal(island.label, null, 'unnamed until somebody says');
+
+  // the route passes the name through; tidying and bounding are IslandLabels'
+  // job and are tested against the real store in islands.test.ts
+  assert.equal((await post({ action: 'label-island', island: island.id, label: 'Roon Ready' })).status, 200);
+  assert.equal(named[island.id], 'Roon Ready');
+
+  const refused = await post({ action: 'label-island', island: 'nope', label: 'x' });
+  assert.equal(refused.status, 404);
+  assert.match(((await refused.json()) as { error: string }).error, /unknown island/);
+  assert.equal((await post({ action: 'label-island', label: 'x' })).status, 400);
+  assert.deepEqual(Object.keys(named), [island.id], 'nothing stored for an island that does not exist');
 });

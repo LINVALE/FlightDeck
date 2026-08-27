@@ -29,31 +29,70 @@ var activeIsland = '';
 try { activeIsland = localStorage.getItem('flightdeck.island') || ''; } catch (e) { activeIsland = ''; }
 var tabsKey = '';
 
-function islandsOf(zones) {
-  var byId = {};
-  for (var i = 0; i < zones.length; i += 1) {
-    var zone = zones[i];
+/**
+ * The server orders and counts the islands; the names come with them. Roon says
+ * nothing about what a set of outputs IS — no protocol field, no MAC, and
+ * `source_controls` names the device, not the transport — so an island shows the
+ * name a person gave it, and only falls back to naming itself by its members.
+ */
+function islandsOf(snapshot) {
+  var members = {};
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    var zone = snapshot.zones[i];
     var key = zone.outputs.length > 0 ? zone.outputs[0].island : '';
     if (key === '') continue;
-    if (byId[key] === undefined) byId[key] = { id: key, names: [], count: 0 };
-    byId[key].names.push(zone.name);
-    byId[key].count += 1;
+    if (members[key] === undefined) members[key] = [];
+    members[key].push(zone.name);
   }
   var list = [];
-  for (var k in byId) if (Object.prototype.hasOwnProperty.call(byId, k)) list.push(byId[k]);
-  // largest first, then by id: a stable order that does not move as music does
-  list.sort(function (a, b) { return b.count - a.count || (a.id < b.id ? -1 : 1); });
-  for (var j = 0; j < list.length; j += 1) {
-    list[j].names.sort();
-    list[j].label = list[j].count > 1
-      ? list[j].names[0] + '  +' + String(list[j].count - 1)
-      : list[j].names[0];
+  var islands = snapshot.islands || [];
+  for (var j = 0; j < islands.length; j += 1) {
+    var names = (members[islands[j].id] || []).slice().sort();
+    list.push({
+      id: islands[j].id,
+      count: islands[j].count,
+      named: islands[j].label !== null,
+      label: islands[j].label !== null ? islands[j].label
+        : (names.length > 1 ? names[0] + '  +' + String(names.length - 1) : (names[0] || 'island')),
+    });
   }
   return list;
 }
 
+/**
+ * NAMING ONE. A TV has no keyboard, but the Samsung remote is a pointer and does
+ * deliver letters and space — so the tab becomes a text field in place, and is
+ * committed by a button a pointer can hit rather than by an Enter key that some
+ * remotes never send.
+ */
+function renameIsland(island, node) {
+  var box = el('span', 'wall-tab renaming');
+  var input = document.createElement('input');
+  input.className = 'wall-rename';
+  input.type = 'text';
+  input.maxLength = 24;
+  input.value = island.named ? island.label : '';
+  input.placeholder = 'name this group';
+  var commit = function (value) {
+    fetch('/api/v1/control', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'label-island', island: island.id, label: value }),
+    }).then(function () { tabsKey = ''; var s = store.snapshot(); if (s !== null) render(s, 'snapshot'); });
+  };
+  input.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') commit(input.value);
+    if (event.key === 'Escape') { tabsKey = ''; var s = store.snapshot(); if (s !== null) render(s, 'snapshot'); }
+  });
+  var save = el('span', 'wall-rename-do', 'save');
+  save.addEventListener('click', function () { commit(input.value); });
+  box.appendChild(input);
+  box.appendChild(save);
+  node.parentNode.replaceChild(box, node);
+  input.focus();
+}
+
 function drawTabs(islands, total) {
-  var key = islands.map(function (i) { return i.id + ':' + String(i.count); }).join('|') + '#' + activeIsland;
+  var key = islands.map(function (i) { return i.id + ':' + String(i.count) + ':' + i.label; }).join('|') + '#' + activeIsland;
   if (key === tabsKey) return;
   tabsKey = key;
   if (islands.length < 2) { tabsEl.hidden = true; tabsEl.replaceChildren(); return; }
@@ -72,7 +111,21 @@ function drawTabs(islands, total) {
     return node;
   };
   nodes.push(tab('', 'all  ' + String(total)));
-  for (var i = 0; i < islands.length; i += 1) nodes.push(tab(islands[i].id, islands[i].label));
+  for (var i = 0; i < islands.length; i += 1) {
+    (function (island) {
+      var node = tab(island.id, island.label);
+      if (!island.named) node.className += ' unnamed';
+      // A second press on the tab you are already on asks what it should be called.
+      node.addEventListener('dblclick', function () { renameIsland(island, node); });
+      var pen = el('span', 'wall-tab-pen', '\u270E');
+      pen.addEventListener('click', function (event) {
+        event.stopPropagation();
+        renameIsland(island, node);
+      });
+      node.appendChild(pen);
+      nodes.push(node);
+    })(islands[i]);
+  }
   tabsEl.replaceChildren.apply(tabsEl, nodes);
 }
 
@@ -269,7 +322,7 @@ function render(snapshot, kind) {
       return;
     }
 
-    var islands = islandsOf(snapshot.zones);
+    var islands = islandsOf(snapshot);
     drawTabs(islands, snapshot.zones.length);
     var inTab = snapshot.zones;
     if (activeIsland !== '') {

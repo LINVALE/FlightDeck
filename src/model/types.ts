@@ -123,6 +123,17 @@ export interface Core {
   readonly sinceAt: string;
 }
 
+/**
+ * A grouping island, with the name someone gave it. Roon names the protocol
+ * nowhere — see `src/labels/islands.ts` — so `label` is null until a person says
+ * what this one is, and the screen falls back to naming it by its members.
+ */
+export interface Island {
+  readonly id: string;
+  readonly label: string | null;
+  readonly count: number;
+}
+
 export interface Snapshot {
   /**
    * Identity of the SERVER PROCESS. The revision counter restarts from zero when
@@ -136,6 +147,8 @@ export interface Snapshot {
   readonly generatedAt: string;
   readonly core: Core;
   readonly zones: readonly Zone[];
+  /** Grouping islands present in this snapshot, largest first. */
+  readonly islands: readonly Island[];
 }
 
 /** The 1 Hz seek frame: playing zones only, no revision bump. */

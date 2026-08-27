@@ -7,6 +7,7 @@ import { EventHub } from './http/events.ts';
 import { FlightDeckExtension } from './roon/extension.ts';
 import { BrowseGateway } from './roon/browse.ts';
 import { MdnsResponder } from './net/mdns.ts';
+import { IslandLabels } from './labels/islands.ts';
 import { RecentLedger } from './ledger/recent.ts';
 import { buildSnapshot, structuralSignature } from './model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from './http/server.ts';
@@ -36,6 +37,7 @@ function log(message: string): void { process.stdout.write(stamp() + '  ' + mess
 mkdirSync(DATA_DIR, { recursive: true });
 
 const ledger = new RecentLedger(DATA_DIR);
+const islandLabels = new IslandLabels(DATA_DIR);
 const hub = new EventHub();
 
 let rawZones: unknown[] = [];
@@ -100,7 +102,8 @@ function republish(): void {
     );
   }
   const candidate = buildSnapshot(
-    { generation: GENERATION, zones: rawZones, coreName, corePaired, coreSinceAt, revision: revision + 1, at },
+    { generation: GENERATION, zones: rawZones, coreName, corePaired, coreSinceAt, revision: revision + 1, at,
+      islandLabels: islandLabels.all() },
     relay,
     ledger,
   );
@@ -158,7 +161,8 @@ function urls(): string[] {
 }
 
 const deps = {
-  hub, relay, ledger,
+  hub, relay, ledger, islandLabels,
+  onIslandLabelled: republish,
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,
   commands: extension,

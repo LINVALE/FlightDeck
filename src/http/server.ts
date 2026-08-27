@@ -63,6 +63,10 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 }
 
 export interface ServerDeps {
+  /** Names people have given the grouping islands; renaming republishes the snapshot. */
+  readonly islandLabels?: { get(id: string): string | null; all(): Readonly<Record<string, string>>; set(id: string, label: string): void };
+  /** Called after a rename so the caller can republish; without it the name waits for the next zone change. */
+  readonly onIslandLabelled?: () => void;
   readonly hub: EventHub;
   readonly relay: ArtRelay;
   readonly ledger: RecentLedger;
@@ -492,6 +496,27 @@ async function handleControl(
       if (from.nowPlaying === null) { json(response, 409, { error: 'there is nothing playing in ' + from.name }); return; }
       await commands.transferZone(fromId, toId);
       log('transfer ' + from.name + ' -> ' + to.name);
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    /**
+     * NAMING AN ISLAND. Roon says which outputs group together and never says
+     * what they are; a person does. The name is stored against the island's own
+     * identity and republished, so every screen in the house agrees at once
+     * rather than each remembering its own word for the same set.
+     */
+    if (action === 'label-island') {
+      const store = deps.islandLabels;
+      if (store === undefined) { json(response, 503, { error: 'names are not stored on this server' }); return; }
+      const island = typeof body.island === 'string' ? body.island : '';
+      if (island === '') { json(response, 400, { error: 'island required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const known = snapshot !== null && snapshot.islands.some((i) => i.id === island);
+      if (!known) { json(response, 404, { error: 'unknown island' }); return; }
+      store.set(island, typeof body.label === 'string' ? body.label : '');
+      deps.onIslandLabelled?.();
+      log('island named ' + island + ' -> ' + String(body.label ?? ''));
       json(response, 200, { ok: true });
       return;
     }

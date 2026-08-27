@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Allowed, ArtRef, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState } from './types.ts';
+import type { Allowed, ArtRef, Island, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState } from './types.ts';
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
 export interface ArtMinter {
@@ -199,6 +199,8 @@ export interface SnapshotInput {
   readonly coreSinceAt: string;
   readonly revision: number;
   readonly at: string;
+  /** Names people have given the grouping islands; absent is fine. */
+  readonly islandLabels?: Readonly<Record<string, string>>;
 }
 
 export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: RecencyReader): Snapshot {
@@ -217,7 +219,28 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
       sinceAt: input.coreSinceAt,
     },
     zones: orderByRecency(projected, Date.parse(input.at) || Date.now()),
+    islands: collectIslands(projected, input.islandLabels ?? {}),
   };
+}
+
+/**
+ * The islands present, largest first — a stable order, because it does not move
+ * as the music does. A zone belongs to the island of its first output: every
+ * output of a grouped zone is necessarily in the same one, or Roon could not have
+ * grouped them.
+ */
+export function collectIslands(
+  zones: readonly Zone[], labels: Readonly<Record<string, string>>,
+): Island[] {
+  const counts = new Map<string, number>();
+  for (const zone of zones) {
+    const id = zone.outputs.length > 0 ? zone.outputs[0].island : '';
+    if (id === '') continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([id, count]) => ({ id, count, label: labels[id] ?? null }))
+    .sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
 }
 
 /**
@@ -243,5 +266,7 @@ export function structuralSignature(snapshot: Snapshot): string {
     zone.settings === null ? '-' : String(zone.settings.shuffle) + '/' + zone.settings.loop,
     String(zone.lastPlayedAt),
   ].join('~'));
-  return snapshot.core.state + '#' + String(snapshot.core.name) + '#' + parts.join(';');
+  // A renamed island must reach every screen, not just the one that renamed it.
+  const named = snapshot.islands.map((i) => i.id + '=' + String(i.label)).join(',');
+  return snapshot.core.state + '#' + String(snapshot.core.name) + '#' + named + '#' + parts.join(';');
 }

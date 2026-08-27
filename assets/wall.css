@@ -133,3 +133,19 @@ body { min-height: 100vh; }
 .wall-tab:hover { border-color: rgba(232,227,216,.42); color: #e8e3d8; }
 .wall-tab.now { color: var(--accent, #c9a227); border-color: var(--accent, #c9a227); }
 @media (max-width: 900px) { .wall-tab { font-size: 3vw; padding: .8vh 3vw; } }
+
+/* an island nobody has named yet says so quietly */
+.wall-tab.unnamed { font-style: italic; }
+.wall-tab-pen {
+  margin-left: .55vw; opacity: 0; font-style: normal;
+  -webkit-transition: opacity .2s ease; transition: opacity .2s ease;
+}
+.wall-tab:hover .wall-tab-pen { opacity: .8; }
+.wall-tab.renaming { border-color: var(--accent, #c9a227); }
+.wall-rename {
+  background: none; border: none; outline: none; color: #e8e3d8;
+  font: inherit; letter-spacing: .1em; text-transform: uppercase;
+  width: 9vw; padding: 0;
+}
+.wall-rename-do { margin-left: .7vw; color: var(--accent, #c9a227); cursor: pointer; }
+@media (max-width: 900px) { .wall-rename { width: 26vw; } }
