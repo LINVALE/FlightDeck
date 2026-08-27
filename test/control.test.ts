@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ArtRelay } from '../src/art/relay.ts';
 import { EventHub } from '../src/http/events.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
+import { IslandRegistry } from '../src/labels/islands.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder, type Commands } from '../src/http/server.ts';
 
@@ -49,21 +50,25 @@ async function serve(t: { after: (fn: () => void) => void }) {
     ungroupOutputs: async (ids) => { sent.push({ kind: 'ungroup', a: ids.join('+'), b: null }); },
     transferZone: async (from, to) => { sent.push({ kind: 'transfer', a: from, b: to }); },
   };
-  const named: Record<string, string> = {};
-  const islandLabels = {
-    get: (id: string) => named[id] ?? null,
-    all: () => named,
-    set: (id: string, label: string) => { if (label === '') delete named[id]; else named[id] = label; },
+  // the real registry: identity by overlap is the point of it, and a fake that
+  // just held a map would have passed while the real one lost every name
+  const registry = new IslandRegistry(null);
+  const named = (): Record<string, string | null> => {
+    const out: Record<string, string | null> = {};
+    const snapshot = hub.snapshot();
+    for (const island of snapshot?.islands ?? []) out[island.id] = registry.label(island.id);
+    return out;
   };
   const hub = new EventHub();
   const relay = new ArtRelay({ artworkUrl: () => '' });
   const ledger = new RecentLedger(null);
   const server = createFlightDeckServer({
-    hub, relay, ledger, islandLabels, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
+    hub, relay, ledger, islands: registry, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
     mdns: () => null, urls: () => [], port: () => 0,
   });
   const at = new Date().toISOString();
-  hub.publish(buildSnapshot({ generation: 'g', zones: ZONES, coreName: 'C', corePaired: true, coreSinceAt: at, revision: 1, at }, relay, ledger));
+  hub.publish(buildSnapshot({ generation: 'g', zones: ZONES, coreName: 'C', corePaired: true, coreSinceAt: at, revision: 1, at,
+    resolveIsland: (members, hash) => registry.resolve(members, hash) }, relay, ledger));
   await listenWithLadder(server, [0], () => {});
   const address = server.address();
   const port = typeof address === 'object' && address !== null ? address.port : 0;
@@ -72,7 +77,7 @@ async function serve(t: { after: (fn: () => void) => void }) {
     fetch('http://127.0.0.1:' + String(port) + '/api/v1/control', {
       method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body),
     });
-  return { post, sent, port, named };
+  return { post, sent, port, registry };
 }
 
 test('transport reaches Roon as a zone-level instruction', async (t) => {
@@ -264,7 +269,7 @@ test('transfer refuses the room it is already in, and one with nothing playing',
  * rooms the same thing.
  */
 test('an island can be named, and only one the Core actually reported', async (t) => {
-  const { post, port, named } = await serve(t);
+  const { post, port, registry } = await serve(t);
   const snapshot = await (await fetch('http://127.0.0.1:' + String(port) + '/api/v1/snapshot')).json() as
     { islands: { id: string; count: number; label: string | null }[] };
   assert.equal(snapshot.islands.length, 1, 'Study and Kitchen share one island; Garden can group with nothing');
@@ -272,14 +277,11 @@ test('an island can be named, and only one the Core actually reported', async (t
   assert.equal(island.count, 2);
   assert.equal(island.label, null, 'unnamed until somebody says');
 
-  // the route passes the name through; tidying and bounding are IslandLabels'
-  // job and are tested against the real store in islands.test.ts
-  assert.equal((await post({ action: 'label-island', island: island.id, label: 'Roon Ready' })).status, 200);
-  assert.equal(named[island.id], 'Roon Ready');
+  assert.equal((await post({ action: 'label-island', island: island.id, label: '  Roon   Ready ' })).status, 200);
+  assert.equal(registry.label(island.id), 'Roon Ready', 'and tidied on the way in');
 
   const refused = await post({ action: 'label-island', island: 'nope', label: 'x' });
   assert.equal(refused.status, 404);
   assert.match(((await refused.json()) as { error: string }).error, /unknown island/);
   assert.equal((await post({ action: 'label-island', label: 'x' })).status, 400);
-  assert.deepEqual(Object.keys(named), [island.id], 'nothing stored for an island that does not exist');
 });

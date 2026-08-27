@@ -199,8 +199,13 @@ export interface SnapshotInput {
   readonly coreSinceAt: string;
   readonly revision: number;
   readonly at: string;
-  /** Names people have given the grouping islands; absent is fine. */
-  readonly islandLabels?: Readonly<Record<string, string>>;
+  /**
+   * Turns an island's membership into a STABLE id and whatever name it has.
+   * Passed in rather than computed because identity has to survive a device going
+   * to sleep — see `src/labels/islands.ts`. Absent, islands are keyed by their
+   * membership and unnamed.
+   */
+  readonly resolveIsland?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null };
 }
 
 export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: RecencyReader): Snapshot {
@@ -219,7 +224,7 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
       sinceAt: input.coreSinceAt,
     },
     zones: orderByRecency(projected, Date.parse(input.at) || Date.now()),
-    islands: collectIslands(projected, input.islandLabels ?? {}),
+    islands: collectIslands(projected, input.resolveIsland),
   };
 }
 
@@ -230,17 +235,25 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
  * grouped them.
  */
 export function collectIslands(
-  zones: readonly Zone[], labels: Readonly<Record<string, string>>,
+  zones: readonly Zone[],
+  resolve?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null },
 ): Island[] {
-  const counts = new Map<string, number>();
+  const found = new Map<string, { count: number; members: readonly string[] }>();
   for (const zone of zones) {
-    const id = zone.outputs.length > 0 ? zone.outputs[0].island : '';
-    if (id === '') continue;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+    if (zone.outputs.length === 0) continue;
+    const output = zone.outputs[0];
+    if (output.island === '') continue;
+    const seen = found.get(output.island);
+    if (seen === undefined) found.set(output.island, { count: 1, members: output.groupableWith });
+    else seen.count += 1;
   }
-  return [...counts.entries()]
-    .map(([id, count]) => ({ id, count, label: labels[id] ?? null }))
-    .sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
+  const islands: Island[] = [];
+  for (const [hash, { count, members }] of found) {
+    const resolved = resolve === undefined ? { id: hash, label: null } : resolve(members, hash);
+    if (resolved.id === '') continue;             // the registry is full; not drawn rather than mis-drawn
+    islands.push({ id: resolved.id, count, label: resolved.label });
+  }
+  return islands.sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
 }
 
 /**

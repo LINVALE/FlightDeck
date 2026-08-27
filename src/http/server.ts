@@ -64,7 +64,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 
 export interface ServerDeps {
   /** Names people have given the grouping islands; renaming republishes the snapshot. */
-  readonly islandLabels?: { get(id: string): string | null; all(): Readonly<Record<string, string>>; set(id: string, label: string): void };
+  readonly islands?: { label(id: string): string | null; setLabel(id: string, label: string): boolean };
   /** Called after a rename so the caller can republish; without it the name waits for the next zone change. */
   readonly onIslandLabelled?: () => void;
   readonly hub: EventHub;
@@ -507,14 +507,16 @@ async function handleControl(
      * rather than each remembering its own word for the same set.
      */
     if (action === 'label-island') {
-      const store = deps.islandLabels;
+      const store = deps.islands;
       if (store === undefined) { json(response, 503, { error: 'names are not stored on this server' }); return; }
       const island = typeof body.island === 'string' ? body.island : '';
       if (island === '') { json(response, 400, { error: 'island required' }); return; }
       const snapshot = deps.hub.snapshot();
       const known = snapshot !== null && snapshot.islands.some((i) => i.id === island);
       if (!known) { json(response, 404, { error: 'unknown island' }); return; }
-      store.set(island, typeof body.label === 'string' ? body.label : '');
+      if (!store.setLabel(island, typeof body.label === 'string' ? body.label : '')) {
+        json(response, 404, { error: 'unknown island' }); return;
+      }
       deps.onIslandLabelled?.();
       log('island named ' + island + ' -> ' + String(body.label ?? ''));
       json(response, 200, { ok: true });
