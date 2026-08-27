@@ -518,6 +518,32 @@ async function handleControl(
       const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
       if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
       if (zone.outputs.length < 2) { json(response, 409, { error: zone.name + ' is not a group' }); return; }
+      /**
+       * TAKING ONE ROOM OUT — `output` names the member to remove, and exactly
+       * that member is sent, in ONE call. Dissolve-and-regroup would also work,
+       * but Roon tears a Squeezebox grouped zone down on every `ungroup_outputs`,
+       * and rebuilding stops the music in every room that was NOT being changed —
+       * the Google Home failure this UI exists to avoid. The minimum change is
+       * the only change.
+       *
+       * THE LEADER IS PINNED (HEOS's line, chosen over BluOS's promote-the-next):
+       * the group's queue lives with its first output's zone, so what "removing
+       * the leader" leaves behind is not something Roon defines for us. Dissolve
+       * the whole group instead — one gesture, one call, ownership stays coherent.
+       */
+      const outputId = typeof body.output === 'string' ? body.output : '';
+      if (outputId !== '') {
+        const member = zone.outputs.find((o) => o.id === outputId);
+        if (member === undefined) { json(response, 404, { error: 'that room is not in ' + zone.name }); return; }
+        if (zone.outputs[0].id === outputId) {
+          json(response, 409, { error: member.name + ' leads this group — ungroup the whole group instead' });
+          return;
+        }
+        await commands.ungroupOutputs([outputId]);
+        log('ungroup ' + member.name + ' out of ' + zone.name);
+        json(response, 200, { ok: true });
+        return;
+      }
       // ONE call for the whole set: Roon tears a Squeezebox grouped zone down on
       // every ungroup, so a second call is a second injury, not a tidier job.
       await commands.ungroupOutputs(zone.outputs.map((o) => o.id));

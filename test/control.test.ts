@@ -37,7 +37,7 @@ const ZONES: unknown[] = [
 
 interface Sent { kind: string; a: string; b: unknown; c?: unknown }
 
-async function serve(t: { after: (fn: () => void) => void }) {
+async function serve(t: { after: (fn: () => void) => void }, zones: unknown[] = ZONES) {
   const sent: Sent[] = [];
   const commands: Commands = {
     control: async (zone, action) => { sent.push({ kind: 'control', a: zone, b: action }); },
@@ -67,7 +67,7 @@ async function serve(t: { after: (fn: () => void) => void }) {
     mdns: () => null, urls: () => [], port: () => 0,
   });
   const at = new Date().toISOString();
-  hub.publish(buildSnapshot({ generation: 'g', zones: ZONES, coreName: 'C', corePaired: true, coreSinceAt: at, revision: 1, at,
+  hub.publish(buildSnapshot({ generation: 'g', zones, coreName: 'C', corePaired: true, coreSinceAt: at, revision: 1, at,
     resolveIsland: (members, hash) => registry.resolve(members, hash) }, relay, ledger));
   await listenWithLadder(server, [0], () => {});
   const address = server.address();
@@ -249,6 +249,57 @@ test('an unknown output never reaches the Core', async (t) => {
 test('ungroup refuses a zone that is not a group, and sends one call when it is', async (t) => {
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'ungroup', zone: 'zPlay' })).status, 409);
+  assert.equal(sent.length, 0);
+});
+
+/**
+ * A grouped zone, for taking single rooms out. The leader is outputs[0] — the
+ * zone whose queue the group plays — and it is PINNED: HEOS's line, because
+ * `ungroup_outputs` tears a Squeezebox zone down on every call, so what removing
+ * the leader leaves behind is not something Roon defines for us.
+ */
+const GROUPED: unknown[] = [
+  ...ZONES,
+  {
+    zone_id: 'zTrio', display_name: 'Lounge + 2', state: 'playing',
+    outputs: [
+      { output_id: 'oLounge', display_name: 'Lounge', can_group_with_output_ids: ['oLounge', 'oHall', 'oDen'] },
+      { output_id: 'oHall', display_name: 'Hall', can_group_with_output_ids: ['oLounge', 'oHall', 'oDen'] },
+      { output_id: 'oDen', display_name: 'Den', can_group_with_output_ids: ['oLounge', 'oHall', 'oDen'] },
+    ],
+    is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
+    now_playing: { seek_position: 5, length: 100, image_key: 'k3', three_line: { line1: 'Trio', line2: 'Band', line3: '' } },
+  },
+];
+
+test('ungroup of a whole group sends every member in one call', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'ungroup', zone: 'zTrio' })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'ungroup', a: 'oLounge+oHall+oDen', b: null }]);
+});
+
+/**
+ * Taking ONE room out sends exactly that room, in ONE call — never dissolve and
+ * rebuild. Roon tears a Squeezebox grouped zone down on every ungroup_outputs,
+ * and a rebuild stops the music in rooms that were not being changed.
+ */
+test('taking one member out sends only that member', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'ungroup', zone: 'zTrio', output: 'oDen' })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'ungroup', a: 'oDen', b: null }]);
+});
+
+test('the leader is pinned: removing it is refused, by name', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  const response = await post({ action: 'ungroup', zone: 'zTrio', output: 'oLounge' });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /Lounge leads this group/);
+  assert.equal(sent.length, 0, 'nothing reached the Core');
+});
+
+test('a room that is not in the group cannot be taken out of it', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'ungroup', zone: 'zTrio', output: 'oStudy' })).status, 404);
   assert.equal(sent.length, 0);
 });
 
