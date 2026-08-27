@@ -167,3 +167,82 @@ body { min-height: 100vh; }
 }
 .wall-rename-do { margin-left: .7vw; color: var(--accent, #c9a227); cursor: pointer; }
 @media (max-width: 900px) { .wall-rename { width: 26vw; } }
+
+/* --------------------------------------------------------------------------
+   GROUPING ON THE WALL. Floor: Chromium 63 — outlines and margins, no gap.
+   The refusal rule: a room Roon will not join dims its WORDS, never its art
+   (the cover is sacred), and never becomes a drop target.
+   -------------------------------------------------------------------------- */
+
+/* A tile can be picked up: no text selection, no link-drag, no callout. */
+.tile { -webkit-user-select: none; -moz-user-select: none; user-select: none;
+  -webkit-touch-callout: none; -webkit-user-drag: none; }
+.tile img { -webkit-user-drag: none; }
+.chip { cursor: -webkit-grab; cursor: grab; }
+
+.wall-act {
+  margin-left: 1.6vw; -webkit-align-self: center; align-self: center;
+  padding: .3vh .9vw; border: 1px solid var(--line); border-radius: 6px;
+  font-size: 1.05vw; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--dim); cursor: pointer; white-space: nowrap;
+}
+.wall-act:hover { color: var(--bone); border-color: rgba(232,227,216,.42); }
+.wall-act[hidden] { display: none; }
+
+/* The bar: fixed over the footer so appearing never shifts a tile mid-gesture. */
+.wall-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  padding: 1.4vh 2.4vw; background: rgba(10,11,13,.96); border-top: 1px solid var(--line);
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+}
+.wall-bar[hidden] { display: none; }
+.wall-bar-hint { font-size: 1.15vw; color: var(--bone); margin-right: auto; padding-right: 1vw; }
+.wall-do {
+  margin-left: .8vw; padding: .55vh 1.2vw; border: 1px solid var(--accent); border-radius: 6px;
+  font-size: 1.05vw; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent); cursor: pointer; white-space: nowrap;
+}
+.wall-do:hover { background: rgba(216,162,74,.12); }
+
+/* Choose mode: every tile that may join gains a numbered mark; 1 leads. */
+.tile-check { display: none; }
+.wall.is-selecting .tile-check {
+  display: block; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 1.7vw; height: 1.7vw; margin-right: .9vw;
+  border: 1px solid var(--ash); border-radius: 50%;
+  font-size: .95vw; line-height: 1.7vw; text-align: center; color: var(--ink);
+}
+.wall.is-selecting .tile.is-picked .tile-check {
+  background: var(--accent); border-color: var(--accent); font-weight: 700;
+}
+.wall.is-selecting .tile.is-picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+.wall.is-selecting .tile.sel-off .tile-check { visibility: hidden; }
+.wall.is-selecting .tile.sel-off .tile-copy,
+.wall.is-selecting .tile.sel-off .tile-meta { opacity: .35; }
+
+/* The drag: rooms that can take the drop are lit; the one PLAYING — whose music
+   would continue — wears the live green; the one under the pointer is hot. */
+.wall.is-dragging .tile.drop-ok { outline: 2px solid rgba(232,227,216,.35); outline-offset: -2px; }
+.wall.is-dragging .tile.drop-ok.drop-live { outline-color: var(--live); }
+.wall.is-dragging .tile.drop-hot { outline-width: 3px; background: rgba(216,162,74,.08); }
+.wall.is-dragging .tile.drop-no .tile-copy,
+.wall.is-dragging .tile.drop-no .tile-meta { opacity: .35; }
+.wall.is-dragging .tile.drag-src { outline: 1px dashed rgba(232,227,216,.3); outline-offset: -1px; }
+.wall.is-dragging .tile.drag-home { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.wall.is-dragging .chip.chip-held { border-color: var(--accent); color: var(--accent); }
+
+/* The room in hand, following the pointer. */
+.wall-ghost {
+  position: fixed; left: 0; top: 0; z-index: 50; pointer-events: none;
+  padding: .7vh 1.2vw; background: var(--panel); border: 1px solid var(--accent);
+  border-radius: 6px; font-size: 1.15vw; color: var(--bone); white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
+}
+
+@media (max-width: 900px) {
+  .wall-act { font-size: 3vw; }
+  .wall-bar-hint { font-size: 3vw; }
+  .wall-do { font-size: 3vw; padding: .8vh 3vw; }
+  .wall.is-selecting .tile-check { width: 5vw; height: 5vw; line-height: 5vw; font-size: 3vw; margin-right: 2.4vw; }
+  .wall-ghost { font-size: 3.4vw; }
+}
