@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
 const RoonApi = require('node-roon-api');
 const RoonApiTransport = require('node-roon-api-transport');
 const RoonApiBrowse = require('node-roon-api-browse');
+const RoonApiSettings = require('node-roon-api-settings');
 
 export interface ExtensionEvents {
   /** Every zone the Core knows, on every change. FlightDeck is core-wide by design. */
@@ -30,6 +31,29 @@ export interface ExtensionOptions {
    * someone clicks. Proven the hard way on 2026-08-25.
    */
   readonly browse?: boolean;
+  /**
+   * Offer a settings page inside Roon (Settings → Extensions → FlightDeck).
+   *
+   * ⚠️ Providing a service is a change to the registration Roon holds, with the
+   * same consequence as changing the required list: Roon PARKS the extension
+   * until a human re-enables it. Worth it here — naming the grouping islands
+   * wants a real keyboard, and this is where a Roon user looks for an
+   * extension's settings — but it costs one click, once.
+   */
+  readonly settings?: SettingsProvider;
+}
+
+export interface SettingsLayout {
+  readonly values: Record<string, unknown>;
+  readonly layout: readonly unknown[];
+  readonly has_error: boolean;
+}
+
+export interface SettingsProvider {
+  /** The page, built from whatever values Roon has just shown or is proposing. */
+  layout(values?: Record<string, unknown>): SettingsLayout;
+  /** Called only for a real save, never for Roon's dry run. */
+  save(values: Record<string, unknown>): void;
 }
 
 /**
@@ -43,6 +67,7 @@ export class FlightDeckExtension {
   private readonly options: ExtensionOptions;
   private readonly events: ExtensionEvents;
   private api: any = null;
+  private settingsService: any = null;
   private transport: any = null;
   private browse: any = null;
   private coreHost: string | null = null;
@@ -122,12 +147,40 @@ export class FlightDeckExtension {
       },
     });
 
-    api.init_services(this.options.browse === true
+    // Built BEFORE init_services: constructing it is what registers the service.
+    let settingsService: any = null;
+    const provider = this.options.settings;
+    if (provider !== undefined) {
+      settingsService = new RoonApiSettings(api, {
+        get_settings: (cb: (settings: unknown) => void): void => { cb(provider.layout()); },
+        save_settings: (req: any, isDryRun: boolean, settings: any): void => {
+          const next = provider.layout(settings?.values ?? {});
+          req.send_complete(next.has_error ? 'NotValid' : 'Success', { settings: next });
+          // Roon asks twice: once to validate, once for real. Only the second counts.
+          if (!isDryRun && !next.has_error) {
+            provider.save(next.values);
+            settingsService.update_settings(provider.layout());
+          }
+        },
+      });
+      this.settingsService = settingsService;
+    }
+
+    const services: Record<string, unknown[]> = this.options.browse === true
       ? { required_services: [RoonApiTransport], optional_services: [RoonApiBrowse] }
-      : { required_services: [RoonApiTransport] });
+      : { required_services: [RoonApiTransport] };
+    if (settingsService !== null) services.provided_services = [settingsService];
+    api.init_services(services);
     api.start_discovery();
     this.api = api;
     log('discovery started — enable "FlightDeck" in Roon Settings → Extensions');
+  }
+
+  /** Push a fresh page to anyone with the settings dialog open. */
+  refreshSettings(): void {
+    const provider = this.options.settings;
+    if (this.settingsService === null || provider === undefined) return;
+    try { this.settingsService.update_settings(provider.layout()); } catch { /* nobody watching */ }
   }
 
   /** The Browse service, or null when not requested or not granted. */

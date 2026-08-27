@@ -60,6 +60,12 @@ const extension = new FlightDeckExtension(
     // Opt-in: turning this on changes the registration, and Roon then parks the
     // extension until someone re-enables it in Settings.
     browse: BROWSE,
+    // ⚠️ NOT wired on purpose. The settings page is built and one line away —
+    //   settings: { layout: (values) => settingsLayout(values), save: saveSettings }
+    // — but providing a service changes the registration Roon holds, and Roon then
+    // PARKS the extension until someone re-enables it in Settings → Extensions.
+    // Since the families now identify themselves by colour, a name is optional,
+    // and that click is not worth spending until it is asked for.
   },
   {
     onZones: (zones: unknown[]): void => { rawZones = zones; republish(); },
@@ -160,9 +166,64 @@ function urls(): string[] {
   return list;
 }
 
+/**
+ * THE SETTINGS PAGE inside Roon: one field per grouping island.
+ *
+ * Roon partitions grouping by protocol and names it nowhere, so the only place
+ * the names can come from is a person — and this is where a Roon user looks for
+ * an extension's settings, with a real keyboard rather than a TV remote.
+ *
+ * Each field is titled with the rooms in that island, because "roon 2" means
+ * nothing until you can see it is the three AirPlay ones.
+ */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+function settingsLayout(values?: Record<string, unknown>): {
+  values: Record<string, unknown>; layout: unknown[]; has_error: boolean;
+} {
+  const snapshot = hub.snapshot();
+  const present = snapshot === null ? [] : snapshot.islands;
+  const rooms = new Map<string, string[]>();
+  for (const zone of snapshot?.zones ?? []) {
+    if (zone.outputs.length === 0) continue;
+    const island = islands.resolve(zone.outputs[0].groupableWith).id;
+    if (island === '') continue;
+    rooms.set(island, [...(rooms.get(island) ?? []), zone.name]);
+  }
+
+  const out: Record<string, unknown> = {};
+  const layout: unknown[] = [{
+    type: 'label',
+    title: 'Roon groups rooms by how they connect, but never says what those groups are.'
+      + ' Name them here and every FlightDeck screen in the house will use the name.',
+  }];
+  present.forEach((island, index) => {
+    const proposed = values === undefined ? undefined : values[island.id];
+    out[island.id] = typeof proposed === 'string' ? proposed : (island.label ?? '');
+    const members = (rooms.get(island.id) ?? []).sort();
+    layout.push({
+      type: 'string',
+      title: 'roon ' + String(index + 1) + '  ·  ' + String(island.count) + ' rooms',
+      subtitle: members.join(' · '),
+      setting: island.id,
+    });
+  });
+  if (present.length === 0) {
+    layout.push({ type: 'label', title: 'No groups to name yet — waiting for the Core.' });
+  }
+  return { values: out, layout, has_error: false };
+}
+
+function saveSettings(values: Record<string, unknown>): void {
+  for (const [id, value] of Object.entries(values)) {
+    if (typeof value === 'string') islands.setLabel(id, value);
+  }
+  republish();
+  log('island names saved from Roon settings');
+}
+
 const deps = {
   hub, relay, ledger, islands,
-  onIslandLabelled: republish,
+  onIslandLabelled: (): void => { republish(); extension.refreshSettings(); },
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,
   commands: extension,
