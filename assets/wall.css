@@ -44,10 +44,10 @@ body { min-height: 100vh; }
    fallback for a house too big to draw, and at 22 rooms it left the bottom half
    of the screen empty — the tiles were sized for a crowd that the cap meant it
    never actually had to draw. */
-.wall[data-density="packed"] .tile { width: 25%; padding: 0.72vh 0.55vw 0.72vh 0; }
-.wall[data-density="packed"] .tile .tile-art { width: 3.3vw; height: 3.3vw; }
+.wall[data-density="packed"] .tile { width: 25%; padding: 1.25vh 0.55vw 1.25vh 0; }
+.wall[data-density="packed"] .tile .tile-art { width: 4.4vw; height: 4.4vw; }
 .wall[data-density="packed"] .tile.is-hero .tile-art,
-.wall[data-density="packed"] .tile.is-live .tile-art { width: 4.4vw; height: 4.4vw; }
+.wall[data-density="packed"] .tile.is-live .tile-art { width: 5.5vw; height: 5.5vw; }
 .wall[data-density="packed"] .tile-title { font-size: 0.95vw; white-space: nowrap; }
 .wall[data-density="packed"] .tile.is-hero .tile-title { font-size: 1.1vw; }
 .wall[data-density="packed"] .tile-zone { font-size: 0.64vw; }
