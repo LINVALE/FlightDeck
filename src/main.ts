@@ -7,6 +7,7 @@ import { EventHub } from './http/events.ts';
 import { FlightDeckExtension } from './roon/extension.ts';
 import { BrowseGateway } from './roon/browse.ts';
 import { MdnsResponder } from './net/mdns.ts';
+import { DisplayRegistry } from './displays/registry.ts';
 import { IslandRegistry } from './labels/islands.ts';
 import { RecentLedger } from './ledger/recent.ts';
 import { buildSnapshot, structuralSignature } from './model/snapshot.ts';
@@ -38,6 +39,7 @@ mkdirSync(DATA_DIR, { recursive: true });
 
 const ledger = new RecentLedger(DATA_DIR);
 const islands = new IslandRegistry(DATA_DIR);
+const displays = new DisplayRegistry(DATA_DIR);
 const hub = new EventHub();
 
 let rawZones: unknown[] = [];
@@ -210,19 +212,54 @@ function settingsLayout(values?: Record<string, unknown>): {
   if (present.length === 0) {
     layout.push({ type: 'label', title: 'No groups to name yet — waiting for the Core.' });
   }
+
+  /**
+   * ONE SCREEN, ONE ROOM.
+   *
+   * A screen is bound to an OUTPUT, not a zone: it belongs to the speaker beside
+   * it, and the zone is re-derived every snapshot, so when that room is grouped
+   * the screen follows the group it joined rather than stranding on a zone that
+   * no longer exists. "Any room" leaves it free to be pointed anywhere, which is
+   * what an unbound screen has always done.
+   */
+  const seen = displays.active(Date.parse(new Date().toISOString()) || 0);
+  const outputs: { title: string; value: string }[] = [{ title: 'Any room', value: '' }];
+  for (const zone of snapshot?.zones ?? []) {
+    for (const output of zone.outputs) outputs.push({ title: output.name, value: output.id });
+  }
+  outputs.sort((a, b) => (a.value === '' ? -1 : b.value === '' ? 1 : a.title.localeCompare(b.title)));
+
+  if (seen.length > 0) {
+    layout.push({
+      type: 'label',
+      title: 'Screens that have checked in. Lock one to a room and it will only ever show'
+        + ' that room — or the group that room joins.',
+    });
+    for (const display of seen) {
+      const key = 'display:' + display.id;
+      const proposed = values === undefined ? undefined : values[key];
+      out[key] = typeof proposed === 'string' ? proposed : (display.outputId ?? '');
+      layout.push({
+        type: 'dropdown', title: display.name, values: outputs, setting: key,
+        subtitle: 'last seen ' + display.lastSeenAt.slice(11, 16),
+      });
+    }
+  }
   return { values: out, layout, has_error: false };
 }
 
 function saveSettings(values: Record<string, unknown>): void {
-  for (const [id, value] of Object.entries(values)) {
-    if (typeof value === 'string') islands.setLabel(id, value);
+  for (const [key, value] of Object.entries(values)) {
+    if (typeof value !== 'string') continue;
+    if (key.startsWith('display:')) displays.bind(key.slice('display:'.length), value === '' ? null : value);
+    else islands.setLabel(key, value);
   }
   republish();
-  log('island names saved from Roon settings');
+  log('settings saved from Roon');
 }
 
 const deps = {
-  hub, relay, ledger, islands,
+  hub, relay, ledger, islands, displays,
   onIslandLabelled: (): void => { republish(); extension.refreshSettings(); },
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,

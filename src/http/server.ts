@@ -67,6 +67,10 @@ export interface ServerDeps {
   readonly islands?: { label(id: string): string | null; setLabel(id: string, label: string): boolean };
   /** Called after a rename so the caller can republish; without it the name waits for the next zone change. */
   readonly onIslandLabelled?: () => void;
+  /** The screens on record, and what each is locked to. */
+  readonly displays?: {
+    see(id: string, name: string, at: string): { id: string; name: string; outputId: string | null } | null;
+  };
   readonly hub: EventHub;
   readonly relay: ArtRelay;
   readonly ledger: RecentLedger;
@@ -189,6 +193,34 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         if (!ok) { json(response, 403, { error: 'cross-origin browse refused' }); return; }
       }
       void handleBrowse(request, response, deps);
+      return;
+    }
+
+    /**
+     * A SCREEN SAYING HELLO.
+     *
+     * Same-origin only, like the control route: it writes to the registry, and a
+     * page on another site has no business naming this house's televisions. The
+     * reply is what the screen is bound to, which is how a binding made in Roon's
+     * settings reaches a display nobody is standing in front of.
+     */
+    if (request.method === 'POST' && path === '/api/v1/display') {
+      const origin = request.headers.origin;
+      if (typeof origin === 'string' && origin !== '') {
+        const host = request.headers.host ?? '';
+        let ok = false;
+        try { ok = new URL(origin).host === host; } catch { ok = false; }
+        if (!ok) { json(response, 403, { error: 'cross-origin refused' }); return; }
+      }
+      const registry = deps.displays;
+      if (registry === undefined) { json(response, 200, { output: null }); return; }
+      void readJson(request).then((body) => {
+        const id = typeof body?.id === 'string' ? body.id : '';
+        const name = typeof body?.name === 'string' ? body.name : '';
+        const record = registry.see(id, name, new Date().toISOString());
+        json(response, record === null ? 400 : 200,
+          record === null ? { error: 'display not accepted' } : { output: record.outputId, name: record.name });
+      });
       return;
     }
 

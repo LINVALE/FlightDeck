@@ -63,6 +63,58 @@ var shownZoneId = zoneId;
 var boundOutputId = root.getAttribute('data-output') || null;
 
 /**
+ * THE SCREEN INTRODUCES ITSELF.
+ *
+ * An id it makes up once and keeps. That is enough — nothing here is a secret,
+ * it is all one LAN, and the alternative is asking somebody to identify their
+ * televisions. Without it, Settings could not tell one screen from another, and
+ * "this display shows the kitchen" would have nowhere to live.
+ *
+ * The heartbeat is also how a binding made in Roon reaches a screen nobody is
+ * standing in front of: the reply carries what this display is locked to.
+ */
+var displayId = null;
+try {
+  displayId = localStorage.getItem('flightdeck.display');
+  if (displayId === null || displayId === '') {
+    displayId = 'd' + String(Date.now()).slice(-8) + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('flightdeck.display', displayId);
+  }
+} catch (error) { displayId = null; }   // private mode: this screen cannot be bound
+
+var lockedOutputId = null;
+
+function displayName() {
+  var slug = root.getAttribute('data-zone-slug');
+  var where = root.getAttribute('data-zone') !== '' && slug ? slug : (following ? 'follows the music' : 'wall');
+  return where + ' · ' + String(current);
+}
+
+function sayHello() {
+  if (displayId === null) return;
+  fetch('/api/v1/display', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: displayId, name: displayName() }),
+  }).then(function (response) {
+    return response.ok ? response.json() : null;
+  }).then(function (data) {
+    if (data === null) return;
+    var wanted = data.output || null;
+    if (wanted === lockedOutputId) return;
+    lockedOutputId = wanted;
+    // A lock is a decision made elsewhere and it wins: the screen stops following
+    // the music, releases any hand-picked room, and belongs to its speaker.
+    if (lockedOutputId !== null) {
+      boundOutputId = lockedOutputId;
+      following = false;
+    }
+    root.setAttribute('data-locked', lockedOutputId === null ? '' : '1');
+    var snap = store.snapshot();
+    if (snap !== null) render(snap, 'snapshot');
+  }).catch(function () { /* the server will be back */ });
+}
+
+/**
  * ?keys=1 prints every key the device actually sends, with its keyCode. A remote
  * that does nothing is impossible to diagnose from the other end of the house,
  * and TV engines disagree about what they report.
@@ -976,6 +1028,25 @@ function showPicker(mode) {
     var snapshot = store.snapshot();
     var zones = snapshot === null ? [] : snapshot.zones;
     var here = currentZone();
+    /**
+     * A LOCKED SCREEN DOES NOT OFFER OTHER ROOMS — that is the whole point of
+     * locking it. It still shows the room it is bound to, and it still gets the
+     * group and send-to actions, because the room joining a group is exactly the
+     * case the binding was designed to follow.
+     */
+    if (lockedOutputId !== null) {
+      if (here !== null) roomRow.appendChild(roomOption(here, 'now is-playing', null));
+      roomRow.appendChild(el('span', 'opt off', 'locked to this room'));
+      nodes.push(roomRow);
+      nodes.push(zoneActionRow(here));
+      picker.replaceChildren.apply(picker, nodes);
+      picker.className = 'picker mode-' + mode;
+      picker.hidden = false;
+      panelShownAt = Date.now();
+      if (pickerTimer !== null) clearTimeout(pickerTimer);
+      pickerTimer = setTimeout(function () { picker.hidden = true; }, 22000);
+      return;
+    }
     for (var r = 0; r < zones.length; r += 1) {
       (function (z) {
         var opt = roomOption(z,
@@ -2544,6 +2615,9 @@ root.setAttribute('data-face', current);
 markRing();
 paintFaceName();
 fieldRunning(current === 'canvas');
+sayHello();
+// Every twenty seconds: cheap, and it is how a binding set in Roon arrives.
+setInterval(sayHello, 20000);
 if (debugKeys) { reportKey({ key: 'probe ready', keyCode: 0 }, ''); startPointerProbe(); }
 var store = createStore(render);
 store.hydrate();
