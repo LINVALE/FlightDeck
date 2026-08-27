@@ -34,7 +34,7 @@ function head(nonce: string, title: string, styleHref: string): string {
     + '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
     + '<meta name="theme-color" content="#0a0b0d">'
     + '<link rel="stylesheet" href="' + styleHref + '">'
-    + '<script type="module" nonce="' + nonce + '" src="/assets/' + (styleHref.includes('wall') ? 'wall' : 'face') + '.js"></script>'
+    + '<script type="module" nonce="' + nonce + '" src="/assets/' + (styleHref.includes('wall') ? 'wall' : (styleHref.includes('phone') ? 'phone' : 'face')) + '.js"></script>'
     + '</head>';
 }
 
@@ -181,6 +181,26 @@ export function renderFacePage(
     + (followParam === '1' ? ' data-follow="1"' : (followParam === '0' ? ' data-follow="0"' : ''))
     + ' data-state="connecting"></main>'
     + '<div class="picker" id="picker" hidden aria-live="polite"></div>'
+    + '</body></html>';
+}
+
+/**
+ * The PHONE. A third page, not the Face responding: the Face's grammar (zoned
+ * presses, summoned chrome, dwell) is a television's, and a phone inverts it —
+ * controls standing, thumb-reach layout, visible navigation. Same organs
+ * underneath: snapshot, stream, art relay, control API (docs/phone-interface.md).
+ *
+ * Like the Face it can be pinned by NAME (/phone/study); with no token the page
+ * holds whatever this phone last held, then whatever is playing.
+ */
+export function renderPhonePage(nonce: string, zoneId: string, zoneToken: string | null = null): string {
+  const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
+  const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
+  return head(nonce, 'FlightDeck', '/assets/phone.css')
+    + '<body><main class="phone" id="phone"'
+    + ' data-zone="' + safeZone + '"'
+    + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
+    + ' data-state="connecting"></main>'
     + '</body></html>';
 }
 

@@ -304,3 +304,42 @@ test('a display survives a server restart without being reloaded', async () => {
   store.acceptSeek({ generation: 'genA', revision: 9, at: new Date().toISOString(), zones: [{ id: 'z', positionSec: 5 }] });
   assert.equal(store.positionFor('z'), null, 'a seek from a dead generation is ignored');
 });
+
+
+test('/phone is the remote: a third page with the same organs', async (t) => {
+  const ledger = new RecentLedger(null);
+  const hub = new EventHub();
+  const relay = new ArtRelay({ artworkUrl: () => '' });
+  let port = 0;
+  const server = createFlightDeckServer({
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
+    urls: () => ['http://flightdeck.local/'], port: () => port,
+  });
+  port = await listenWithLadder(server, [0], () => {});
+  const address = server.address();
+  port = typeof address === 'object' && address !== null ? address.port : port;
+  t.after(() => server.close());
+  const base = 'http://127.0.0.1:' + String(port);
+
+  hub.publish(buildSnapshot(
+    { generation: 'test', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
+    relay, ledger));
+
+  // The bare address: no zone pinned — the page holds what the phone last held.
+  const bare = await fetch(base + '/phone');
+  assert.equal(bare.status, 200);
+  const bareHtml = await bare.text();
+  assert.match(bare.headers.get('content-security-policy') ?? '', /default-src 'none'/);
+  assert.match(bareHtml, /data-zone=""/);
+  assert.match(bareHtml, /\/assets\/phone\.css/);
+  assert.match(bareHtml, /\/assets\/phone\.js/, 'the phone page must load the phone script, not the face');
+
+  // A NAME resolves to a zone, exactly as /face/ does — typeable, bookmarkable.
+  const named = await (await fetch(base + '/phone/study')).text();
+  assert.match(named, /data-zone="1601abc"/);
+  assert.match(named, /data-zone-slug="study"/);
+
+  // A hostile token is sanitised into the attributes, never injected.
+  const nasty = await (await fetch(base + '/phone/' + encodeURIComponent('a"><script>x</script>'))).text();
+  assert.ok(!nasty.includes('<script>x</script>'));
+});
