@@ -48,12 +48,20 @@ function islandsOf(snapshot) {
   var islands = snapshot.islands || [];
   for (var j = 0; j < islands.length; j += 1) {
     var names = (members[islands[j].id] || []).slice().sort();
+    /**
+     * An unnamed island is TYPE N, not the first device in it. Roon does give us
+     * the types — the partition is exactly that — it just does not say what any
+     * of them IS (Peter, 08-26: "so we basically know they can be type 1, 2, 3").
+     * Naming one after a member was arbitrary: it made the Squeezebox family look
+     * like it was called Cobalt. A number claims nothing, and asks to be named.
+     */
     list.push({
       id: islands[j].id,
       count: islands[j].count,
+      members: names,
       named: islands[j].label !== null,
       label: islands[j].label !== null ? islands[j].label
-        : (names.length > 1 ? names[0] + '  +' + String(names.length - 1) : (names[0] || 'island')),
+        : 'type ' + String(j + 1),
     });
   }
   return list;
@@ -114,7 +122,11 @@ function drawTabs(islands, total) {
   for (var i = 0; i < islands.length; i += 1) {
     (function (island) {
       var node = tab(island.id, island.label);
-      if (!island.named) node.className += ' unnamed';
+      if (!island.named) {
+        node.className += ' unnamed';
+        // what is in it, for anyone wondering which type this is
+        node.setAttribute('title', String(island.count) + ' rooms: ' + island.members.join(' · '));
+      }
       // A second press on the tab you are already on asks what it should be called.
       node.addEventListener('dblclick', function () { renameIsland(island, node); });
       var pen = el('span', 'wall-tab-pen', '\u270E');
