@@ -1021,8 +1021,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    The clearance decides the room: at 1.15 the stroke's inner edge sits at 0.81 of
    the sleeve's side, giving a segment of ~15vh at a 48vh sleeve. */
+/**
+ * The ring is sized by the WORDS, not by the sleeve. At 200.6% the copy's box
+ * reached the arc exactly and crossed it by 3px (Peter, 08-26: "dial ring still
+ * overlaps the text — make the rings bigger to allow for text to fit"), because
+ * the clearance had been calculated against the sleeve's corners and the segment
+ * below it has to hold three lines as well.
+ */
 .face[data-face="dial"] .dialbox {
-  left: -50.3%; top: -50.3%; width: 200.6%; height: 200.6%;
+  left: -55.5%; top: -55.5%; width: 211%; height: 211%;
 }
 .face[data-face="dial"] .cover { width: 44vh; height: 44vh; }
 .face.show-chrome[data-face="dial"] .cover { width: 34vh; height: 34vh; }
