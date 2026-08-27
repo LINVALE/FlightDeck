@@ -16,6 +16,8 @@ import { ZONES } from '../test/fixtures/zones.ts';
  */
 
 const ASSETS = resolve(fileURLToPath(import.meta.url), '..', '..', 'assets');
+// docDir gained a required place in the server deps after this script last ran.
+const DOCS = resolve(fileURLToPath(import.meta.url), '..', '..', 'docs');
 const PORT = Number(process.env.PREVIEW_PORT ?? 8455);
 
 // Stand-in Core: a REAL PNG per image key. The first version emitted SVG bytes
@@ -90,8 +92,65 @@ async function main(): Promise<void> {
     artworkUrl: (key, size) => 'http://127.0.0.1:' + String(corePort) + '/api/image/' + key + '?s=' + size,
   });
   let bound = PORT;
+  let publish = (): void => {};
+
+  /**
+   * Stand-in transport: enough of Roon's grouping semantics to LOOK at the
+   * Wall's drag-and-drop without a Core — group moves the outputs to the head's
+   * zone, ungroup gives each removed output a zone of its own. Everything else
+   * just logs. Same reason the stand-in Core serves real PNGs: a preview that
+   * cannot exercise the gesture proves nothing about it.
+   */
+  const say = (what: string): void => { process.stdout.write('command: ' + what + '\n'); };
+  const zoneOfOutput = (id: string): Record<string, any> | undefined =>
+    zones.find((z) => (z.outputs as Record<string, any>[]).some((o) => o.output_id === id));
+  const commands = {
+    control: async (zone: string, action: string) => say(action + ' ' + zone),
+    seek: async (zone: string, seconds: number) => say('seek ' + zone + ' ' + String(seconds)),
+    setVolume: async (output: string, value: number) => say('volume ' + output + ' = ' + String(value)),
+    changeVolume: async (output: string, steps: number) => say('volume ' + output + ' ' + String(steps)),
+    mute: async (output: string, muted: boolean) => say((muted ? 'mute ' : 'unmute ') + output),
+    changeSettings: async (zone: string, settings: unknown) => say('settings ' + zone + ' ' + JSON.stringify(settings)),
+    groupOutputs: async (ids: readonly string[]) => {
+      say('group_outputs ' + ids.join('+'));
+      const head = zoneOfOutput(ids[0]);
+      if (head === undefined) return;
+      for (const id of ids.slice(1)) {
+        const from = zoneOfOutput(id);
+        if (from === undefined || from === head) continue;
+        const outputs = from.outputs as Record<string, any>[];
+        const at = outputs.findIndex((o) => o.output_id === id);
+        (head.outputs as Record<string, any>[]).push(outputs[at]);
+        outputs.splice(at, 1);
+        if (outputs.length === 0) zones.splice(zones.indexOf(from), 1);
+      }
+      const headOutputs = head.outputs as Record<string, any>[];
+      head.display_name = String(headOutputs[0].display_name)
+        + (headOutputs.length > 1 ? ' + ' + String(headOutputs.length - 1) : '');
+      publish();
+    },
+    ungroupOutputs: async (ids: readonly string[]) => {
+      say('ungroup_outputs ' + ids.join('+'));
+      for (const id of ids) {
+        const from = zoneOfOutput(id);
+        if (from === undefined) continue;
+        const outputs = from.outputs as Record<string, any>[];
+        if (outputs.length < 2) continue;
+        const at = outputs.findIndex((o) => o.output_id === id);
+        const output = outputs[at];
+        outputs.splice(at, 1);
+        from.display_name = String(outputs[0].display_name)
+          + (outputs.length > 1 ? ' + ' + String(outputs.length - 1) : '');
+        zones.push({ zone_id: 'z' + String(output.output_id), display_name: output.display_name,
+          state: 'stopped', outputs: [output] });
+      }
+      publish();
+    },
+    transferZone: async (from: string, to: string) => say('transfer ' + from + ' -> ' + to),
+  };
+
   const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands: null, browseAccess: null,
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands, browseAccess: null,
     urls: () => ['http://flightdeck.local/', 'http://192.168.1.114/'],
     port: () => bound,
   });
@@ -99,7 +158,20 @@ async function main(): Promise<void> {
 
   let revision = 0;
   const zones = JSON.parse(JSON.stringify(ZONES)) as Record<string, any>[];
-  const publish = (): void => {
+
+  /**
+   * Grouping islands for the fixtures, preview-only: everything except Garden is
+   * one family (so Kitchen and Terrace can take a drop), and Garden can group
+   * with nothing (so the refusal is visible). The shared fixture stays as the
+   * wire shows a Core that never said `can_group_with_output_ids`.
+   */
+  const family = ['1701a', '1701b', '1702a', '1704a'];
+  for (const zone of zones) {
+    for (const output of zone.outputs as Record<string, any>[]) {
+      if (family.includes(output.output_id as string)) output.can_group_with_output_ids = family;
+    }
+  }
+  publish = (): void => {
     revision += 1;
     const at = new Date().toISOString();
     for (const zone of zones) {
