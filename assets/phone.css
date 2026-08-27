@@ -1,0 +1,349 @@
+/* The Phone — FlightDeck held in one hand, at 30cm, worked with a thumb.
+   Same deck, same bone, same accent lifted from the sleeve; different instrument.
+
+   This file is only ever served to /phone, which no television opens — but it
+   keeps to the same Chromium 63 floor discipline as the TV assets so one lint
+   covers the whole assets/ directory (docs/phone-interface.md, "the floor").
+   Where it leans on newer syntax (env() safe-area insets) a plain fallback
+   declaration always comes first, so an old parser drops the refinement and
+   keeps the page. */
+
+:root {
+  --tarmac: #0a0b0d; --bone: #f2eee6; --ash: #a9a297; --smoke: #7d766c;
+  --accent: #d8a24a; --accent-rich: #d8a24a;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: rgba(0,0,0,0); }
+html, body { margin: 0; padding: 0; height: 100%; background: #0a0b0d; overflow: hidden; }
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6;
+  -webkit-font-smoothing: antialiased;
+  /* No double-tap zoom on a page that is mostly buttons; pinch zoom stays. */
+  touch-action: manipulation;
+  /* The page is live over SSE; an accidental pull must not tear the socket down. */
+  overscroll-behavior: none;
+}
+
+.phone { position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; }
+
+/* ---- backdrop: the sleeve's own weather, tiny and upscaled. Never the cover. ---- */
+.bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; overflow: hidden; background: #0a0b0d; }
+.bg canvas {
+  position: absolute; top: 50%; left: 50%; width: 100%; height: 100%;
+  -webkit-transform: translate(-50%, -50%) scale(1.15);
+  transform: translate(-50%, -50%) scale(1.15);
+  -webkit-filter: blur(24px); filter: blur(24px);
+  opacity: 0; -webkit-transition: opacity 1.2s ease; transition: opacity 1.2s ease;
+}
+.bg canvas.is-lit { opacity: 0.8; }
+.bg .wash {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    radial-gradient(60% 44% at 50% 30%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.4) 82%),
+    linear-gradient(to bottom, rgba(0,0,0,0.30) 0%, rgba(0,0,0,0.52) 55%, rgba(0,0,0,0.82) 100%);
+}
+
+/* ---- the column ---- */
+.safe {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  padding: 14px 20px 10px;
+  padding: calc(env(safe-area-inset-top) + 10px) 20px calc(env(safe-area-inset-bottom) + 8px);
+}
+
+.head { display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline; }
+.brand { font-size: 11px; letter-spacing: 0.34em; font-weight: 700; color: #5f5a53; }
+.brand span { color: var(--accent); }
+.status { margin-left: auto; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ash); }
+
+/* ---- the sleeve. THE COVER IS SACRED: resized and moved, never dimmed,
+   filtered, transformed or masked. ---- */
+.art { margin: 0 auto; margin-top: auto; }
+.cover {
+  width: 80vw; height: 80vw;
+  background: #17191d; border-radius: 2px; overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.75), 0 0 0 1px rgba(242,238,230,0.10);
+}
+.cover img { display: block; width: 100%; height: 100%; }
+/* A short viewport (360x640, landscape-ish phones) gives the room back to the
+   controls rather than cropping them off the bottom. */
+@media (max-height: 750px) { .cover { width: 62vw; height: 62vw; } }
+@media (max-height: 620px) { .cover { width: 40vw; height: 40vw; } }
+
+.copy { text-align: center; margin-top: 14px; min-height: 66px; }
+.title {
+  font-family: Georgia, "Times New Roman", serif; font-weight: 500;
+  font-size: 22px; line-height: 1.12; margin: 0 auto; max-width: 92%;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.line2 {
+  font-size: 13px; color: #efe9de; margin: 6px auto 0; max-width: 94%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.line3 {
+  font-family: Georgia, serif; font-style: italic; font-size: 11.5px; color: var(--ash);
+  margin: 3px auto 0; max-width: 94%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-height: 750px) { .copy { min-height: 56px; } .title { font-size: 19px; } }
+
+/* ---- the Approach: runway lamps, pressed or dragged to seek ---- */
+.runway { margin-top: 10px; margin-bottom: auto; padding: 10px 0; cursor: pointer; }
+.lamps {
+  display: -webkit-flex; display: flex;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  height: 12px;
+}
+.lamps b { display: block; width: 3px; height: 100%; background: rgba(242,238,230,0.17); border-radius: 1.5px; }
+.lamps b.lit { background: var(--accent); }
+.lamps b.head { background: #ffd98a; box-shadow: 0 0 8px rgba(255,217,138,0.75); }
+.phone[data-state="loading"] .lamps b { -webkit-animation: sweep 1.4s linear infinite; animation: sweep 1.4s linear infinite; }
+@-webkit-keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
+@keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
+.times {
+  display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
+  margin-top: 6px;
+}
+.time { font-size: 12px; color: var(--ash); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time.ends { margin-left: auto; color: #6f6a62; font-size: 10px; letter-spacing: 0.08em; }
+.time.remain { margin-left: 10px; }
+.times .gap { -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+/* while a thumb is on the runway the reading follows the thumb, and says so */
+.phone[data-scrub="1"] .time.pos { color: var(--accent); }
+
+/* everything below here is the BOTTOM THIRD: reachable by the thumb */
+.deck { margin-top: auto; }
+
+/* ---- volume: the runway's segments, sideways ---- */
+.vol { margin-bottom: 4px; }
+.vol-row {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  min-height: 44px; padding: 2px 0;
+}
+.vol-name {
+  font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--smoke);
+  width: 74px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; padding-right: 6px;
+}
+.vol-mute {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  width: 44px; height: 44px; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 6px; cursor: pointer;
+  color: var(--bone);
+}
+.vol-mute:active { background: rgba(242,238,230,0.16); }
+.vol-mute.is-muted { color: var(--accent); border-color: var(--accent); }
+.vol-scale {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  height: 44px; margin: 0 10px; padding: 0 10px;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 6px; cursor: pointer;
+  /* horizontal drags belong to the scale, vertical ones to nobody */
+  touch-action: none;
+}
+.vol-scale b { display: block; width: 3px; height: 16px; border-radius: 1.5px; background: rgba(242,238,230,0.18); }
+.vol-scale b.on { background: var(--accent); }
+.vol-row.is-muted .vol-scale b.on { background: rgba(242,238,230,0.3); }
+.vol-pct {
+  width: 40px; text-align: right; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  font-size: 12px; color: var(--ash); font-variant-numeric: tabular-nums;
+}
+.vol-step {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  width: 44px; height: 44px; margin-left: 8px; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 6px; cursor: pointer; color: var(--bone);
+}
+.vol-step:active { background: rgba(242,238,230,0.16); }
+.vol-quiet { font-size: 11px; color: var(--smoke); letter-spacing: 0.1em; margin-left: 10px; }
+
+/* ---- the room bar: which room this remote is holding ---- */
+.roombar {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  min-height: 52px; margin: 4px 0; padding: 5px 8px;
+  border: 1px solid rgba(242,238,230,0.18); border-radius: 8px;
+  background: rgba(10,11,13,0.55); cursor: pointer;
+}
+.roombar:active { background: rgba(242,238,230,0.10); }
+.roombar-art { width: 38px; height: 38px; border-radius: 2px; overflow: hidden; background: #17191d;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.roombar-art img { display: block; width: 100%; height: 100%; }
+.roombar-name {
+  margin-left: 12px; font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0;
+}
+.roombar .chip {
+  display: inline-block; margin-left: 8px; padding: 1px 7px;
+  border: 1px solid rgba(242,238,230,0.26); border-radius: 2px;
+  font-size: 10px; letter-spacing: 0.06em; color: #d7d0c4; text-transform: none;
+  white-space: nowrap;
+}
+.roombar-mark { margin-left: auto; color: var(--ash); padding-left: 8px; }
+
+/* ---- transport ---- */
+.controls {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  margin-top: 4px; min-height: 72px;
+}
+.ctl {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  width: 52px; height: 52px; border-radius: 50%;
+  color: var(--bone); cursor: pointer;
+}
+.ctl:active { background: rgba(242,238,230,0.16); }
+.ctl.off { opacity: 0.28; cursor: default; }
+.ctl.off:active { background: none; }
+/* their state is the point, and the state belongs to Roon */
+.ctl.lit { color: var(--accent); }
+.ctl.main {
+  width: 68px; height: 68px;
+  border: 1px solid rgba(242,238,230,0.30);
+  background: rgba(242,238,230,0.06);
+}
+.ctl.main:active { background: rgba(242,238,230,0.2); }
+
+/* Monochrome by construction: SVG paths inherit currentColor; a media-symbol
+   CHARACTER gets replaced by a colour emoji font. */
+.glyph { width: 22px; height: 22px; display: block; color: inherit; }
+.ctl.main .glyph { width: 30px; height: 30px; }
+.ctl.side .glyph { width: 18px; height: 18px; }
+.vol-mute .glyph, .vol-step .glyph { width: 20px; height: 20px; }
+.roombar-mark .glyph { width: 16px; height: 16px; }
+
+/* ---- the rooms sheet ---- */
+.scrim {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.55); opacity: 0;
+  -webkit-transition: opacity 0.25s ease; transition: opacity 0.25s ease;
+}
+.scrim[hidden] { display: none; }
+.scrim.is-open { opacity: 1; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  max-height: 76vh;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  background: #0d0e11;
+  border-top: 1px solid rgba(242,238,230,0.2);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.6);
+  padding-bottom: 8px; padding-bottom: calc(env(safe-area-inset-bottom) + 6px);
+  -webkit-transform: translateY(102%); transform: translateY(102%);
+  -webkit-transition: -webkit-transform 0.28s ease; transition: transform 0.28s ease;
+}
+.sheet[hidden] { display: none; }
+.sheet.is-open { -webkit-transform: translateY(0); transform: translateY(0); }
+.sheet-grip { width: 40px; height: 4px; border-radius: 2px; background: rgba(242,238,230,0.28); margin: 8px auto 2px; }
+.sheet-head {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 8px 20px 6px;
+}
+.sheet-title { font-size: 12px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--ash); }
+.sheet-close {
+  margin-left: auto; width: 44px; height: 44px;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  color: var(--ash); cursor: pointer; font-size: 20px;
+}
+.sheet-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0 12px; }
+
+/* what can be DONE with this room, before which room to look at */
+.sheet-acts { display: -webkit-flex; display: flex; padding: 2px 8px 10px; }
+.act {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  -webkit-flex: 1 1 0; flex: 1 1 0;
+  min-height: 44px; margin: 0 4px;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 8px;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--bone);
+  cursor: pointer; white-space: nowrap;
+}
+.act .glyph { width: 16px; height: 16px; margin-right: 7px; }
+.act:active { background: rgba(242,238,230,0.12); }
+.act.off { opacity: 0.3; cursor: default; }
+.act.off:active { background: none; }
+
+.room {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  min-height: 60px; padding: 6px 8px;
+  border-bottom: 1px solid rgba(242,238,230,0.07);
+  cursor: pointer;
+}
+.room:active { background: rgba(242,238,230,0.08); }
+.room-art { width: 44px; height: 44px; border-radius: 2px; overflow: hidden; background: #17191d;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  color: var(--smoke); }
+.room-art img { display: block; width: 100%; height: 100%; }
+.room-text { min-width: 0; -webkit-flex: 1 1 auto; flex: 1 1 auto; padding-left: 12px; }
+.room-name { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--bone); }
+.room.now .room-name { color: var(--accent); }
+.room-np {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  margin-top: 3px; font-size: 12px; color: var(--ash);
+  overflow: hidden; white-space: nowrap;
+}
+.room-np .np-mark { width: 11px; height: 11px; margin-right: 6px; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.room-np .np-title { overflow: hidden; text-overflow: ellipsis; }
+.room-check { margin-left: 10px; color: var(--accent); font-size: 16px; width: 24px; text-align: center;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.room-quiet { color: #4f545b; }
+
+.sheet-foot { display: -webkit-flex; display: flex; padding: 10px 12px 2px; }
+.confirm {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  min-height: 48px; margin: 0 4px;
+  border: 1px solid var(--accent); border-radius: 8px;
+  font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent);
+  cursor: pointer;
+}
+.confirm:active { background: rgba(216,162,74,0.18); }
+.confirm.off { border-color: rgba(242,238,230,0.22); color: var(--smoke); cursor: default; }
+.confirm.off:active { background: none; }
+.cancel {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  min-height: 48px; margin: 0 4px; padding: 0 18px;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 8px;
+  font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); cursor: pointer;
+}
+.cancel:active { background: rgba(242,238,230,0.1); }
+
+.walllink {
+  display: block; text-align: center; padding: 14px 0 8px;
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--smoke);
+  cursor: pointer;
+}
+
+/* ---- a word when something refuses ---- */
+.toast {
+  position: fixed; left: 50%; bottom: 176px;
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  max-width: 86vw; padding: 10px 18px;
+  background: rgba(13,14,17,0.96); border: 1px solid rgba(242,238,230,0.25); border-radius: 8px;
+  font-size: 12px; letter-spacing: 0.06em; color: var(--bone);
+  opacity: 0; -webkit-transition: opacity 0.25s ease; transition: opacity 0.25s ease;
+  pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.toast.is-lit { opacity: 1; }
+
+/* stopped room: the sleeve may be gone; keep the column from collapsing */
+.phone[data-state="stopped"] .runway { visibility: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet, .scrim, .bg canvas { -webkit-transition: none; transition: none; }
+}

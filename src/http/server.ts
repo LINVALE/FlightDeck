@@ -6,7 +6,7 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { renderDocPage, renderFacePage, renderPhonePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 
 export type TransportAction = 'play' | 'pause' | 'playpause' | 'next' | 'previous' | 'stop';
 
@@ -351,6 +351,15 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
 
     if (path === '/' || path === '/wall') {
       html(response, 200, renderWallPage(nonce, deps.urls()), nonce);
+      return;
+    }
+    // The PHONE: the remote in a pocket. /phone holds what it last held;
+    // /phone/study pins it to a room by name, same resolution as /face/.
+    if (path === '/phone' || path === '/phone/' || path.startsWith('/phone/')) {
+      const token = path.startsWith('/phone/') ? decodeURIComponent(path.slice('/phone/'.length)) : '';
+      const snapshot = deps.hub.snapshot();
+      const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
+      html(response, 200, renderPhonePage(nonce, resolved ?? '', token), nonce);
       return;
     }
     // The address worth bookmarking on a TV: no zone, always whatever is playing.
