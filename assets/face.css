@@ -1113,6 +1113,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   text-overflow: ellipsis; white-space: nowrap;
 }
 .picker span.opt.roomcard.now .roomcard-np { color: var(--accent); }
+/* inline-block, because the shared .glyph rule is `display: block` for the
+   transport buttons and dropped the mark onto a line of its own */
+.np-mark {
+  display: inline-block; width: .62vw; height: .62vw; margin-right: .3vw;
+  vertical-align: baseline;
+}
+/* a playing room's mark is the one thing on the card that is lit */
+.picker span.opt.is-playing .roomcard-np { color: var(--ash); }
+.picker span.opt.is-playing .np-mark { color: var(--accent); }
+@media (max-width: 900px) { .np-mark { width: 1.9vw; height: 1.9vw; margin-right: .9vw; } }
 .picker span.opt.roomcard { padding: .55vh .8vw .55vh .55vw; }
 .picker span.opt.is-playing .roomcard-name { color: var(--bone); }
 @media (max-width: 900px) {

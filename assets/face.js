@@ -886,9 +886,24 @@ function roomOption(zone, extra, onPress) {
   node.appendChild(art);
   var text = el('span', 'roomcard-text');
   text.appendChild(el('span', 'roomcard-name', zone.name));
-  text.appendChild(el('span', 'roomcard-np',
-    np !== null && zone.state === 'playing' ? np.title
-      : (np !== null && zone.state === 'paused' ? 'paused' : 'quiet')));
+  /**
+   * The state is a MARK, not a word (Peter, 08-26). "paused" spelled out took the
+   * whole line and pushed off the one thing that identifies the room to someone
+   * who was just listening to it — the track. A play or pause glyph says the same
+   * in a character's width, and the title gets the rest.
+   */
+  var line = el('span', 'roomcard-np');
+  if (np !== null) {
+    var mark = zone.state === 'playing' || zone.state === 'loading' ? 'play'
+      : (zone.state === 'paused' ? 'pause' : null);
+    if (mark !== null) {
+      var svg = glyph(mark);
+      svg.setAttribute('class', 'glyph np-mark');
+      line.appendChild(svg);
+    }
+    line.appendChild(document.createTextNode(np.title));
+  }
+  text.appendChild(line);
   node.appendChild(text);
   if (onPress !== null) pressable(node, onPress);
   return node;
