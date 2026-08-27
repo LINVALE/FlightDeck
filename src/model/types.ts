@@ -68,6 +68,18 @@ export interface ZoneOutput {
    * the only honest way to know what may be offered. Never inferred from a name.
    */
   readonly groupableWith: readonly string[];
+  /**
+   * Which grouping ISLAND this output belongs to, or '' if it can group with
+   * nothing. Roon does not name the protocol anywhere on the wire — an output
+   * carries only id, name, volume, source controls, zone and this list — so the
+   * relation IS the taxonomy (Peter, 08-26: "can group with — that's the key").
+   *
+   * It is safe to treat as an equivalence class rather than a neighbour list:
+   * measured on a live Core, 22 outputs produced exactly three membership lists,
+   * every one closed and identical for all its members. So two outputs share an
+   * island exactly when their lists match, and no graph walk is needed.
+   */
+  readonly island: string;
 }
 
 export interface Allowed {

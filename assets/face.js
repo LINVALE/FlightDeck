@@ -953,15 +953,18 @@ function showPicker(mode) {
    */
   if (mode === 'group') {
     var head = currentZone();
-    var island = head === null || head.outputs.length === 0 ? [] : head.outputs[0].groupableWith;
+    var island = head === null || head.outputs.length === 0 ? '' : head.outputs[0].island;
     var pickRow = el('div', 'row row-faces');
+    var restRow = el('div', 'row row-faces');
     var snap2 = store.snapshot();
     var all = snap2 === null ? [] : snap2.zones;
     for (var g = 0; g < all.length; g += 1) {
       (function (z) {
         if (head !== null && z.id === head.id) return;
-        var joinable = z.outputs.length > 0 && z.outputs.every(function (o) {
-          return island.indexOf(o.id) !== -1;
+        // One island per zone: every output of a grouped zone is in the same one,
+        // because Roon could not have grouped them otherwise.
+        var joinable = island !== '' && z.outputs.length > 0 && z.outputs.every(function (o) {
+          return o.island === island;
         });
         var chosen = groupPick.indexOf(z.id) !== -1;
         var opt = el('span', joinable ? (chosen ? 'opt now' : 'opt') : 'opt off', z.name);
@@ -974,10 +977,18 @@ function showPicker(mode) {
         } else {
           opt.setAttribute('title', 'Roon cannot group ' + z.name + ' with ' + (head === null ? 'this room' : head.name));
         }
-        pickRow.appendChild(opt);
+        (joinable ? pickRow : restRow).appendChild(opt);
       })(all[g]);
     }
+    /**
+     * The rooms that CAN join come first, together, and the rest follow in their
+     * own row. Roon's grouping relation is a closed partition — 22 outputs, three
+     * membership lists, each identical for all its members — so this is the
+     * house's real structure rather than a sort we invented, and it is the same
+     * structure a saved group will live inside.
+     */
     nodes.push(pickRow);
+    if (restRow.children.length > 0) nodes.push(restRow);
 
     var doneRow = el('div', 'row row-faces');
     var form = el('span', groupPick.length === 0 ? 'opt off' : 'opt', 

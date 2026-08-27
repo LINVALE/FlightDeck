@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import type { Allowed, ArtRef, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState } from './types.ts';
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
@@ -90,6 +91,16 @@ function projectVolume(raw: unknown): OutputVolume | null {
   };
 }
 
+/**
+ * An island's name is its membership. Hashed only so it is short enough to carry
+ * and compare; nothing is inferred from it, and an output that can group with
+ * nothing gets no island rather than an island of one.
+ */
+export function islandOf(peers: readonly string[]): string {
+  if (peers.length < 2) return '';
+  return createHash('sha1').update([...peers].sort().join(',')).digest('hex').slice(0, 8);
+}
+
 function projectOutputs(raw: unknown): ZoneOutput[] {
   if (!Array.isArray(raw)) return [];
   const outputs: ZoneOutput[] = [];
@@ -103,7 +114,7 @@ function projectOutputs(raw: unknown): ZoneOutput[] {
       : [];
     outputs.push({
       id, name: str(output.display_name, id), volume: projectVolume(output.volume),
-      groupableWith: peers,
+      groupableWith: peers, island: islandOf(peers),
     });
   }
   return outputs;

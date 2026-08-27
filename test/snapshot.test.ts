@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildSnapshot, orderByRecency, projectZone, structuralSignature } from '../src/model/snapshot.ts';
+import { buildSnapshot, islandOf, orderByRecency, projectZone, structuralSignature } from '../src/model/snapshot.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
 import { ZONES } from './fixtures/zones.ts';
 import type { Zone } from '../src/model/types.ts';
@@ -215,4 +215,34 @@ test('a change to shuffle or repeat reaches the screen', () => {
   const off = structuralSignature(build({ shuffle: false, loop: 'disabled' }));
   assert.notEqual(off, structuralSignature(build({ shuffle: true, loop: 'disabled' })));
   assert.notEqual(off, structuralSignature(build({ shuffle: false, loop: 'loop' })));
+});
+
+/**
+ * Roon never names the protocol — an output carries only id, name, volume, source
+ * controls, zone and `can_group_with_output_ids` — so the RELATION is the
+ * taxonomy. It is safe to read as an equivalence class: measured on a live Core,
+ * 22 outputs gave exactly three membership lists, every one closed and identical
+ * for all its members.
+ */
+test('outputs share an island exactly when Roon gives them the same membership', () => {
+  const raat = ['oA', 'oB', 'oC'];
+  assert.equal(islandOf(raat), islandOf(['oC', 'oA', 'oB']), 'order must not matter');
+  assert.notEqual(islandOf(raat), islandOf(['oA', 'oB']), 'a different membership is a different island');
+  assert.equal(islandOf(['oA']), '', 'an output that can group with nothing has no island');
+  assert.equal(islandOf([]), '', 'and neither has one Roon said nothing about');
+});
+
+test('the island reaches the screen on every output', () => {
+  const zone = projectZone({
+    zone_id: 'z', display_name: 'Z', state: 'playing',
+    outputs: [
+      { output_id: 'oA', display_name: 'A', can_group_with_output_ids: ['oA', 'oB'] },
+      { output_id: 'oB', display_name: 'B', can_group_with_output_ids: ['oA', 'oB'] },
+      { output_id: 'oLone', display_name: 'Lone' },
+    ],
+  }, art, noRecency, AT);
+  assert.ok(zone);
+  assert.equal(zone.outputs[0].island, zone.outputs[1].island);
+  assert.notEqual(zone.outputs[0].island, '');
+  assert.equal(zone.outputs[2].island, '', 'no peers, no island');
 });
