@@ -214,6 +214,7 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
     const zone = projectZone(raw, art, recency, input.at);
     if (zone !== null) projected.push(zone);
   }
+  const resolved = resolveAll(projected, input.resolveIsland);
   return {
     generation: input.generation,
     revision: input.revision,
@@ -223,9 +224,18 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
       name: input.coreName,
       sinceAt: input.coreSinceAt,
     },
-    zones: orderByRecency(projected, Date.parse(input.at) || Date.now()),
-    islands: collectIslands(projected, input.resolveIsland),
+    zones: orderByRecency(stampIslands(projected, resolved), Date.parse(input.at) || Date.now()),
+    islands: islandsFrom(resolved),
   };
+}
+
+function islandsFrom(resolved: Map<string, { id: string; label: string | null; count: number }>): Island[] {
+  const islands: Island[] = [];
+  for (const entry of resolved.values()) {
+    if (entry.id === '') continue;        // the registry is full; not drawn rather than mis-drawn
+    islands.push({ id: entry.id, count: entry.count, label: entry.label });
+  }
+  return islands.sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
 }
 
 /**
@@ -234,26 +244,54 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
  * output of a grouped zone is necessarily in the same one, or Roon could not have
  * grouped them.
  */
+/**
+ * Resolve every island present, ONCE, so the same identity is used for the tabs
+ * and for the outputs. Publishing two kinds of island id was a real defect: the
+ * tabs carried the registry's id (`i1`) while an output carried the membership
+ * HASH, and `wall.js` compared the two. It only ever worked on a box whose
+ * label file predated the registry, because that migration adopted the hashes as
+ * ids. On a clean install every tab filtered to nothing.
+ */
+function resolveAll(
+  zones: readonly Zone[],
+  resolve?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null },
+): Map<string, { id: string; label: string | null; count: number }> {
+  const members = new Map<string, readonly string[]>();
+  const counts = new Map<string, number>();
+  for (const zone of zones) {
+    if (zone.outputs.length === 0) continue;
+    const hash = zone.outputs[0].island;
+    if (hash === '') continue;
+    if (!members.has(hash)) members.set(hash, zone.outputs[0].groupableWith);
+    counts.set(hash, (counts.get(hash) ?? 0) + 1);
+  }
+  const out = new Map<string, { id: string; label: string | null; count: number }>();
+  for (const [hash, list] of members) {
+    const resolved = resolve === undefined ? { id: hash, label: null } : resolve(list, hash);
+    out.set(hash, { ...resolved, count: counts.get(hash) ?? 0 });
+  }
+  return out;
+}
+
+/** Restamp each output with the RESOLVED island id, so the wire carries one identity. */
+function stampIslands(
+  zones: readonly Zone[],
+  resolved: Map<string, { id: string; label: string | null; count: number }>,
+): Zone[] {
+  return zones.map((zone) => ({
+    ...zone,
+    outputs: zone.outputs.map((output) => ({
+      ...output,
+      island: output.island === '' ? '' : (resolved.get(output.island)?.id ?? ''),
+    })),
+  }));
+}
+
 export function collectIslands(
   zones: readonly Zone[],
   resolve?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null },
 ): Island[] {
-  const found = new Map<string, { count: number; members: readonly string[] }>();
-  for (const zone of zones) {
-    if (zone.outputs.length === 0) continue;
-    const output = zone.outputs[0];
-    if (output.island === '') continue;
-    const seen = found.get(output.island);
-    if (seen === undefined) found.set(output.island, { count: 1, members: output.groupableWith });
-    else seen.count += 1;
-  }
-  const islands: Island[] = [];
-  for (const [hash, { count, members }] of found) {
-    const resolved = resolve === undefined ? { id: hash, label: null } : resolve(members, hash);
-    if (resolved.id === '') continue;             // the registry is full; not drawn rather than mis-drawn
-    islands.push({ id: resolved.id, count, label: resolved.label });
-  }
-  return islands.sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
+  return islandsFrom(resolveAll(zones, resolve));
 }
 
 /**

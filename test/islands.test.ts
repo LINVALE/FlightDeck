@@ -109,3 +109,39 @@ test('islands come out largest first, carrying whatever names they have', () => 
 test('an output that can group with nothing is in no island at all', () => {
   assert.deepEqual(collectIslands([zone('lonely', '', [])], (m, h) => ({ id: h, label: null })), []);
 });
+
+/**
+ * ⚠️ REGRESSION. The wire once carried TWO island identities: a tab held the
+ * registry's id and an output held the membership hash, and `wall.js` compared
+ * them. It worked only on a box whose label file predated the registry, because
+ * that migration adopted the hashes AS ids — so on every clean install the tabs
+ * filtered to nothing and silently fell back to "all".
+ */
+test('an output and its island tab carry the SAME id on a fresh install', async () => {
+  const { buildSnapshot } = await import('../src/model/snapshot.ts');
+  const { RecentLedger } = await import('../src/ledger/recent.ts');
+  const at = '2026-08-27T00:00:00.000Z';
+  const registry = new IslandRegistry(null);          // fresh: ids will be i1, i2…
+  const snapshot = buildSnapshot({
+    generation: 'g', revision: 1, at, coreName: 'C', corePaired: true, coreSinceAt: at,
+    zones: [
+      { zone_id: 'z1', display_name: 'Kitchen', state: 'playing', outputs: [{ output_id: 'oA', display_name: 'Kitchen', can_group_with_output_ids: ['oA', 'oB'] }] },
+      { zone_id: 'z2', display_name: 'Study', state: 'stopped', outputs: [{ output_id: 'oB', display_name: 'Study', can_group_with_output_ids: ['oA', 'oB'] }] },
+      { zone_id: 'z3', display_name: 'Alone', state: 'stopped', outputs: [{ output_id: 'oZ', display_name: 'Alone' }] },
+    ],
+    resolveIsland: (members, hash) => registry.resolve(members, hash),
+  }, { pathFor: () => null }, new RecentLedger(null));
+
+  assert.equal(snapshot.islands.length, 1);
+  assert.match(snapshot.islands[0].id, /^i\d+$/, 'a fresh registry allocates iN, not a hash');
+  for (const zone of snapshot.zones) {
+    for (const output of zone.outputs) {
+      if (output.groupableWith.length < 2) {
+        assert.equal(output.island, '', 'an output with no peers is in no island');
+        continue;
+      }
+      assert.equal(output.island, snapshot.islands[0].id,
+        'the output must carry the same id the tab does, or filtering finds nothing');
+    }
+  }
+});
