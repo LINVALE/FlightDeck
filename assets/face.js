@@ -859,6 +859,41 @@ function openBrowseMenu() {
 /** Rooms chosen in the grouping picker, kept across its redraws. */
 var groupPick = [];
 
+/**
+ * A ROOM, drawn as what it is doing rather than as a word.
+ *
+ * The picker was a wall of identical text chips, and picking a room out of
+ * twenty-two of those is reading, not looking (Peter, 08-26). The sleeve it is
+ * playing is the fastest possible way to recognise a room you were just
+ * listening to, and it costs nothing: it is the same art path the wall already
+ * fetched, so the browser has it cached.
+ *
+ * Square and untinted. It is small, but it is still somebody's album cover.
+ */
+function roomOption(zone, extra, onPress) {
+  var node = el('span', 'opt roomcard' + (extra === '' ? '' : ' ' + extra));
+  var art = el('span', 'roomcard-art');
+  var np = zone.nowPlaying;
+  if (np !== null && np.art !== null) {
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = np.art.path;
+    art.appendChild(img);
+  } else {
+    art.className += ' is-quiet';
+    art.appendChild(glyphSpeaker(0.5, false));
+  }
+  node.appendChild(art);
+  var text = el('span', 'roomcard-text');
+  text.appendChild(el('span', 'roomcard-name', zone.name));
+  text.appendChild(el('span', 'roomcard-np',
+    np !== null && zone.state === 'playing' ? np.title
+      : (np !== null && zone.state === 'paused' ? 'paused' : 'quiet')));
+  node.appendChild(text);
+  if (onPress !== null) pressable(node, onPress);
+  return node;
+}
+
 function zoneById(id) {
   var snap = store.snapshot();
   if (snap === null) return null;
@@ -919,16 +954,16 @@ function showPicker(mode) {
     var here = currentZone();
     for (var r = 0; r < zones.length; r += 1) {
       (function (z) {
-        var opt = el('span', (here !== null && z.id === here.id) ? 'opt now' : 'opt', z.name);
-        if (z.state === 'playing') opt.className += ' is-playing';
-        pressable(opt, function () {
-          shownZoneId = z.id;
-          boundOutputId = null;          // a deliberate look elsewhere releases the binding
-          following = false;
-          picker.hidden = true;
-          var snap = store.snapshot();
-          if (snap !== null) render(snap, 'snapshot');
-        });
+        var opt = roomOption(z,
+          ((here !== null && z.id === here.id) ? 'now' : '') + (z.state === 'playing' ? ' is-playing' : ''),
+          function () {
+            shownZoneId = z.id;
+            boundOutputId = null;        // a deliberate look elsewhere releases the binding
+            following = false;
+            picker.hidden = true;
+            var snap = store.snapshot();
+            if (snap !== null) render(snap, 'snapshot');
+          });
         roomRow.appendChild(opt);
       })(zones[r]);
     }
@@ -970,13 +1005,11 @@ function showPicker(mode) {
         // the list is what you are trying to choose from.
         if (!joinable) return;
         var chosen = groupPick.indexOf(z.id) !== -1;
-        var opt = el('span', chosen ? 'opt now' : 'opt', z.name);
-        pressable(opt, function () {
+        pickRow.appendChild(roomOption(z, chosen ? 'now' : '', function () {
           var at = groupPick.indexOf(z.id);
           if (at === -1) groupPick.push(z.id); else groupPick.splice(at, 1);
           showPicker('group');
-        });
-        pickRow.appendChild(opt);
+        }));
       })(all[g]);
     }
     nodes.push(pickRow);
@@ -1012,13 +1045,11 @@ function showPicker(mode) {
     for (var x = 0; x < others.length; x += 1) {
       (function (z) {
         if (fromZone !== null && z.id === fromZone.id) return;
-        var opt = el('span', 'opt', z.name);
-        pressable(opt, function () {
+        toRow.appendChild(roomOption(z, '', function () {
           picker.hidden = true;
           command({ action: 'transfer', zone: fromZone.id, to: z.id });
           shownZoneId = z.id;
-        });
-        toRow.appendChild(opt);
+        }));
       })(others[x]);
     }
     nodes.push(toRow);
