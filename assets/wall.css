@@ -635,3 +635,17 @@ body { min-height: 100vh; }
 /* one pixel, on the longest card. The words are allowed to end early rather than
    be cut: the block clips, so the last line simply is not drawn if it will not fit. */
 .grid > .tile .tile-line2 { line-height: 1.15; }
+
+/* ══ THE SLACK GOES TO THE BOTTOM, NOT THE MIDDLE ════════════════════════════
+   The music block was `flex: 1 1 auto`, so on a card with little to say — a
+   stopped room, a one-line title, no artist — it swallowed every spare pixel and
+   opened a void between the transport and the bars (Peter, 08-28: "controls look
+   like they are being covered by top of box with progress bars — that has too
+   much space at top").
+
+   The block hugs its content now; it may still SHRINK if a title is long, but it
+   never grows. The spare space collects below the bars instead, where the foot
+   is pinned to the bottom of the card, so every card's pills line up across a
+   row whatever the room is doing. */
+.tile-now { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
+.tile-actions { margin-top: auto; }
