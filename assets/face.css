@@ -1482,7 +1482,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: opacity .35s ease; transition: opacity .35s ease;
 }
 .face.show-chrome .groupdoor { opacity: .9; }
-.groupdoor.grouped { color: var(--accent); border-color: var(--accent); }
+/* ⚖️ THE FRAME MATCHES THE ARROW AND THE NAME (Peter, 08-28: "make the frame
+   around the number of group members match that around the arrow and name —
+   white I think"). The three are one mark across the top of the artwork, so
+   they wear one frame; only the WORDS are accent, exactly as the room name is.
+   The border override is retired rather than out-specified — the base rule
+   already carried the right colour. */
+.groupdoor.grouped { color: var(--accent); }
 .groupdoor:hover { background: rgba(242,238,230,.12); border-color: var(--bone); color: var(--bone); }
 .groupdoor .glyph { width: 1.1vw; height: 1.1vw; }
 .groupdoor[hidden] { display: none; }
