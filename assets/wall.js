@@ -341,6 +341,35 @@ function setChips(tile, zone) {
         event.stopPropagation();
         startPress(event, { kind: 'member', zoneId: zone.id, outputId: o.id, name: o.name, node: chip });
       }, { passive: true });
+      /**
+       * A CHIP IS ALSO A BUTTON (Peter, 08-28: "click or gesture to ungroup?").
+       *
+       * Drag-out is the symmetric gesture and it stays — but it is undiscoverable,
+       * and dragging with a television pointer is genuinely awkward. So a plain
+       * press on a member removes that member: one `ungroup_outputs` call on that
+       * output alone, exactly what the drag does, with none of the aim required.
+       *
+       * The `×` only appears on hover/focus, so a wall being LOOKED at still reads
+       * as a list of rooms rather than a row of controls.
+       */
+      chip.appendChild(el('span', 'chip-x', '\u00D7'));
+      chip.setAttribute('title', 'remove ' + o.name + ' from this group');
+      (function (outputId, roomName, zoneId) {
+        var pressedAt = 0;
+        var take = function (event) {
+          // a press that became a drag is the drag's business, not ours
+          if (drag !== null && drag.armed) return;   // a press that became a drag is the drag's business
+          var now = Date.now();
+          if (now - pressedAt < 400) return;
+          pressedAt = now;
+          if (event && event.stopPropagation) event.stopPropagation();
+          if (event && event.preventDefault) event.preventDefault();
+          post({ action: 'ungroup', zone: zoneId, output: outputId }).then(function (ok) {
+            if (!ok) say('could not take ' + roomName + ' out of the group');
+          });
+        };
+        chip.addEventListener('click', take);
+      })(o.id, o.name, zone.id);
       tile.zoneLine.appendChild(chip);
     })(wanted[j]);
   }
@@ -453,9 +482,17 @@ function render(snapshot, kind) {
       if (selectMode) applySelect(tile, zone);
       else tile.check.textContent = '';
       // In one family's tab every tile is that family: the edge would say nothing.
+      // A dot beside the room name, not a bar down the tile's edge — four columns
+      // of edge bars read as ruled lines on the page, not as a room's family.
       var family = activeIsland !== '' || zone.outputs.length === 0
         ? undefined : colourOf[serverIsland[zone.outputs[0].island]];
-      tile.node.style.boxShadow = family === undefined ? '' : 'inset 0.22vw 0 0 ' + family;
+      tile.node.style.boxShadow = '';
+      if (tile.fam === undefined) {
+        tile.fam = el('span', 'tile-fam');
+        tile.zoneLine.insertBefore(tile.fam, tile.zoneLine.firstChild);
+      }
+      tile.fam.style.display = family === undefined ? 'none' : 'inline-block';
+      if (family !== undefined) tile.fam.style.background = family;
       tile.name.textContent = zone.name;
       setChips(tile, zone);
       var np = zone.nowPlaying;

@@ -19,7 +19,33 @@ body { min-height: 100vh; }
 .wall-core { margin-left: auto; font-size: 1.05vw; color: var(--dim); }
 .wall-core.away { color: var(--accent); }
 
-.grid { display: flex; flex-wrap: wrap; align-content: flex-start; flex: 1 1 auto; overflow: hidden; }
+/**
+ * FOUR ACROSS, FOUR DOWN, FILLING WHAT IS THERE (Peter, 08-28: "4x4 to fill max
+ * area available with small footnote section only", "16 per page max, scroll
+ * down if needed").
+ *
+ * Grid rather than wrapped flex, because rows must be a QUARTER OF THE HEIGHT
+ * whatever the room count — wrapping flex sizes rows to their content, which is
+ * why thirteen rooms sat in the top half of the screen with nothing beneath.
+ * A seventeenth room scrolls; it does not shrink the other sixteen.
+ */
+.grid {
+  display: -ms-grid; display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 25%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+/* the density tiers set tile WIDTHS for the old wrapped layout; the grid owns
+   placement now, so the item must not fight its track */
+/* The density tiers set tile WIDTHS for the old wrapped-flex layout, at a
+   specificity (0,3,0) that beats a bare `.grid > .tile`. Left standing, a 25% or
+   33% width resolved INSIDE each 457px grid track and every tile sat as a
+   sliver in the corner of its own cell. The grid owns placement now. */
+.wall[data-density] .grid > .tile { width: auto; }
 
 /* A TV cannot scroll, so the Wall must FIT. Density tiers scale the tiles to the
    size of the house rather than letting the last rooms fall off the bottom. */
@@ -110,7 +136,14 @@ body { min-height: 100vh; }
 .overflow[hidden] { display: none; }
 @media (max-width: 900px) { .overflow { font-size: 2.2vw; } }
 
-.wall-foot { margin-top: 1.4vh; padding-top: 1.2vh; border-top: 1px solid var(--line); }
+/* A footnote, not a footer: the address is for the NEXT device and has no claim
+   on the wall's height (Peter, 08-28: "small footnote section only"). */
+.wall-foot {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-top: .7vh; padding-top: .6vh; border-top: 1px solid var(--line);
+}
+.wall-foot .url.primary { font-size: .85vw; letter-spacing: .04em; color: var(--ash); }
+.wall-foot .reach-note { font-size: .68vw; }
 .reach {
   display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-align-items: baseline; align-items: baseline;
@@ -246,3 +279,55 @@ body { min-height: 100vh; }
   .wall.is-selecting .tile-check { width: 5vw; height: 5vw; line-height: 5vw; font-size: 3vw; margin-right: 2.4vw; }
   .wall-ghost { font-size: 3.4vw; }
 }
+
+/* The family colour was an inset bar on the left of every tile, which at four
+   columns read as four strange vertical rules down the page rather than as a
+   property of each room (Peter, 08-28). It is a dot beside the room name now —
+   the same mark the tabs use, so the two teach each other. */
+.tile-fam {
+  display: inline-block; width: .42vw; height: .42vw; border-radius: 50%;
+  margin-right: .42vw; vertical-align: middle;
+}
+@media (max-width: 900px) { .tile-fam { width: 1.6vw; height: 1.6vw; margin-right: 1.4vw; } }
+
+/* ══ EQUAL FOOTPRINTS, STATE IN THE FRAME ═══════════════════════════════════
+   RHEOS settled this for its own zone cards on 2026-07-13 — "empty cards keep
+   the same footprint as active cards" — and Peter asked for the same here
+   (08-28: "don't need to make now playing box bigger, use a frame with colour
+   to indicate and show play state").
+
+   A grid whose cells change size as rooms start and stop is a grid you cannot
+   keep your place on; it is the same fault as re-sorting under the user's hand,
+   one level down. So every tile is one cell of the 4x4, always, and the state is
+   carried by a coloured frame instead: green playing, amber paused, nothing at
+   all when the room has never played. */
+.grid > .tile {
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  padding: .9vh 1vw;
+  overflow: hidden;
+}
+.grid > .tile.is-hero,
+.grid > .tile.is-live { border-color: var(--live); }
+.grid > .tile.is-paused { border-color: var(--pause); }
+.grid > .tile.is-idle { border-color: rgba(232,227,216,.10); }
+
+/* and the art stops changing size with state — one square, every cell */
+.grid > .tile .tile-art,
+.grid > .tile.is-hero .tile-art,
+.grid > .tile.is-live .tile-art,
+.grid > .tile.is-paused .tile-art,
+.grid > .tile.is-idle .tile-art { width: 7.4vh; height: 7.4vh; }
+.grid > .tile .tile-title,
+.grid > .tile.is-hero .tile-title { font-size: 1.02vw; white-space: normal; }
+.grid > .tile.is-idle .tile-title { font-size: 1.02vw; }
+
+/* The chip's remove mark: present for a pointer, invisible to a passing glance. */
+.chip { position: relative; }
+.chip .chip-x {
+  display: inline-block; margin-left: .35vw; opacity: 0;
+  -webkit-transition: opacity .15s ease; transition: opacity .15s ease;
+}
+.chip:hover .chip-x, .chip:focus .chip-x { opacity: .9; }
+.chip:hover { border-color: rgba(232,227,216,.5); cursor: pointer; }
+@media (max-width: 900px) { .chip .chip-x { opacity: .7; } }
