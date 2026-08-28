@@ -224,6 +224,25 @@ function el(tag, className, text) {
   return node;
 }
 
+/** The three transport marks, drawn here because the wall carried no glyphs. */
+function glyph(name) {
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'tt-glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var d = {
+    prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
+    next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
+    play: 'M8 5.5v13l11-6.5z',
+    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z'
+  }[name];
+  var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'currentColor');
+  svg.appendChild(path);
+  return svg;
+}
+
 function buildTile(zone) {
   var zoneId = zone.id;
   var tile = el('a', 'tile');
@@ -258,19 +277,57 @@ function buildTile(zone) {
   zoneLine.appendChild(name);
   var title = el('div', 'tile-title');
   var line2 = el('div', 'tile-line2');
-  var rule = el('div', 'tile-rule');
+  /**
+   * The progress line, and the transport under it — the shape RHEOS's own console
+   * settled on (`rheos_v2/src/device-management/device-console-pages.ts`): an
+   * elapsed time, a plain bar, a total, then previous / play-pause / next. Peter
+   * asked for exactly that here (08-28), minus the circular art, which he has
+   * ruled against for this wall.
+   */
+  var progress = el('div', 'tile-progress');
+  var elapsed = el('span', 'tile-t');
+  var rule = el('span', 'tile-rule');
   var fill = el('i');
   rule.appendChild(fill);
-  copy.appendChild(zoneLine); copy.appendChild(title); copy.appendChild(line2); copy.appendChild(rule);
+  var total = el('span', 'tile-t total');
+  progress.appendChild(elapsed); progress.appendChild(rule); progress.appendChild(total);
+
+  var transport = el('div', 'tile-transport');
+  /** A press inside the tile's own anchor must never also follow it to the Face. */
+  var act = function (mark, label, action) {
+    var b = el('span', 'tt', '');
+    b.appendChild(glyph(mark));
+    b.setAttribute('title', label);
+    b.setAttribute('aria-label', label + ' · ' + zone.name);
+    var last = 0;
+    b.addEventListener('click', function (event) {
+      event.preventDefault(); event.stopPropagation();
+      if (drag !== null && drag.armed) return;
+      var now = Date.now();
+      if (now - last < 400) return;
+      last = now;
+      post({ action: action, zone: zoneId });
+    });
+    b.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+    b.addEventListener('touchstart', function (event) { event.stopPropagation(); }, { passive: true });
+    return b;
+  };
+  var prevB = act('prev', 'previous', 'previous');
+  var playB = act('play', 'play', 'playpause');
+  var nextB = act('next', 'next', 'next');
+  transport.appendChild(prevB); transport.appendChild(playB); transport.appendChild(nextB);
+
+  copy.appendChild(zoneLine); copy.appendChild(title); copy.appendChild(line2);
+  copy.appendChild(progress); copy.appendChild(transport);
   var meta = el('div', 'tile-meta');
   var stamp = el('div', 'tile-stamp');
   var state = el('div', 'tile-state');
-  var times = el('div', 'tile-times');
-  meta.appendChild(state); meta.appendChild(times); meta.appendChild(stamp);
+  meta.appendChild(state); meta.appendChild(stamp);
   tile.appendChild(art); tile.appendChild(copy); tile.appendChild(meta);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
-    line2: line2, fill: fill, stamp: stamp, state: state, times: times, check: check,
+    line2: line2, fill: fill, stamp: stamp, state: state, check: check,
+    elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
     artKey: null, chips: []
   };
 }
@@ -404,7 +461,11 @@ function render(snapshot, kind) {
   if (snapshot === null) return;
   // A drag holds the wall still: tiles moving under a held finger would change
   // the drop target between the decision and the release. Redrawn on release.
-  if (dragLock) return;
+  // A drag holds the wall still, but a frame arriving mid-drag must be KEPT and
+  // applied on release — dropping it left the grid showing a house that had since
+  // changed (RHEOS's console states the same rule: "held and applied on release,
+  // never mid-gesture").
+  if (dragLock) { deferredFrame = snapshot; return; }
   var now = Date.now();
   root.setAttribute('data-state', 'live');
 
@@ -499,8 +560,14 @@ function render(snapshot, kind) {
       tile.title.textContent = np ? np.title : 'nothing played yet';
       tile.line2.textContent = np ? np.line2 : '';
       tile.stamp.textContent = stampFor(zone, now);
-      tile.state.textContent = zone.state === 'loading' ? 'loading'
-        : (zone.state === 'playing' ? '' : zone.state);
+      // The frame carries the state now, so the word only earns its place while
+      // something is genuinely in flight.
+      tile.state.textContent = zone.state === 'loading' ? 'loading' : '';
+      var playing = zone.state === 'playing' || zone.state === 'loading';
+      tile.playB.replaceChildren(glyph(playing ? 'pause' : 'play'));
+      tile.playB.setAttribute('title', playing ? 'pause' : 'play');
+      tile.prevB.className = zone.allowed.previous ? 'tt' : 'tt off';
+      tile.nextB.className = zone.allowed.next ? 'tt' : 'tt off';
       setArt(tile, zone);
       nextOrder.push(zone.id);
     }
@@ -522,10 +589,12 @@ function render(snapshot, kind) {
     var length = azone.nowPlaying ? azone.nowPlaying.lengthSec : null;
     if (position !== null && length) {
       atile.fill.style.width = Math.min(100, (position / length) * 100).toFixed(2) + '%';
-      atile.times.textContent = formatTime(position) + ' / ' + formatTime(length);
+      atile.elapsed.textContent = formatTime(position);
+      atile.total.textContent = formatTime(length);
     } else {
       atile.fill.style.width = '0';
-      atile.times.textContent = '';
+      atile.elapsed.textContent = '';
+      atile.total.textContent = '';
     }
   }
 }
@@ -563,6 +632,7 @@ var selected = [];             // zone ids in the order chosen; the FIRST leads
 var selectTimer = null;
 var drag = null;               // the live press/drag, or null
 var dragLock = false;          // render suppression while a drag holds the wall
+var deferredFrame = null;      // the frame that arrived mid-drag, applied on release
 var squelchUntil = 0;          // swallows the click the browser fires after a drag
 var mouseBlockUntil = 0;       // swallows the compatibility mouse events after touch
 var lastTap = 0;               // one physical press must never act twice
@@ -1044,7 +1114,8 @@ function teardownDrag() {
   }
   dragLock = false;
   updateBar();
-  var snap = store.snapshot();
+  var snap = deferredFrame !== null ? deferredFrame : store.snapshot();
+  deferredFrame = null;
   if (snap !== null) render(snap, 'snapshot');
 }
 
