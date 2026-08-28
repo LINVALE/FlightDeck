@@ -710,3 +710,13 @@ body { min-height: 100vh; }
 .tt.off { background: rgba(242,238,230,.03); }
 .ta { background: rgba(242,238,230,.05); border-color: rgba(242,238,230,.12); }
 .ta:hover { background: rgba(242,238,230,.12); border-color: var(--accent); color: var(--accent); }
+
+/* Five marks spread from the words' left edge to the card's right — which is
+   where the progress bar ends, so the row and the bar beneath it share a rule.
+   A setting that is ON is lit, not depressed: the state is the point. */
+.tile-transport {
+  -webkit-justify-content: space-between; justify-content: space-between;
+}
+.tt { margin-right: 0; }
+.tt.lit { color: var(--accent); border-color: var(--accent); background: rgba(216,162,74,.12); }
+.tt.lit:hover { background: rgba(216,162,74,.2); }

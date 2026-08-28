@@ -250,7 +250,15 @@ function glyph(name) {
     group: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
             'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
     send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
-           'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3']
+           'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3'],
+    shuffle: ['M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
+              'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
+              'M18.2 5.6 20.6 7.5 18.2 9.4', 'M18.2 14.6 20.6 16.5 18.2 18.4'],
+    repeat: ['M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14', 'M16 13.8 18 16 20 13.8',
+             'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10', 'M4 10.2 6 8 8 10.2'],
+    'repeat-one': ['M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14', 'M16 13.8 18 16 20 13.8',
+                   'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10', 'M4 10.2 6 8 8 10.2',
+                   'M11 11.2 12.6 10.2V14']
   }[name] || [];
   for (var i = 0; i < strokes.length; i += 1) {
     var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -331,10 +339,19 @@ function buildTile(zone) {
     b.setAttribute('aria-label', label + ' \u00B7 ' + zone.name);
     return quiet(b, function () { post({ action: action, zone: zoneId }); });
   };
+  /**
+   * Shuffle and repeat BRACKET the transport, first and last (Peter, 08-28) —
+   * the same arrangement the Face uses, for the same reason: they say how the
+   * queue will be read rather than moving through it, so they belong at the ends
+   * rather than among play and skip.
+   */
+  var shufB = act('shuffle', 'shuffle', 'shuffle');
   var prevB = act('prev', 'previous', 'previous');
   var playB = act('play', 'play', 'playpause');
   var nextB = act('next', 'next', 'next');
-  transport.appendChild(prevB); transport.appendChild(playB); transport.appendChild(nextB);
+  var repB = act('repeat', 'repeat', 'repeat');
+  transport.appendChild(shufB); transport.appendChild(prevB); transport.appendChild(playB);
+  transport.appendChild(nextB); transport.appendChild(repB);
   copy.appendChild(title); copy.appendChild(line2); copy.appendChild(transport);
   now.appendChild(art); now.appendChild(copy);
 
@@ -396,6 +413,7 @@ function buildTile(zone) {
     line2: line2, fill: fill, stamp: stamp, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
     volFill: volFill, volNum: volNum, volMark: volMark, sendB: sendB, groupB: groupB,
+    shufB: shufB, repB: repB,
     detail: detail,
     artKey: null, chips: []
   };
@@ -700,6 +718,13 @@ function render(snapshot, kind) {
       tile.playB.setAttribute('title', playing ? 'pause' : 'play');
       tile.prevB.className = zone.allowed.previous ? 'tt' : 'tt off';
       tile.nextB.className = zone.allowed.next ? 'tt' : 'tt off';
+      var st = zone.settings;
+      tile.shufB.className = st === null ? 'tt off' : (st.shuffle ? 'tt lit' : 'tt');
+      var loop = st === null ? 'disabled' : st.loop;
+      tile.repB.replaceChildren(glyph(loop === 'loop_one' ? 'repeat-one' : 'repeat'));
+      tile.repB.className = st === null ? 'tt off' : (loop === 'disabled' ? 'tt' : 'tt lit');
+      tile.repB.setAttribute('title', loop === 'loop_one' ? 'repeating this track'
+        : (loop === 'loop' ? 'repeating the queue' : 'repeat'));
       setArt(tile, zone);
       nextOrder.push(zone.id);
     }
