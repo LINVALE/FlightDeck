@@ -1536,10 +1536,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ══ THE FADERS MARK ══════════════════════════════════════════════════════════
    The disclosure that opens a level for every room in the group. A square the
    size of the other controls, so the volume line reads as one row of equals. */
-.ctl.ctl-faders { padding: 0; min-width: 2.2vw; }
-.ctl.ctl-faders .glyph { width: 1.35vw; height: 1.35vw; }
+.ctl.ctl-faders .glyph { width: 1.5vw; height: 1.5vw; }
 @media (orientation: portrait) {
-  .ctl.ctl-faders { min-width: 7vw; }
   .ctl.ctl-faders .glyph { width: 4vw; height: 4vw; }
 }
 
@@ -1564,7 +1562,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   min-height: 3.4vw; margin-top: 0; margin-bottom: 0;
 }
 .face[data-face="classic"] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
-.face[data-face="classic"] .shelf-volume .rooms-toggle .ctl { margin-top: 0; margin-bottom: 0; }
+/* the wrapper must be exactly its button, or the row's right edge is the
+   wrapper's and the button sits 13px inside the transport's last control */
+.face[data-face="classic"] .shelf-volume .rooms-toggle .ctl { margin: 0; }
 
 /* ⚖️ THE TWO CHROME ROWS ARE THE SAME WIDTH — the artwork's — so they read as one
    block with two edges rather than two rows that happen to start together. The
@@ -1578,4 +1578,26 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-face="classic"] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 @media (orientation: portrait) {
   .face[data-face="classic"] .shelf .controls { width: 100%; }
+}
+
+
+/* ⚖️ THE TWO ROWS SHARE BOTH EDGES (Peter, 08-28: "distribute control chrome
+   members to align left and right with the volume line"). The trailing margin
+   on the last control was setting the volume's right edge 9px inside the
+   transport's; now the outer edges of both rows are the row itself. */
+.face[data-face="classic"] .shelf .controls > *:first-child { margin-left: 0; }
+.face[data-face="classic"] .shelf .controls > *:last-child { margin-right: 0; }
+
+/* PLAY, subtly emphasised: a touch wider and taller than its neighbours with a
+   little more light behind it, centres still on the one line. */
+.ctl.is-play {
+  min-width: 5.4vw; min-height: 3.9vw;
+  background: rgba(242,238,230,.09);
+  border-color: rgba(242,238,230,.4);
+}
+.ctl.is-play .glyph { width: 1.7vw; height: 1.7vw; }
+.ctl.is-play:hover { background: rgba(242,238,230,.18); border-color: rgba(242,238,230,.62); }
+@media (orientation: portrait) {
+  .ctl.is-play { min-width: 15vw; min-height: 12vw; }
+  .ctl.is-play .glyph { width: 5.4vw; height: 5.4vw; }
 }

@@ -1187,8 +1187,15 @@ function buildControls(zone, withVolume) {
     function () { command({ action: 'shuffle', zone: zone.id }); }));
   controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
     function () { transport('previous'); }));
-  controls.appendChild(button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
-    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); }));
+  /**
+   * PLAY IS THE ONE YOU REACH FOR, so it is a little larger and a little
+   * brighter than its neighbours — the same emphasis the wall card gives it.
+   * Subtle on purpose: the row still has to read as one line of equals.
+   */
+  var playBtn = button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
+    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); });
+  playBtn.className += ' is-play';
+  controls.appendChild(playBtn);
   controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
     function () { transport('next'); }));
 
@@ -2611,7 +2618,7 @@ function groupScale(zone, level) {
 /** The room count, and behind it every room's own scale. */
 function roomsToggle(zone, outs) {
   var wrap = el('span', 'rooms-toggle');
-  var b = el('span', 'ctl small ctl-faders');
+  var b = el('span', 'ctl ctl-faders');
   b.appendChild(glyph('faders'));
   b.setAttribute('title', 'a level for each of the ' + String(outs.length) + ' rooms');
   b.setAttribute('aria-label', 'show the volume of each of the ' + String(outs.length) + ' rooms');
@@ -2634,7 +2641,7 @@ function roomsToggle(zone, outs) {
   pressable(b, function () {
     open = !open;
     list.hidden = !open;
-    b.className = open ? 'ctl small ctl-faders now' : 'ctl small ctl-faders';
+    b.className = open ? 'ctl ctl-faders now' : 'ctl ctl-faders';
   });
   wrap.appendChild(b);
   wrap.appendChild(list);
