@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStore } from './support/store-harness.ts';
 
-// 2026-08-28 (Peter): the Now Playing progress "skips a second back before going forwards — as though it's using two
-// out of sync clocks". Roon's seek_position is a whole second on Roon's clock; the server samples it on its own 1 Hz
-// timer; the face interpolates between frames. A frame that repeats the previous second used to replace the anchor
-// and snap the display back. The store is now monotonic within a second and parks at R+1 on a stall.
+// 2026-08-28 (Peter): "the progress wobbles back and forth on the dial screens … just use the one Roon position
+// reported every second for each zone — no correction needed". Roon's seek_position is a whole second on Roon's own
+// clock and never runs backwards; interpolating it on the browser clock did. The store now shows Roon's number verbatim.
 const T0 = Date.parse('2026-08-28T15:00:00.000Z');
 const realNow = Date.now;
 function at(ms: number): string { return new Date(T0 + ms).toISOString(); }
@@ -23,36 +22,37 @@ function frame(revision: number, ms: number, positionSec: number) {
 
 test.afterEach(() => { Date.now = realNow; });
 
-test('a frame that repeats the previous second (phase slip between the two 1 Hz clocks) never moves the display backwards', () => {
+test('the face shows the second Roon reported, verbatim — nothing is added on the browser clock', () => {
   const store = createStore(); clock(0); store.accept(playing(), true);
-  store.acceptSeek(frame(3, 0, 40)); clock(900);
-  assert.ok(Math.abs(store.positionFor('z')! - 40.9) < 0.01);
+  assert.equal(store.positionFor('z'), 40, 'before the first frame: the snapshot stamp');
+  clock(900); assert.equal(store.positionFor('z'), 40, 'no interpolation from the stamp');
   store.acceptSeek(frame(3, 1000, 41)); clock(1900);
-  assert.ok(Math.abs(store.positionFor('z')! - 41.9) < 0.01);
-  store.acceptSeek(frame(3, 2000, 41)); // Roon's tick has not fired yet — the same second again
-  clock(2000);
-  assert.ok(store.positionFor('z')! >= 41.9, `must not snap back (got ${store.positionFor('z')})`);
-  clock(2900);
-  assert.ok(store.positionFor('z')! <= 42.0 && store.positionFor('z')! >= 41.99, 'parks at R+1 until Roon advances');
-  store.acceptSeek(frame(3, 3000, 42)); clock(3500);
-  assert.ok(Math.abs(store.positionFor('z')! - 42.5) < 0.01, 'climbs smoothly from the next real second');
+  assert.equal(store.positionFor('z'), 41);
+  clock(4000); assert.equal(store.positionFor('z'), 41, 'a missing frame holds the last number; it never runs ahead');
 });
 
-test('a stalled zone parks at R+1 instead of running ahead and jumping back', () => {
+test("Roon's own sequence is followed exactly — a repeated second holds, a double step steps, nothing moves back", () => {
   const store = createStore(); clock(0); store.accept(playing(), true);
-  for (let i = 0; i <= 5; i += 1) { store.acceptSeek(frame(3, i * 1000, 157)); clock(i * 1000 + 500); assert.ok(store.positionFor('z')! <= 158.0); }
-  clock(5900); assert.ok(store.positionFor('z')! <= 158.0 && store.positionFor('z')! >= 157.0);
+  const roon = [47, 48, 50, 50, 52, 52, 53, 54]; // Study, 2026-08-28 17:05Z capture: Roon's 1 Hz seek_position verbatim
+  const shown: number[] = [];
+  roon.forEach((positionSec, i) => { store.acceptSeek(frame(3, i * 1000, positionSec)); clock(i * 1000 + 500); shown.push(store.positionFor('z')!); });
+  assert.deepEqual(shown, roon);
 });
 
-test('a real seek re-anchors in both directions, and a track change starts fresh from the snapshot stamp', () => {
+test('a real seek lands at once in both directions; a track change starts from the new snapshot stamp', () => {
   const store = createStore(); clock(0); store.accept(playing(), true);
-  store.acceptSeek(frame(3, 0, 40)); clock(500);
-  store.acceptSeek(frame(3, 500, 10)); clock(600);
-  assert.ok(Math.abs(store.positionFor('z')! - 10.1) < 0.01, 'previous / drag back lands at once');
+  store.acceptSeek(frame(3, 0, 40)); store.acceptSeek(frame(3, 500, 10)); clock(600);
+  assert.equal(store.positionFor('z'), 10, 'previous / drag back');
   store.acceptSeek(frame(3, 1000, 95)); clock(1000);
-  assert.ok(Math.abs(store.positionFor('z')! - 95) < 0.01, 'drag forward lands at once');
+  assert.equal(store.positionFor('z'), 95, 'drag forward');
   clock(2000); store.accept({ ...playing(4, 2000), zones: [{ ...playing(4, 2000).zones[0], nowPlaying: { title: 'Moanin', lengthSec: 573, seek: { positionSec: 0, at: at(2000) } } }] }, true);
-  clock(2800); assert.ok(Math.abs(store.positionFor('z')! - 0.8) < 0.01, 'snapshot stamp interpolates until the first frame');
-  store.acceptSeek(frame(4, 3000, 0)); clock(3000); // first frame repeats second 0 — must not step back below 0.8
-  assert.ok(store.positionFor('z')! >= 0.8 && store.positionFor('z')! <= 1.0);
+  assert.equal(store.positionFor('z'), 0, 'the new track starts at its own stamp, the old frames forgotten');
+  store.acceptSeek(frame(4, 3000, 1)); assert.equal(store.positionFor('z'), 1);
+});
+
+test('frames from another revision or generation are ignored; the value is clamped to the track length', () => {
+  const store = createStore(); clock(0); store.accept(playing(), true);
+  store.acceptSeek(frame(2, 0, 99)); assert.equal(store.positionFor('z'), 40, 'stale revision');
+  store.acceptSeek({ generation: 'other', revision: 3, at: at(0), zones: [{ id: 'z', positionSec: 99 }] }); assert.equal(store.positionFor('z'), 40, 'other generation');
+  store.acceptSeek(frame(3, 0, 260)); assert.equal(store.positionFor('z'), 200, 'never past the end of the track');
 });

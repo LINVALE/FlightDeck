@@ -55,37 +55,20 @@ export function createStore(onChange) {
       cache();
     },
 
-    /** Seek rides its own frame and carries no revision bump — apply it in place. */
+    /**
+     * Seek rides its own frame and carries no revision bump — apply it in place. The frame holds the position
+     * Roon itself reported for each zone, a whole second on Roon's own once-a-second clock. That number is what
+     * the faces show, verbatim (Peter, 2026-08-28: "just use the one Roon position reported every second for
+     * each zone — no correction needed"). Interpolating between frames on the browser clock made the dial wobble
+     * back and forth whenever the two clocks slipped phase; Roon's own sequence never runs backwards.
+     */
     acceptSeek: function (frame) {
-      function snapshotAnchor(id) {
-        var zone = null;
-        for (var z = 0; z < snapshot.zones.length; z += 1) if (snapshot.zones[z].id === id) { zone = snapshot.zones[z]; break; }
-        var seek = zone && zone.nowPlaying ? zone.nowPlaying.seek : null;
-        if (!seek) return null;
-        var at = Date.parse(seek.at);
-        return { positionSec: seek.positionSec, reported: seek.positionSec, at: isNaN(at) ? when : at };
-      }
       if (snapshot === null || !frame || !Array.isArray(frame.zones)) return;
       if (frame.revision !== snapshot.revision) return;
       if (frame.generation && snapshot.generation && frame.generation !== snapshot.generation) return;
-      var when = Date.parse(frame.at);
-      if (isNaN(when)) when = Date.now();
       for (var i = 0; i < frame.zones.length; i += 1) {
         var entry = frame.zones[i];
-        var reported = entry.positionSec;
-        var anchor = reported;
-        var prev = seekAt[entry.id] || snapshotAnchor(entry.id);
-        if (prev) {
-          // Roon publishes a WHOLE second on its own once-a-second clock, and the server samples it on another, so a
-          // frame periodically repeats the previous second while the face has already interpolated to x.9 — replacing
-          // the anchor then snapped the display back a second before it climbed again (Peter, 2026-08-28: "two out of
-          // sync clocks"). The true position lies in [R, R+1): a frame behind the estimate by less than a second is the
-          // same second seen again, so keep the estimate (never past R+1). Only a larger move — a real seek or a
-          // restart — re-anchors backwards.
-          var estimate = Math.min(prev.positionSec + Math.max(0, (when - prev.at) / 1000), prev.reported + 1);
-          if (reported < estimate && estimate - reported < 1.5) anchor = Math.min(estimate, reported + 0.999);
-        }
-        seekAt[entry.id] = { positionSec: anchor, reported: reported, at: when };
+        if (typeof entry.positionSec === 'number') seekAt[entry.id] = { positionSec: entry.positionSec };
       }
       emit('seek');
     },
@@ -93,23 +76,17 @@ export function createStore(onChange) {
     snapshot: function () { return snapshot; },
 
     /**
-     * Interpolated position for a zone, clamped to the track length. This is what
-     * makes progress smooth between 1 Hz frames without ever running past the end.
+     * The position Roon last reported for a zone — the latest seek frame, or the snapshot's own stamp before the
+     * first frame — clamped to the track length. Never estimated, never advanced on the browser clock.
      */
     positionSec: function (zone) {
       if (!zone || !zone.nowPlaying) return null;
       var base = seekAt[zone.id];
       var seek = zone.nowPlaying.seek;
-      var positionSec, at;
-      if (base) { positionSec = base.positionSec; at = base.at; }
-      else if (seek) { positionSec = seek.positionSec; at = Date.parse(seek.at); }
+      var value;
+      if (base) value = base.positionSec;
+      else if (seek && typeof seek.positionSec === 'number') value = seek.positionSec;
       else return null;
-      if (isNaN(at)) at = Date.now();
-      var elapsed = zone.state === 'playing' ? (Date.now() - at) / 1000 : 0;
-      var value = positionSec + Math.max(0, elapsed);
-      // Never run more than a second past the last whole second Roon reported: a stalled zone parks at R+1
-      // instead of drifting ahead and then jumping back when the next frame corrects it.
-      if (base && typeof base.reported === 'number') value = Math.min(value, base.reported + 1);
       var length = zone.nowPlaying.lengthSec;
       if (typeof length === 'number' && length > 0) value = Math.min(value, length);
       return value;
