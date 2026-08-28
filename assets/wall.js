@@ -635,6 +635,21 @@ function render(snapshot, kind) {
     var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
     var overflow = held.slice(shown.length);
     var count = shown.length;
+    /**
+     * THE CARDS FILL THE SCREEN, up to sixteen (Peter, 08-28: "would we be better
+     * varying size to fill screen up to max 16 per screen?" — which is what
+     * RHEOS's console does with auto-fill and a minimum).
+     *
+     * A rigid 4x4 wasted a whole row on eleven rooms and cramped every card into
+     * 177px; three rows of four gives each one 244px and every fit problem on this
+     * card stops being a fit problem. Past sixteen the rows stay at a quarter and
+     * the seventeenth scrolls, rather than shrinking the first sixteen.
+     */
+    var cols = Math.max(1, Math.min(4, count));
+    var rows = Math.max(1, Math.min(4, Math.ceil(count / cols)));
+    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+    grid.style.gridAutoRows = (100 / rows).toFixed(4) + '%';
+    root.setAttribute('data-rows', String(rows));
     // Density follows what is ON THE PAGE, which is now a family rather than the
     // house: three rooms in a tab should look like three rooms, not like a corner
     // of twenty-two.

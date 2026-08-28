@@ -649,3 +649,37 @@ body { min-height: 100vh; }
    row whatever the room is doing. */
 .tile-now { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
 .tile-actions { margin-top: auto; }
+
+/* Three pixels between a round button's border and a bar's rounded end is
+   geometrically clear and visually touching — Peter read it as the bars covering
+   the controls, and he is right that it looks that way. Since the foot is pinned
+   to the bottom, the spare space was collecting there doing nothing; it is spent
+   here instead, separating the two things that were reading as one. */
+.tile-bar-line { margin-top: .95vh; }
+.tile-bar-line + .tile-bar-line { margin-top: .35vh; }
+
+/* With fewer rows each card has real height, so the sleeve and the type grow
+   back into it. Four rows is the crowded case the small sizes were tuned for. */
+.wall[data-rows="3"] .grid > .tile .tile-art { width: 10.5vh; height: 10.5vh; }
+.wall[data-rows="2"] .grid > .tile .tile-art { width: 17vh; height: 17vh; }
+.wall[data-rows="1"] .grid > .tile .tile-art { width: 30vh; height: 30vh; }
+.wall[data-rows="3"] .grid > .tile .tile-title { font-size: 1.1vw; }
+.wall[data-rows="2"] .grid > .tile .tile-title { font-size: 1.35vw; }
+.wall[data-rows="1"] .grid > .tile .tile-title { font-size: 1.7vw; }
+.wall[data-rows="3"] .tt, .wall[data-rows="3"] .ta { width: 1.7vw; height: 1.7vw; }
+.wall[data-rows="2"] .tt, .wall[data-rows="2"] .ta { width: 2.1vw; height: 2.1vw; }
+.wall[data-rows="1"] .tt, .wall[data-rows="1"] .ta { width: 2.6vw; height: 2.6vw; }
+.wall[data-rows="3"] .tt-glyph { width: .78vw; height: .78vw; }
+.wall[data-rows="2"] .tt-glyph { width: .95vw; height: .95vw; }
+.wall[data-rows="1"] .tt-glyph { width: 1.2vw; height: 1.2vw; }
+
+/* With three rows the card has 240px, not 177, so the sleeve takes the height
+   back rather than leaving it pooled above the foot as a void. The music block
+   is allowed to grow again for the same reason — its floor is now the sleeve, so
+   a sparse card can no longer open a gap the way it did at four rows. */
+.wall[data-rows="1"] .tile-now, .wall[data-rows="2"] .tile-now, .wall[data-rows="3"] .tile-now {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+}
+.wall[data-rows="3"] .grid > .tile .tile-line2 { font-size: .78vw; }
+.wall[data-rows="2"] .grid > .tile .tile-line2 { font-size: .95vw; }
+.wall[data-rows="3"] .grid > .tile .tile-zone { font-size: .92vw; }
