@@ -354,6 +354,17 @@ var title = el('h1', 'title');
 var line2 = el('div', 'line2');
 var line3 = el('div', 'line3');
 copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
+/**
+ * CLASSIC'S SHELF — controls that live IN the layout rather than over it.
+ *
+ * Both hosts are in the DOM from the start and hold their space always, so
+ * revealing the chrome changes opacity and nothing else: the sleeve and the
+ * words do not move under the pointer (Peter, 08-28). The transport sits
+ * directly under the metadata; the volume directly above the progress.
+ */
+var shelfTransport = el('div', 'shelf shelf-transport');
+var shelfVolume = el('div', 'shelf shelf-volume');
+copy.appendChild(shelfTransport);
 var artistName = el('span', 'artistname');
 head.insertBefore(artistName, status);
 
@@ -476,7 +487,7 @@ dialBox.appendChild(dial); dialBox.appendChild(dialReading);
 cover.appendChild(dialBox);
 foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(bar); foot.appendChild(rightBox);
 
-safe.appendChild(head); safe.appendChild(body); safe.appendChild(foot);
+safe.appendChild(head); safe.appendChild(body); safe.appendChild(shelfVolume); safe.appendChild(foot);
 root.appendChild(bg); root.appendChild(safe);
 
 /* ---------- the backdrop: blurred artist, recoloured to the cover's tones ----------
@@ -684,6 +695,7 @@ function render(snapshot, kind) {
 
   if (kind !== 'seek') {
     zoneName.textContent = zone.name;
+    renderShelf(zone);
     /**
      * NO MEMBER NAMES. Roon already names a group "Study RHEOS + 2", which says
      * what the badge needs to say (Peter, 08-28) — the chips repeated it and ran
@@ -995,6 +1007,185 @@ function openBrowseMenu() {
   showPicker('browse');
 }
 
+/**
+ * Rebuild Classic's shelf. Cheap enough to do on every structural frame — the
+ * strip does exactly the same — and it keeps the play/pause glyph, the lit
+ * shuffle and repeat, and the levels honest without a separate repaint path.
+ */
+function renderShelf(zone) {
+  if (current !== 'classic' || zone === null) {
+    if (shelfTransport.childNodes.length > 0) shelfTransport.replaceChildren();
+    if (shelfVolume.childNodes.length > 0) shelfVolume.replaceChildren();
+    return;
+  }
+  shelfTransport.replaceChildren(buildControls(zone, false));
+  shelfVolume.replaceChildren(buildVolumeOnly(zone));
+}
+
+/**
+ * The volume half: a master for a group with its rooms behind a count, or the
+ * one room's own scale. Lifted out of the control line so Classic can put it
+ * above its progress bar while the transport sits under its metadata.
+ */
+function appendVolume(controls, zone, button) {
+  var groupOuts = [];
+  if (zone !== null && zone.outputs.length > 1) {
+    for (var gi = 0; gi < zone.outputs.length; gi += 1) {
+      var go = zone.outputs[gi];
+      if (go.volume !== null && go.volume.value !== null && go.volume.max !== null
+          && go.volume.type !== 'incremental') groupOuts.push(go);
+    }
+  }
+  if (groupOuts.length > 1) {
+    var levels = [];
+    for (var li = 0; li < groupOuts.length; li += 1) {
+      var lv = groupOuts[li].volume;
+      var lmin = lv.min === null ? 0 : lv.min;
+      levels.push(Math.max(0, Math.min(1, (lv.value - lmin) / Math.max(1, lv.max - lmin))));
+    }
+    var mean = 0;
+    for (var mi = 0; mi < levels.length; mi += 1) mean += levels[mi];
+    mean = mean / levels.length;
+
+    var master = groupScale(zone, mean);
+    var anyMuted = true;
+    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) anyMuted = false;
+    var masterSpeaker = volumeSpeaker(groupOuts[0], anyMuted ? 0 : mean);
+    volUi = { speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true };
+    controls.appendChild(masterSpeaker);
+    controls.appendChild(master);
+    controls.appendChild(roomsToggle(zone, groupOuts));
+  } else {
+
+  var output = volumeOutput();
+  var vol = output === null ? null : output.volume;
+  if (vol === null) {
+    volUi = null;
+    controls.appendChild(button('minus', 'no volume control', false, function () {}));
+    controls.appendChild(button('plus', 'no volume control', false, function () {}));
+  } else if (vol.type === 'incremental' || vol.value === null || vol.max === null) {
+    var incSpeaker = volumeSpeaker(output, 0.5);
+    volUi = { speaker: incSpeaker, scale: null, outputId: output.id };
+    controls.appendChild(incSpeaker);
+    controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true, function () { nudgeVolume(-1); }));
+    controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true, function () { nudgeVolume(1); }));
+  } else {
+    var min = vol.min === null ? 0 : vol.min;
+    var span = Math.max(1, vol.max - min);
+    var level = Math.max(0, Math.min(1, (vol.value - min) / span));
+    var speakerNode = volumeSpeaker(output, vol.muted ? 0 : level);
+    var scaleNode = volumeScale(output, level, min, span);
+    volUi = { speaker: speakerNode, scale: scaleNode, outputId: output.id };
+    controls.appendChild(speakerNode);
+    // The scale is flanked by a quiet speaker and a loud one, and they step the
+    // level (Peter, 08-26). They read as the ends of the scale they bracket, so
+    // the group says "this is loudness" without a label.
+    controls.appendChild(volumeStep(output, 'down'));
+    controls.appendChild(scaleNode);
+    controls.appendChild(volumeStep(output, 'up'));
+  }
+  }
+}
+
+/**
+ * THE CONTROL LINE, built once and mounted wherever a face wants it.
+ *
+ * Every face but Classic puts it in the floating strip. Classic mounts the
+ * transport under its metadata and the volume above its progress, so the same
+ * builders serve both and there is one implementation of what a button does.
+ * `withVolume` keeps the strip's order exactly as it was — shuffle, prev, play,
+ * next, VOLUME, repeat — while the shelf takes the two halves separately.
+ */
+function buildControls(zone, withVolume) {
+  var controls = el('div', 'controls');
+  var button = function (label, title, enabled, onPress) {
+    var b = el('span', enabled ? 'ctl' : 'ctl off');
+    b.appendChild(glyph(label));
+    b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
+    if (enabled) pressable(b, onPress);
+    return b;
+  };
+  var playing = zone !== null && zone.state === 'playing';
+  /**
+   * SHUFFLE and REPEAT bracket the line (Peter, 08-26). They are not transport —
+   * they say how the queue will be READ — so they sit at the ends rather than
+   * among play and volume, and they are LIT rather than pressed-looking: their
+   * state is the point, and the state belongs to Roon.
+   */
+  var settings = zone === null ? null : zone.settings;
+  var lit = function (name, title, on, onPress) {
+    var b = el('span', settings === null ? 'ctl off' : (on ? 'ctl lit' : 'ctl'));
+    b.appendChild(glyph(name));
+    b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
+    if (settings !== null) pressable(b, onPress);
+    return b;
+  };
+  controls.appendChild(lit('shuffle',
+    settings !== null && settings.shuffle ? 'shuffle is on' : 'shuffle',
+    settings !== null && settings.shuffle,
+    function () { command({ action: 'shuffle', zone: zone.id }); }));
+  controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
+    function () { transport('previous'); }));
+  controls.appendChild(button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
+    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); }));
+  controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
+    function () { transport('next'); }));
+
+  /**
+   * VOLUME, in the runway's own language.
+   *
+   * A speaker you press to mute, then a scale of segments you press anywhere on.
+   * The segments are the same motif as the Approach progress, so volume and
+   * position belong to one visual family rather than a slider imported from a
+   * different design world. Pressing a position sets it absolutely — dragging with
+   * a pointer remote held in the air is miserable, so press-to-position is the
+   * gesture and drag is only a bonus where the device supports it.
+   *
+   * An `incremental` output has no level to show at all — Roon says so — and falls
+   * back to plus and minus.
+   */
+  /**
+   * A GROUP HAS ONE LEVEL, AND ROOMS BEHIND IT.
+   *
+   * Until now a grouped zone had NO volume control here at all: `volumeOutput`
+   * returns null the moment a zone has more than one output, so joining two rooms
+   * silently took the volume away. Roon's own remote has the same hole from the
+   * other side — per-endpoint sliders and no master, asked for since 2018.
+   *
+   * So: a master scale that moves every room at once, preserving the offsets
+   * between them (the quiet room stays quieter — Sonos's documented contract,
+   * adopted verbatim), and a room-count button that discloses the individual
+   * scales beneath it. The zone master stays visually separate from the member
+   * controls, which is the distinction Sonos's guidance draws and RHEOS's own
+   * console follows.
+   */
+  if (withVolume) appendVolume(controls, zone, button);
+  // Repeat closes the line. The glyph itself carries which of the three states
+  // Roon is in — a bare circuit for "all", a circuit with a 1 for "this track".
+  var loop = settings === null ? 'disabled' : settings.loop;
+  controls.appendChild(lit(loop === 'loop_one' ? 'repeat-one' : 'repeat',
+    loop === 'loop_one' ? 'repeating this track' : (loop === 'loop' ? 'repeating the queue' : 'repeat'),
+    loop !== 'disabled',
+    function () { command({ action: 'repeat', zone: zone.id }); }));
+  return controls;
+}
+
+/** The volume half on its own, for a face that sites it away from the transport. */
+function buildVolumeOnly(zone) {
+  var controls = el('div', 'controls');
+  appendVolume(controls, zone, function (label, title, enabled, onPress) {
+    var b = el('span', enabled ? 'ctl' : 'ctl off');
+    b.appendChild(glyph(label));
+    b.setAttribute('title', title);
+    b.setAttribute('aria-label', title);
+    if (enabled) pressable(b, onPress);
+    return b;
+  });
+  return controls;
+}
+
 /** Rooms chosen in the grouping picker, kept across its redraws. */
 var groupPick = [];
 
@@ -1249,134 +1440,7 @@ function showPicker(mode) {
 
 
   var zone = currentZone();
-  var controls = el('div', 'controls');
-  var button = function (label, title, enabled, onPress) {
-    var b = el('span', enabled ? 'ctl' : 'ctl off');
-    b.appendChild(glyph(label));
-    b.setAttribute('title', title);
-    b.setAttribute('aria-label', title);
-    if (enabled) pressable(b, onPress);
-    return b;
-  };
-  var playing = zone !== null && zone.state === 'playing';
-  /**
-   * SHUFFLE and REPEAT bracket the line (Peter, 08-26). They are not transport —
-   * they say how the queue will be READ — so they sit at the ends rather than
-   * among play and volume, and they are LIT rather than pressed-looking: their
-   * state is the point, and the state belongs to Roon.
-   */
-  var settings = zone === null ? null : zone.settings;
-  var lit = function (name, title, on, onPress) {
-    var b = el('span', settings === null ? 'ctl off' : (on ? 'ctl lit' : 'ctl'));
-    b.appendChild(glyph(name));
-    b.setAttribute('title', title);
-    b.setAttribute('aria-label', title);
-    if (settings !== null) pressable(b, onPress);
-    return b;
-  };
-  controls.appendChild(lit('shuffle',
-    settings !== null && settings.shuffle ? 'shuffle is on' : 'shuffle',
-    settings !== null && settings.shuffle,
-    function () { command({ action: 'shuffle', zone: zone.id }); }));
-  controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
-    function () { transport('previous'); }));
-  controls.appendChild(button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
-    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); }));
-  controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
-    function () { transport('next'); }));
-
-  /**
-   * VOLUME, in the runway's own language.
-   *
-   * A speaker you press to mute, then a scale of segments you press anywhere on.
-   * The segments are the same motif as the Approach progress, so volume and
-   * position belong to one visual family rather than a slider imported from a
-   * different design world. Pressing a position sets it absolutely — dragging with
-   * a pointer remote held in the air is miserable, so press-to-position is the
-   * gesture and drag is only a bonus where the device supports it.
-   *
-   * An `incremental` output has no level to show at all — Roon says so — and falls
-   * back to plus and minus.
-   */
-  /**
-   * A GROUP HAS ONE LEVEL, AND ROOMS BEHIND IT.
-   *
-   * Until now a grouped zone had NO volume control here at all: `volumeOutput`
-   * returns null the moment a zone has more than one output, so joining two rooms
-   * silently took the volume away. Roon's own remote has the same hole from the
-   * other side — per-endpoint sliders and no master, asked for since 2018.
-   *
-   * So: a master scale that moves every room at once, preserving the offsets
-   * between them (the quiet room stays quieter — Sonos's documented contract,
-   * adopted verbatim), and a room-count button that discloses the individual
-   * scales beneath it. The zone master stays visually separate from the member
-   * controls, which is the distinction Sonos's guidance draws and RHEOS's own
-   * console follows.
-   */
-  var groupOuts = [];
-  if (zone !== null && zone.outputs.length > 1) {
-    for (var gi = 0; gi < zone.outputs.length; gi += 1) {
-      var go = zone.outputs[gi];
-      if (go.volume !== null && go.volume.value !== null && go.volume.max !== null
-          && go.volume.type !== 'incremental') groupOuts.push(go);
-    }
-  }
-  if (groupOuts.length > 1) {
-    var levels = [];
-    for (var li = 0; li < groupOuts.length; li += 1) {
-      var lv = groupOuts[li].volume;
-      var lmin = lv.min === null ? 0 : lv.min;
-      levels.push(Math.max(0, Math.min(1, (lv.value - lmin) / Math.max(1, lv.max - lmin))));
-    }
-    var mean = 0;
-    for (var mi = 0; mi < levels.length; mi += 1) mean += levels[mi];
-    mean = mean / levels.length;
-
-    var master = groupScale(zone, mean);
-    var anyMuted = true;
-    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) anyMuted = false;
-    var masterSpeaker = volumeSpeaker(groupOuts[0], anyMuted ? 0 : mean);
-    volUi = { speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true };
-    controls.appendChild(masterSpeaker);
-    controls.appendChild(master);
-    controls.appendChild(roomsToggle(zone, groupOuts));
-  } else {
-
-  var output = volumeOutput();
-  var vol = output === null ? null : output.volume;
-  if (vol === null) {
-    volUi = null;
-    controls.appendChild(button('minus', 'no volume control', false, function () {}));
-    controls.appendChild(button('plus', 'no volume control', false, function () {}));
-  } else if (vol.type === 'incremental' || vol.value === null || vol.max === null) {
-    var incSpeaker = volumeSpeaker(output, 0.5);
-    volUi = { speaker: incSpeaker, scale: null, outputId: output.id };
-    controls.appendChild(incSpeaker);
-    controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true, function () { nudgeVolume(-1); }));
-    controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true, function () { nudgeVolume(1); }));
-  } else {
-    var min = vol.min === null ? 0 : vol.min;
-    var span = Math.max(1, vol.max - min);
-    var level = Math.max(0, Math.min(1, (vol.value - min) / span));
-    var speakerNode = volumeSpeaker(output, vol.muted ? 0 : level);
-    var scaleNode = volumeScale(output, level, min, span);
-    volUi = { speaker: speakerNode, scale: scaleNode, outputId: output.id };
-    controls.appendChild(speakerNode);
-    // The scale is flanked by a quiet speaker and a loud one, and they step the
-    // level (Peter, 08-26). They read as the ends of the scale they bracket, so
-    // the group says "this is loudness" without a label.
-    controls.appendChild(volumeStep(output, 'down'));
-    controls.appendChild(scaleNode);
-    controls.appendChild(volumeStep(output, 'up'));
-  }
-  }
-  // Repeat closes the line. The glyph itself carries which of the three states
-  // Roon is in — a bare circuit for "all", a circuit with a 1 for "this track".
-  var loop = settings === null ? 'disabled' : settings.loop;
-  controls.appendChild(lit(loop === 'loop_one' ? 'repeat-one' : 'repeat',
-    loop === 'loop_one' ? 'repeating this track' : (loop === 'loop' ? 'repeating the queue' : 'repeat'),
-    loop !== 'disabled',
-    function () { command({ action: 'repeat', zone: zone.id }); }));
+  var controls = buildControls(zone, true);
   actionRow.appendChild(controls);
   if (mode === 'transport') nodes.push(actionRow);
 
@@ -2684,7 +2748,9 @@ function revealChrome() {
   root.className = root.className.indexOf('show-chrome') >= 0 ? root.className : root.className + ' show-chrome';
   // The transport bar belongs to the revealed state, not to a press: once the
   // screen is showing its controls, the commonest ones should already be there.
-  if (picker.hidden && browsePanel === null) showPicker('transport');
+  // Classic carries its transport and volume in its own layout, so raising the
+  // chrome there must not also raise a strip saying the same thing.
+  if (picker.hidden && browsePanel === null && current !== 'classic') showPicker('transport');
   if (chromeTimer !== null) clearTimeout(chromeTimer);
   chromeTimer = setTimeout(function () {
     root.className = root.className.replace(' show-chrome', '');
@@ -2754,15 +2820,17 @@ function onFacePress(event) {
    */
   if (wasUp && !panelJustAppeared() && target !== null
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
-      && !inNode(target, copy) && !inNode(target, homeMark)
+      && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
     lastZonePress = now;
     closeSettings();
     return;
   }
-  // Anything that handles its own presses is not a zone.
+  // Anything that handles its own presses is not a zone. Classic's shelf is part
+  // of the layout rather than a panel over it, so it has to say so here too.
   if (target !== null && (inNode(target, cover) || inNode(target, picker) || inNode(target, foot)
+      || inNode(target, shelfVolume)
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 
@@ -2791,8 +2859,9 @@ function onFacePress(event) {
   if (y < height * 0.16) { openPanel('faces'); return; }
   if (y < height * 0.72) { openBrowseMenu(); return; }
   // The lower band is where the transport bar lives, and revealChrome has already
-  // put it there — pressing again would only re-raise it under the finger.
-  showPicker('transport');
+  // put it there — pressing again would only re-raise it under the finger. Classic
+  // has no strip at all: its controls are in the layout, already in front of you.
+  if (current !== 'classic') showPicker('transport');
 }
 
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
