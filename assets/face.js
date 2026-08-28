@@ -1103,7 +1103,9 @@ function openBrowseMenu() {
 function buildBrowseRow() {
   var row = el('div', 'row row-browse');
   var entry = function (label, onPress) {
-    var b = el('span', 'opt browse-entry', label);
+    var b = el('span', 'opt browse-entry');
+    b.appendChild(glyph(label));
+    b.appendChild(document.createTextNode(label));
     pressable(b, onPress);
     return b;
   };
@@ -2221,6 +2223,62 @@ var glyph = function (name) {
         'M6 5.2v13.6', 'M3.7 10.4h4.6',
         'M12 5.2v13.6', 'M9.7 14.6h4.6',
         'M18 5.2v13.6', 'M15.7 8.6h4.6',
+      ],
+      /**
+       * ══ THE BROWSE MARKS ══════════════════════════════════════════════════
+       * One for each way into the library. They sit BESIDE the words, never
+       * instead of them — Peter's 08-26 rule is that an icon only replaces a
+       * word when the meaning is evident, and "composers" is not a shape anyone
+       * would guess. What they buy is RECOGNITION: at a glance across a room the
+       * eye finds the disc or the clock long before it reads the label.
+       *
+       * All drawn here, as strokes in the same hand as shuffle and repeat, since
+       * a face must never fetch anything at runtime — and never as emoji, which
+       * a colour font would hijack (the pause button once arrived bright blue).
+       */
+      /* a compass: the needle points somewhere you have not been */
+      explore: [
+        'M12 4.2a7.8 7.8 0 1 0 0 15.6 7.8 7.8 0 1 0 0-15.6',
+        'M15.4 8.6 10.5 10.5 8.6 15.4 13.5 13.5z',
+      ],
+      /* a luggage tag — a genre is a label tied on, not a place */
+      genres: [
+        'M4.6 11.4V5.7a1.1 1.1 0 0 1 1.1-1.1h5.7l7.9 7.9a1.2 1.2 0 0 1 0 1.7l-5.6 5.6a1.2 1.2 0 0 1-1.7 0z',
+        'M8.4 8.4a.35 .35 0 1 0 0 .7 .35 .35 0 1 0 0-.7',
+      ],
+      /* THE RECORD ITSELF, hole and all. It was a square round a circle first,
+         which at 22px is the universal "picture" icon and said photograph, not
+         album. The clock is the only other disc here and it has hands. */
+      albums: [
+        'M12 4.4a7.6 7.6 0 1 0 0 15.2 7.6 7.6 0 1 0 0-15.2',
+        'M12 10.4a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 1 0 0-3.2',
+      ],
+      /* whoever is singing it */
+      artists: [
+        'M12 4.7a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 1 0 0-6.8',
+        'M5.6 19.4a6.4 6.4 0 0 1 12.8 0',
+      ],
+      /* a nib: whoever WROTE it, which is a different question */
+      composers: [
+        'M4.8 19.2l.8-3.2L16.1 5.5a1.9 1.9 0 0 1 2.7 2.7L8.3 18.7z',
+        'M14.7 7.1l2.7 2.7',
+      ],
+      /* a list with the play mark at its foot — the lines stop short of it, or
+         the triangle grows a tail and the whole thing reads as an arrow */
+      playlists: [
+        'M4.6 6.8h12', 'M4.6 11.2h12', 'M4.6 15.6h6.6',
+        'M14 15.4v6l5-3z',
+      ],
+      /* something broadcasting: a point, and the air going out from it */
+      radio: [
+        'M12 10.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 1 0 0-2.2',
+        'M9.1 9.1a4.1 4.1 0 0 0 0 5.8', 'M14.9 9.1a4.1 4.1 0 0 1 0 5.8',
+        'M6.3 6.3a8.1 8.1 0 0 0 0 11.4', 'M17.7 6.3a8.1 8.1 0 0 1 0 11.4',
+      ],
+      /* a clock, because "recent" is a question about time */
+      recent: [
+        'M12 4.6a7.4 7.4 0 1 0 0 14.8 7.4 7.4 0 1 0 0-14.8',
+        'M12 8.1V12.2l2.9 1.8',
       ],
       'repeat-one': [
         'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
