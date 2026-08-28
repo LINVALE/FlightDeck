@@ -234,12 +234,33 @@ function glyph(name) {
     prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
     next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
     play: 'M8 5.5v13l11-6.5z',
-    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z'
+    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
+    speaker: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z'
   }[name];
-  var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-  path.setAttribute('d', d);
-  path.setAttribute('fill', 'currentColor');
-  svg.appendChild(path);
+  if (d !== undefined) {
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'currentColor');
+    svg.appendChild(path);
+    return svg;
+  }
+  // the two stroked marks: a chain for group, a box-and-arrow for send-to
+  var strokes = {
+    group: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
+            'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
+    send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
+           'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3']
+  }[name] || [];
+  for (var i = 0; i < strokes.length; i += 1) {
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    line.setAttribute('d', strokes[i]);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', 'currentColor');
+    line.setAttribute('stroke-width', '1.7');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(line);
+  }
   return svg;
 }
 
@@ -250,11 +271,6 @@ function buildTile(zone) {
   tile.setAttribute('data-zone', zoneId);
   var check = el('span', 'tile-check');
   tile.appendChild(check);
-  /**
-   * GROUPING BY HAND. A press that MOVES becomes a drag (held first, on touch,
-   * so a scroll is never mistaken for one); a press that stays put is a look at
-   * the room, exactly as before. In choose mode a tap toggles the room instead.
-   */
   tile.addEventListener('mousedown', function (event) {
     startPress(event, { kind: 'zone', zoneId: zoneId, name: name.textContent });
   });
@@ -263,28 +279,66 @@ function buildTile(zone) {
   }, { passive: true });
   tile.addEventListener('click', function (event) {
     if (Date.now() < squelchUntil) { event.preventDefault(); event.stopPropagation(); return; }
-    if (!selectMode) return;                    // a plain look at the room
+    if (pendingSend !== null) {
+      event.preventDefault(); event.stopPropagation();
+      finishSend(zoneId);
+      return;
+    }
+    if (!selectMode) return;
     event.preventDefault(); event.stopPropagation();
     tapToggle(zoneId);
   });
+
+  /** A press on any control inside the card must never also follow it to the Face. */
+  var quiet = function (node, run) {
+    var last = 0;
+    node.addEventListener('click', function (event) {
+      event.preventDefault(); event.stopPropagation();
+      if (drag !== null && drag.armed) return;
+      var now = Date.now();
+      if (now - last < 350) return;
+      last = now;
+      run(event);
+    });
+    node.addEventListener('mousedown', function (event) { event.stopPropagation(); });
+    node.addEventListener('touchstart', function (event) { event.stopPropagation(); }, { passive: true });
+    return node;
+  };
+
+  /* ── the head: room, its family, its members, and how long ago ──────────── */
+  var head = el('div', 'tile-head');
+  var zoneLine = el('div', 'tile-zone');
+  var name = el('span', '', zone.name);
+  zoneLine.appendChild(name);
+  var stamp = el('div', 'tile-stamp');
+  head.appendChild(zoneLine); head.appendChild(stamp);
+
+  /* ── the art, with the music and the transport beside it ────────────────── */
+  var now = el('div', 'tile-now');
   var art = el('div', 'tile-art');
   var img = document.createElement('img');
   img.alt = '';
   art.appendChild(img);
   var copy = el('div', 'tile-copy');
-  var zoneLine = el('div', 'tile-zone');
-  var name = el('span', '', zone.name);
-  zoneLine.appendChild(name);
   var title = el('div', 'tile-title');
   var line2 = el('div', 'tile-line2');
-  /**
-   * The progress line, and the transport under it — the shape RHEOS's own console
-   * settled on (`rheos_v2/src/device-management/device-console-pages.ts`): an
-   * elapsed time, a plain bar, a total, then previous / play-pause / next. Peter
-   * asked for exactly that here (08-28), minus the circular art, which he has
-   * ruled against for this wall.
-   */
-  var progress = el('div', 'tile-progress');
+  var transport = el('div', 'tile-transport');
+  var act = function (mark, label, action) {
+    var b = el('span', 'tt');
+    b.appendChild(glyph(mark));
+    b.setAttribute('title', label);
+    b.setAttribute('aria-label', label + ' \u00B7 ' + zone.name);
+    return quiet(b, function () { post({ action: action, zone: zoneId }); });
+  };
+  var prevB = act('prev', 'previous', 'previous');
+  var playB = act('play', 'play', 'playpause');
+  var nextB = act('next', 'next', 'next');
+  transport.appendChild(prevB); transport.appendChild(playB); transport.appendChild(nextB);
+  copy.appendChild(title); copy.appendChild(line2); copy.appendChild(transport);
+  now.appendChild(art); now.appendChild(copy);
+
+  /* ── two bars, each the full width of the card, each with its reading ───── */
+  var progress = el('div', 'tile-bar-line');
   var elapsed = el('span', 'tile-t');
   var rule = el('span', 'tile-rule');
   var fill = el('i');
@@ -292,47 +346,119 @@ function buildTile(zone) {
   var total = el('span', 'tile-t total');
   progress.appendChild(elapsed); progress.appendChild(rule); progress.appendChild(total);
 
-  var transport = el('div', 'tile-transport');
-  /** A press inside the tile's own anchor must never also follow it to the Face. */
-  var act = function (mark, label, action) {
-    var b = el('span', 'tt', '');
-    b.appendChild(glyph(mark));
-    b.setAttribute('title', label);
-    b.setAttribute('aria-label', label + ' · ' + zone.name);
-    var last = 0;
-    b.addEventListener('click', function (event) {
-      event.preventDefault(); event.stopPropagation();
-      if (drag !== null && drag.armed) return;
-      var now = Date.now();
-      if (now - last < 400) return;
-      last = now;
-      post({ action: action, zone: zoneId });
-    });
-    b.addEventListener('mousedown', function (event) { event.stopPropagation(); });
-    b.addEventListener('touchstart', function (event) { event.stopPropagation(); }, { passive: true });
-    return b;
-  };
-  var prevB = act('prev', 'previous', 'previous');
-  var playB = act('play', 'play', 'playpause');
-  var nextB = act('next', 'next', 'next');
-  transport.appendChild(prevB); transport.appendChild(playB); transport.appendChild(nextB);
+  var volLine = el('div', 'tile-bar-line');
+  var volMark = el('span', 'tile-vol-mark');
+  volMark.appendChild(glyph('speaker'));
+  var volBar = el('span', 'tile-rule vol');
+  var volFill = el('i');
+  volBar.appendChild(volFill);
+  var volNum = el('span', 'tile-t total');
+  quiet(volBar, function (event) {
+    var box = volBar.getBoundingClientRect();
+    if (box.width <= 0) return;
+    var want = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
+    volFill.style.width = (want * 100).toFixed(1) + '%';      // answer the press at once
+    volNum.textContent = String(Math.round(want * 100));
+    // ⚖️ Press to position, never drag (Peter, 08-28). One grammar with the Face.
+    post(volumeCommand(zoneId, want));
+  });
+  volLine.appendChild(volMark); volLine.appendChild(volBar); volLine.appendChild(volNum);
 
-  copy.appendChild(zoneLine); copy.appendChild(title); copy.appendChild(line2);
-  copy.appendChild(progress); copy.appendChild(transport);
-  var meta = el('div', 'tile-meta');
-  var stamp = el('div', 'tile-stamp');
+  /* ── and what to do with the room, along the bottom ─────────────────────── */
+  var actions = el('div', 'tile-actions');
+  var groupB = quiet(el('span', 'ta'), function () { beginGroupFrom(zoneId); });
+  groupB.appendChild(glyph('group'));
+  groupB.setAttribute('title', 'group ' + zone.name + ' with another room');
+  var sendB = quiet(el('span', 'ta'), function () { beginSendFrom(zoneId); });
+  sendB.appendChild(glyph('send'));
+  sendB.setAttribute('title', 'send what is playing here to another room');
   var state = el('div', 'tile-state');
-  meta.appendChild(state); meta.appendChild(stamp);
-  tile.appendChild(art); tile.appendChild(copy); tile.appendChild(meta);
+  actions.appendChild(groupB); actions.appendChild(sendB); actions.appendChild(state);
+
+  tile.appendChild(head); tile.appendChild(now);
+  tile.appendChild(progress); tile.appendChild(volLine); tile.appendChild(actions);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
     line2: line2, fill: fill, stamp: stamp, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
+    volFill: volFill, volNum: volNum, volMark: volMark, sendB: sendB, groupB: groupB,
     artKey: null, chips: []
   };
 }
 
+/** Where a level press goes: one room sets its own, a group moves as one. */
+/**
+ * TWO PRESSES, NOT A DRAG. Press group (or send) on a card, then press the room
+ * to pair it with — which is the only shape that works on a television pointer,
+ * and the same shape whether you are grouping or sending.
+ */
+var pendingSend = null;
+
+function beginGroupFrom(zoneId) {
+  pendingSend = null;
+  if (!selectMode) enterSelect();
+  toggleSelect(zoneId);
+}
+
+function beginSendFrom(zoneId) {
+  var zone = zoneOf(zoneId);
+  if (zone === null || zone.nowPlaying === null) { say('nothing is playing in there to send'); return; }
+  pendingSend = zoneId;
+  say('now press the room to send ' + zone.name + '\u2019s music to \u00B7 press again here to cancel');
+  paintPending();
+}
+
+function paintPending() {
+  var keys = Object.keys(tiles);
+  for (var i = 0; i < keys.length; i += 1) {
+    var on = pendingSend !== null && keys[i] !== pendingSend;
+    tiles[keys[i]].node.classList.toggle('send-target', on);
+    tiles[keys[i]].node.classList.toggle('send-source', pendingSend === keys[i]);
+  }
+}
+
+function finishSend(toZoneId) {
+  var from = pendingSend;
+  pendingSend = null;
+  paintPending();
+  if (from === null || from === toZoneId) { say(''); return true; }
+  post({ action: 'transfer', zone: from, to: toZoneId });
+  return true;
+}
+
+function volumeCommand(zoneId, level) {
+  var zone = zoneOf(zoneId);
+  if (zone === null) return { action: 'group-volume', zone: zoneId, level: level };
+  var movable = [];
+  for (var i = 0; i < zone.outputs.length; i += 1) {
+    var o = zone.outputs[i];
+    if (o.volume !== null && o.volume.value !== null && o.volume.max !== null
+        && o.volume.type !== 'incremental') movable.push(o);
+  }
+  if (movable.length === 1) {
+    var v = movable[0].volume;
+    var mn = v.min === null ? 0 : v.min;
+    return { action: 'volume', output: movable[0].id, value: Math.round(mn + level * Math.max(1, v.max - mn)) };
+  }
+  return { action: 'group-volume', zone: zoneId, level: level };
+}
+
+/** The level a card shows: one room's own, or the average across a group. */
+function volumeLevel(zone) {
+  var sum = 0, n = 0, muted = true;
+  for (var i = 0; i < zone.outputs.length; i += 1) {
+    var v = zone.outputs[i].volume;
+    if (v === null || v.value === null || v.max === null) continue;
+    var mn = v.min === null ? 0 : v.min;
+    sum += Math.max(0, Math.min(1, (v.value - mn) / Math.max(1, v.max - mn)));
+    if (!v.muted) muted = false;
+    n += 1;
+  }
+  return n === 0 ? null : { level: sum / n, muted: muted, rooms: n };
+}
+
 var overflowEl = null;
+
 function setOverflow(zones) {
   if (overflowEl === null) {
     overflowEl = el('div', 'overflow');
@@ -563,6 +689,11 @@ function render(snapshot, kind) {
       // The frame carries the state now, so the word only earns its place while
       // something is genuinely in flight.
       tile.state.textContent = zone.state === 'loading' ? 'loading' : '';
+      var vl = volumeLevel(zone);
+      tile.volFill.style.width = vl === null ? '0' : ((vl.muted ? 0 : vl.level) * 100).toFixed(1) + '%';
+      tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
+      tile.volMark.className = vl !== null && vl.muted ? 'tile-vol-mark muted' : 'tile-vol-mark';
+      tile.sendB.className = zone.nowPlaying === null ? 'ta off' : 'ta';
       var playing = zone.state === 'playing' || zone.state === 'loading';
       tile.playB.replaceChildren(glyph(playing ? 'pause' : 'play'));
       tile.playB.setAttribute('title', playing ? 'pause' : 'play');

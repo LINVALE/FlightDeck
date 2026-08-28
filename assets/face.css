@@ -1236,3 +1236,20 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .member-vols { min-width: 62vw; }
   .member-name { font-size: 2.4vw; min-width: 20vw; }
 }
+
+/* ══ NOTHING IS PAINTED OVER THE ARTWORK ══════════════════════════════════════
+   The ring is a child of the sleeve so that it follows it everywhere — but it
+   comes AFTER the image in paint order, and its disc fill is a full circle at
+   0.55, so the sleeve was being viewed through it (Peter, 08-28: "the image in
+   orbit and dial appears to have a mask over it causing it to appear dim").
+   The cover is sacred: it is never dimmed, and now nothing sits on top of it
+   either. Only the stacking order changes — no opacity, filter or mask is
+   involved, on the sleeve or on any ancestor. */
+.face[data-ring] .cover img { position: relative; z-index: 1; }
+.face[data-ring] .dialbox { z-index: 0; }
+
+/* And the ring itself is softened — full-strength accent at this weight read as
+   harsh, especially on a sleeve that samples to a bright colour. */
+.face[data-ring] .dial-arc { stroke-opacity: .78; }
+.face[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
+.face[data-face="orbit"] .dial-arc { stroke-opacity: .82; }
