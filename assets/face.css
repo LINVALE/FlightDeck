@@ -1273,3 +1273,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .homemark .glyph { width: 4vw; height: 4vw; }
   .homemark { padding: 1vh 2.4vw; }
 }
+
+/* The way back reads as a control, not a hint: a visible edge and full weight,
+   because it is the one thing on the screen a lost viewer is looking for. */
+.face.show-chrome .homemark { opacity: 1; }
+.homemark {
+  border-color: rgba(242,238,230,.22);
+  color: var(--bone, #f2eee6);
+  margin-right: .8vw;
+}
+.homemark:hover { border-color: var(--accent); color: var(--accent); }
+.homemark .glyph { width: 1.35vw; height: 1.35vw; }
+@media (max-width: 900px) { .homemark .glyph { width: 4.6vw; height: 4.6vw; } }

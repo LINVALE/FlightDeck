@@ -312,20 +312,29 @@ var homeMark = el('span', 'homemark');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('class', 'glyph');
   svg.setAttribute('aria-hidden', 'true');
-  var cells = [[4, 4], [13.5, 4], [4, 13.5], [13.5, 13.5]];
-  for (var i = 0; i < cells.length; i += 1) {
-    var r = document.createElementNS(ns, 'rect');
-    r.setAttribute('x', String(cells[i][0]));
-    r.setAttribute('y', String(cells[i][1]));
-    r.setAttribute('width', '6.5');
-    r.setAttribute('height', '6.5');
-    r.setAttribute('rx', '1.4');
-    r.setAttribute('fill', 'currentColor');
-    svg.appendChild(r);
-  }
+  /**
+   * A RETURN ARROW, not four squares. The grid said "where you are going"; an
+   * arrow says "back", which is what a viewer is actually looking for and reads
+   * without being learned (Peter, 08-28).
+   */
+  var arrow = document.createElementNS(ns, 'path');
+  arrow.setAttribute('d', 'M10.5 5.5 4 12l6.5 6.5');
+  arrow.setAttribute('fill', 'none');
+  arrow.setAttribute('stroke', 'currentColor');
+  arrow.setAttribute('stroke-width', '2');
+  arrow.setAttribute('stroke-linecap', 'round');
+  arrow.setAttribute('stroke-linejoin', 'round');
+  svg.appendChild(arrow);
+  var tail = document.createElementNS(ns, 'path');
+  tail.setAttribute('d', 'M4 12h16');
+  tail.setAttribute('fill', 'none');
+  tail.setAttribute('stroke', 'currentColor');
+  tail.setAttribute('stroke-width', '2');
+  tail.setAttribute('stroke-linecap', 'round');
+  svg.appendChild(tail);
   homeMark.appendChild(svg);
 })();
-homeMark.setAttribute('title', 'every room');
+homeMark.setAttribute('title', 'back to every room');
 homeMark.setAttribute('aria-label', 'go to the whole house');
 pressable(homeMark, function () { location.href = '/'; });
 
@@ -671,10 +680,14 @@ function render(snapshot, kind) {
 
   if (kind !== 'seek') {
     zoneName.textContent = zone.name;
-    var wanted = zone.outputs.length > 1 ? zone.outputs.slice(1) : [];
-    if (chipHost.childNodes.length !== wanted.length) {
-      chipHost.replaceChildren.apply(chipHost, wanted.map(function (o) { return el('span', 'chip', o.name); }));
-    }
+    /**
+     * NO MEMBER NAMES. Roon already names a group "Study RHEOS + 2", which says
+     * what the badge needs to say (Peter, 08-28) — the chips repeated it and ran
+     * the head off the side of the screen on a group of three. The rooms are
+     * named where they can be acted on: the volume disclosure lists them all,
+     * each with its own level.
+     */
+    if (chipHost.childNodes.length > 0) chipHost.replaceChildren();
     /**
      * Only say something WORTH saying (Peter, 08-26: "we don't need to indicate
      * playing or paused, just the name of the face").
