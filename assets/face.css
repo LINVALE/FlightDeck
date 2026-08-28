@@ -1285,3 +1285,29 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .homemark:hover { border-color: var(--accent); color: var(--accent); }
 .homemark .glyph { width: 1.35vw; height: 1.35vw; }
 @media (max-width: 900px) { .homemark .glyph { width: 4.6vw; height: 4.6vw; } }
+
+/* ══ THE RING GLIDES ══════════════════════════════════════════════════════════
+   Roon reports a whole second at a time, so the arc used to step twelve times a
+   minute. The transition eases it across the second the browser already knows
+   has to pass — the POSITION is still Roon's verbatim second, and the target of
+   the transition is always that value, so the arc can never run ahead of what
+   was reported or snap back when a second repeats.
+
+   One second, linear: it arrives exactly as the next second does, so the motion
+   is continuous rather than a step followed by a wait. */
+.face[data-ring] .dial-arc {
+  -webkit-transition: stroke-dashoffset 1s linear; transition: stroke-dashoffset 1s linear;
+}
+.face[data-ring] .dial-bead {
+  -webkit-transition: cx 1s linear, cy 1s linear; transition: cx 1s linear, cy 1s linear;
+}
+/* a seek or a track change lands at once; only the passing of a second is eased */
+.face[data-ring].ring-jump .dial-arc,
+.face[data-ring].ring-jump .dial-bead {
+  -webkit-transition: none; transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .face[data-ring] .dial-arc, .face[data-ring] .dial-bead {
+    -webkit-transition: none; transition: none;
+  }
+}

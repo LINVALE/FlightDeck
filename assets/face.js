@@ -445,6 +445,10 @@ dialFill.setAttribute('class', 'dial-fill');
  * rather than as the end of a line (Peter, 08-26). Its centre is the arc's own
  * angle: twelve o'clock is -90 degrees, and the fraction carries it clockwise.
  */
+/** What the ring last drew, so a seek can be told from a second passing. */
+var lastRingKey = '';
+var lastRingFraction = 0;
+
 var dialBead = document.createElementNS(SVG_NS, 'circle');
 dialBead.setAttribute('r', '3.1');
 dialBead.setAttribute('class', 'dial-bead');
@@ -745,10 +749,36 @@ function render(snapshot, kind) {
   }
   var fraction = Math.max(0, Math.min(1, position / length));
   barFill.style.width = (fraction * 100).toFixed(2) + '%';
+
+  /**
+   * A SMOOTH RING, WITHOUT INVENTING A POSITION.
+   *
+   * The position shown is Roon's reported second, verbatim — that ruling stands
+   * (388052d), and it is why the dials stopped wobbling. Interpolating the NUMBER
+   * is what went wrong before. This does not: the number is untouched, and only
+   * the arc's MOTION between two reported seconds is eased, by the browser, in
+   * CSS. It can never run past the latest reported value, because that value is
+   * the transition's target — so a repeated second simply has nowhere to go and
+   * the ring holds, instead of snapping back.
+   *
+   * A seek or a track change must not crawl a whole second to its new place, so
+   * a jump larger than a second's worth of travel is applied with the easing
+   * switched off for that one update.
+   */
+  var ringKey = zone.id + '|' + String(length) + '|' + (zone.nowPlaying.title || '');
+  var perSecond = 1 / Math.max(1, length);
+  var jump = ringKey !== lastRingKey || Math.abs(fraction - lastRingFraction) > perSecond * 3;
+  if (jump && root.className.indexOf('ring-jump') === -1) root.className += ' ring-jump';
   dialArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - fraction)));
   var angle = (-90 + fraction * 360) * Math.PI / 180;
   dialBead.setAttribute('cx', String(50 + RING_R * Math.cos(angle)));
   dialBead.setAttribute('cy', String(50 + RING_R * Math.sin(angle)));
+  if (jump) {
+    dialArc.getBoundingClientRect();            // land it before easing is restored
+    root.className = root.className.replace(' ring-jump', '');
+  }
+  lastRingKey = ringKey;
+  lastRingFraction = fraction;
   dialRemain.textContent = '\u2212' + formatTime(length - position);
   dialTimes.textContent = formatTime(position) + ' / ' + formatTime(length);
   // "ENDS hh:mm" is dropped on the Dial: the ring already says how much is left,
