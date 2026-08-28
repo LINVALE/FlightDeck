@@ -1065,7 +1065,17 @@ function armDwell(node, name) {
 }
 
 function paintFaceName() {
-  if (cog !== null) cog.textContent = current;
+  /**
+   * ⚖️ THE BADGE SAYS IT IS A TOOL (Peter, 08-28: "add icon to show the face
+   * name is a layout tool").
+   *
+   * "CLASSIC" alone reads as a label — a thing being told to you, not a thing
+   * you can press. The mark beside it is a pane divided the way these faces
+   * actually divide: the picture on one side, the words on the other. So it says
+   * "this is the LAYOUT, and layouts are a choice" without a second word.
+   */
+  if (cog === null) return;
+  cog.replaceChildren(glyph('layout'), document.createTextNode(current));
 }
 
 /** Faces that draw the ring round the sleeve share one marker, so their common
@@ -2304,6 +2314,13 @@ var glyph = function (name) {
         'M12 10.9a1.1 1.1 0 1 0 0 2.2 1.1 1.1 0 1 0 0-2.2',
         'M9.1 9.1a4.1 4.1 0 0 0 0 5.8', 'M14.9 9.1a4.1 4.1 0 0 1 0 5.8',
         'M6.3 6.3a8.1 8.1 0 0 0 0 11.4', 'M17.7 6.3a8.1 8.1 0 0 1 0 11.4',
+      ],
+      /* A PANE DIVIDED — the shape these faces actually make, picture on one
+         side and words on the other. It marks the face badge as a chooser
+         rather than a caption. */
+      layout: [
+        'M4.6 5.8h14.8a1 1 0 0 1 1 1v10.4a1 1 0 0 1-1 1H4.6a1 1 0 0 1-1-1V6.8a1 1 0 0 1 1-1z',
+        'M10.4 5.8v12.4',
       ],
       /* a clock, because "recent" is a question about time */
       recent: [

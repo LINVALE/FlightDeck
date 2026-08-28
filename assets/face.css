@@ -1880,3 +1880,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (orientation: portrait) {
   .face[data-shelf] .cog { margin-right: 0; }
 }
+
+/* The layout mark sits before the face's name, the same way the browse marks sit
+   before theirs — one grammar for "this word is a thing you can press". */
+.cog .glyph { -webkit-flex: 0 0 auto; flex: 0 0 auto; width: 1.1vw; height: 1.1vw; margin-right: .5vw; }
+@media (orientation: portrait) {
+  .cog .glyph { width: 3.4vw; height: 3.4vw; }
+}
