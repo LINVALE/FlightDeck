@@ -572,8 +572,13 @@ body { min-height: 100vh; }
   padding: .28vh .55vw;
   border-radius: 4px;
   font-weight: 700;
-  letter-spacing: .11em;
-  max-width: 72%;
+  letter-spacing: .08em;
+  /* No max-width. It was 72%, and "Mog & Springer RHEOS" needed 291px of the
+     289px that allowed — cut by TWO PIXELS, which is all it takes to make a bar
+     look broken. The room gets the room it needs; the timestamp beside it is
+     what gives way, because a name you cannot read is worse than a stamp you
+     cannot. */
+  min-width: 0;
 }
 .grid > .tile.is-idle .tile-zone {
   background: rgba(232,227,216,.16);
@@ -587,4 +592,12 @@ body { min-height: 100vh; }
   .grid > .tile .tile-zone { background: #1a1d22; color: #f2eee6; }
   .grid > .tile.is-idle .tile-zone { background: rgba(26,29,34,.18); color: #4a4640; }
   .grid > .tile .tile-fam { border-color: rgba(242,238,230,.3); }
+}
+
+/* the head lets the name take what it needs and shrinks the stamp instead */
+.grid > .tile .tile-head { -webkit-align-items: center; align-items: center; }
+.grid > .tile .tile-zone { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
+.grid > .tile .tile-stamp {
+  -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0; padding-left: .4vw;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
