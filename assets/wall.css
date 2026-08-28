@@ -677,9 +677,36 @@ body { min-height: 100vh; }
    back rather than leaving it pooled above the foot as a void. The music block
    is allowed to grow again for the same reason — its floor is now the sleeve, so
    a sparse card can no longer open a gap the way it did at four rows. */
+/* The block is the SLEEVE'S height, not the card's leftover: it may shrink for a
+   long title but never grows past the art. That is what puts the transport on
+   the sleeve's baseline — stretched to a block that had grown, the words column
+   was 21-31px taller than the picture and the controls hung below it. */
 .wall[data-rows="1"] .tile-now, .wall[data-rows="2"] .tile-now, .wall[data-rows="3"] .tile-now {
-  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  -webkit-flex: 0 1 auto; flex: 0 1 auto;
 }
 .wall[data-rows="3"] .grid > .tile .tile-line2 { font-size: .78vw; }
 .wall[data-rows="2"] .grid > .tile .tile-line2 { font-size: .95vw; }
 .wall[data-rows="3"] .grid > .tile .tile-zone { font-size: .92vw; }
+
+/* ══ THE CONTROLS SIT ON THE SLEEVE'S BASELINE ═══════════════════════════════
+   Peter, 08-28: "put some colour behind the controls so the circle shows
+   (subtle), and move so circle bottoms align with bottom of album art."
+
+   A fill rather than a border alone: the ring was a hairline on a dark card and
+   the circle barely read as a shape. And the words column now stretches to the
+   sleeve's height so the transport can be pushed to ITS bottom — which is the
+   sleeve's bottom, giving the card a line to sit on instead of three elements
+   each floating at their own level. */
+.tile-now { -webkit-align-items: stretch; align-items: stretch; }
+.grid > .tile .tile-art { -webkit-align-self: flex-start; align-self: flex-start; }
+.tile-transport { margin-top: auto; }
+
+.tt {
+  background: rgba(242,238,230,.07);
+  border-color: rgba(242,238,230,.14);
+  color: var(--bone, #e8e3d8);
+}
+.tt:hover { background: rgba(242,238,230,.14); border-color: var(--accent); color: var(--accent); }
+.tt.off { background: rgba(242,238,230,.03); }
+.ta { background: rgba(242,238,230,.05); border-color: rgba(242,238,230,.12); }
+.ta:hover { background: rgba(242,238,230,.12); border-color: var(--accent); color: var(--accent); }
