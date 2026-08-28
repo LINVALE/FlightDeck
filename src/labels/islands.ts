@@ -152,6 +152,17 @@ export class IslandRegistry {
     return { id: best.id, label: best.label };
   }
 
+  /**
+   * Every island ever seen, awake or not. The Wall needs this because a family
+   * whose devices are all asleep vanishes from Roon's zone list completely — and
+   * a tab bar that erases the families you own the moment they sleep is worse
+   * than useless, it looks broken. The registry already remembers them; this
+   * just says so.
+   */
+  known(): { id: string; label: string | null }[] {
+    return this.records.map((r) => ({ id: r.id, label: r.label }));
+  }
+
   label(id: string): string | null {
     return this.records.find((r) => r.id === id)?.label ?? null;
   }

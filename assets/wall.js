@@ -133,6 +133,7 @@ function drawTabs(islands, total) {
   var tab = function (id, label) {
     var node = el('span', activeIsland === id ? 'wall-tab now' : 'wall-tab', label);
     node.addEventListener('click', function () {
+      if (node.className.indexOf('asleep') >= 0) return;   // nothing awake to show
       activeIsland = id;
       try { localStorage.setItem('flightdeck.island', id); } catch (e) { /* private window */ }
       tabsKey = '';

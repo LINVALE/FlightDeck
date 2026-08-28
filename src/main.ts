@@ -112,7 +112,8 @@ function republish(): void {
   }
   const candidate = buildSnapshot(
     { generation: GENERATION, zones: rawZones, coreName, corePaired, coreSinceAt, revision: revision + 1, at,
-      resolveIsland: (members, hash) => islands.resolve(members, hash) },
+      resolveIsland: (members, hash) => islands.resolve(members, hash),
+      knownIslands: islands.known() },
     relay,
     ledger,
   );

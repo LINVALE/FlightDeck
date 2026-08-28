@@ -206,6 +206,8 @@ export interface SnapshotInput {
    * membership and unnamed.
    */
   readonly resolveIsland?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null };
+  /** Every island ever seen, so a family that is entirely asleep still has a tab. */
+  readonly knownIslands?: readonly { id: string; label: string | null }[];
 }
 
 export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: RecencyReader): Snapshot {
@@ -225,15 +227,30 @@ export function buildSnapshot(input: SnapshotInput, art: ArtMinter, recency: Rec
       sinceAt: input.coreSinceAt,
     },
     zones: orderByRecency(stampIslands(projected, resolved), Date.parse(input.at) || Date.now()),
-    islands: islandsFrom(resolved),
+    islands: islandsFrom(resolved, input.knownIslands),
   };
 }
 
-function islandsFrom(resolved: Map<string, { id: string; label: string | null; count: number }>): Island[] {
+function islandsFrom(
+  resolved: Map<string, { id: string; label: string | null; count: number }>,
+  known?: readonly { id: string; label: string | null }[],
+): Island[] {
   const islands: Island[] = [];
+  const seen = new Set<string>();
   for (const entry of resolved.values()) {
     if (entry.id === '') continue;        // the registry is full; not drawn rather than mis-drawn
     islands.push({ id: entry.id, count: entry.count, label: entry.label });
+    seen.add(entry.id);
+  }
+  /**
+   * A family whose every device is asleep leaves Roon's zone list entirely, and
+   * with it the tab bar — which is how three families became one overnight and
+   * the Wall looked broken. A known island with nothing awake is still reported,
+   * with a count of zero, so the screen can say "asleep" rather than forget.
+   */
+  for (const entry of known ?? []) {
+    if (entry.id === '' || seen.has(entry.id)) continue;
+    islands.push({ id: entry.id, count: 0, label: entry.label });
   }
   return islands.sort((a, b) => b.count - a.count || (a.id < b.id ? -1 : 1));
 }
