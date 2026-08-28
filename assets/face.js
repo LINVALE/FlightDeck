@@ -17,7 +17,27 @@ import { createStream } from './stream.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'canvas'];
+var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'canvas', 'gallery', 'aurora'];
+
+/**
+ * ⚖️ A FACE IS A LAYOUT AND A BACKGROUND, and they are not the same choice
+ * (Peter, 08-28: "create an additional one that takes a similar background to
+ * canvas but uses classic layout, and one that uses the background of canvas and
+ * looks like orbit").
+ *
+ * Every rule used to be keyed on the face's NAME, so a face that borrowed
+ * another's layout would have meant copying twenty-six selectors and keeping
+ * them in step forever — the stacked-rules fault, bought in advance. The screen
+ * now carries `data-layout` and `data-field` separately, and a face is a pairing
+ * of the two. Two more cost four lines here and nothing in the stylesheet.
+ *
+ * A face not named here lays itself out and has no ambient field.
+ */
+var LAYOUT = { gallery: 'classic', aurora: 'orbit' };
+var FIELD = { canvas: 1, gallery: 1, aurora: 1 };
+
+function layoutOf(name) { return LAYOUT[name] === undefined ? name : LAYOUT[name]; }
+function hasField(name) { return FIELD[name] === 1; }
 var STORE_KEY_FACE = 'flightdeck.face.';
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
@@ -1082,8 +1102,16 @@ function paintFaceName() {
  *  rules need no comma — and a comma in a selector is what silently applied the
  *  cover's size to the whole face. */
 function markRing() {
-  if (current === 'dial' || current === 'orbit') root.setAttribute('data-ring', '1');
+  var layout = layoutOf(current);
+  if (layout === 'dial' || layout === 'orbit') root.setAttribute('data-ring', '1');
   else root.removeAttribute('data-ring');
+}
+
+/** The two attributes every rule is keyed on: what it looks like, and what is behind it. */
+function markLayout() {
+  root.setAttribute('data-layout', layoutOf(current));
+  if (hasField(current)) root.setAttribute('data-field', '1');
+  else root.removeAttribute('data-field');
 }
 
 function applyFace(name) {
@@ -1091,9 +1119,10 @@ function applyFace(name) {
   current = name;
   remember(current);
   root.setAttribute('data-face', current);
+  markLayout();
   markRing();
   paintFaceName();
-  fieldRunning(current === 'canvas' && !document.hidden);
+  fieldRunning(hasField(current) && !document.hidden);
   showPicker();
 }
 
@@ -1163,7 +1192,7 @@ function buildBrowseRow() {
  * spelled as `!== 'classic'` in four places, which is how the third face would
  * have been missed.
  */
-function hasShelf() { return current === 'classic' || current === 'orbit'; }
+function hasShelf() { var l = layoutOf(current); return l === 'classic' || l === 'orbit'; }
 
 function renderShelf(zone) {
   if (!hasShelf() || zone === null) {
@@ -1900,7 +1929,7 @@ function fieldRunning(on) {
 // Never animate a screen nobody is looking at.
 document.addEventListener('visibilitychange', function () {
   if (document.hidden) fieldRunning(false);
-  else fieldRunning(current === 'canvas');
+  else fieldRunning(hasField(current));
 });
 
 /**
@@ -3555,9 +3584,10 @@ document.addEventListener('visibilitychange', function () { if (!document.hidden
 keepAwake();
 
 root.setAttribute('data-face', current);
+markLayout();
 markRing();
 paintFaceName();
-fieldRunning(current === 'canvas');
+fieldRunning(hasField(current));
 sayHello();
 // Every twenty seconds: cheap, and it is how a binding set in Roon arrives.
 setInterval(sayHello, 20000);
