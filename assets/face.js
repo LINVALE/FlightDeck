@@ -109,6 +109,9 @@ function sayHello() {
       following = false;
     }
     root.setAttribute('data-locked', lockedOutputId === null ? '' : '1');
+    // A screen locked to a room does not offer the whole house either; that is
+    // what locking it means.
+    homeMark.hidden = lockedOutputId !== null;
     var snap = store.snapshot();
     if (snap !== null) render(snap, 'snapshot');
   }).catch(function () { /* the server will be back */ });
@@ -286,9 +289,50 @@ bg.appendChild(artistLayer);
 
 var safe = el('div', 'safe');
 var head = el('div', 'head');
+
+/**
+ * THE WAY BACK TO THE HOUSE.
+ *
+ * Getting to the whole-house wall meant pressing the room, then finding "the
+ * wall" in the list — two presses and a hunt (Peter, 08-28: "we just need a way
+ * on now playing to return to the household screen"). It is a mark in the chrome
+ * now, first thing on the line, so it is where a viewer already looks when they
+ * want to go somewhere.
+ *
+ * Four squares rather than a house: it is the wall of rooms you are going to,
+ * and it matches what you land on.
+ */
+var homeMark = el('span', 'homemark');
+(function () {
+  // ⚠️ the literal, not SVG_NS: that constant is declared a hundred lines below
+  // this, so at THIS point it is hoisted-but-undefined and the element would be
+  // built in the null namespace — which renders 0x0 and looks like a CSS fault.
+  var ns = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var cells = [[4, 4], [13.5, 4], [4, 13.5], [13.5, 13.5]];
+  for (var i = 0; i < cells.length; i += 1) {
+    var r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', String(cells[i][0]));
+    r.setAttribute('y', String(cells[i][1]));
+    r.setAttribute('width', '6.5');
+    r.setAttribute('height', '6.5');
+    r.setAttribute('rx', '1.4');
+    r.setAttribute('fill', 'currentColor');
+    svg.appendChild(r);
+  }
+  homeMark.appendChild(svg);
+})();
+homeMark.setAttribute('title', 'every room');
+homeMark.setAttribute('aria-label', 'go to the whole house');
+pressable(homeMark, function () { location.href = '/'; });
+
 var zoneName = el('span', 'zone');
 var chipHost = el('span');
 var status = el('div', 'status');
+head.appendChild(homeMark);
 head.appendChild(zoneName); head.appendChild(chipHost); head.appendChild(status);
 
 var body = el('div', 'body');
@@ -2672,6 +2716,7 @@ function onFacePress(event) {
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 
+  if (target !== null && inNode(target, homeMark)) return;   // it has its own job
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
   if (target !== null && (inNode(target, zoneName) || inNode(target, chipHost))) { openPanel('rooms'); return; }
 

@@ -1253,3 +1253,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-ring] .dial-arc { stroke-opacity: .78; }
 .face[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
 .face[data-face="orbit"] .dial-arc { stroke-opacity: .82; }
+
+/* The way back to the house: it appears with the rest of the chrome and is
+   invisible at rest, like everything else the Face offers. */
+.homemark {
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  margin-right: 1vw; padding: .55vh .8vw;
+  border: 1px solid transparent; border-radius: 6px;
+  color: var(--ash); cursor: pointer; opacity: 0;
+  -webkit-transition: opacity .35s ease; transition: opacity .35s ease;
+}
+.face.show-chrome .homemark { opacity: .85; }
+.homemark:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); color: var(--bone); }
+.homemark .glyph { width: 1.15vw; height: 1.15vw; }
+.homemark[hidden] { display: none; }
+@media (max-width: 900px) {
+  .homemark .glyph { width: 4vw; height: 4vw; }
+  .homemark { padding: 1vh 2.4vw; }
+}
