@@ -476,8 +476,23 @@ var lastRingFraction = 0;
 var dialBead = document.createElementNS(SVG_NS, 'circle');
 dialBead.setAttribute('r', '3.1');
 dialBead.setAttribute('class', 'dial-bead');
+/**
+ * A TRANSPARENT CIRCLE THAT EXISTS ONLY TO BE PRESSED. The ring is a 2.2-unit
+ * stroke in a 100 viewBox — about 19px on a TV, which is not a thing anybody can
+ * hit. This one is drawn on exactly the same circle at twelve units wide, paints
+ * nothing, and takes `pointer-events: stroke` so ONLY its band is live: the
+ * corners fall through to the face, and the middle belongs to the sleeve.
+ */
+var dialHit = document.createElementNS(SVG_NS, 'circle');
+dialHit.setAttribute('cx', '50'); dialHit.setAttribute('cy', '50');
+dialHit.setAttribute('r', String(RING_R));
+dialHit.setAttribute('class', 'dial-hit');
+dialHit.setAttribute('fill', 'none');
+dialHit.setAttribute('stroke', 'transparent');
+dialHit.setAttribute('stroke-width', '24');   // ~13% of the circle: a fingertip on a TV
 dial.appendChild(dialFill);
 dial.appendChild(dialTrack); dial.appendChild(dialArc); dial.appendChild(dialBead);
+dial.appendChild(dialHit);                     // last, so it is over the ring it serves
 var dialReading = el('div', 'dial-reading');
 var dialRemain = el('div', 'dial-remain');
 var dialTimes = el('div', 'dial-times');
@@ -1071,12 +1086,23 @@ function openBrowseMenu() {
  * strip does exactly the same — and it keeps the play/pause glyph, the lit
  * shuffle and repeat, and the levels honest without a separate repaint path.
  */
+/**
+ * Which faces carry their controls IN the layout rather than under a raised
+ * strip. Classic settled the pattern; Orbit takes it (Peter, 08-28: "this
+ * layout can be applied to orbit"), and it is asked as a question rather than
+ * spelled as `!== 'classic'` in four places, which is how the third face would
+ * have been missed.
+ */
+function hasShelf() { return current === 'classic' || current === 'orbit'; }
+
 function renderShelf(zone) {
-  if (current !== 'classic' || zone === null) {
+  if (!hasShelf() || zone === null) {
     if (shelfTransport.childNodes.length > 0) shelfTransport.replaceChildren();
     if (shelfVolume.childNodes.length > 0) shelfVolume.replaceChildren();
+    root.removeAttribute('data-shelf');
     return;
   }
+  root.setAttribute('data-shelf', '1');
   shelfTransport.replaceChildren(buildControls(zone, false));
   shelfVolume.replaceChildren(buildVolumeOnly(zone));
 }
@@ -2701,6 +2727,43 @@ function reportPointer(label, count) {
  * zone can seek at all (a live stream cannot), and the refusal is shown rather
  * than swallowed.
  */
+/**
+ * ⚖️ SEEKING ON THE RING (Peter, 08-28: "no bottom progress bar on this, so seek
+ * should be done by touching the progress circle").
+ *
+ * The ring IS the track, so a press on it means "go there" — the same sentence
+ * the progress bar speaks, in polar. Twelve o'clock is zero and it runs
+ * clockwise, which is where the arc already starts and which way the bead
+ * already travels; nobody has to be told.
+ *
+ * ONLY THE BAND, never the middle: the sleeve sits over the centre and a press
+ * there is a press on the artwork, which opens the music. The SVG is behind the
+ * image, so the middle never reaches this at all — but a press in the four
+ * corners between the circle and the square does, and that is not the ring
+ * either, so the radius is checked.
+ */
+function seekFromRing(clientX, clientY) {
+  var zone = currentZone();
+  if (zone === null || zone.nowPlaying === null) return false;
+  var box = dial.getBoundingClientRect();
+  if (box.width <= 0) return false;
+  var cx = box.left + box.width / 2;
+  var cy = box.top + box.height / 2;
+  // The hit circle's stroke already IS the band; this only rejects a press that
+  // reached here some other way, such as a synthetic event aimed at the middle.
+  var radius = Math.sqrt(Math.pow(clientX - cx, 2) + Math.pow(clientY - cy, 2)) / (box.width / 2);
+  if (radius < 0.62 || radius > 1.14) return false;
+  if (!zone.allowed.seek) { flash('this cannot be scrubbed'); return true; }
+  var length = zone.nowPlaying.lengthSec;
+  if (!length) { flash('no track length to seek within'); return true; }
+  // atan2 measures from three o'clock; the ring starts at twelve.
+  var angle = Math.atan2(clientY - cy, clientX - cx) + Math.PI / 2;
+  if (angle < 0) angle += Math.PI * 2;
+  var fraction = Math.max(0, Math.min(1, angle / (Math.PI * 2)));
+  command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * length) });
+  return true;
+}
+
 function seekFromPress(clientX) {
   var zone = currentZone();
   if (zone === null || zone.nowPlaying === null) return;
@@ -2983,7 +3046,7 @@ function revealChrome() {
   // screen is showing its controls, the commonest ones should already be there.
   // Classic carries its transport and volume in its own layout, so raising the
   // chrome there must not also raise a strip saying the same thing.
-  if (picker.hidden && browsePanel === null && current !== 'classic') showPicker('transport');
+  if (picker.hidden && browsePanel === null && !hasShelf()) showPicker('transport');
   if (chromeTimer !== null) clearTimeout(chromeTimer);
   chromeTimer = setTimeout(function () {
     root.className = root.className.replace(' show-chrome', '');
@@ -3096,7 +3159,7 @@ function onFacePress(event) {
   // The lower band is where the transport bar lives, and revealChrome has already
   // put it there — pressing again would only re-raise it under the finger. Classic
   // has no strip at all: its controls are in the layout, already in front of you.
-  if (current !== 'classic') showPicker('transport');
+  if (!hasShelf()) showPicker('transport');
 }
 
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
@@ -3117,6 +3180,37 @@ var lastSeekPress = 0;
   });
 });
 foot.setAttribute('title', 'press to seek');
+
+// And the ring is the same zone in polar: on the ring faces it IS the progress
+// row, so pressing it seeks. The guard is shared, so a press cannot be counted
+// by both.
+/**
+ * ⚖️ THE RING OWNS ITS OWN PRESSES (Peter, 08-28: "a click on the circle should
+ * seek — not enable artist; that should be with the artwork").
+ *
+ * The ring lives INSIDE the cover, and the cover flips to the artist view when
+ * pressed, so a press on the ring was doing both — and the artist view is the
+ * louder of the two, so that is all anyone saw. The band therefore stops the
+ * event dead whether or not it can seek: a track that cannot be scrubbed says so
+ * and still does not become a portrait.
+ *
+ * All four names for one press, `mouseup` included — leaving it off was the whole
+ * fault, since `pressable` listens for it and the other three were being stopped.
+ */
+['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
+  dialHit.addEventListener(kind, function (event) {
+    event.stopPropagation();                     // the ring, not the artwork
+    var now = Date.now();
+    if (now - lastSeekPress < 400 || panelJustAppeared()) return;
+    var touch = event.changedTouches && event.changedTouches[0] ? event.changedTouches[0] : null;
+    var x = typeof event.clientX === 'number' ? event.clientX : (touch ? touch.clientX : null);
+    var y = typeof event.clientY === 'number' ? event.clientY : (touch ? touch.clientY : null);
+    if (x === null || y === null) return;
+    if (!seekFromRing(x, y)) return;
+    lastSeekPress = now;
+  });
+});
+dialHit.setAttribute('title', 'press the ring to seek');
 // Movement reveals the affordances but opens nothing.
 ['mousemove', 'pointermove', 'touchstart'].forEach(function (kind) {
   document.addEventListener(kind, revealChrome, true);

@@ -362,6 +362,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   pointer-events: none;
 }
 .face[data-ring] .dial { width: 100%; height: 100%; display: block; }
+/* ⚖️ THE RING IS THE PROGRESS BAR ON THESE FACES, so it is pressed to seek
+   (Peter, 08-28: "no bottom progress bar on this, so seek should be done by
+   touching the progress circle"). The box around it stays inert — only this
+   band is live, which is why the corners and the sleeve still do what they did. */
+.face[data-ring] .dial-hit { pointer-events: stroke; cursor: pointer; }
 /**
  * ONE RING, TWO COLOURS. The track and the arc are the SAME weight, so nothing
  * changes size as a track plays — only the colour advances round the circle.
@@ -385,7 +390,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
 .face[data-ring] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-ring] .cover { width: 38vh; height: 38vh; }
+.face.show-chrome[data-ring]:not([data-shelf]) .cover { width: 38vh; height: 38vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
@@ -885,7 +890,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face.show-chrome:not([data-face="classic"]) .cover { width: 20vw; height: 20vw; }
+.face.show-chrome:not([data-shelf]) .cover { width: 20vw; height: 20vw; }
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
@@ -896,7 +901,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
 /* The indicators are the topmost thing in their corners: whatever the layout does
    underneath, a press on the room or the face name must reach them. */
+/**
+ * ⚖️ THE TOP LINE DOES NOT PUSH THE MUSIC DOWN (Peter, 08-28: "the top line is
+ * still pushing down the main sections which we want to fix").
+ *
+ * It was a flex row in the column, so its height came out of the body's, and
+ * every face's artwork sat that much below the middle of the frame. It names the
+ * room and offers the way back — it is chrome, and chrome belongs over the
+ * picture rather than in front of it. Out of flow, the body has the whole frame
+ * to centre in.
+ */
 .head { position: relative; z-index: 5; }
+/* ...but only where the face has room for it. Measured: lifting it out of flow on
+   every face put Libretto's and Canvas's artwork UNDER the room name, because
+   their bodies already fill the frame. The faces that carry their controls in the
+   layout are exactly the ones with the room to spare, so they are the ones that
+   get it; the others keep the head in flow until they get the same treatment. */
+.face[data-shelf] .head { position: absolute; top: 0; left: 0; right: 0; }
 
 /* ══ VOLUME, IN THE RUNWAY'S LANGUAGE ═════════════════════════════════════════
    A speaker that mutes, and a scale of segments pressed anywhere to set the level.
@@ -933,7 +954,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* With the controls up, the music sits higher: the sleeve shrinks and the whole
    group rises, so the transport bar and the progress row both have clear air.
    (Peter, 08-26: the art "can be placed higher on the page if needed".) */
-.face.show-chrome .body {
+.face.show-chrome:not([data-shelf]) .body {
   -webkit-box-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start;
   padding-top: 2vh;
 }
@@ -947,7 +968,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face.show-chrome[data-ring] .body { padding-top: 12.4vh; }
+.face.show-chrome[data-ring]:not([data-shelf]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1139,16 +1160,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: flex-start; justify-content: flex-start;
-  width: 100%; max-width: 92vw; padding-left: 30vh;
+  /* ⚖️ The circle sits LEFT, where Classic's sleeve sits (Peter, 08-28), so the
+     words and the controls have one column to themselves. The ring overhangs the
+     sleeve by 20.5% of its width, so the inset is paid in sleeve-widths: 9.5vh
+     of overhang plus the 5vw margin Classic keeps. */
+  width: 100%; max-width: 96vw; padding-left: 14vh;
 }
 .face[data-face="orbit"] .cover { width: 46vh; height: 46vh; }
-.face.show-chrome[data-face="orbit"] .cover { width: 38vh; height: 38vh; }
 .face[data-face="orbit"] .copy {
-  position: static; background: none; padding: 0;
+  background: none; padding: 0;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
-  text-align: left; min-width: 0; margin-left: 26vh; max-width: 36vw;
+  text-align: left; min-width: 0; margin-left: 26vh; max-width: 44vw;
+  /* ⚖️ ORBIT CARRIES ITS CONTROLS IN THE LAYOUT, exactly as Classic does — the
+     column is as tall as the CIRCLE beside it (a ring around a square of side s
+     has diameter s√2, so 46vh × 1.414), the words centre in it, and the two
+     chrome rows hang out of flow on the circle's baseline. Nothing moves when
+     the chrome arrives. */
+  position: relative; min-height: 71.7vh;      /* 46vh sleeve x 1.559 = the ring */
+  margin-top: 0;                               /* the base 2.4vh put the two centres 11px apart */
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-justify-content: center; justify-content: center;
 }
-.face[data-face="orbit"] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
+.face[data-face="orbit"] .shelf .controls { width: 100%; }
+/* margin 0, not `0 auto`: the words are a left column beside the circle. */
+.face[data-face="orbit"] .title { font-size: 2.6vw; margin: 0; max-width: 100%; }
 .face[data-face="orbit"] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
 .face[data-face="orbit"] .line3 { font-size: 1.25vw; margin-top: .7vh; }
 /* the reading belongs to the circle, so it goes in the ring's own top segment —
@@ -1174,7 +1210,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * shrinks too — it marks the position, it was never meant to be the loudest thing
  * on the face — which also keeps the ring's widest point clear of the words.
  */
-.face[data-face="orbit"] .dial-arc { stroke-width: 1.8; stroke: rgba(242,238,230,.9); }
+/* ⚖️ The arc takes DIAL's colour (Peter, 08-28: "the progress circle shading
+   should match the more subtle dial shading") — the warm accent at .78, not a
+   bright cream line. Only the WEIGHT stays Orbit's: its circle is bigger, so the
+   same stroke would read heavier. Retired rather than out-specified. */
+.face[data-face="orbit"] .dial-arc { stroke-width: 1.8; }
 .face[data-face="orbit"] .dial-track { stroke-width: 1.3; stroke: rgba(242,238,230,.09); }
 .face[data-face="orbit"] .dial-bead { r: 2.1; stroke-width: .7; }
 
@@ -1281,7 +1321,6 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    harsh, especially on a sleeve that samples to a bright colour. */
 .face[data-ring] .dial-arc { stroke-opacity: .78; }
 .face[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
-.face[data-face="orbit"] .dial-arc { stroke-opacity: .82; }
 
 /* The way back to the house: it appears with the rest of the chrome and is
    invisible at rest, like everything else the Face offers. */
@@ -1374,23 +1413,21 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    live IN the layout, under the metadata and above the progress, not in a strip
    that has to be got out of the way. So the body stays where it is and nothing
    under the pointer moves. */
-.face.show-chrome[data-face="classic"] .body {
-  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
-  padding-top: 0;
-}
+/* (The exemption that used to live here is gone: the rules it was undoing are
+   now scoped to faces WITHOUT a shelf, which is what it was really saying.) */
 
 /* ══ CLASSIC'S SHELF ══════════════════════════════════════════════════════════
    The controls hold their space at all times and only fade, so the sleeve and
    the words never move when the chrome arrives. Everywhere else the shelf is
    empty and collapses to nothing. */
 .shelf { display: none; }
-.face[data-face="classic"] .shelf {
+.face[data-shelf] .shelf {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
   opacity: 0;
   -webkit-transition: opacity .3s ease; transition: opacity .3s ease;
 }
-.face.show-chrome[data-face="classic"] .shelf { opacity: 1; }
+.face.show-chrome[data-shelf] .shelf { opacity: 1; }
 
 /* ⚖️ THE TWO CHROME ROWS SIT TOGETHER, on the sleeve's baseline (Peter, 08-28:
    "would the controls chrome being placed just over the volume help — looks
@@ -1403,31 +1440,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    Both are OUT OF FLOW, which is the whole point: the title and the sleeve are
    in exactly the same place whether the chrome is up or down. */
-.face[data-face="classic"] .shelf-transport {
+.face[data-shelf] .shelf-transport {
   position: absolute; left: 0; right: 0; bottom: 4.2vw;
   margin: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
   min-height: 3.4vw;
 }
 /* the volume, directly above the progress */
-.face[data-face="classic"] .shelf-volume {
+.face[data-shelf] .shelf-volume {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   -webkit-justify-content: center; justify-content: center;
   min-height: 3vw; margin: 0 6vw;
 }
-.face[data-face="classic"] .shelf .controls {
+.face[data-shelf] .shelf .controls {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
   -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
 }
-.face[data-face="classic"] .shelf .controls > * { margin: 0 .5vw 0 0; }
-.face[data-face="classic"] .shelf-volume .vol-scale { min-width: 26vw; }
+.face[data-shelf] .shelf .controls > * { margin: 0 .5vw 0 0; }
+.face[data-shelf] .shelf-volume .vol-scale { min-width: 26vw; }
 
 /* nothing to press while it is invisible */
-.face[data-face="classic"] .shelf { pointer-events: none; }
-.face.show-chrome[data-face="classic"] .shelf { pointer-events: auto; }
+.face[data-shelf] .shelf { pointer-events: none; }
+.face.show-chrome[data-shelf] .shelf { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
-  .face[data-face="classic"] .shelf { -webkit-transition: none; transition: none; }
+  .face[data-shelf] .shelf { -webkit-transition: none; transition: none; }
 }
 
 /* ══ THE GROUP DOOR ═══════════════════════════════════════════════════════════
@@ -1506,7 +1543,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-justify-content: center; justify-content: center;
 }
-.face[data-face="classic"] .shelf-volume {
+.face[data-shelf] .shelf-volume {
   position: absolute; left: 0; right: 0; bottom: 0;
   margin: 0; min-height: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
@@ -1549,33 +1586,33 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    And it stands as tall as the transport does, so the two chrome lines are the
    same weight rather than one being half again as deep as the other. */
-.face[data-face="classic"] .shelf-volume {
+.face[data-shelf] .shelf-volume {
   min-height: 3.4vw;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-face="classic"] .shelf-volume .controls > * { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face[data-shelf] .shelf-volume .controls > * { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
 
 /* The scale rests at 4.6vw everywhere else; in Classic's shelf it matches the
    transport's 3.4vw so the two chrome lines carry the same weight. Still a
    65px target on a 1080p screen, and volume here is tapped, never dragged. */
-.face[data-face="classic"] .shelf-volume .vol-scale {
+.face[data-shelf] .shelf-volume .vol-scale {
   min-height: 3.4vw; margin-top: 0; margin-bottom: 0;
 }
-.face[data-face="classic"] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
+.face[data-shelf] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
 /* the wrapper must be exactly its button, or the row's right edge is the
    wrapper's and the button sits 13px inside the transport's last control */
-.face[data-face="classic"] .shelf-volume .rooms-toggle .ctl { margin: 0; }
+.face[data-shelf] .shelf-volume .rooms-toggle .ctl { margin: 0; }
 
 /* ⚖️ THE TWO CHROME ROWS ARE THE SAME WIDTH — the artwork's — so they read as one
    block with two edges rather than two rows that happen to start together. The
    transport spreads across it the way the wall card's does, ending exactly where
    the volume ends. */
 .face[data-face="classic"] .shelf .controls { width: 34vw; }
-.face[data-face="classic"] .shelf-transport .controls {
+.face[data-shelf] .shelf-transport .controls {
   -webkit-justify-content: space-between; justify-content: space-between;
 }
-.face[data-face="classic"] .shelf-transport .controls > * { margin: 0; }
-.face[data-face="classic"] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.face[data-shelf] .shelf-transport .controls > * { margin: 0; }
+.face[data-shelf] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 @media (orientation: portrait) {
   .face[data-face="classic"] .shelf .controls { width: 100%; }
 }
@@ -1585,8 +1622,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    members to align left and right with the volume line"). The trailing margin
    on the last control was setting the volume's right edge 9px inside the
    transport's; now the outer edges of both rows are the row itself. */
-.face[data-face="classic"] .shelf .controls > *:first-child { margin-left: 0; }
-.face[data-face="classic"] .shelf .controls > *:last-child { margin-right: 0; }
+.face[data-shelf] .shelf .controls > *:first-child { margin-left: 0; }
+.face[data-shelf] .shelf .controls > *:last-child { margin-right: 0; }
 
 /* PLAY, subtly emphasised: a touch wider and taller than its neighbours with a
    little more light behind it, centres still on the one line. */
