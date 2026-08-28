@@ -2763,8 +2763,22 @@ function onFacePress(event) {
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
   if (target !== null && (inNode(target, zoneName) || inNode(target, chipHost))) { openPanel('rooms'); return; }
 
-  // Zones by height. The title band is where the music is named, so pressing it
-  // asks "what is playing?" — which is browse. Below it is how to play it.
+  /**
+   * ⚖️ THE WORDS ARE A TARGET, NOT A BAND.
+   *
+   * Pressing where the music is NAMED asks "what is playing?", which is browse.
+   * That used to be a height band — 16% to 72% of the frame — and the bands
+   * drifted as the faces changed until the title sat at exactly 0.72 and every
+   * press on it fell through to the transport instead (Peter, 08-28: "we seem to
+   * have lost the browse capability when clicking on metadata area, all
+   * screens"). A band has to be re-tuned every time a face moves; the element
+   * cannot drift away from itself.
+   *
+   * The bands remain for the EMPTY parts of the frame, where there is nothing to
+   * hit and only position can say what was meant.
+   */
+  if (target !== null && inNode(target, copy)) { openBrowseMenu(); return; }
+
   var y = event && typeof event.clientY === 'number' ? event.clientY : 0;
   var height = window.innerHeight || 1080;
   if (y < height * 0.16) { openPanel('faces'); return; }
