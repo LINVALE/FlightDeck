@@ -1762,12 +1762,43 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The number at the end of each room's scale, and the scale's own ends above
    them. A fixed column so the digits line up under one another and the scales
    still all start and end together. */
+/* The level in a disc — a round reading beside a square scale, so the number
+   reads as a value rather than as another end-label. Fixed size, so the digits
+   sit under one another whether the level is 7 or 100. */
 .face[data-shelf] .member-vols .member-read {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
-  width: 3.4vw; margin-left: .7vw; text-align: right;
-  font-size: .95vw; letter-spacing: .06em; color: var(--bone);
+  width: 2.6vw; height: 2.6vw; margin-left: .8vw;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,.24); border-radius: 50%;
+  font-size: .88vw; letter-spacing: .02em; color: var(--bone);
 }
-.face[data-shelf] .member-vols .member-read.is-muted { color: var(--accent); font-size: .8vw; }
+/* Muted is the speaker's job to SAY, at the other end of the row; the disc only
+   goes quiet, and keeps the level the room will come back to. */
+.face[data-shelf] .member-vols .member-read.is-muted {
+  color: var(--dim); border-color: rgba(242,238,230,.12);
+}
+
+/* The close, top right, where a window's close belongs. */
+.face[data-shelf] .member-vols .member-shut {
+  position: absolute; top: .8vh; right: .8vw;
+  width: 2.2vw; height: 2.2vw; line-height: 1;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,.22); border-radius: 50%;
+  font-size: 1.3vw; color: var(--ash); cursor: pointer;
+  -webkit-transition: background .18s ease, border-color .18s ease;
+  transition: background .18s ease, border-color .18s ease;
+}
+.face[data-shelf] .member-vols .member-shut:hover {
+  background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); color: var(--bone);
+}
+@media (orientation: portrait) {
+  .face[data-shelf] .member-vols .member-read { width: 8vw; height: 8vw; font-size: 2.6vw; }
+  .face[data-shelf] .member-vols .member-shut { width: 8vw; height: 8vw; font-size: 4vw; }
+}
 .face[data-shelf] .member-vols .member-head { margin-bottom: .3vh; }
 .face[data-shelf] .member-vols .member-headpad {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 4.6vw;
@@ -1778,6 +1809,52 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-justify-content: space-between; justify-content: space-between;
   padding: 0 .8vw; margin: 0 .35vw;
 }
+.face[data-shelf] .member-vols .member-head .member-read { border: 0; }
 .face[data-shelf] .member-vols .member-end {
   font-size: .8vw; letter-spacing: .1em; color: var(--dim);
 }
+
+
+/* ══ THE ROOM'S NAME, OVER WHAT IT NAMES ══════════════════════════════════════
+   ⚖️ Peter, 08-28. The mark is given the ARTWORK'S column: the way back on its
+   left edge, the name centred over the picture, the group door on its right.
+   Only on the faces that put the artwork in a column of its own — everywhere
+   else the head is a plain left-aligned line, as it was. */
+.headmark {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+}
+.face[data-shelf] .headmark {
+  position: relative;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  -webkit-justify-content: center; justify-content: center;
+}
+/* The two flanks are PINNED to the artwork's edges and the name centres between
+   them — rather than the three sharing the space, which would slide the name
+   sideways by half the difference every time the group door appeared or the
+   count went from one digit to two. */
+.face[data-shelf] .headmark .homemark { position: absolute; left: 0; }
+.face[data-shelf] .headmark .groupdoor { position: absolute; right: 0; }
+.face[data-shelf] .headmark .zone {
+  -webkit-flex: 0 1 auto; flex: 0 1 auto;
+  text-align: center; min-width: 0; max-width: 62%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin: 0;
+}
+/* Classic: the sleeve's own 34vw, starting where the sleeve starts. */
+.face[data-face="classic"] .headmark { width: 34vw; }
+/* Orbit: the RING, not the sleeve — 46vh of sleeve carries a circle 1.559 times
+   as wide, and it begins 12.86vh left of the sleeve, which the 14vh inset all
+   but cancels. */
+.face[data-face="orbit"] .headmark { width: 71.7vh; margin-left: 1.14vh; }
+@media (orientation: portrait) {
+  .face[data-shelf] .headmark { width: auto; }
+  .face[data-shelf] .headmark .zone { text-align: left; }
+}
+
+/* ⚠️ The head is a full-width bar with content only at its two ends, and out of
+   flow it was CAPTURING presses across the whole strip — the browse marks sit in
+   that band and could not be pressed at all on a stopped room. The bar itself
+   takes no presses; the things in it still do. */
+.face[data-shelf] .head { pointer-events: none; }
+.face[data-shelf] .head > * { pointer-events: auto; }

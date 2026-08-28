@@ -353,8 +353,20 @@ var groupDoor = el('span', 'groupdoor');
 pressable(groupDoor, startGroupPick);
 var chipHost = el('span');
 var status = el('div', 'status');
-head.appendChild(homeMark);
-head.appendChild(zoneName); head.appendChild(groupDoor); head.appendChild(chipHost); head.appendChild(status);
+/**
+ * ⚖️ THE ROOM'S NAME BELONGS OVER THE ARTWORK (Peter, 08-28: "put the room name
+ * centered on the circle / artwork and the +x box justified to the edge of the
+ * artwork or the circle").
+ *
+ * Grouped in one mark so it can be given the ARTWORK'S column: the way back at
+ * its left edge, the name centred over the picture, the group door on its right
+ * edge. That is what it names — this room, this sleeve — and it also keeps the
+ * head out of the words' column entirely, which it had been sitting on top of.
+ */
+var headMark = el('div', 'headmark');
+headMark.appendChild(homeMark);
+headMark.appendChild(zoneName); headMark.appendChild(groupDoor); headMark.appendChild(chipHost);
+head.appendChild(headMark); head.appendChild(status);
 
 var body = el('div', 'body');
 var cover = el('div', 'cover');
@@ -783,12 +795,21 @@ function render(snapshot, kind) {
     var np = zone.nowPlaying;
     if (np === null || zone.state === 'stopped') {
       idle.style.display = '';
-      cover.style.display = np === null ? 'none' : '';
+      /**
+       * ⚠️ THE SLEEVE KEEPS ITS FOOTPRINT when there is nothing playing, on the
+       * faces that carry their chrome in the layout. Removing the box let the
+       * words' column stretch across the whole frame and slide under the room
+       * name — so on a stopped room the browse marks were UNDER the head and
+       * could not be pressed at all. Nothing else moves when a track ends
+       * either, which is the point of these faces.
+       */
+      if (np === null && hasShelf()) { cover.style.display = ''; cover.style.visibility = 'hidden'; }
+      else { cover.style.display = np === null ? 'none' : ''; cover.style.visibility = ''; }
       idleClock.textContent = new Date().toTimeString().slice(0, 5);
       idleNote.textContent = zone.name;
     } else {
       idle.style.display = 'none';
-      cover.style.display = '';
+      cover.style.display = ''; cover.style.visibility = '';
       if (np.title !== lastTitle) {
         lastTitle = np.title;
         // A new track means a new artist; never leave a stale face on screen.
@@ -2799,6 +2820,17 @@ function roomsToggle(zone, outs) {
   var list = el('div', 'member-vols');
   list.hidden = !memberVolsOpen;
   /**
+   * ⚖️ A WINDOW HAS A CLOSE (Peter, 08-28: "we need an exit from the volume
+   * control window — just an x at top right to simulate closing a window").
+   * A press outside works and so does leaving it, but neither is VISIBLE, and a
+   * panel covering the whole column should say how to get out of it.
+   */
+  var shut = el('span', 'member-shut', '\u00D7');
+  shut.setAttribute('title', 'close');
+  shut.setAttribute('aria-label', 'close the room levels');
+  pressable(shut, closeMemberVols);
+  list.appendChild(shut);
+  /**
    * ⚖️ THE SCALE SAYS WHERE ITS ENDS ARE, and each room says where it is on it
    * (Peter, 08-28: "could even show a 0 / 100 at the top of the controls and
    * there's room for indicating the actual numeric number on the slider or at
@@ -2839,8 +2871,12 @@ function roomsToggle(zone, outs) {
       row.appendChild(el('span', 'member-name', o.name));
       row.appendChild(volumeScale(o, lvl, mn, sp));
       // Muted is a state the number cannot show: 66 and silent is not 66.
-      row.appendChild(el('span', v.muted ? 'member-read is-muted' : 'member-read',
-        v.muted ? 'muted' : String(v.value)));
+      // The number in a disc (Peter, 08-28). Muted is the SPEAKER's job to say —
+      // it is crossed through at the other end of the row — so the disc keeps
+      // showing the level the room will return to, and only changes colour.
+      var read = el('span', v.muted ? 'member-read is-muted' : 'member-read', String(v.value));
+      if (v.muted) read.setAttribute('title', o.name + ' is muted at ' + String(v.value));
+      row.appendChild(read);
       list.appendChild(row);
     })(outs[i]);
   }
@@ -3392,6 +3428,19 @@ function onFacePress(event) {
    * The bands remain for the EMPTY parts of the frame, where there is nothing to
    * hit and only position can say what was meant.
    */
+  /**
+   * ⚖️ A FACE THAT CARRIES ITS CHROME IN THE LAYOUT RAISES NOTHING (Peter,
+   * 08-28: "clicking outside areas is still bringing up old chrome — now
+   * redundant").
+   *
+   * The browse marks stand above the words and the controls below them; there is
+   * nothing a raised strip could offer that is not already on the screen, so a
+   * press on empty space only wakes the chrome and stops. The named targets
+   * still do their jobs — the room badge, the face badge, the group door — and
+   * every OTHER face keeps the strips, because it still needs them.
+   */
+  if (hasShelf()) return;
+
   if (target !== null && inNode(target, copy)) { openBrowseMenu(); return; }
 
   var y = event && typeof event.clientY === 'number' ? event.clientY : 0;
@@ -3399,9 +3448,8 @@ function onFacePress(event) {
   if (y < height * 0.16) { openPanel('faces'); return; }
   if (y < height * 0.72) { openBrowseMenu(); return; }
   // The lower band is where the transport bar lives, and revealChrome has already
-  // put it there — pressing again would only re-raise it under the finger. Classic
-  // has no strip at all: its controls are in the layout, already in front of you.
-  if (!hasShelf()) showPicker('transport');
+  // put it there — pressing again would only re-raise it under the finger.
+  showPicker('transport');
 }
 
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
