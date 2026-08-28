@@ -2742,12 +2742,19 @@ function onFacePress(event) {
    *
    * `panelJustAppeared` is what keeps the zones working: the touch that raises
    * the chrome is the SAME gesture as the press that follows it, so that first
-   * press still routes. Only a later one dismisses. Everything that owns a press
-   * is excluded, the cover included — it flips to the artist, and would
-   * otherwise do both at once.
+   * press still routes. Only a later one dismisses.
+   *
+   * ⚠️ EVERYTHING THAT OWNS A PRESS MUST BE LISTED HERE, and the COPY was not.
+   * The chrome is up whenever anyone has just moved or touched — which is always,
+   * in use — so pressing the title, artist or album put the chrome away instead
+   * of opening browse, and browse looked like it had been lost entirely
+   * (Peter, 08-28). It was reachable only from a cold page nobody had touched,
+   * which is exactly the state a headless test starts in: the fault survived
+   * testing because the test never raised the chrome first.
    */
   if (wasUp && !panelJustAppeared() && target !== null
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
+      && !inNode(target, copy) && !inNode(target, homeMark)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
     lastZonePress = now;
