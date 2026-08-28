@@ -291,11 +291,8 @@ body { min-height: 100vh; }
 .grid > .tile.is-idle { border-color: rgba(232,227,216,.10); }
 
 /* and the art stops changing size with state — one square, every cell */
-.grid > .tile .tile-art,
-.grid > .tile.is-hero .tile-art,
-.grid > .tile.is-live .tile-art,
-.grid > .tile.is-paused .tile-art,
-.grid > .tile.is-idle .tile-art { width: 7.4vh; height: 7.4vh; }
+/* (the per-state art sizes that used to live here are gone: every card is one
+   size now, set once below, and this block only outranked it) */
 .grid > .tile .tile-title,
 .grid > .tile.is-hero .tile-title { font-size: 1.02vw; white-space: normal; }
 .grid > .tile.is-idle .tile-title { font-size: 1.02vw; }
@@ -601,3 +598,40 @@ body { min-height: 100vh; }
   -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0; padding-left: .4vw;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ══ THE FIXED ROWS GIVE THE MUSIC BLOCK ROOM ════════════════════════════════
+   The head, two bars and the foot were taking so much of a 177px card that the
+   music block was left 50px — and the sleeve is 69, the words 83, so both were
+   being cut (Peter, 08-28: "art still clipped by bar areas — can be smaller,
+   it's just eye candy in this view, the info is there").
+
+   So the sleeve shrinks, because here it identifies rather than presents, and
+   every fixed row gives back a few pixels. The readings and the controls are the
+   point of this view; the picture is the label on it. */
+.grid > .tile { padding: .7vh .8vw; }
+.grid > .tile .tile-zone { padding: .2vh .45vw; font-size: .82vw; }
+.grid > .tile .tile-art { width: 4vh; height: 4vh; margin-right: .55vw; }
+.tile-now { margin-top: .35vh; }
+.grid > .tile .tile-title { font-size: 1vw; }
+.grid > .tile .tile-line2 { font-size: .68vw; }
+.tile-transport { margin-top: .25vh; }
+.tt { width: 1.45vw; height: 1.45vw; margin-right: .24vw; }
+.tt-glyph { width: .66vw; height: .66vw; }
+.tile-bar-line { margin-top: .3vh; }
+.tile-actions { margin-top: .3vh; padding-top: .3vh; }
+.ta { width: 1.45vw; height: 1.45vw; }
+.ta .tt-glyph { width: .74vw; height: .74vw; }
+
+/* the last five pixels: the words were just over the block they sit in */
+.grid > .tile .tile-title { line-height: 1.16; }
+.grid > .tile .tile-line2 { line-height: 1.2; }
+.tile-transport { margin-top: .15vh; }
+
+/* the last four: the transport gives them, not the words */
+.tile-transport { margin-top: 0; }
+.tt { width: 1.35vw; height: 1.35vw; }
+.tt-glyph { width: .62vw; height: .62vw; }
+
+/* one pixel, on the longest card. The words are allowed to end early rather than
+   be cut: the block clips, so the last line simply is not drawn if it will not fit. */
+.grid > .tile .tile-line2 { line-height: 1.15; }
