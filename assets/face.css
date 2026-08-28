@@ -1864,3 +1864,19 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    takes no presses; the things in it still do. */
 .face[data-shelf] .head { pointer-events: none; }
 .face[data-shelf] .head > * { pointer-events: auto; }
+
+/* ══ THE FACE NAME LINES UP WITH THE CONTROLS ═════════════════════════════════
+   ⚖️ Peter, 08-28: "move the face name to right justify in line with the control
+   chromes". It sat on the frame's own right edge, which is nothing the eye can
+   check it against; the chrome rows below it end on a real line, and now it ends
+   on the same one.
+
+   Derived rather than eyeballed, so it holds if the sleeve is ever resized:
+   Classic's rows are 34vw starting 37.4vw into the safe area (sleeve 34vw plus
+   its 3.4vw gap), so they end 18.6vw short of the safe area's 90vw. Orbit's fill
+   its column, which begins 86vh in and runs 44vw. */
+.face[data-face="classic"] .cog { margin-right: 18.6vw; }
+.face[data-face="orbit"] .cog { margin-right: calc(46vw - 86vh); }
+@media (orientation: portrait) {
+  .face[data-shelf] .cog { margin-right: 0; }
+}
