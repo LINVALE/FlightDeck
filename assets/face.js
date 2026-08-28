@@ -1211,6 +1211,50 @@ function showPicker(mode) {
    * An `incremental` output has no level to show at all — Roon says so — and falls
    * back to plus and minus.
    */
+  /**
+   * A GROUP HAS ONE LEVEL, AND ROOMS BEHIND IT.
+   *
+   * Until now a grouped zone had NO volume control here at all: `volumeOutput`
+   * returns null the moment a zone has more than one output, so joining two rooms
+   * silently took the volume away. Roon's own remote has the same hole from the
+   * other side — per-endpoint sliders and no master, asked for since 2018.
+   *
+   * So: a master scale that moves every room at once, preserving the offsets
+   * between them (the quiet room stays quieter — Sonos's documented contract,
+   * adopted verbatim), and a room-count button that discloses the individual
+   * scales beneath it. The zone master stays visually separate from the member
+   * controls, which is the distinction Sonos's guidance draws and RHEOS's own
+   * console follows.
+   */
+  var groupOuts = [];
+  if (zone !== null && zone.outputs.length > 1) {
+    for (var gi = 0; gi < zone.outputs.length; gi += 1) {
+      var go = zone.outputs[gi];
+      if (go.volume !== null && go.volume.value !== null && go.volume.max !== null
+          && go.volume.type !== 'incremental') groupOuts.push(go);
+    }
+  }
+  if (groupOuts.length > 1) {
+    var levels = [];
+    for (var li = 0; li < groupOuts.length; li += 1) {
+      var lv = groupOuts[li].volume;
+      var lmin = lv.min === null ? 0 : lv.min;
+      levels.push(Math.max(0, Math.min(1, (lv.value - lmin) / Math.max(1, lv.max - lmin))));
+    }
+    var mean = 0;
+    for (var mi = 0; mi < levels.length; mi += 1) mean += levels[mi];
+    mean = mean / levels.length;
+
+    var master = groupScale(zone, mean);
+    var anyMuted = true;
+    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) anyMuted = false;
+    var masterSpeaker = volumeSpeaker(groupOuts[0], anyMuted ? 0 : mean);
+    volUi = { speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true };
+    controls.appendChild(masterSpeaker);
+    controls.appendChild(master);
+    controls.appendChild(roomsToggle(zone, groupOuts));
+  } else {
+
   var output = volumeOutput();
   var vol = output === null ? null : output.volume;
   if (vol === null) {
@@ -1237,6 +1281,7 @@ function showPicker(mode) {
     controls.appendChild(volumeStep(output, 'down'));
     controls.appendChild(scaleNode);
     controls.appendChild(volumeStep(output, 'up'));
+  }
   }
   // Repeat closes the line. The glyph itself carries which of the three states
   // Roon is in — a bare circuit for "all", a circuit with a 1 for "this track".
@@ -2152,6 +2197,73 @@ function volumeOutput() {
   return zone.outputs.length === 1 ? zone.outputs[0] : null;
 }
 
+/**
+ * The master scale. Same 44-segment motif as a room's own, so the eye reads it
+ * as loudness without a label — but it sends the GROUP verb, and the server
+ * computes each room's new level from the offsets it already has.
+ */
+function groupScale(zone, level) {
+  var node = el('span', 'vol-scale group');
+  node.setAttribute('title', 'volume \u00B7 ' + zone.name + ' (all rooms)');
+  node.setAttribute('aria-label', 'group volume for ' + zone.name);
+  // the segments have to exist before they can be painted
+  for (var i = 0; i < SEGMENTS; i += 1) node.appendChild(el('b'));
+  paintScale(node, level, false);
+  var last = 0;
+  var setFrom = function (clientX) {
+    var box = node.getBoundingClientRect();
+    if (box.width <= 0) return;
+    var now = Date.now();
+    if (now - last < 250) return;
+    last = now;
+    var want = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
+    paintScale(node, want, false);                // answer the press at once
+    command({ action: 'group-volume', zone: zone.id, level: want });
+  };
+  var press = function (event) {
+    if (panelJustAppeared()) return;
+    var x = typeof event.clientX === 'number' ? event.clientX
+      : (event.changedTouches && event.changedTouches[0] ? event.changedTouches[0].clientX : null);
+    if (x === null) return;
+    setFrom(x);
+    event.preventDefault(); event.stopPropagation();
+  };
+  node.addEventListener('pointerup', press);
+  node.addEventListener('click', press);
+  return node;
+}
+
+/** The room count, and behind it every room's own scale. */
+function roomsToggle(zone, outs) {
+  var wrap = el('span', 'rooms-toggle');
+  var b = el('span', 'ctl small', String(outs.length) + ' rooms');
+  b.setAttribute('title', 'volume for each room');
+  var open = false;
+  var list = el('div', 'member-vols');
+  list.hidden = true;
+  for (var i = 0; i < outs.length; i += 1) {
+    (function (o) {
+      var row = el('div', 'member-vol');
+      var v = o.volume;
+      var mn = v.min === null ? 0 : v.min;
+      var sp = Math.max(1, v.max - mn);
+      var lvl = Math.max(0, Math.min(1, (v.value - mn) / sp));
+      row.appendChild(volumeSpeaker(o, v.muted ? 0 : lvl));
+      row.appendChild(el('span', 'member-name', o.name));
+      row.appendChild(volumeScale(o, lvl, mn, sp));
+      list.appendChild(row);
+    })(outs[i]);
+  }
+  pressable(b, function () {
+    open = !open;
+    list.hidden = !open;
+    b.className = open ? 'ctl small now' : 'ctl small';
+  });
+  wrap.appendChild(b);
+  wrap.appendChild(list);
+  return wrap;
+}
+
 function nudgeVolume(steps) {
   var output = volumeOutput();
   if (output === null) { flash('this screen is not bound to one speaker'); return; }
@@ -2337,19 +2449,16 @@ function volumeScale(output, level, min, span) {
     var fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
     command({ action: 'volume', output: output.id, value: Math.round(min + fraction * span) });
   };
-  // Press to position. Drag is a bonus where the pointer supports it; a remote
-  // held in the air cannot really drag, so it is never the only way.
-  var dragging = false;
-  scale.addEventListener('pointerdown', function (event) {
+  /**
+   * ⚖️ PRESS TO POSITION, NEVER DRAG (Peter, 08-28: "don't allow drag on volume
+   * — click on the scale or touch only"). Drag used to be offered here as a
+   * bonus; it is gone, so the Wall and the Face share one grammar and a
+   * horizontal movement anywhere is unambiguously something else.
+   */
+  scale.addEventListener('pointerup', function (event) {
     if (panelJustAppeared()) return;
-    dragging = true; setFrom(event.clientX); event.preventDefault(); event.stopPropagation();
+    setFrom(event.clientX); event.preventDefault(); event.stopPropagation();
   });
-  scale.addEventListener('pointermove', function (event) {
-    if (dragging) { setFrom(event.clientX); event.preventDefault(); }
-  });
-  var stop = function () { dragging = false; };
-  scale.addEventListener('pointerup', stop);
-  scale.addEventListener('pointerleave', stop);
   // Devices without pointer events still get press-to-position.
   scale.addEventListener('click', function (event) {
     if (panelJustAppeared()) return;

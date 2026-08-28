@@ -28,6 +28,22 @@ const ZONES: unknown[] = [
     now_playing: { seek_position: 3, image_key: 'k2', three_line: { line1: 'Radio', line2: 'Station', line3: '' } },
   },
   {
+    /**
+     * A GROUP with two rooms at different levels AND different ranges — the
+     * Marantz here reports 0-80 while everything else reports 0-100, which is
+     * exactly why the group level is normalised before it is averaged.
+     */
+    zone_id: 'zGroup', display_name: 'Downstairs', state: 'playing',
+    outputs: [
+      { output_id: 'oLoud', display_name: 'Hall', can_group_with_output_ids: ['oLoud', 'oSoft'],
+        volume: { type: 'number', min: 0, max: 100, value: 60, step: 1, is_muted: false } },
+      { output_id: 'oSoft', display_name: 'Landing', can_group_with_output_ids: ['oLoud', 'oSoft'],
+        volume: { type: 'number', min: 0, max: 80, value: 16, step: 1, is_muted: false } },
+    ],
+    is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
+    now_playing: { seek_position: 5, length: 100, image_key: 'k3', three_line: { line1: 'T', line2: 'A', line3: 'B' } },
+  },
+  {
     // same island as Study, and silent: the room a group would be formed with
     zone_id: 'zPeer', display_name: 'Kitchen', state: 'stopped',
     outputs: [{ output_id: 'oPeer', display_name: 'Kitchen', can_group_with_output_ids: ['oStudy', 'oPeer'] }],
@@ -323,8 +339,11 @@ test('an island can be named, and only one the Core actually reported', async (t
   const { post, port, registry } = await serve(t);
   const snapshot = await (await fetch('http://127.0.0.1:' + String(port) + '/api/v1/snapshot')).json() as
     { islands: { id: string; count: number; label: string | null }[] };
-  assert.equal(snapshot.islands.length, 1, 'Study and Kitchen share one island; Garden can group with nothing');
-  const island = snapshot.islands[0];
+  // Two islands now: Study+Kitchen, and the Downstairs pair. Garden can group
+  // with nothing and is in neither.
+  assert.equal(snapshot.islands.length, 2);
+  const island = snapshot.islands.find((i) => i.count === 2 && i.label === null) as { id: string; count: number; label: string | null };
+  assert.ok(island, 'the Study/Kitchen island');
   assert.equal(island.count, 2);
   assert.equal(island.label, null, 'unnamed until somebody says');
 
@@ -335,4 +354,43 @@ test('an island can be named, and only one the Core actually reported', async (t
   assert.equal(refused.status, 404);
   assert.match(((await refused.json()) as { error: string }).error, /unknown island/);
   assert.equal((await post({ action: 'label-island', label: 'x' })).status, 400);
+});
+
+/**
+ * ROON HAS NEVER HAD A GROUP VOLUME — per-endpoint sliders and relative nudges,
+ * asked for since 2018. Sonos specifies the contract precisely, so it is adopted
+ * verbatim: the group level is the AVERAGE of its members and moving it PRESERVES
+ * the offsets between them. The quiet room must stay quieter.
+ */
+test('group volume moves every room and keeps them in proportion', async (t) => {
+  const { post, sent } = await serve(t);
+  // Hall is 60/100 = 0.60, Landing is 16/80 = 0.20 -> average 0.40, offsets +0.20 / -0.20
+  assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 0.5 })).status, 200);
+  const moves = sent.filter((s) => s.kind === 'setVolume');
+  assert.equal(moves.length, 2, 'every room with a volume moves');
+  const by = Object.fromEntries(moves.map((m) => [m.a, m.b]));
+  // +0.10 on each: Hall 0.70 of 100 = 70, Landing 0.30 of 80 = 24
+  assert.equal(by.oLoud, 70);
+  assert.equal(by.oSoft, 24);
+  // and the gap between them is unchanged — compared to the gap they started
+  // with, with a tolerance, because 0.7 - 0.3 is not 0.4 in binary floating point
+  const before = (60 / 100) - (16 / 80);
+  const after = (70 / 100) - (24 / 80);
+  assert.ok(Math.abs(after - before) < 1e-9, 'the offset between the rooms survives the move');
+});
+
+test('a room already at the top does not drag the others back', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 1 })).status, 200);
+  const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
+  assert.equal(by.oLoud, 100, 'clamped at its own maximum');
+  assert.equal(by.oSoft, 64, 'and the quieter room keeps its offset until it too runs out');
+});
+
+test('group volume refuses a zone with nothing to move, and a level off the scale', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group-volume', zone: 'zRadio', level: 0.5 })).status, 409);
+  assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 2 })).status, 400);
+  assert.equal((await post({ action: 'group-volume', zone: 'nope', level: 0.5 })).status, 404);
+  assert.equal(sent.length, 0);
 });

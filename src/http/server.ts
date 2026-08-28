@@ -590,6 +590,49 @@ async function handleControl(
       return;
     }
 
+    /**
+     * GROUP VOLUME — the one control Roon has never had.
+     *
+     * Its own remote gives a grouped zone per-endpoint sliders and relative nudge
+     * buttons, and users have asked for a single group slider since 2018. Sonos
+     * specifies the contract precisely and it is the right one, so it is adopted
+     * verbatim: the group level is the AVERAGE of its members, and moving it
+     * preserves the proportional offsets between them — the quiet room stays
+     * quieter. A member already at an end simply stops there.
+     *
+     * Levels are normalised to 0..1 per output before averaging, because members
+     * do not share a range: the Marantz here reports 0-80 while everything else
+     * reports 0-100, and averaging raw numbers across those would drift.
+     */
+    if (action === 'group-volume') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      const wanted = typeof body.level === 'number' ? body.level : -1;
+      if (zoneId === '' || wanted < 0 || wanted > 1) { json(response, 400, { error: 'zone and a level of 0..1 required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+
+      const movable = zone.outputs.filter((o) => o.volume !== null && o.volume.value !== null
+        && o.volume.max !== null && o.volume.type !== 'incremental');
+      if (movable.length === 0) { json(response, 409, { error: 'no room here has a volume to set' }); return; }
+
+      const span = (o: (typeof movable)[number]): number =>
+        Math.max(1, (o.volume!.max as number) - (o.volume!.min ?? 0));
+      const levelOf = (o: (typeof movable)[number]): number =>
+        ((o.volume!.value as number) - (o.volume!.min ?? 0)) / span(o);
+      const average = movable.reduce((sum, o) => sum + levelOf(o), 0) / movable.length;
+      const delta = wanted - average;
+
+      await Promise.all(movable.map((o) => {
+        const next = Math.max(0, Math.min(1, levelOf(o) + delta));
+        const value = Math.round((o.volume!.min ?? 0) + next * span(o));
+        return commands.setVolume(o.id, value);
+      }));
+      log('group volume ' + zone.name + ' -> ' + String(Math.round(wanted * 100)) + '%');
+      json(response, 200, { ok: true });
+      return;
+    }
+
     if (action === 'seek') {
       const zoneId = typeof body.zone === 'string' ? body.zone : '';
       const seconds = typeof body.seconds === 'number' ? body.seconds : -1;
