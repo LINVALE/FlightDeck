@@ -484,3 +484,75 @@ body { min-height: 100vh; }
 .tile-now { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .grid > .tile .tile-copy { overflow: hidden; }
 .grid > .tile .tile-title { -webkit-line-clamp: 2; }
+
+/* ══ A CARD OPENS UNDER THE POINTER ══════════════════════════════════════════
+   Hovering lifts a card above its neighbours and gives it room for the whole
+   title and the room's details — the things that do not fit at rest in 191px.
+
+   ⚠️ It GROWS ITS BOX; it is never scaled. `transform` on a card would be a
+   transform on an ancestor of the album art, and the cover is sacred — resized
+   only, never scaled, filtered or masked. Negative margins expand the card past
+   its grid track while the track itself stays put, so nothing else on the wall
+   moves; z-index puts it over its neighbours rather than between them.
+
+   The RESTING card stays complete on its own: one line of title, every control
+   reachable. A touchscreen has no hover, so what opens here is always a bonus
+   and never the only way to reach something. */
+.grid > .tile {
+  position: relative;
+  z-index: 0;
+  -webkit-transition: margin .16s ease, box-shadow .16s ease, border-color .16s ease;
+  transition: margin .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.grid > .tile .tile-title { -webkit-line-clamp: 1; }
+
+.grid > .tile:hover, .grid > .tile:focus-within {
+  z-index: 5;
+  margin: -0.55vw;
+  background: #171a1f;
+  box-shadow: 0 1.1vw 2.6vw rgba(0,0,0,.72);
+}
+.grid > .tile:hover .tile-title,
+.grid > .tile:focus-within .tile-title { -webkit-line-clamp: 2; }
+.grid > .tile:hover .tile-detail,
+.grid > .tile:focus-within .tile-detail { display: block; }
+
+/* A card being dragged is already lifted by the drag; it must not also open. */
+.wall.is-dragging .grid > .tile:hover { margin: .32vw; box-shadow: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .grid > .tile { -webkit-transition: none; transition: none; }
+}
+
+/* A group of three carries two member chips, which wrapped the head onto a
+   second line and pushed the music out of the card. The head holds one line at
+   rest and opens with the card, which is exactly what hovering is for. */
+.grid > .tile .tile-head { min-width: 0; }
+.grid > .tile .tile-zone {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+.grid > .tile:hover .tile-zone,
+.grid > .tile:focus-within .tile-zone {
+  white-space: normal; overflow: visible;
+}
+
+/* The music block gets whatever the fixed rows leave — about 73px at rest — and
+   a one-line title, an artist and a 38px transport needs 73 exactly, so it clipped
+   by a pixel or two and the controls vanished. Trimmed to fit with room to spare. */
+.tt { width: 1.7vw; height: 1.7vw; margin-right: .28vw; }
+.tt-glyph { width: .76vw; height: .76vw; }
+.ta { width: 1.7vw; height: 1.7vw; }
+.tile-actions { margin-top: .4vh; padding-top: .4vh; }
+.tile-transport { margin-top: .3vh; }
+.grid > .tile .tile-art { width: 5.8vh; height: 5.8vh; }
+
+/* The room is the first thing you look for on a wall of twelve, so it is the
+   boldest thing on the card (Peter, 08-28: "make the group / zone name bold and
+   clearer"). Brighter than the music, which is unusual — but the music is
+   already carried by the sleeve beside it. */
+.grid > .tile .tile-zone {
+  font-size: .88vw; font-weight: 600; letter-spacing: .13em;
+  color: var(--bone, #e8e3d8);
+}
+.grid > .tile.is-idle .tile-zone { color: var(--ash); }
+.grid > .tile .tile-fam { width: .5vw; height: .5vw; }

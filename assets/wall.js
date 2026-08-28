@@ -522,64 +522,21 @@ function classFor(zone, isHero) {
   return base;
 }
 
+/**
+ * NO MEMBER CHIPS. Roon already names a group "Study RHEOS + 1", and that says
+ * everything the card needs to (Peter, 08-28: "don't show members, just use the
+ * Roon group name"). The chips repeated it, wrapped the head onto a second line
+ * on a group of three, and squeezed the music out of the card.
+ *
+ * The rooms are still named — in the details the card opens on hover — and
+ * taking one room out of a group lives on that room's Face, where there is space
+ * to say which room you are removing.
+ */
 function setChips(tile, zone) {
-  var wanted = zone.outputs.length > 1 ? zone.outputs.slice(1) : [];
-  var key = wanted.map(function (o) { return o.id + '=' + o.name; });
-  if (key.join('|') === tile.chips.join('|')) return;
-  for (var i = 0; i < tile.chips.length; i += 1) {
-    var existing = tile.zoneLine.querySelector('.chip');
-    if (existing) tile.zoneLine.removeChild(existing);
-  }
-  tile.chips = key;
-  /**
-   * A chip is a MEMBER of the group, and can be dragged out of it. There is no
-   * chip for the group's first output — the tile itself is that room, and the
-   * LEADER IS PINNED (HEOS's line): its zone's queue IS the group's music, so
-   * taking it out would beg the question of who leads now. Dissolve instead.
-   */
-  for (var j = 0; j < wanted.length; j += 1) {
-    (function (o) {
-      var chip = el('span', 'chip', o.name);
-      chip.addEventListener('mousedown', function (event) {
-        event.stopPropagation();
-        startPress(event, { kind: 'member', zoneId: zone.id, outputId: o.id, name: o.name, node: chip });
-      });
-      chip.addEventListener('touchstart', function (event) {
-        event.stopPropagation();
-        startPress(event, { kind: 'member', zoneId: zone.id, outputId: o.id, name: o.name, node: chip });
-      }, { passive: true });
-      /**
-       * A CHIP IS ALSO A BUTTON (Peter, 08-28: "click or gesture to ungroup?").
-       *
-       * Drag-out is the symmetric gesture and it stays — but it is undiscoverable,
-       * and dragging with a television pointer is genuinely awkward. So a plain
-       * press on a member removes that member: one `ungroup_outputs` call on that
-       * output alone, exactly what the drag does, with none of the aim required.
-       *
-       * The `×` only appears on hover/focus, so a wall being LOOKED at still reads
-       * as a list of rooms rather than a row of controls.
-       */
-      chip.appendChild(el('span', 'chip-x', '\u00D7'));
-      chip.setAttribute('title', 'remove ' + o.name + ' from this group');
-      (function (outputId, roomName, zoneId) {
-        var pressedAt = 0;
-        var take = function (event) {
-          // a press that became a drag is the drag's business, not ours
-          if (drag !== null && drag.armed) return;   // a press that became a drag is the drag's business
-          var now = Date.now();
-          if (now - pressedAt < 400) return;
-          pressedAt = now;
-          if (event && event.stopPropagation) event.stopPropagation();
-          if (event && event.preventDefault) event.preventDefault();
-          post({ action: 'ungroup', zone: zoneId, output: outputId }).then(function (ok) {
-            if (!ok) say('could not take ' + roomName + ' out of the group');
-          });
-        };
-        chip.addEventListener('click', take);
-      })(o.id, o.name, zone.id);
-      tile.zoneLine.appendChild(chip);
-    })(wanted[j]);
-  }
+  if (tile.chips.length === 0) return;
+  var existing = tile.zoneLine.querySelectorAll('.chip');
+  for (var i = 0; i < existing.length; i += 1) tile.zoneLine.removeChild(existing[i]);
+  tile.chips = [];
 }
 
 function setArt(tile, zone) {
