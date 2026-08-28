@@ -720,3 +720,21 @@ body { min-height: 100vh; }
 .tt { margin-right: 0; }
 .tt.lit { color: var(--accent); border-color: var(--accent); background: rgba(216,162,74,.12); }
 .tt.lit:hover { background: rgba(216,162,74,.2); }
+
+/* ══ PLAY IS THE BIGGEST MARK ON THE LINE ════════════════════════════════════
+   Peter, 08-28: "make the play pause circle a little larger than others and
+   maintain that line on centres." The one control you reach for without looking
+   is the one that should be easiest to hit — and on a television pointer that
+   difference is the difference between hitting it and hitting next.
+
+   The row aligns on CENTRES, not bottoms, so the larger circle grows evenly
+   above and below a single line the five marks share. */
+.tile-transport { -webkit-align-items: center; align-items: center; }
+.tt.play { width: 1.7vw; height: 1.7vw; }
+.tt.play .tt-glyph { width: .8vw; height: .8vw; }
+.wall[data-rows="3"] .tt.play { width: 2.1vw; height: 2.1vw; }
+.wall[data-rows="3"] .tt.play .tt-glyph { width: .98vw; height: .98vw; }
+.wall[data-rows="2"] .tt.play { width: 2.6vw; height: 2.6vw; }
+.wall[data-rows="2"] .tt.play .tt-glyph { width: 1.2vw; height: 1.2vw; }
+.wall[data-rows="1"] .tt.play { width: 3.2vw; height: 3.2vw; }
+.wall[data-rows="1"] .tt.play .tt-glyph { width: 1.5vw; height: 1.5vw; }

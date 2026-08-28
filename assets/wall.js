@@ -348,6 +348,7 @@ function buildTile(zone) {
   var shufB = act('shuffle', 'shuffle', 'shuffle');
   var prevB = act('prev', 'previous', 'previous');
   var playB = act('play', 'play', 'playpause');
+  playB.className = 'tt play';        // the one you reach for is the one you can hit
   var nextB = act('next', 'next', 'next');
   var repB = act('repeat', 'repeat', 'repeat');
   transport.appendChild(shufB); transport.appendChild(prevB); transport.appendChild(playB);
@@ -716,6 +717,7 @@ function render(snapshot, kind) {
       var playing = zone.state === 'playing' || zone.state === 'loading';
       tile.playB.replaceChildren(glyph(playing ? 'pause' : 'play'));
       tile.playB.setAttribute('title', playing ? 'pause' : 'play');
+      tile.playB.className = 'tt play';
       tile.prevB.className = zone.allowed.previous ? 'tt' : 'tt off';
       tile.nextB.className = zone.allowed.next ? 'tt' : 'tt off';
       var st = zone.settings;
