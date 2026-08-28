@@ -556,3 +556,35 @@ body { min-height: 100vh; }
 }
 .grid > .tile.is-idle .tile-zone { color: var(--ash); }
 .grid > .tile .tile-fam { width: .5vw; height: .5vw; }
+
+/* ══ THE ROOM WEARS A BAR ═════════════════════════════════════════════════════
+   Peter, 08-28: "put the room name in a bar, dark letters on light."
+   Reversed out of a solid bone bar, the room is the one thing on a wall of
+   twelve you can find without reading anything else — and it separates the room
+   (who) from the music (what) far harder than weight alone did.
+
+   A room that has never played wears a quiet bar instead of a bright one, so the
+   playing rooms still come forward. */
+.grid > .tile .tile-zone {
+  -webkit-align-self: flex-start; align-self: flex-start;
+  background: var(--bone, #e8e3d8);
+  color: #0a0b0d;
+  padding: .28vh .55vw;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  max-width: 72%;
+}
+.grid > .tile.is-idle .tile-zone {
+  background: rgba(232,227,216,.16);
+  color: var(--ash);
+}
+/* the family dot sits inside the bar, so it needs the bar's ground behind it */
+.grid > .tile .tile-fam { border: 1px solid rgba(10,11,13,.25); }
+
+/* ...and the other way round wherever the page is asked to be light. */
+@media (prefers-color-scheme: light) {
+  .grid > .tile .tile-zone { background: #1a1d22; color: #f2eee6; }
+  .grid > .tile.is-idle .tile-zone { background: rgba(26,29,34,.18); color: #4a4640; }
+  .grid > .tile .tile-fam { border-color: rgba(242,238,230,.3); }
+}
