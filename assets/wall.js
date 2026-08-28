@@ -235,7 +235,8 @@ function glyph(name) {
     next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
     play: 'M8 5.5v13l11-6.5z',
     pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
-    speaker: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z'
+    speaker: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
+    info: 'M12 3.6a8.4 8.4 0 1 0 0 16.8 8.4 8.4 0 0 0 0-16.8zm-1.05 5.05h2.1v2.1h-2.1zm0 3.4h2.1v5.2h-2.1z'
   }[name];
   if (d !== undefined) {
     var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -366,22 +367,36 @@ function buildTile(zone) {
 
   /* ── and what to do with the room, along the bottom ─────────────────────── */
   var actions = el('div', 'tile-actions');
+  var left = el('div', 'ta-left');
   var groupB = quiet(el('span', 'ta'), function () { beginGroupFrom(zoneId); });
   groupB.appendChild(glyph('group'));
   groupB.setAttribute('title', 'group ' + zone.name + ' with another room');
   var sendB = quiet(el('span', 'ta'), function () { beginSendFrom(zoneId); });
   sendB.appendChild(glyph('send'));
   sendB.setAttribute('title', 'send what is playing here to another room');
+  left.appendChild(groupB); left.appendChild(sendB);
+
+  /** The room's own details — what it actually is, which Roon never says aloud. */
+  var detail = el('div', 'tile-detail');
+  detail.hidden = true;
+  var infoB = quiet(el('span', 'ta'), function () {
+    detail.hidden = !detail.hidden;
+    infoB.className = detail.hidden ? 'ta' : 'ta now';
+  });
+  infoB.appendChild(glyph('info'));
+  infoB.setAttribute('title', 'what this room is');
   var state = el('div', 'tile-state');
-  actions.appendChild(groupB); actions.appendChild(sendB); actions.appendChild(state);
+  actions.appendChild(left); actions.appendChild(state); actions.appendChild(infoB);
 
   tile.appendChild(head); tile.appendChild(now);
   tile.appendChild(progress); tile.appendChild(volLine); tile.appendChild(actions);
+  tile.appendChild(detail);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
     line2: line2, fill: fill, stamp: stamp, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
     volFill: volFill, volNum: volNum, volMark: volMark, sendB: sendB, groupB: groupB,
+    detail: detail,
     artKey: null, chips: []
   };
 }
@@ -424,6 +439,15 @@ function finishSend(toZoneId) {
   if (from === null || from === toZoneId) { say(''); return true; }
   post({ action: 'transfer', zone: from, to: toZoneId });
   return true;
+}
+
+/** The family's name, if anyone has given it one. */
+function islandName(id) {
+  var snap = store.snapshot();
+  if (snap === null || id === '') return '';
+  var list = snap.islands || [];
+  for (var i = 0; i < list.length; i += 1) if (list[i].id === id) return list[i].label || '';
+  return '';
 }
 
 function volumeCommand(zoneId, level) {
@@ -694,6 +718,11 @@ function render(snapshot, kind) {
       tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
       tile.volMark.className = vl !== null && vl.muted ? 'tile-vol-mark muted' : 'tile-vol-mark';
       tile.sendB.className = zone.nowPlaying === null ? 'ta off' : 'ta';
+      var rooms = [];
+      for (var oi = 0; oi < zone.outputs.length; oi += 1) rooms.push(zone.outputs[oi].name);
+      var fam = zone.outputs.length > 0 ? islandName(zone.outputs[0].island) : '';
+      tile.detail.textContent = rooms.join(' + ') + (fam === '' ? '' : '  \u00B7  ' + fam)
+        + '  \u00B7  ' + zone.state;
       var playing = zone.state === 'playing' || zone.state === 'loading';
       tile.playB.replaceChildren(glyph(playing ? 'pause' : 'play'));
       tile.playB.setAttribute('title', playing ? 'pause' : 'play');

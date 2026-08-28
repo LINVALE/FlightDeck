@@ -144,8 +144,8 @@ body { min-height: 100vh; }
 /* The island tabs: the house divided the way Roon actually divides it. */
 .wall-tabs {
   display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap;
-  -webkit-justify-content: center; justify-content: center;
-  padding: 0 2.2vw 1.1vh 2.2vw;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+  padding: 0 1.6vw 1.1vh 1.6vw;
 }
 .wall-tab {
   display: inline-block; margin: 0 .5vw .7vh 0;
@@ -436,3 +436,51 @@ body { min-height: 100vh; }
 .grid > .tile .tile-state {
   margin-left: auto; font-size: .56vw; color: var(--dim);
 }
+
+/* ── LOUDER TYPE, VISIBLE BARS, A SPREAD FOOT ────────────────────────────────
+   Peter, 08-28: "no progress or volume lines are shown" — they were there, but a
+   #23272e track on a #131519 card is a difference of four values and reads as
+   nothing. "Increase text size." And the foot spread, as the console spreads it,
+   with room for the player details still to be built. */
+.grid > .tile .tile-zone { font-size: .8vw; }
+.grid > .tile .tile-stamp { font-size: .66vw; }
+.grid > .tile .tile-title { font-size: 1.12vw; }
+.grid > .tile .tile-line2 { font-size: .74vw; }
+.grid > .tile .tile-t { font-size: .66vw; min-width: 2.5vw; }
+.tt { width: 2vw; height: 2vw; }
+.tt-glyph { width: .88vw; height: .88vw; }
+.ta { width: 1.9vw; height: 1.9vw; }
+.ta .tt-glyph { width: .9vw; height: .9vw; }
+
+.grid > .tile .tile-rule { background: rgba(242,238,230,.18); height: 4px; }
+.grid > .tile .tile-rule.vol { height: 5px; }
+.grid > .tile .tile-rule i { background: var(--accent); }
+.grid > .tile .tile-rule.vol i { background: #e8e3d8; }
+
+/* the transport sits under the words, not floated to the bottom of the column */
+.tile-transport { margin-top: .45vh; padding-top: 0; }
+
+/* group and send at one end, the room's own details at the other */
+.tile-actions {
+  -webkit-justify-content: space-between; justify-content: space-between;
+  margin-top: .55vh; padding-top: .5vh;
+  border-top: 1px solid rgba(242,238,230,.07);
+}
+.tile-actions .ta-left { display: -webkit-flex; display: flex; }
+.grid > .tile .tile-state { margin-left: 0; font-size: .64vw; }
+.tile-detail {
+  font-size: .62vw; color: var(--dim); margin-top: .4vh;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tile-detail[hidden] { display: none; }
+
+/* The card is a column with ONE elastic row. Head, bars and foot are fixed; the
+   music block takes whatever is left and clips inside it. Without this the rows
+   all shrank together and a two-line title drove the transport straight through
+   the progress bar. */
+.tile-head, .tile-bar-line, .tile-actions, .tile-detail {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+}
+.tile-now { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.grid > .tile .tile-copy { overflow: hidden; }
+.grid > .tile .tile-title { -webkit-line-clamp: 2; }
