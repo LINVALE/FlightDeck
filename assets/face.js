@@ -748,7 +748,6 @@ function render(snapshot, kind) {
     if (node.className !== wantClass) node.className = wantClass;
   }
   var fraction = Math.max(0, Math.min(1, position / length));
-  barFill.style.width = (fraction * 100).toFixed(2) + '%';
 
   /**
    * A SMOOTH RING, WITHOUT INVENTING A POSITION.
@@ -769,12 +768,13 @@ function render(snapshot, kind) {
   var perSecond = 1 / Math.max(1, length);
   var jump = ringKey !== lastRingKey || Math.abs(fraction - lastRingFraction) > perSecond * 3;
   if (jump && root.className.indexOf('ring-jump') === -1) root.className += ' ring-jump';
+  barFill.style.width = (fraction * 100).toFixed(2) + '%';
   dialArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - fraction)));
   var angle = (-90 + fraction * 360) * Math.PI / 180;
   dialBead.setAttribute('cx', String(50 + RING_R * Math.cos(angle)));
   dialBead.setAttribute('cy', String(50 + RING_R * Math.sin(angle)));
   if (jump) {
-    dialArc.getBoundingClientRect();            // land it before easing is restored
+    dialArc.getBoundingClientRect();            // land them before easing is restored
     root.className = root.className.replace(' ring-jump', '');
   }
   lastRingKey = ringKey;

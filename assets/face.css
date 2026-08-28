@@ -568,19 +568,38 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   height: 1vw; margin: 0 1.6vw; background: none;
 }
-/* the leader: dashes drawn with a repeating gradient, so it needs no elements */
+/**
+ * A ROW OF SMALL CIRCLES THAT FILL (Peter, 08-28: Libretto's progress was the
+ * weakest of the six — dashes read as a rule with a gap in it rather than as a
+ * measure of anything).
+ *
+ * A tiled radial gradient rather than elements, so the count follows the width
+ * with nothing to build or keep in step. Single-position colour stops on
+ * purpose: the double-position form the dashes used is CSS Images 4 and did not
+ * land until Chromium 71, well past this floor.
+ */
 .face[data-face="libretto"] .bar::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 45%; height: 2px;
-  background: -webkit-repeating-linear-gradient(left, rgba(242,238,230,.22) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
-  background: repeating-linear-gradient(to right, rgba(242,238,230,.22) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+  content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  height: .8vw; margin-top: -.4vw;
+  background-image: -webkit-radial-gradient(circle, rgba(242,238,230,.26) 26%, rgba(0,0,0,0) 27%);
+  background-image: radial-gradient(circle, rgba(242,238,230,.26) 26%, rgba(0,0,0,0) 27%);
+  background-size: .8vw .8vw;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
 }
 .face[data-face="libretto"] .bar i {
-  position: absolute; left: 0; top: 45%; height: 2px; background: none;
+  position: absolute; left: 0; top: 50%; height: .8vw; margin-top: -.4vw;
+  background: none; overflow: hidden;
 }
+/* the played circles: the same lattice, lit, and clipped by the fill's width so
+   the dots stay on the SAME centres as the unplayed ones */
 .face[data-face="libretto"] .bar i::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
-  background: -webkit-repeating-linear-gradient(left, var(--accent) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
-  background: repeating-linear-gradient(to right, var(--accent) 0 1.05%, rgba(0,0,0,0) 1.05% 1.5625%);
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 100vw;
+  background-image: -webkit-radial-gradient(circle, var(--accent) 30%, rgba(0,0,0,0) 31%);
+  background-image: radial-gradient(circle, var(--accent) 30%, rgba(0,0,0,0) 31%);
+  background-size: .8vw .8vw;
+  background-repeat: repeat-x;
+  background-position: 0 50%;
 }
 .face[data-face="libretto"] .bg canvas { opacity: .28; }
 
@@ -1308,6 +1327,28 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 @media (prefers-reduced-motion: reduce) {
   .face[data-ring] .dial-arc, .face[data-ring] .dial-bead {
+    -webkit-transition: none; transition: none;
+  }
+}
+
+/* ══ THE STRAIGHT BARS GLIDE TOO ═════════════════════════════════════════════
+   The same treatment as the ring, for the same reason and with the same safety:
+   the POSITION is Roon's reported second verbatim, and only the fill's motion
+   between two reported seconds is eased. The transition's target is always the
+   latest reported value, so it cannot run ahead or snap back.
+
+   `ring-jump` is set for one update on a seek or a track change, so those land
+   at once instead of crawling. */
+.face[data-face="classic"] .bar i,
+.face[data-face="libretto"] .bar i {
+  -webkit-transition: width 1s linear; transition: width 1s linear;
+}
+.face.ring-jump[data-face="classic"] .bar i,
+.face.ring-jump[data-face="libretto"] .bar i {
+  -webkit-transition: none; transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .face[data-face="classic"] .bar i, .face[data-face="libretto"] .bar i {
     -webkit-transition: none; transition: none;
   }
 }
