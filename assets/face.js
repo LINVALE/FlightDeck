@@ -1220,6 +1220,34 @@ function buildVolumeOnly(zone) {
   return controls;
 }
 
+/**
+ * The pause after the last choice, after which the group is simply formed.
+ * Long enough to pick a second and third room without hurrying; short enough
+ * that nobody wonders whether it heard them.
+ */
+var GROUP_SETTLE_MS = 2600;
+var groupSettleTimer = null;
+
+function cancelGroupSettle() {
+  if (groupSettleTimer !== null) { clearTimeout(groupSettleTimer); groupSettleTimer = null; }
+}
+
+function armGroupSettle(head) {
+  cancelGroupSettle();
+  groupSettleTimer = setTimeout(function () {
+    groupSettleTimer = null;
+    if (groupPick.length === 0) return;
+    var ids = head.outputs.map(function (o) { return o.id; });
+    for (var i = 0; i < groupPick.length; i += 1) {
+      var z = zoneById(groupPick[i]);
+      if (z !== null) ids = ids.concat(z.outputs.map(function (o) { return o.id; }));
+    }
+    groupPick = [];
+    picker.hidden = true;
+    command({ action: 'group', outputs: ids });
+  }, GROUP_SETTLE_MS);
+}
+
 /** Rooms chosen in the grouping picker, kept across its redraws. */
 var groupPick = [];
 
@@ -1442,33 +1470,41 @@ function showPicker(mode) {
     }
     nodes.push(pickRow);
 
+    /**
+     * ⚖️ THE SELECTION SETTLES AND FIRES ITSELF (Peter, 08-28: "should be after
+     * x secs of the input being made... the chrome closes and the grouping
+     * actually happens").
+     *
+     * No confirm button: choosing rooms IS the instruction, and a button only
+     * asks you to say it twice. The clock restarts on every choice, so picking
+     * five rooms is one settle, not five — and cancel still stops it, which is
+     * what keeps an automatic commit honest.
+     *
+     * It says what it is about to do and counts down while it does, because an
+     * action that fires on its own must never be a surprise.
+     */
     var doneRow = el('div', 'row row-faces');
-    var form = el('span', groupPick.length === 0 ? 'opt off' : 'opt', 
-      groupPick.length === 0 ? 'choose rooms to add' : 'group with ' + String(groupPick.length));
-    if (groupPick.length > 0 && head !== null) {
-      pressable(form, function () {
-        var ids = head.outputs.map(function (o) { return o.id; });
-        for (var i = 0; i < groupPick.length; i += 1) {
-          var z = zoneById(groupPick[i]);
-          if (z !== null) ids = ids.concat(z.outputs.map(function (o) { return o.id; }));
-        }
-        groupPick = [];
-        picker.hidden = true;
-        command({ action: 'group', outputs: ids });
-      });
-    }
+    var form = el('span', groupPick.length === 0 ? 'opt off settling' : 'opt settling', groupPick.length === 0
+      ? 'choose the rooms to add'
+      : 'adding ' + String(groupPick.length) + (groupPick.length === 1 ? ' room' : ' rooms') + '\u2026');
     doneRow.appendChild(form);
     if (head !== null && head.outputs.length > 1) {
-      var dissolve = el('span', 'opt', 'ungroup all');
+      var dissolve = el('span', 'opt', 'ungroup');
       pressable(dissolve, function () {
-        picker.hidden = true;
+        // Immediately, and the list stays open showing every room unselected —
+        // which is the truth the moment the group is gone.
+        cancelGroupSettle();
+        groupPick = [];
         command({ action: 'ungroup', zone: head.id });
+        setTimeout(function () { if (!picker.hidden) showPicker('group'); }, 900);
       });
       doneRow.appendChild(dissolve);
     }
     var cancel = el('span', 'opt', 'cancel');
-    pressable(cancel, function () { groupPick = []; showPicker('rooms'); });
+    pressable(cancel, function () { cancelGroupSettle(); groupPick = []; showPicker('rooms'); });
     doneRow.appendChild(cancel);
+
+    if (groupPick.length > 0 && head !== null) armGroupSettle(head); else cancelGroupSettle();
     nodes.push(doneRow);
   }
 

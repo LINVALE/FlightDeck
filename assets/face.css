@@ -1472,3 +1472,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   margin: 0; min-height: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
 }
+
+/* The settling line: it says what is about to happen and shows the pause
+   running out, so an action that fires on its own is never a surprise. */
+.picker .opt.settling {
+  position: relative; overflow: hidden;
+  color: var(--accent); border-color: rgba(216,162,74,.4); opacity: 1;
+}
+.picker .opt.settling::after {
+  content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
+  background: var(--accent); width: 0;
+  -webkit-animation: settle 2.6s linear forwards; animation: settle 2.6s linear forwards;
+}
+@-webkit-keyframes settle { from { width: 0; } to { width: 100%; } }
+@keyframes settle { from { width: 0; } to { width: 100%; } }
+/* nothing is pending before a room is chosen, so nothing should be counting */
+.picker .opt.settling.off { color: var(--smoke); border-color: rgba(242,238,230,.12); }
+.picker .opt.settling.off::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .picker .opt.settling::after { -webkit-animation: none; animation: none; width: 100%; opacity: .35; }
+}
