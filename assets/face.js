@@ -339,10 +339,22 @@ homeMark.setAttribute('aria-label', 'go to the whole house');
 pressable(homeMark, function () { location.href = '/'; });
 
 var zoneName = el('span', 'zone');
+/**
+ * THE WAY INTO GROUPING, and it is already on the screen.
+ *
+ * Roon names a group "Study RHEOS + 5". That "+ 5" is the only thing on the face
+ * that says the room is a group, so it is also the thing you press to change one
+ * — no new mark to learn, and it appears exactly when it means something. A room
+ * that is NOT grouped but could be gets a dim chain in its place, which invites
+ * rather than reports (Peter, 08-28: "any other elegant way to indicate
+ * accessing the group picker?").
+ */
+var groupDoor = el('span', 'groupdoor');
+pressable(groupDoor, function () { groupPick = []; showPicker('group'); });
 var chipHost = el('span');
 var status = el('div', 'status');
 head.appendChild(homeMark);
-head.appendChild(zoneName); head.appendChild(chipHost); head.appendChild(status);
+head.appendChild(zoneName); head.appendChild(groupDoor); head.appendChild(chipHost); head.appendChild(status);
 
 var body = el('div', 'body');
 var cover = el('div', 'cover');
@@ -365,6 +377,7 @@ copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
 var shelfTransport = el('div', 'shelf shelf-transport');
 var shelfVolume = el('div', 'shelf shelf-volume');
 copy.appendChild(shelfTransport);
+copy.appendChild(shelfVolume);
 var artistName = el('span', 'artistname');
 head.insertBefore(artistName, status);
 
@@ -487,7 +500,7 @@ dialBox.appendChild(dial); dialBox.appendChild(dialReading);
 cover.appendChild(dialBox);
 foot.appendChild(elapsed); foot.appendChild(lamps); foot.appendChild(bar); foot.appendChild(rightBox);
 
-safe.appendChild(head); safe.appendChild(body); safe.appendChild(shelfVolume); safe.appendChild(foot);
+safe.appendChild(head); safe.appendChild(body); safe.appendChild(foot);
 root.appendChild(bg); root.appendChild(safe);
 
 /* ---------- the backdrop: blurred artist, recoloured to the cover's tones ----------
@@ -694,7 +707,28 @@ function render(snapshot, kind) {
   root.setAttribute('data-state', state);
 
   if (kind !== 'seek') {
-    zoneName.textContent = zone.name;
+    /**
+     * Roon writes "Study RHEOS + 5". The name stays the name; the count becomes
+     * the door. When there is no count, the door is a chain — shown only where
+     * Roon would actually allow a group, so it never offers the impossible.
+     */
+    var plus = /^(.*?)\s\+\s(\d+)$/.exec(zone.name);
+    zoneName.textContent = plus === null ? zone.name : plus[1];
+    var island = zone.outputs.length > 0 ? zone.outputs[0].island : '';
+    var canGroup = island !== '' && zone.outputs[0].groupableWith.length > 1;
+    if (plus !== null) {
+      groupDoor.textContent = '+ ' + plus[2];
+      groupDoor.className = 'groupdoor grouped';
+      groupDoor.setAttribute('title', plus[2] + ' more rooms \u00B7 press to change the group');
+      groupDoor.hidden = false;
+    } else if (canGroup) {
+      groupDoor.replaceChildren(glyph('group'));
+      groupDoor.className = 'groupdoor';
+      groupDoor.setAttribute('title', 'group ' + zone.name + ' with another room');
+      groupDoor.hidden = false;
+    } else {
+      groupDoor.hidden = true;
+    }
     renderShelf(zone);
     /**
      * NO MEMBER NAMES. Roon already names a group "Study RHEOS + 2", which says
@@ -1362,7 +1396,28 @@ function showPicker(mode) {
   if (mode === 'group') {
     var head = currentZone();
     var island = head === null || head.outputs.length === 0 ? '' : head.outputs[0].island;
-    var pickRow = el('div', 'row row-faces');
+    var pickRow = el('div', 'row row-faces row-column');
+    /**
+     * THIS ROOM COMES FIRST, and pressing it lets the others go (Peter, 08-28).
+     * It reads as a list of members with the one you are standing in at the top,
+     * so releasing them is where your eye already is. It is only offered when
+     * there IS a group — a room on its own has nothing to release.
+     *
+     * ⚠️ The room name in the HEADER still goes to the wall. These are two
+     * different objects in two different places, which is how the same word can
+     * mean "leave here" up there and "let them go" down here.
+     */
+    if (head !== null && head.outputs.length > 1) {
+      var mine = roomOption(head, 'now is-playing', function () {
+        picker.hidden = true;
+        command({ action: 'ungroup', zone: head.id });
+      });
+      mine.setAttribute('title', 'press to ungroup ' + head.name);
+      pickRow.appendChild(mine);
+      // The row that lets the group go must be the one you see first: something
+      // was scrolling it 34px out of sight the moment the column was built.
+      setTimeout(function () { pickRow.scrollTop = 0; }, 0);
+    }
     var snap2 = store.snapshot();
     var all = snap2 === null ? [] : snap2.zones;
     for (var g = 0; g < all.length; g += 1) {
@@ -1403,6 +1458,14 @@ function showPicker(mode) {
       });
     }
     doneRow.appendChild(form);
+    if (head !== null && head.outputs.length > 1) {
+      var dissolve = el('span', 'opt', 'ungroup all');
+      pressable(dissolve, function () {
+        picker.hidden = true;
+        command({ action: 'ungroup', zone: head.id });
+      });
+      doneRow.appendChild(dissolve);
+    }
     var cancel = el('span', 'opt', 'cancel');
     pressable(cancel, function () { groupPick = []; showPicker('rooms'); });
     doneRow.appendChild(cancel);
@@ -2821,6 +2884,7 @@ function onFacePress(event) {
   if (wasUp && !panelJustAppeared() && target !== null
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
       && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
+      && !inNode(target, groupDoor)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
     lastZonePress = now;
@@ -2835,6 +2899,7 @@ function onFacePress(event) {
   lastZonePress = now;
 
   if (target !== null && inNode(target, homeMark)) return;   // it has its own job
+  if (target !== null && inNode(target, groupDoor)) return;  // and so has this
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
   if (target !== null && (inNode(target, zoneName) || inNode(target, chipHost))) { openPanel('rooms'); return; }
 

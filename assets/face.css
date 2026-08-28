@@ -1408,3 +1408,67 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (prefers-reduced-motion: reduce) {
   .face[data-face="classic"] .shelf { -webkit-transition: none; transition: none; }
 }
+
+/* ══ THE GROUP DOOR ═══════════════════════════════════════════════════════════
+   The count Roon already writes into a group's name, made pressable — and for a
+   room that is not grouped but could be, a chain in its place. It sits with the
+   room badge and appears with the chrome, like everything else the face offers. */
+.groupdoor {
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  margin-left: .5vw; padding: .5vh .7vw;
+  border: 1px solid rgba(242,238,230,.22); border-radius: 6px;
+  font-size: 1.1vw; letter-spacing: .12em;
+  color: var(--ash); cursor: pointer; opacity: 0;
+  -webkit-transition: opacity .35s ease; transition: opacity .35s ease;
+}
+.face.show-chrome .groupdoor { opacity: .9; }
+.groupdoor.grouped { color: var(--accent); border-color: var(--accent); }
+.groupdoor:hover { background: rgba(242,238,230,.12); border-color: var(--bone); color: var(--bone); }
+.groupdoor .glyph { width: 1.1vw; height: 1.1vw; }
+.groupdoor[hidden] { display: none; }
+@media (max-width: 900px) {
+  .groupdoor { font-size: 3vw; padding: 1vh 2.2vw; }
+  .groupdoor .glyph { width: 3.4vw; height: 3.4vw; }
+}
+
+/* The grouping picker reads as a COLUMN: a list of rooms you are choosing
+   between, with the one you are in at the top, rather than a wrapped field of
+   chips (Peter, 08-28). */
+.picker .row-column {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  /* the picker wraps by default, which turned the column into two columns */
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+  -webkit-align-items: stretch; align-items: stretch;
+  max-height: 60vh; overflow-y: auto;
+}
+.picker .row-column > .opt { margin: .25vh 0; -webkit-justify-content: flex-start; justify-content: flex-start; }
+.picker .row-column > .opt.now { border-color: var(--accent); }
+
+.picker .row-column > .opt { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+
+/* ══ THE VOLUME COMES OFF THE BODY'S HEIGHT ══════════════════════════════════
+   Sited between the body and the foot it took height from the layout, so the
+   sleeve gave way to make room and the art shrank when the chrome appeared
+   (Peter, 08-28: "the volume control strip is still causing a shrink — there's
+   enough room on this landscape to position it under the other chrome, under
+   the metadata, aligning with the bottom of the art").
+
+   It lives in the words column now, absolutely placed at the foot of a column
+   the height of the sleeve, so it costs the layout nothing and its base lines up
+   with the base of the art. The words stay centred exactly where they were. */
+.face[data-face="classic"] .copy {
+  position: relative;
+  min-height: 34vw;                 /* the sleeve's own height, so the two agree */
+  /* the column is taller than its words now, so the words centre inside it and
+     stay exactly where they have always been; the volume is out of flow below */
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-justify-content: center; justify-content: center;
+}
+.face[data-face="classic"] .shelf-volume {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  margin: 0; min-height: 0;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+}
