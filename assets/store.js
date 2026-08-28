@@ -57,13 +57,35 @@ export function createStore(onChange) {
 
     /** Seek rides its own frame and carries no revision bump — apply it in place. */
     acceptSeek: function (frame) {
+      function snapshotAnchor(id) {
+        var zone = null;
+        for (var z = 0; z < snapshot.zones.length; z += 1) if (snapshot.zones[z].id === id) { zone = snapshot.zones[z]; break; }
+        var seek = zone && zone.nowPlaying ? zone.nowPlaying.seek : null;
+        if (!seek) return null;
+        var at = Date.parse(seek.at);
+        return { positionSec: seek.positionSec, reported: seek.positionSec, at: isNaN(at) ? when : at };
+      }
       if (snapshot === null || !frame || !Array.isArray(frame.zones)) return;
       if (frame.revision !== snapshot.revision) return;
       if (frame.generation && snapshot.generation && frame.generation !== snapshot.generation) return;
       var when = Date.parse(frame.at);
+      if (isNaN(when)) when = Date.now();
       for (var i = 0; i < frame.zones.length; i += 1) {
         var entry = frame.zones[i];
-        seekAt[entry.id] = { positionSec: entry.positionSec, at: isNaN(when) ? Date.now() : when };
+        var reported = entry.positionSec;
+        var anchor = reported;
+        var prev = seekAt[entry.id] || snapshotAnchor(entry.id);
+        if (prev) {
+          // Roon publishes a WHOLE second on its own once-a-second clock, and the server samples it on another, so a
+          // frame periodically repeats the previous second while the face has already interpolated to x.9 — replacing
+          // the anchor then snapped the display back a second before it climbed again (Peter, 2026-08-28: "two out of
+          // sync clocks"). The true position lies in [R, R+1): a frame behind the estimate by less than a second is the
+          // same second seen again, so keep the estimate (never past R+1). Only a larger move — a real seek or a
+          // restart — re-anchors backwards.
+          var estimate = Math.min(prev.positionSec + Math.max(0, (when - prev.at) / 1000), prev.reported + 1);
+          if (reported < estimate && estimate - reported < 1.5) anchor = Math.min(estimate, reported + 0.999);
+        }
+        seekAt[entry.id] = { positionSec: anchor, reported: reported, at: when };
       }
       emit('seek');
     },
@@ -85,6 +107,9 @@ export function createStore(onChange) {
       if (isNaN(at)) at = Date.now();
       var elapsed = zone.state === 'playing' ? (Date.now() - at) / 1000 : 0;
       var value = positionSec + Math.max(0, elapsed);
+      // Never run more than a second past the last whole second Roon reported: a stalled zone parks at R+1
+      // instead of drifting ahead and then jumping back when the next frame corrects it.
+      if (base && typeof base.reported === 'number') value = Math.min(value, base.reported + 1);
       var length = zone.nowPlaying.lengthSec;
       if (typeof length === 'number' && length > 0) value = Math.min(value, length);
       return value;
