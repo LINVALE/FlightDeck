@@ -1700,3 +1700,84 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (orientation: portrait) {
   .face[data-shelf] .shelf-browse .browse-entry .glyph { width: 3.4vw; height: 3.4vw; }
 }
+
+
+/* ══ THE WINDOW ═══════════════════════════════════════════════════════════════
+   ⚖️ Peter, 08-28: the browse cascade and the group volume "take the same real
+   estate that overlays the controls and metadata we have now created, landing
+   exactly on top as a new window".
+
+   The column beside the artwork is already a rectangle with a job — what is
+   playing, and what to do about it. A panel that answers a question asked THERE
+   belongs there too, exactly on top of it, rather than floating over the middle
+   of the screen with the artwork behind it. `.copy` is the positioning parent on
+   these faces, so `0,0,0,0` IS the column, at whatever size the face makes it. */
+.face[data-shelf] .copy > .browse {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  width: auto; max-height: none;
+  -webkit-transform: none; transform: none;
+  border-radius: 8px;
+}
+
+/* The rooms' own levels, in the same window rather than a popover over the
+   controls that opened it. */
+.face[data-shelf] .shelf-volume .rooms-toggle { position: static; }
+/* ⚠️ `display` is set ONLY on the not-hidden case. Putting it in the base rule
+   gave it (0,3,0) against `.member-vols[hidden]`'s (0,2,0), so the panel was
+   shown whether or not it was hidden — sitting over the whole column and
+   swallowing presses aimed at the controls beneath it. That looked like the
+   disclosure vanishing when used, and it made the master mute button send a
+   MEMBER's id, because the member row was what the press actually landed on. */
+.face[data-shelf] .member-vols {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  margin: 0; min-width: 0; border-radius: 8px;
+  padding: 1.2vh 1.2vw;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  /* A WINDOW, not a veil: it is over the words and the controls, and reading it
+     through them would be worse than either. */
+  background: rgba(8,9,11,.985);
+  border: 1px solid rgba(242,238,230,.2);
+  box-shadow: 0 1.2vw 3vw rgba(0,0,0,.7);
+  z-index: 6;
+}
+.face[data-shelf] .member-vols:not([hidden]) {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-justify-content: center; justify-content: center;
+}
+.face[data-shelf] .member-vols .member-vol { margin-bottom: 1.1vh; }
+/* ⚖️ EVERY SLIDER THE SAME LENGTH (Peter, 08-28: "volume 'slider' should be the
+   same length not dependent on the length of the output name"). `min-width`
+   alone let a long room name push its own scale short, so the rooms could not be
+   read against each other — which is the entire reason they are listed together.
+   A fixed column, ellipsis past it, and every scale starts and ends on the same
+   two pixels. */
+.face[data-shelf] .member-vols .member-name {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 13.5vw; min-width: 0; max-width: 13.5vw; font-size: .95vw;
+}
+.face[data-shelf] .member-vols .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+
+
+/* The number at the end of each room's scale, and the scale's own ends above
+   them. A fixed column so the digits line up under one another and the scales
+   still all start and end together. */
+.face[data-shelf] .member-vols .member-read {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 3.4vw; margin-left: .7vw; text-align: right;
+  font-size: .95vw; letter-spacing: .06em; color: var(--bone);
+}
+.face[data-shelf] .member-vols .member-read.is-muted { color: var(--accent); font-size: .8vw; }
+.face[data-shelf] .member-vols .member-head { margin-bottom: .3vh; }
+.face[data-shelf] .member-vols .member-headpad {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 4.6vw;
+}
+.face[data-shelf] .member-vols .member-ends {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0;
+  display: -webkit-flex; display: flex;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  padding: 0 .8vw; margin: 0 .35vw;
+}
+.face[data-shelf] .member-vols .member-end {
+  font-size: .8vw; letter-spacing: .1em; color: var(--dim);
+}

@@ -1144,6 +1144,13 @@ function renderShelf(zone) {
   }
   root.setAttribute('data-shelf', '1');
   shelfTransport.replaceChildren(buildControls(zone, false));
+  // The disclosure lives on the column now, so it is not swept away by replacing
+  // the row's children — take the old one out by hand before building the next.
+  var stale = copy.querySelectorAll('.member-vols');
+  for (var st = 0; st < stale.length; st += 1) {
+    if (stale[st].parentNode === copy) copy.removeChild(stale[st]);
+  }
+  memberVols = null;
   shelfVolume.replaceChildren(buildVolumeOnly(zone));
   // Only once: the entries never change, and rebuilding them every frame would
   // throw away a press that landed mid-repaint.
@@ -1176,9 +1183,11 @@ function appendVolume(controls, zone, button) {
     mean = mean / levels.length;
 
     var master = groupScale(zone, mean);
-    var anyMuted = true;
-    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) anyMuted = false;
-    var masterSpeaker = volumeSpeaker(groupOuts[0], anyMuted ? 0 : mean);
+    // ALL of them, not any: the name said `anyMuted` and the loop computed the
+    // opposite, which is the sort of thing that survives until somebody presses it.
+    var allMuted = true;
+    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) allMuted = false;
+    var masterSpeaker = volumeSpeaker(groupOuts[0], allMuted ? 0 : mean, groupOuts);
     volUi = { speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true };
     controls.appendChild(masterSpeaker);
     controls.appendChild(master);
@@ -2350,12 +2359,27 @@ function closeBrowse() {
 }
 
 function browseShell(title, canGoBack) {
+  /**
+   * ⚖️ THE BROWSE CASCADE IS A WINDOW ON THE COLUMN (Peter, 08-28: "the browse
+   * menu cascades with sliders and the volume controls take the same real estate
+   * that overlays the controls and metadata we have now created, landing exactly
+   * on top as a new window").
+   *
+   * On a face that carries its chrome in the layout, the words and the two rows
+   * of controls already occupy a rectangle beside the artwork. That rectangle is
+   * where the answer to "what shall I play instead" belongs — landing on the
+   * question rather than floating over the middle of the screen and covering the
+   * artwork with it. Everywhere else it stays the centred panel it was.
+   */
+  var host = hasShelf() ? copy : document.body;
   if (browsePanel === null) {
     browsePanel = el('div', 'browse');
-    document.body.appendChild(browsePanel);
+    host.appendChild(browsePanel);
     // Any sign of life resets the clock, including simply scrolling a long list.
     ['pointermove', 'mousemove', 'scroll', 'click', 'touchstart', 'wheel', 'keydown']
       .forEach(function (kind) { browsePanel.addEventListener(kind, browseAlive, true); });
+  } else if (browsePanel.parentNode !== host) {
+    host.appendChild(browsePanel);        // the face changed under an open panel
   }
   var head = el('div', 'browse-head');
   var back = el('span', canGoBack ? 'ctl small' : 'ctl small off');
@@ -2725,15 +2749,85 @@ function groupScale(zone, level) {
 }
 
 /** The room count, and behind it every room's own scale. */
+/**
+ * ⚖️ Whether the rooms' own levels are showing. Module-level, not a closure
+ * variable, because `renderShelf` rebuilds this control on every structural
+ * frame — and changing a room's volume IS a structural frame. So the disclosure
+ * destroyed itself the instant anybody used it (Peter, 08-28: "multi output
+ * volume controls disappear on trying to use them once they open").
+ */
+var memberVolsOpen = false;
+/**
+ * The rooms' window, once it hangs off the column rather than off the row that
+ * opened it. Press routing has to be able to name it: a press inside it was
+ * landing in `.copy`, and `.copy` means "browse", so touching a room's level
+ * raised the old browse strip (Peter, 08-28: "clicking on volume brings up the
+ * old browse options").
+ */
+var memberVols = null;
+var memberVolsButton = null;
+var memberVolsTimer = null;
+
+/**
+ * ⚖️ A WINDOW YOU CAN GET OUT OF (Peter, 08-28: "I need to click / time out of
+ * volume controls"). It covers the words and the controls while it is up, so
+ * there has to be a way back that does not require finding the one small button
+ * that opened it: a press anywhere outside closes it, and so does leaving it
+ * alone. Touching anything inside puts the clock back to the start.
+ */
+var MEMBER_VOLS_MS = 12000;
+
+function closeMemberVols() {
+  memberVolsOpen = false;
+  if (memberVolsTimer !== null) { clearTimeout(memberVolsTimer); memberVolsTimer = null; }
+  if (memberVols !== null) memberVols.hidden = true;
+  if (memberVolsButton !== null) memberVolsButton.className = 'ctl ctl-faders';
+}
+
+function keepMemberVols() {
+  if (!memberVolsOpen) return;
+  if (memberVolsTimer !== null) clearTimeout(memberVolsTimer);
+  memberVolsTimer = setTimeout(closeMemberVols, MEMBER_VOLS_MS);
+}
+
 function roomsToggle(zone, outs) {
   var wrap = el('span', 'rooms-toggle');
   var b = el('span', 'ctl ctl-faders');
   b.appendChild(glyph('faders'));
   b.setAttribute('title', 'a level for each of the ' + String(outs.length) + ' rooms');
   b.setAttribute('aria-label', 'show the volume of each of the ' + String(outs.length) + ' rooms');
-  var open = false;
   var list = el('div', 'member-vols');
-  list.hidden = true;
+  list.hidden = !memberVolsOpen;
+  /**
+   * ⚖️ THE SCALE SAYS WHERE ITS ENDS ARE, and each room says where it is on it
+   * (Peter, 08-28: "could even show a 0 / 100 at the top of the controls and
+   * there's room for indicating the actual numeric number on the slider or at
+   * the end").
+   *
+   * The ends are the DEVICE'S OWN, not a guessed 0–100: Roon reports min and max
+   * per output and they are not always a percentage — a preamp on a dB scale
+   * runs −80 to 0, and printing "0 / 100" over that would be a lie. When the
+   * rooms disagree about their range there is no honest shared header, so it
+   * says nothing and lets each row's own number do the talking.
+   */
+  var lo = null, hi = null, agree = true;
+  for (var r = 0; r < outs.length; r += 1) {
+    var rv = outs[r].volume;
+    var rlo = rv.min === null ? 0 : rv.min;
+    if (lo === null) { lo = rlo; hi = rv.max; }
+    else if (lo !== rlo || hi !== rv.max) agree = false;
+  }
+  if (agree && lo !== null) {
+    var head = el('div', 'member-vol member-head');
+    head.appendChild(el('span', 'member-headpad'));
+    head.appendChild(el('span', 'member-name'));
+    var ends = el('span', 'member-ends');
+    ends.appendChild(el('span', 'member-end', String(lo)));
+    ends.appendChild(el('span', 'member-end', String(hi)));
+    head.appendChild(ends);
+    head.appendChild(el('span', 'member-read'));
+    list.appendChild(head);
+  }
   for (var i = 0; i < outs.length; i += 1) {
     (function (o) {
       var row = el('div', 'member-vol');
@@ -2744,16 +2838,37 @@ function roomsToggle(zone, outs) {
       row.appendChild(volumeSpeaker(o, v.muted ? 0 : lvl));
       row.appendChild(el('span', 'member-name', o.name));
       row.appendChild(volumeScale(o, lvl, mn, sp));
+      // Muted is a state the number cannot show: 66 and silent is not 66.
+      row.appendChild(el('span', v.muted ? 'member-read is-muted' : 'member-read',
+        v.muted ? 'muted' : String(v.value)));
       list.appendChild(row);
     })(outs[i]);
   }
+  if (memberVolsOpen) b.className = 'ctl ctl-faders now';
   pressable(b, function () {
-    open = !open;
-    list.hidden = !open;
-    b.className = open ? 'ctl ctl-faders now' : 'ctl ctl-faders';
+    if (memberVolsOpen) { closeMemberVols(); return; }
+    memberVolsOpen = true;
+    list.hidden = false;
+    b.className = 'ctl ctl-faders now';
+    keepMemberVols();
   });
   wrap.appendChild(b);
-  wrap.appendChild(list);
+  /**
+   * ⚖️ THE WINDOW HANGS OFF THE COLUMN, not off the row that opens it. The
+   * volume shelf is itself absolutely positioned against `.copy`, so a panel
+   * inside it resolves to the SHELF — 65px tall — and the rooms were clipped
+   * into a slot instead of filling the column Peter asked them to land on.
+   */
+  (hasShelf() ? copy : wrap).appendChild(list);
+  memberVols = list;
+  memberVolsButton = b;
+  // Any sign of life resets the clock, including simply moving over it.
+  ['pointermove', 'mousemove', 'click', 'pointerup', 'touchstart', 'wheel']
+    .forEach(function (kind) { list.addEventListener(kind, keepMemberVols, true); });
+  // Only if nothing is already counting: the shelf repaints on every structural
+  // frame, and re-arming there meant the clock was reset forever and the window
+  // never timed out at all.
+  if (memberVolsOpen && memberVolsTimer === null) keepMemberVols();
   return wrap;
 }
 
@@ -2904,7 +3019,23 @@ function paintVolume() {
 }
 
 /** The speaker doubles as the mute control, and shows roughly how loud it is. */
-function volumeSpeaker(output, level) {
+/** An output as it is RIGHT NOW, anywhere in the house — it may have been regrouped. */
+function outputById(id) {
+  var snap = store.snapshot();
+  if (snap === null) return null;
+  for (var i = 0; i < snap.zones.length; i += 1) {
+    var outs = snap.zones[i].outputs;
+    for (var j = 0; j < outs.length; j += 1) if (outs[j].id === id) return outs[j];
+  }
+  return null;
+}
+
+/**
+ * `governs` names every output this speaker speaks for. A room's own speaker
+ * governs itself; a GROUP's master governs all of them, because muting a group
+ * from its master and having one room keep playing is not muting the group.
+ */
+function volumeSpeaker(output, level, governs) {
   var muted = !!(output.volume && output.volume.muted);
   var node = el('span', muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker');
   // The glyph SAYS THE STATE: crossed when muted, sounding when not. What keeps it
@@ -2915,15 +3046,40 @@ function volumeSpeaker(output, level) {
   node.setAttribute('title', node.getAttribute('aria-label'));
   pressable(node, function () {
     /**
-     * Read the state at PRESS time, not at build time.
+     * ⚖️ READ THE STATE OF THE OUTPUT THIS BUTTON IS FOR (Peter, 08-28: "unmute
+     * is not working").
      *
-     * The button captured `muted` when it was created, and repainting only
-     * changed its class — so once muted it kept sending "mute" and could never
-     * unmute. It looked like a toggle and behaved like a latch.
+     * It read `volumeOutput()` instead, which returns NULL the moment a zone has
+     * more than one output — so on any group, and on every room row inside the
+     * volume disclosure, `isMuted` was false whatever the truth was and the
+     * button sent `mute: true` forever. A fix for exactly this bug was written
+     * once already, at build time vs press time; it moved the read to press time
+     * but read the WRONG OUTPUT, so the latch survived on grouped zones. That is
+     * why it looked fixed on a solo room and never worked in the Study.
      */
-    var live = volumeOutput();
-    var isMuted = !!(live && live.volume && live.volume.muted);
-    command({ action: 'mute', output: (live || output).id, muted: !isMuted });
+    var ids = [];
+    if (governs === undefined || governs.length === 0) ids.push(output.id);
+    else for (var g = 0; g < governs.length; g += 1) ids.push(governs[g].id);
+    // Muted only when they ALL are: one room still sounding means the group is
+    // not muted, and the press should silence it rather than un-silence the rest.
+    var allMuted = true;
+    for (var i = 0; i < ids.length; i += 1) {
+      var live = outputById(ids[i]);
+      if (!(live && live.volume && live.volume.muted)) allMuted = false;
+    }
+    /**
+     * ONE AT A TIME. Fired in the same tick, two mutes against the same zone
+     * lost one of them: measured 08-28 on the silent pair — the group's LEAD
+     * stayed sounding while the member muted, and each of them muted correctly
+     * when sent on its own. So they are chained.
+     */
+    var wanted = !allMuted;
+    var sendOne = function (at) {
+      if (at >= ids.length) return;
+      command({ action: 'mute', output: ids[at], muted: wanted })
+        .then(function () { sendOne(at + 1); });
+    };
+    sendOne(0);
   });
   return node;
 }
@@ -3201,6 +3357,7 @@ function onFacePress(event) {
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
       && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
       && !inNode(target, shelfBrowse)
+      && (memberVols === null || !inNode(target, memberVols))
       && !inNode(target, groupDoor)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
@@ -3212,6 +3369,7 @@ function onFacePress(event) {
   // of the layout rather than a panel over it, so it has to say so here too.
   if (target !== null && (inNode(target, cover) || inNode(target, picker) || inNode(target, foot)
       || inNode(target, shelfVolume) || inNode(target, shelfBrowse)
+      || (memberVols !== null && inNode(target, memberVols))
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 
@@ -3248,6 +3406,26 @@ function onFacePress(event) {
 
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
   document.addEventListener(kind, onFacePress);
+});
+
+/**
+ * ⚖️ A press outside the rooms' window puts it away, and does nothing else —
+ * the same grammar as every other raised thing here.
+ *
+ * In CAPTURE, because the window fills the column and everything genuinely
+ * outside it — the artwork above all — handles its own presses and stops them
+ * before a document listener would ever see one.
+ */
+['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
+  document.addEventListener(kind, function (event) {
+    if (!memberVolsOpen) return;
+    var target = event.target;
+    if (memberVols !== null && inNode(target, memberVols)) return;
+    if (memberVolsButton !== null && inNode(target, memberVolsButton)) return;
+    closeMemberVols();
+    event.stopPropagation();
+    if (event.type !== 'touchend' && event.preventDefault) event.preventDefault();
+  }, true);
 });
 
 // The progress row is its own zone: pressing it seeks.
