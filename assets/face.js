@@ -376,7 +376,17 @@ copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
  */
 var shelfTransport = el('div', 'shelf shelf-transport');
 var shelfVolume = el('div', 'shelf shelf-volume');
+/**
+ * ⚖️ THE BROWSE CHROME STANDS ABOVE THE WORDS (Peter, 08-28: "that could fit
+ * beautifully above the metadata mirroring the controls that appear below").
+ *
+ * Below the words: how to play it. Above them: what to play. The music sits
+ * between the two questions, which is the right place for it — and like the two
+ * rows below, this one is OUT OF FLOW, so nothing moves when it arrives.
+ */
+var shelfBrowse = el('div', 'shelf shelf-browse');
 copy.appendChild(shelfTransport);
+copy.appendChild(shelfBrowse);
 copy.appendChild(shelfVolume);
 var artistName = el('span', 'artistname');
 head.insertBefore(artistName, status);
@@ -1082,6 +1092,33 @@ function openBrowseMenu() {
 }
 
 /**
+ * WHAT TO PLAY, rather than how to play it. Every hierarchy the Browse API
+ * offers, plus our own ledger — `browse` is the Core's own Explore tree, the way
+ * in to anything not listed separately.
+ *
+ * Built in one place because it is now drawn in two: in the raised strip on the
+ * faces that have one, and standing above the metadata on the faces that carry
+ * their chrome in the layout. Two copies of this list would drift.
+ */
+function buildBrowseRow() {
+  var row = el('div', 'row row-browse');
+  var entry = function (label, onPress) {
+    var b = el('span', 'opt browse-entry', label);
+    pressable(b, onPress);
+    return b;
+  };
+  row.appendChild(entry('explore', function () { openHierarchy('browse', 'Explore'); }));
+  row.appendChild(entry('genres', function () { openHierarchy('genres', 'Genres'); }));
+  row.appendChild(entry('albums', function () { openHierarchy('albums', 'Albums'); }));
+  row.appendChild(entry('artists', function () { openHierarchy('artists', 'Artists'); }));
+  row.appendChild(entry('composers', function () { openHierarchy('composers', 'Composers'); }));
+  row.appendChild(entry('playlists', function () { openHierarchy('playlists', 'Playlists'); }));
+  row.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
+  row.appendChild(entry('recent', openRecent));
+  return row;
+}
+
+/**
  * Rebuild Classic's shelf. Cheap enough to do on every structural frame — the
  * strip does exactly the same — and it keeps the play/pause glyph, the lit
  * shuffle and repeat, and the levels honest without a separate repaint path.
@@ -1099,12 +1136,16 @@ function renderShelf(zone) {
   if (!hasShelf() || zone === null) {
     if (shelfTransport.childNodes.length > 0) shelfTransport.replaceChildren();
     if (shelfVolume.childNodes.length > 0) shelfVolume.replaceChildren();
+    if (shelfBrowse.childNodes.length > 0) shelfBrowse.replaceChildren();
     root.removeAttribute('data-shelf');
     return;
   }
   root.setAttribute('data-shelf', '1');
   shelfTransport.replaceChildren(buildControls(zone, false));
   shelfVolume.replaceChildren(buildVolumeOnly(zone));
+  // Only once: the entries never change, and rebuilding them every frame would
+  // throw away a press that landed mid-repaint.
+  if (shelfBrowse.childNodes.length === 0) shelfBrowse.appendChild(buildBrowseRow());
 }
 
 /**
@@ -1674,23 +1715,7 @@ function showPicker(mode) {
   if (mode === 'transport') nodes.push(actionRow);
 
   // Row three: what to play, rather than how to play it.
-  var browseRow = el('div', 'row row-browse');
-  var entry = function (label, onPress) {
-    var b = el('span', 'opt browse-entry', label);
-    pressable(b, onPress);
-    return b;
-  };
-  // Every hierarchy the Browse API offers, plus our own ledger. `browse` is the
-  // Core's own Explore tree — the way in to anything not listed separately.
-  browseRow.appendChild(entry('explore', function () { openHierarchy('browse', 'Explore'); }));
-  browseRow.appendChild(entry('genres', function () { openHierarchy('genres', 'Genres'); }));
-  browseRow.appendChild(entry('albums', function () { openHierarchy('albums', 'Albums'); }));
-  browseRow.appendChild(entry('artists', function () { openHierarchy('artists', 'Artists'); }));
-  browseRow.appendChild(entry('composers', function () { openHierarchy('composers', 'Composers'); }));
-  browseRow.appendChild(entry('playlists', function () { openHierarchy('playlists', 'Playlists'); }));
-  browseRow.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
-  browseRow.appendChild(entry('recent', openRecent));
-  if (mode === 'browse') nodes.push(browseRow);
+  if (mode === 'browse') nodes.push(buildBrowseRow());
   if (mode === 'faces') {
     nodes.push(el('em', 'hint', 'keys:  space play  \u00B7  n next  \u00B7  b back  \u00B7  u / d volume  \u00B7  f face  \u00B7  a artwork'));
   }
@@ -3117,6 +3142,7 @@ function onFacePress(event) {
   if (wasUp && !panelJustAppeared() && target !== null
       && !inNode(target, cover) && !inNode(target, picker) && !inNode(target, foot)
       && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
+      && !inNode(target, shelfBrowse)
       && !inNode(target, groupDoor)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
@@ -3127,7 +3153,7 @@ function onFacePress(event) {
   // Anything that handles its own presses is not a zone. Classic's shelf is part
   // of the layout rather than a panel over it, so it has to say so here too.
   if (target !== null && (inNode(target, cover) || inNode(target, picker) || inNode(target, foot)
-      || inNode(target, shelfVolume)
+      || inNode(target, shelfVolume) || inNode(target, shelfBrowse)
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 

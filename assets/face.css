@@ -1183,6 +1183,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-justify-content: center; justify-content: center;
 }
 .face[data-face="orbit"] .shelf .controls { width: 100%; }
+.face[data-face="orbit"] .shelf-browse .row-browse { width: 100%; }
 /* margin 0, not `0 auto`: the words are a left column beside the circle. */
 .face[data-face="orbit"] .title { font-size: 2.6vw; margin: 0; max-width: 100%; }
 .face[data-face="orbit"] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
@@ -1608,6 +1609,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    transport spreads across it the way the wall card's does, ending exactly where
    the volume ends. */
 .face[data-face="classic"] .shelf .controls { width: 34vw; }
+.face[data-face="classic"] .shelf-browse .row-browse { width: 34vw; }
 .face[data-shelf] .shelf-transport .controls {
   -webkit-justify-content: space-between; justify-content: space-between;
 }
@@ -1615,6 +1617,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-shelf] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 @media (orientation: portrait) {
   .face[data-face="classic"] .shelf .controls { width: 100%; }
+  .face[data-face="classic"] .shelf-browse .row-browse { width: 100%; }
 }
 
 
@@ -1637,4 +1640,50 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (orientation: portrait) {
   .ctl.is-play { min-width: 15vw; min-height: 12vw; }
   .ctl.is-play .glyph { width: 5.4vw; height: 5.4vw; }
+}
+
+
+/* ══ THE BROWSE CHROME, ABOVE THE WORDS ═══════════════════════════════════════
+   ⚖️ Peter, 08-28: "that could fit beautifully above the metadata mirroring the
+   controls that appear below" — and "can appear with the other controls on
+   movement / touch", which it does for free by being a `.shelf`.
+
+   Below the words: how to play what is on. Above them: what to play instead. The
+   music sits between the two questions. Out of flow like its mirrors, so the
+   title and the sleeve do not move when it arrives. */
+.face[data-shelf] .shelf-browse {
+  position: absolute; left: 0; right: 0; top: 0;
+  margin: 0; min-height: 0;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+}
+.face[data-shelf] .shelf-browse .row-browse {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  margin: 0; padding: 0; border: 0; background: none;
+}
+/* Four to a line, twice — the same two-row block the transport and volume make
+   below it, so the words sit between two matching brackets. */
+/* The chips are a picker's furniture and were styled as `.picker span.opt`, so
+   out here they arrived as bare words. Given the CONTROLS' look rather than the
+   picker's: this row is chrome in the layout, and it should read as a sibling of
+   the transport and volume rows it mirrors, not as a menu that got loose. */
+.face[data-shelf] .shelf-browse .browse-entry {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 23.5%; margin: 0 0 .6vh 0;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  min-height: 2.6vw; padding: 0 .6vw;
+  color: var(--bone); font-size: 1.05vw; letter-spacing: .06em;
+  border: 1px solid rgba(242,238,230,.22); border-radius: 6px;
+  cursor: pointer; text-align: center;
+  -webkit-transition: background .18s ease, border-color .18s ease;
+  transition: background .18s ease, border-color .18s ease;
+}
+.face[data-shelf] .shelf-browse .browse-entry:hover {
+  background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5);
+}
+@media (orientation: portrait) {
+  .face[data-shelf] .shelf-browse .browse-entry { min-height: 8vw; font-size: 3vw; }
 }
