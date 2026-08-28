@@ -319,6 +319,71 @@ test('a room that is not in the group cannot be taken out of it', async (t) => {
   assert.equal(sent.length, 0);
 });
 
+/**
+ * ⚖️ THE PLAYBACK GLITCH THIS EXISTS TO STOP (Peter, 08-28: "I think we are
+ * repeating and it causes a playback glitch repeating the first second or so").
+ *
+ * `group_outputs` is not idempotent at the audio layer: handing Roon a
+ * membership it already has still tears the zone down and rebuilds it, and every
+ * room restarts the track. The same set is therefore not sent at all.
+ */
+test('a group that is already exactly this is not re-formed', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  const response = await post({ action: 'group', outputs: ['oLounge', 'oHall', 'oDen'] });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).unchanged, true);
+  assert.equal(sent.length, 0, 'nothing reached the Core');
+});
+
+/** Order is not decoration: Roon keeps the FIRST output's queue. */
+test('the same rooms in a different order is a different group, and is sent', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'group', outputs: ['oHall', 'oLounge', 'oDen'] })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'group', a: 'oHall+oLounge+oDen', b: null }]);
+});
+
+/**
+ * ⚖️ ONE GESTURE, ONE REGROUPING. Somebody adds two rooms and drops one before
+ * they have finished deciding; that is ONE instruction, and it must reach Roon
+ * as the smallest set of calls that gets to the membership they settled on.
+ */
+test('regroup drops and adds in one instruction: ungroup first, then the new group', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'regroup', zone: 'zTrio', outputs: ['oLounge', 'oHall'] })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'ungroup', a: 'oDen', b: null }, { kind: 'group', a: 'oLounge+oHall', b: null }]);
+});
+
+test('regroup to the membership it already has sends nothing at all', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  const response = await post({ action: 'regroup', zone: 'zTrio', outputs: ['oLounge', 'oHall', 'oDen'] });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).unchanged, true);
+  assert.equal(sent.length, 0);
+});
+
+/** Down to the lead alone is an ungroup, not a group of one. */
+test('regroup to the lead alone takes everybody out and forms nothing', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  assert.equal((await post({ action: 'regroup', zone: 'zTrio', outputs: ['oLounge'] })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'ungroup', a: 'oHall+oDen', b: null }]);
+});
+
+test('regroup cannot drop the lead: it owns the queue', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  const response = await post({ action: 'regroup', zone: 'zTrio', outputs: ['oHall', 'oDen'] });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /Lounge leads this group/);
+  assert.equal(sent.length, 0);
+});
+
+test('regroup refuses a room from another island, by name', async (t) => {
+  const { post, sent } = await serve(t, GROUPED);
+  const response = await post({ action: 'regroup', zone: 'zTrio', outputs: ['oLounge', 'oFixed'] });
+  assert.equal(response.status, 409);
+  assert.match((await response.json()).error, /cannot be grouped with Lounge/);
+  assert.equal(sent.length, 0);
+});
+
 test('transfer refuses the room it is already in, and one with nothing playing', async (t) => {
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPlay' })).status, 409);

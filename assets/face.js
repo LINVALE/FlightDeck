@@ -350,7 +350,7 @@ var zoneName = el('span', 'zone');
  * accessing the group picker?").
  */
 var groupDoor = el('span', 'groupdoor');
-pressable(groupDoor, function () { groupPick = []; showPicker('group'); });
+pressable(groupDoor, startGroupPick);
 var chipHost = el('span');
 var status = el('div', 'status');
 head.appendChild(homeMark);
@@ -685,22 +685,27 @@ function setBackdrop(zone) {
 
 function render(snapshot, kind) {
   if (snapshot === null) return;
-  // The bound output wins over a remembered zone id: it is the durable identity.
-  var byOutput = zoneForOutput(snapshot);
-  if (byOutput !== null && byOutput.id !== shownZoneId) { shownZoneId = byOutput.id; kind = 'snapshot'; }
+  var was = shownZoneId;
   if (following) {
     var followed = pickFollowed(snapshot);
-    if (followed !== null && followed !== shownZoneId) { shownZoneId = followed; kind = 'snapshot'; }
+    if (followed !== null && followed !== shownZoneId) { shownZoneId = followed; }
   }
-  var zone = null;
-  for (var i = 0; i < snapshot.zones.length; i += 1) {
-    if (snapshot.zones[i].id === shownZoneId) { zone = snapshot.zones[i]; break; }
-  }
+  // The room, however Roon has zoned it this second — bound output first, then
+  // the remembered id, then the room's own name.
+  var zone = resolveZone(snapshot);
+  if (zone !== null && zone.id !== was) kind = 'snapshot';
   if (zone === null) {
+    /**
+     * Hold, don't accuse. Through a regrouping the room really is in no zone for
+     * a beat; saying so would put "Zone unavailable" on a wall-mounted screen
+     * every single time somebody groups a room, which is not what happened.
+     */
+    if (Date.now() < settlingUntil) return;
     root.setAttribute('data-state', 'stopped');
     zoneName.textContent = 'Zone unavailable';
     return;
   }
+  settlingUntil = 0;
 
   var away = snapshot.core.state !== 'paired';
   var state = away ? 'away' : zone.state;
@@ -844,8 +849,28 @@ function render(snapshot, kind) {
 function slugOf(name) { return String(name).toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
 function currentZone() {
-  var snapshot = store.snapshot();
+  return resolveZone(store.snapshot());
+}
+
+/**
+ * ⚖️ THE SCREEN IS ANCHORED ON ITS ROOM, NOT ON A ZONE ID (Peter, 08-28:
+ * "make sure it doesn't come up a zone unavailable when grouping / ungrouping is
+ * done — anchored always on the group lead ... as in a 'zone'").
+ *
+ * A zone id is not durable. Grouping and ungrouping both DESTROY the zone and
+ * build a new one, so the id this screen was showing is genuinely gone the
+ * instant a group forms — which is exactly the moment somebody is watching.
+ * What survives is the OUTPUT: a room's speaker keeps its id through every
+ * regrouping, and the zone it lands in is the group it is now part of.
+ *
+ * So the order is: the bound output first (durable), then the remembered id,
+ * then the room's own name — and only a room this Core has never heard of ends
+ * up with nothing.
+ */
+function resolveZone(snapshot) {
   if (snapshot === null) return null;
+  var byOutput = zoneForOutput(snapshot);
+  if (byOutput !== null) { shownZoneId = byOutput.id; return byOutput; }
   for (var i = 0; i < snapshot.zones.length; i += 1) {
     if (snapshot.zones[i].id === shownZoneId) return snapshot.zones[i];
   }
@@ -1232,24 +1257,47 @@ function cancelGroupSettle() {
   if (groupSettleTimer !== null) { clearTimeout(groupSettleTimer); groupSettleTimer = null; }
 }
 
+/**
+ * ⚖️ ONE GESTURE, ONE REGROUPING (Peter, 08-28: "don't trigger group with each
+ * addition or removal — wait until all done... it causes a playback glitch
+ * repeating the first second or so").
+ *
+ * `groupPick` is the MEMBERSHIP someone is arriving at — the output ids that
+ * should be in this group when they stop touching it — not a list of rooms to
+ * add. That is what makes adding two and dropping one a single instruction:
+ * every press rewrites the same answer, and only the answer is sent.
+ *
+ * The lead is always first and always in it. Roon keeps the first output's
+ * queue, so the lead is the room whose music this is; dropping it would be
+ * asking whose music survives, which is a different question with a different
+ * gesture (ungroup).
+ */
 function armGroupSettle(head) {
   cancelGroupSettle();
   groupSettleTimer = setTimeout(function () {
     groupSettleTimer = null;
-    if (groupPick.length === 0) return;
-    var ids = head.outputs.map(function (o) { return o.id; });
+    if (head === null || head.outputs.length === 0) return;
+    var ids = [head.outputs[0].id];
     for (var i = 0; i < groupPick.length; i += 1) {
-      var z = zoneById(groupPick[i]);
-      if (z !== null) ids = ids.concat(z.outputs.map(function (o) { return o.id; }));
+      if (ids.indexOf(groupPick[i]) === -1) ids.push(groupPick[i]);
     }
     groupPick = [];
     picker.hidden = true;
-    command({ action: 'group', outputs: ids });
+    // The server works out the smallest set of calls, and sends none at all if
+    // this is the membership it already has.
+    command({ action: 'regroup', zone: head.id, outputs: ids });
   }, GROUP_SETTLE_MS);
 }
 
-/** Rooms chosen in the grouping picker, kept across its redraws. */
+/** The membership being chosen, as output ids. Kept across the picker's redraws. */
 var groupPick = [];
+
+/** Open the picker on what the group IS, so a press can take a room out of it. */
+function startGroupPick() {
+  var here = currentZone();
+  groupPick = here === null ? [] : here.outputs.map(function (o) { return o.id; });
+  showPicker('group');
+}
 
 /**
  * A ROOM, drawn as what it is doing rather than as a word.
@@ -1262,7 +1310,7 @@ var groupPick = [];
  *
  * Square and untinted. It is small, but it is still somebody's album cover.
  */
-function roomOption(zone, extra, onPress) {
+function roomOption(zone, extra, onPress, label) {
   var node = el('span', 'opt roomcard' + (extra === '' ? '' : ' ' + extra));
   var art = el('span', 'roomcard-art');
   var np = zone.nowPlaying;
@@ -1277,7 +1325,7 @@ function roomOption(zone, extra, onPress) {
   }
   node.appendChild(art);
   var text = el('span', 'roomcard-text');
-  text.appendChild(el('span', 'roomcard-name', zone.name));
+  text.appendChild(el('span', 'roomcard-name', label === undefined ? zone.name : label));
   /**
    * The state is a MARK, not a word (Peter, 08-26). "paused" spelled out took the
    * whole line and pushed off the one thing that identifies the room to someone
@@ -1334,7 +1382,7 @@ function zoneActionRow(here) {
     if (enabled) pressable(b, onPress);
     return b;
   };
-  row.appendChild(act('group', 'group\u2026', hasPeer, function () { groupPick = []; showPicker('group'); }));
+  row.appendChild(act('group', 'group\u2026', hasPeer, startGroupPick));
   row.appendChild(act('ungroup', 'ungroup', isGroup, function () {
     picker.hidden = true;
     command({ action: 'ungroup', zone: here.id });
@@ -1435,16 +1483,44 @@ function showPicker(mode) {
      * different objects in two different places, which is how the same word can
      * mean "leave here" up there and "let them go" down here.
      */
-    if (head !== null && head.outputs.length > 1) {
-      var mine = roomOption(head, 'now is-playing', function () {
+    /**
+     * THE LEAD COMES FIRST and is never a checkbox (Peter, 08-28: "anchored
+     * always on the group lead"). It owns the queue, so it is what the group IS;
+     * pressing it lets every room go at once, which is the one grouping action
+     * that should not wait for a settle.
+     */
+    if (head !== null) {
+      var lead = head.outputs[0];
+      var isGroup = head.outputs.length > 1;
+      var mine = roomOption(head, isGroup ? 'now is-lead' : 'now is-lead solo', isGroup ? function () {
+        cancelGroupSettle();
+        groupPick = [];
         picker.hidden = true;
         command({ action: 'ungroup', zone: head.id });
-      });
-      mine.setAttribute('title', 'press to ungroup ' + head.name);
+      } : null, lead.name);
+      mine.setAttribute('title', isGroup
+        ? lead.name + ' leads \u00B7 press to let every room go'
+        : lead.name + ' \u00B7 the room you are in');
       pickRow.appendChild(mine);
-      // The row that lets the group go must be the one you see first: something
+      // The row that leads the group must be the one you see first: something
       // was scrolling it 34px out of sight the moment the column was built.
       setTimeout(function () { pickRow.scrollTop = 0; }, 0);
+
+      /**
+       * THE ROOMS ALREADY IN, shown as what they are — chosen. Unchoosing one is
+       * a removal that waits with everything else, so adding two rooms and
+       * dropping one is still a single instruction to Roon.
+       */
+      for (var m = 1; m < head.outputs.length; m += 1) {
+        (function (o) {
+          var held = groupPick.indexOf(o.id) !== -1;
+          pickRow.appendChild(roomOption(head, held ? 'now' : 'leaving', function () {
+            var at = groupPick.indexOf(o.id);
+            if (at === -1) groupPick.push(o.id); else groupPick.splice(at, 1);
+            showPicker('group');
+          }, o.name));
+        })(head.outputs[m]);
+      }
     }
     var snap2 = store.snapshot();
     var all = snap2 === null ? [] : snap2.zones;
@@ -1460,10 +1536,14 @@ function showPicker(mode) {
         // greyed explained the rule but made the list twice as long to read, and
         // the list is what you are trying to choose from.
         if (!joinable) return;
-        var chosen = groupPick.indexOf(z.id) !== -1;
+        var ids = z.outputs.map(function (o) { return o.id; });
+        var chosen = ids.every(function (id) { return groupPick.indexOf(id) !== -1; });
         pickRow.appendChild(roomOption(z, chosen ? 'now' : '', function () {
-          var at = groupPick.indexOf(z.id);
-          if (at === -1) groupPick.push(z.id); else groupPick.splice(at, 1);
+          for (var k = 0; k < ids.length; k += 1) {
+            var at = groupPick.indexOf(ids[k]);
+            if (chosen) { if (at !== -1) groupPick.splice(at, 1); }
+            else if (at === -1) groupPick.push(ids[k]);
+          }
           showPicker('group');
         }));
       })(all[g]);
@@ -1484,9 +1564,24 @@ function showPicker(mode) {
      * action that fires on its own must never be a surprise.
      */
     var doneRow = el('div', 'row row-faces');
-    var form = el('span', groupPick.length === 0 ? 'opt off settling' : 'opt settling', groupPick.length === 0
-      ? 'choose the rooms to add'
-      : 'adding ' + String(groupPick.length) + (groupPick.length === 1 ? ' room' : ' rooms') + '\u2026');
+    /**
+     * WHAT IS ABOUT TO HAPPEN, in the words of the change rather than the count:
+     * "adding 2 rooms" and "letting 1 room go" are different enough that reading
+     * the wrong one is a mistake, and this line is the only warning there is.
+     */
+    var inNow = head === null ? [] : head.outputs.map(function (o) { return o.id; });
+    var adding = 0, dropping = 0;
+    for (var ai = 0; ai < groupPick.length; ai += 1) if (inNow.indexOf(groupPick[ai]) === -1) adding += 1;
+    for (var di = 1; di < inNow.length; di += 1) if (groupPick.indexOf(inNow[di]) === -1) dropping += 1;
+    var roomWord = function (n) { return String(n) + (n === 1 ? ' room' : ' rooms'); };
+    var said = adding === 0 && dropping === 0
+      ? (head !== null && head.outputs.length > 1 ? 'this group is as it is' : 'choose the rooms to add')
+      : (adding > 0 && dropping > 0
+        ? 'adding ' + roomWord(adding) + ', letting ' + roomWord(dropping) + ' go\u2026'
+        : (adding > 0 ? 'adding ' + roomWord(adding) + '\u2026'
+          : 'letting ' + roomWord(dropping) + ' go\u2026'));
+    var settling = adding > 0 || dropping > 0;
+    var form = el('span', settling ? 'opt settling' : 'opt off settling', said);
     doneRow.appendChild(form);
     if (head !== null && head.outputs.length > 1) {
       var dissolve = el('span', 'opt', 'ungroup');
@@ -1496,7 +1591,7 @@ function showPicker(mode) {
         cancelGroupSettle();
         groupPick = [];
         command({ action: 'ungroup', zone: head.id });
-        setTimeout(function () { if (!picker.hidden) showPicker('group'); }, 900);
+        setTimeout(function () { if (!picker.hidden) startGroupPick(); }, 900);
       });
       doneRow.appendChild(dissolve);
     }
@@ -1504,7 +1599,9 @@ function showPicker(mode) {
     pressable(cancel, function () { cancelGroupSettle(); groupPick = []; showPicker('rooms'); });
     doneRow.appendChild(cancel);
 
-    if (groupPick.length > 0 && head !== null) armGroupSettle(head); else cancelGroupSettle();
+    // Nothing to send is nothing to count down: the clock only runs when a real
+    // change is waiting, so opening the picker to look never regroups anything.
+    if (settling && head !== null) armGroupSettle(head); else cancelGroupSettle();
     nodes.push(doneRow);
   }
 
@@ -2053,6 +2150,20 @@ var glyph = function (name) {
         'M10.8 12h9.1',
         'M16.8 8.7 20.3 12l-3.5 3.3',
       ],
+      /**
+       * FADERS — three tracks at three different levels. It says "there is more
+       * than one level behind this" without a word, which is what the disclosure
+       * actually opens (Peter, 08-28: "rather than 'x rooms' can we find a
+       * symbol that indicates multi volume controls").
+       *
+       * Not a speaker: a speaker is already the thing to its left, and repeating
+       * it would say "volume" twice and "several" never.
+       */
+      faders: [
+        'M6 5.2v13.6', 'M3.7 10.4h4.6',
+        'M12 5.2v13.6', 'M9.7 14.6h4.6',
+        'M18 5.2v13.6', 'M15.7 8.6h4.6',
+      ],
       'repeat-one': [
         'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
         'M16 13.8 18 16 20 13.8',
@@ -2408,7 +2519,21 @@ function openRecent() {
  * Volume acts on the BOUND OUTPUT only — the speaker in this room — so a screen
  * in the study cannot turn up a whole grouped house.
  */
+/**
+ * ⚖️ REGROUPING IS A KNOWN GAP, NOT A FAULT.
+ *
+ * Roon destroys the zone and builds a new one, and for a beat in between this
+ * room is in no zone at all. That is not "unavailable" — it is a change we
+ * asked for, and the screen should hold what it was showing until the new zone
+ * arrives rather than announcing a failure to somebody who just pressed group.
+ */
+var settlingUntil = 0;
+var REGROUP_GRACE_MS = 9000;
+
 function command(body) {
+  if (body.action === 'group' || body.action === 'ungroup' || body.action === 'regroup') {
+    settlingUntil = Date.now() + REGROUP_GRACE_MS;
+  }
   return fetch('/api/v1/control', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -2486,8 +2611,10 @@ function groupScale(zone, level) {
 /** The room count, and behind it every room's own scale. */
 function roomsToggle(zone, outs) {
   var wrap = el('span', 'rooms-toggle');
-  var b = el('span', 'ctl small', String(outs.length) + ' rooms');
-  b.setAttribute('title', 'volume for each room');
+  var b = el('span', 'ctl small ctl-faders');
+  b.appendChild(glyph('faders'));
+  b.setAttribute('title', 'a level for each of the ' + String(outs.length) + ' rooms');
+  b.setAttribute('aria-label', 'show the volume of each of the ' + String(outs.length) + ' rooms');
   var open = false;
   var list = el('div', 'member-vols');
   list.hidden = true;
@@ -2507,7 +2634,7 @@ function roomsToggle(zone, outs) {
   pressable(b, function () {
     open = !open;
     list.hidden = !open;
-    b.className = open ? 'ctl small now' : 'ctl small';
+    b.className = open ? 'ctl small ctl-faders now' : 'ctl small ctl-faders';
   });
   wrap.appendChild(b);
   wrap.appendChild(list);

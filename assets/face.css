@@ -879,8 +879,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    room indicator, swallowing its presses. Shrinking the sleeve frees the space
    without overflowing anything. */
 .cover, .body { -webkit-transition: all .3s ease; transition: all .3s ease; }
-.face.show-chrome .cover { width: 20vw; height: 20vw; }
-.face.show-chrome[data-face="classic"] .cover { width: 27vw; height: 27vw; }
+/* ⚖️ AND NOT ON CLASSIC (Peter, 08-28: "still resulting in the main image
+   shrinking... there's plenty of space without reducing artwork size").
+   Classic's controls live IN the layout now — under the metadata, above the
+   progress — so there is no bar to make room for and nothing to shrink. This is
+   scoped rather than out-specified: an extra rule on top is how the sleeve ended
+   up with four sizes and no obvious winner in the first place. */
+.face.show-chrome:not([data-face="classic"]) .cover { width: 20vw; height: 20vw; }
+/* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
+   "still resulting in the main image shrinking"). The brief was to incorporate
+   the chrome into the now-playing display WITHOUT resizing the art — so the
+   chrome is fitted into the room that is already there beside it, and 27vw is
+   gone. Dial still shrinks: its ring has to clear the control bar. */
 .face.show-chrome[data-face="dial"] .cover { width: 19vw; height: 19vw; }
 .picker.mode-transport { bottom: 7vh; top: auto; }
 
@@ -1382,9 +1392,20 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .face.show-chrome[data-face="classic"] .shelf { opacity: 1; }
 
-/* the transport, directly under the metadata */
+/* ⚖️ THE TWO CHROME ROWS SIT TOGETHER, on the sleeve's baseline (Peter, 08-28:
+   "would the controls chrome being placed just over the volume help — looks
+   unbalanced at present").
+
+   They were split — transport under the metadata, volume 140px lower against the
+   bottom — which read as two unrelated things with a hole between them. Stacked,
+   they are one block of controls with one edge, and it is the same edge the
+   artwork ends on.
+
+   Both are OUT OF FLOW, which is the whole point: the title and the sleeve are
+   in exactly the same place whether the chrome is up or down. */
 .face[data-face="classic"] .shelf-transport {
-  margin-top: 1.6vh;
+  position: absolute; left: 0; right: 0; bottom: 4.2vw;
+  margin: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
   min-height: 3.4vw;
 }
@@ -1446,6 +1467,24 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .picker .row-column > .opt { margin: .25vh 0; -webkit-justify-content: flex-start; justify-content: flex-start; }
 .picker .row-column > .opt.now { border-color: var(--accent); }
 
+/* THE LEAD: the anchor of the group, not a checkbox. Marked by a rule down its
+   own edge rather than by the accent every chosen room already wears, so it
+   reads as "this is the one it hangs off" and not as "one more selection". */
+.picker .row-column > .opt.is-lead {
+  border-color: var(--accent);
+  border-left-width: 3px;
+  border-left-color: var(--accent);
+}
+.picker .row-column > .opt.is-lead .roomcard-name { color: var(--bone); font-weight: 600; }
+/* Alone in its zone there is nothing to release, so it is a label, not a button. */
+.picker .row-column > .opt.is-lead.solo { cursor: default; }
+
+/* A ROOM ON ITS WAY OUT: still listed where it has always been, so the eye can
+   find it again to change its mind, but struck through the name and dimmed —
+   the group it is leaving has not left yet. */
+.picker .row-column > .opt.leaving { opacity: .5; border-color: rgba(242,238,230,.10); }
+.picker .row-column > .opt.leaving .roomcard-name { text-decoration: line-through; }
+
 .picker .row-column > .opt { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
 
 /* ══ THE VOLUME COMES OFF THE BODY'S HEIGHT ══════════════════════════════════
@@ -1491,4 +1530,52 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .picker .opt.settling.off::after { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .picker .opt.settling::after { -webkit-animation: none; animation: none; width: 100%; opacity: .35; }
+}
+
+
+/* ══ THE FADERS MARK ══════════════════════════════════════════════════════════
+   The disclosure that opens a level for every room in the group. A square the
+   size of the other controls, so the volume line reads as one row of equals. */
+.ctl.ctl-faders { padding: 0; min-width: 2.2vw; }
+.ctl.ctl-faders .glyph { width: 1.35vw; height: 1.35vw; }
+@media (orientation: portrait) {
+  .ctl.ctl-faders { min-width: 7vw; }
+  .ctl.ctl-faders .glyph { width: 4vw; height: 4vw; }
+}
+
+/* ══ CLASSIC: THE VOLUME SITS ON THE SLEEVE'S BASELINE ════════════════════════
+   ⚖️ The column has to be as tall as the sleeve BESIDE IT, and with the chrome
+   up the sleeve is 27vw, not the 34vw it rests at. The old 34vw was measuring
+   the sleeve in the wrong state, which hung the volume 67px below the artwork
+   with nothing under it — the "odd" Peter saw (08-28).
+
+   And it stands as tall as the transport does, so the two chrome lines are the
+   same weight rather than one being half again as deep as the other. */
+.face[data-face="classic"] .shelf-volume {
+  min-height: 3.4vw;
+  -webkit-align-items: center; align-items: center;
+}
+.face[data-face="classic"] .shelf-volume .controls > * { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+
+/* The scale rests at 4.6vw everywhere else; in Classic's shelf it matches the
+   transport's 3.4vw so the two chrome lines carry the same weight. Still a
+   65px target on a 1080p screen, and volume here is tapped, never dragged. */
+.face[data-face="classic"] .shelf-volume .vol-scale {
+  min-height: 3.4vw; margin-top: 0; margin-bottom: 0;
+}
+.face[data-face="classic"] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
+.face[data-face="classic"] .shelf-volume .rooms-toggle .ctl { margin-top: 0; margin-bottom: 0; }
+
+/* ⚖️ THE TWO CHROME ROWS ARE THE SAME WIDTH — the artwork's — so they read as one
+   block with two edges rather than two rows that happen to start together. The
+   transport spreads across it the way the wall card's does, ending exactly where
+   the volume ends. */
+.face[data-face="classic"] .shelf .controls { width: 34vw; }
+.face[data-face="classic"] .shelf-transport .controls {
+  -webkit-justify-content: space-between; justify-content: space-between;
+}
+.face[data-face="classic"] .shelf-transport .controls > * { margin: 0; }
+.face[data-face="classic"] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+@media (orientation: portrait) {
+  .face[data-face="classic"] .shelf .controls { width: 100%; }
 }

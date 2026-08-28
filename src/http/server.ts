@@ -506,8 +506,93 @@ async function handleControl(
         json(response, 409, { error: (stranger as { name: string }).name + ' cannot be grouped with ' + head.name });
         return;
       }
+      /**
+       * ⚖️ A GROUP THAT IS ALREADY RIGHT IS NOT RE-FORMED (Peter, 08-28: "I think
+       * we are repeating and it causes a playback glitch repeating the first
+       * second or so").
+       *
+       * `group_outputs` is not idempotent at the audio layer. Handing Roon the
+       * membership it already has still tears the zone down and builds it again,
+       * and every room in it restarts the track — which is heard as the first
+       * second playing twice. The set is the same, so the only honest answer is
+       * to do nothing and say so.
+       *
+       * ORDER MATTERS, so this compares the head separately: Roon keeps the FIRST
+       * output's queue, so [study, kitchen] and [kitchen, study] are different
+       * requests even though they name the same two rooms.
+       */
+      const already = (snapshot === null ? [] : snapshot.zones).find(
+        (z) => z.outputs.length === wanted.length
+          && z.outputs[0].id === wanted[0]
+          && z.outputs.every((o) => wanted.includes(o.id)));
+      if (already !== undefined) {
+        log('group ' + already.name + ' — already exactly this, not re-formed');
+        json(response, 200, { ok: true, unchanged: true });
+        return;
+      }
       await commands.groupOutputs(wanted);
       log('group ' + found.map((o) => (o as { name: string }).name).join(' + '));
+      json(response, 200, { ok: true });
+      return;
+    }
+
+    /**
+     * ⚖️ ONE GESTURE, ONE REGROUPING (Peter, 08-28: "don't trigger group with each
+     * addition or removal — wait until all done").
+     *
+     * The picker lets someone add three rooms and drop one before they are done
+     * deciding. Sending that as it is typed is four re-forms and four restarts;
+     * `regroup` takes the membership they SETTLED ON and works out the smallest
+     * set of calls that gets there — nothing at all when they land back where
+     * they started, which is the common case after a change of mind.
+     *
+     * At most one ungroup and one group, in that order, because a room cannot
+     * join a group it is still a member of somewhere else.
+     */
+    if (action === 'regroup') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      const wanted = Array.isArray(body.outputs)
+        ? body.outputs.filter((v): v is string => typeof v === 'string') : [];
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (wanted.length === 0) { json(response, 400, { error: 'a regroup needs the rooms to keep' }); return; }
+      const all = (snapshot === null ? [] : snapshot.zones).flatMap((z) => z.outputs);
+      const unknown = wanted.find((id) => all.every((o) => o.id !== id));
+      if (unknown !== undefined) { json(response, 404, { error: 'unknown output' }); return; }
+
+      // The head is pinned: it owns the queue, and moving it would mean choosing
+      // whose music survives. The picker never offers it, and this refuses it.
+      if (wanted[0] !== zone.outputs[0].id) {
+        json(response, 409, { error: zone.outputs[0].name + ' leads this group and cannot be dropped from it' });
+        return;
+      }
+      const head = zone.outputs[0];
+      const stranger = wanted.find((id) => id !== head.id && !head.groupableWith.includes(id));
+      if (stranger !== undefined) {
+        const name = all.find((o) => o.id === stranger);
+        json(response, 409, { error: (name === undefined ? 'that room' : name.name) + ' cannot be grouped with ' + head.name });
+        return;
+      }
+
+      const remove = zone.outputs.filter((o) => !wanted.includes(o.id)).map((o) => o.id);
+      const add = wanted.filter((id) => zone.outputs.every((o) => o.id !== id));
+      if (remove.length === 0 && add.length === 0) {
+        log('regroup ' + zone.name + ' — already exactly this, nothing sent');
+        json(response, 200, { ok: true, unchanged: true });
+        return;
+      }
+      // Everything out in ONE call: Roon tears a Squeezebox grouped zone down on
+      // every ungroup, so a second call is a second injury, not a tidier job.
+      if (remove.length > 0) await commands.ungroupOutputs(remove);
+      if (add.length > 0 || remove.length > 0) {
+        // Rebuilding from the settled list, head first, keeps the queue with the
+        // room whose music it is. A group of one is just a room: nothing to form.
+        if (wanted.length > 1) await commands.groupOutputs(wanted);
+      }
+      log('regroup ' + zone.name + ' \u2192 ' + String(wanted.length) + ' rooms'
+        + (remove.length > 0 ? ' (-' + String(remove.length) + ')' : '')
+        + (add.length > 0 ? ' (+' + String(add.length) + ')' : ''));
       json(response, 200, { ok: true });
       return;
     }
