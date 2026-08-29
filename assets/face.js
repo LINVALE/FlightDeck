@@ -1144,7 +1144,37 @@ function markRing() {
 }
 
 /** The two attributes every rule is keyed on: what it looks like, and what is behind it. */
+/**
+ * ⚖️ A PHONE IS NOT A SMALL TELEVISION (Peter, 08-29: "can we automatically deal
+ * with phones without an app?").
+ *
+ * No app: it is a page on the house's own network, and a phone opens it in the
+ * browser it already has. What it needs is a layout of its own — measured, the
+ * faces are composed in `vw` for a 16:9 frame, so at 852x393 the sleeve's top
+ * sat 166px ABOVE the screen and at 393x852 Classic piled its browse marks, its
+ * title and its transport on top of one another.
+ *
+ * The discriminator is the SHORT SIDE, not the width. `max-width: 900px` was
+ * catching a phone in LANDSCAPE — 852px wide — and handing it rules written for
+ * a portrait phone. A screen whose short side is under 540px is a phone in
+ * either orientation, and it says which one it is in.
+ */
+var PHONE_SHORT_SIDE = 540;
+
+function markSize() {
+  var w = window.innerWidth || 0;
+  var h = window.innerHeight || 0;
+  var short = Math.min(w, h);
+  if (short > 0 && short <= PHONE_SHORT_SIDE) root.setAttribute('data-size', 'phone');
+  else root.removeAttribute('data-size');
+  root.setAttribute('data-orient', h >= w ? 'portrait' : 'landscape');
+}
+
+window.addEventListener('resize', markSize);
+window.addEventListener('orientationchange', function () { setTimeout(markSize, 120); });
+
 function markLayout() {
+  markSize();
   root.setAttribute('data-layout', layoutOf(current));
   if (hasColumn()) root.setAttribute('data-column', '1');
   else root.removeAttribute('data-column');

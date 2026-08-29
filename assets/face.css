@@ -66,9 +66,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   background-position: center; background-size: cover; background-repeat: no-repeat;
   opacity: 0; -webkit-transition: opacity .5s ease; transition: opacity .5s ease;
 }
-.face[data-view="artist"] .artistlayer.is-lit { opacity: 1; }
-.face[data-view="artist"] .bg canvas { opacity: 0; }
-.face[data-view="artist"] .bg .wash {
+.face:not([data-size])[data-view="artist"] .artistlayer.is-lit { opacity: 1; }
+.face:not([data-size])[data-view="artist"] .bg canvas { opacity: 0; }
+.face:not([data-size])[data-view="artist"] .bg .wash {
   /* A photograph is not a backdrop until the text survives it. The bottom third
      carries the title, lamps and times, so it gets a real scrim, plus a soft
      left column for the copy. Tuned against a bright stage shot where the first
@@ -78,13 +78,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
     linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 16%),
     linear-gradient(to right, rgba(0,0,0,.72) 0%, rgba(0,0,0,.30) 46%, rgba(0,0,0,0) 72%);
 }
-.face[data-view="artist"] .body {
+.face:not([data-size])[data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
 /* The cover sits to the LEFT of the three-line block and level with it, rather
    than stacked above it, so the photograph keeps the rest of the frame. */
-.face[data-view="artist"] .np {
+.face:not([data-size])[data-view="artist"] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   width: auto; max-width: 78%;
@@ -100,8 +100,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    (Peter, 08-26: "should extend all the way over the progress bar... more
    elegant"). The grade now runs from mid-frame to the bottom edge, carrying the
    copy AND the runway on the same darkening. */
-.face[data-view="artist"] .np { padding: 1.4vh 2vw 1.4vh 1.6vw; margin-left: -1.6vw; }
-.face[data-view="artist"] .safe::before {
+.face:not([data-size])[data-view="artist"] .np { padding: 1.4vh 2vw 1.4vh 1.6vw; margin-left: -1.6vw; }
+.face:not([data-size])[data-view="artist"] .safe::before {
   content: ""; position: absolute;
   left: -6vw; right: -6vw; bottom: -6vh; top: 42%;
   background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.55) 38%, rgba(0,0,0,.86) 72%, rgba(0,0,0,.94) 100%);
@@ -109,30 +109,30 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   pointer-events: none;
 }
 /* everything in the safe area rides above that grade */
-.face[data-view="artist"] .safe > * { position: relative; z-index: 1; }
-.face[data-view="artist"] .line2,
-.face[data-view="artist"] .line3 { color: #e6e0d6; }
-.face[data-view="artist"] .cover { margin-right: 1.8vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
-.face[data-view="artist"] .copy { min-width: 0; }
-.face[data-view="artist"] .cover { width: 11vw; height: 11vw; }
-.face[data-view="artist"] .copy { text-align: left; margin-top: 1.2vh; }
-.face[data-view="artist"] .title { max-width: 74%; margin: 0; font-size: 3.1vw; }
-.face[data-view="artist"] .line2 { font-size: 1.6vw; }
-.face[data-view="artist"] .line3 { font-size: 1.25vw; }
-.face[data-view="artist"] .title,
-.face[data-view="artist"] .line2,
-.face[data-view="artist"] .line3,
-.face[data-view="artist"] .time { text-shadow: 0 .12em .5em rgba(0,0,0,.85); }
-.face[data-view="artist"] .lamps b { box-shadow: 0 0 .35em rgba(0,0,0,.9); }
-.face[data-view="artist"] .lamps b:not(.lit):not(.head) { background: rgba(242,238,230,.34); }
+.face:not([data-size])[data-view="artist"] .safe > * { position: relative; z-index: 1; }
+.face:not([data-size])[data-view="artist"] .line2,
+.face:not([data-size])[data-view="artist"] .line3 { color: #e6e0d6; }
+.face:not([data-size])[data-view="artist"] .cover { margin-right: 1.8vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face:not([data-size])[data-view="artist"] .copy { min-width: 0; }
+.face:not([data-size])[data-view="artist"] .cover { width: 11vw; height: 11vw; }
+.face:not([data-size])[data-view="artist"] .copy { text-align: left; margin-top: 1.2vh; }
+.face:not([data-size])[data-view="artist"] .title { max-width: 74%; margin: 0; font-size: 3.1vw; }
+.face:not([data-size])[data-view="artist"] .line2 { font-size: 1.6vw; }
+.face:not([data-size])[data-view="artist"] .line3 { font-size: 1.25vw; }
+.face:not([data-size])[data-view="artist"] .title,
+.face:not([data-size])[data-view="artist"] .line2,
+.face:not([data-size])[data-view="artist"] .line3,
+.face:not([data-size])[data-view="artist"] .time { text-shadow: 0 .12em .5em rgba(0,0,0,.85); }
+.face:not([data-size])[data-view="artist"] .lamps b { box-shadow: 0 0 .35em rgba(0,0,0,.9); }
+.face:not([data-size])[data-view="artist"] .lamps b:not(.lit):not(.head) { background: rgba(242,238,230,.34); }
 /* The accent is lifted from the ALBUM, and a photograph is not the album: a red
    accent on a blue stage shot is unreadable. Over a photo the zone name goes
    neutral and lets the artist carry the colour. */
-.face[data-view="artist"] .zone { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
-.face[data-view="artist"] .status { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
-.face[data-view="artist"] .cover { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
-.face[data-view="artist"] .lamps b.lit { background: var(--bone); }
-.face[data-view="artist"] .lamps b.head { background: #fff; }
+.face:not([data-size])[data-view="artist"] .zone { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
+.face:not([data-size])[data-view="artist"] .status { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
+.face:not([data-size])[data-view="artist"] .cover { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
+.face:not([data-size])[data-view="artist"] .lamps b.lit { background: var(--bone); }
+.face:not([data-size])[data-view="artist"] .lamps b.head { background: #fff; }
 .artistname { display: inline-block; }
 
 @media (max-width: 900px) {
@@ -144,8 +144,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .face:not([data-view="artist"]) .artistname { display: none; }
 @media (max-width: 900px) {
-  .face[data-view="artist"] .cover { width: 26vw; height: 26vw; }
-  .face[data-view="artist"] .title { font-size: 5.6vw; }
+  .face:not([data-size])[data-view="artist"] .cover { width: 26vw; height: 26vw; }
+  .face:not([data-size])[data-view="artist"] .title { font-size: 5.6vw; }
   .artistname { font-size: 2.6vw; }
 }
 
@@ -187,14 +187,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .lamps b.lit { background: var(--accent); }
 .lamps b.head { background: #ffd98a; box-shadow: 0 0 1vw rgba(255,217,138,0.75); }
 
-.face[data-state="paused"] .lamps b.head { -webkit-animation: none; animation: none; }
-.face[data-state="paused"] .status { color: var(--accent); }
-.face[data-state="loading"] .lamps b { -webkit-animation: sweep 1.4s linear infinite; animation: sweep 1.4s linear infinite; }
+.face:not([data-size])[data-state="paused"] .lamps b.head { -webkit-animation: none; animation: none; }
+.face:not([data-size])[data-state="paused"] .status { color: var(--accent); }
+.face:not([data-size])[data-state="loading"] .lamps b { -webkit-animation: sweep 1.4s linear infinite; animation: sweep 1.4s linear infinite; }
 @-webkit-keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
 @keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
-.face[data-state="stopped"] .copy, .face[data-state="stopped"] .foot { display: none; }
-.face[data-state="away"] .copy { opacity: 0.55; }   /* the COPY, never the cover */
-.face[data-state="connecting"] .copy { opacity: 0.4; }
+.face:not([data-size])[data-state="stopped"] .copy, .face:not([data-size])[data-state="stopped"] .foot { display: none; }
+.face:not([data-size])[data-state="away"] .copy { opacity: 0.55; }   /* the COPY, never the cover */
+.face:not([data-size])[data-state="connecting"] .copy { opacity: 0.4; }
 
 .idle { text-align: center; }
 .idle .clock { font-family: Georgia, serif; font-size: 9vw; color: rgba(242,238,230,0.5); }
@@ -239,56 +239,56 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    RESIZED and repositioned — never cropped, tinted or overlaid. */
 
 .bar { display: none; }
-.face[data-layout="classic"] .lamps { display: none; }
-.face[data-layout="classic"] .bar {
+.face:not([data-size])[data-layout="classic"] .lamps { display: none; }
+.face:not([data-size])[data-layout="classic"] .bar {
   display: block; position: relative;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   height: 0.36vw; margin: 0 1.6vw;
   background: rgba(242,238,230,.16); border-radius: 2px;
 }
-.face[data-layout="classic"] .bar i {
+.face:not([data-size])[data-layout="classic"] .bar i {
   position: absolute; left: 0; top: 0; bottom: 0;
   background: var(--accent); border-radius: 2px;
 }
 /* the playhead, so position reads as a cursor from the sofa */
-.face[data-layout="classic"] .bar i::after {
+.face:not([data-size])[data-layout="classic"] .bar i::after {
   content: ""; position: absolute; right: -0.18vw; top: -0.42vw;
   width: 0.36vw; height: 1.2vw; background: var(--accent); border-radius: 1px;
 }
 
 /* sleeve left, copy right, both centred on the same axis */
-.face[data-layout="classic"] .body {
+.face:not([data-size])[data-layout="classic"] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
 }
-.face[data-layout="classic"] .np {
+.face:not([data-size])[data-layout="classic"] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   width: 100%;
 }
-.face[data-layout="classic"] .cover {
+.face:not([data-size])[data-layout="classic"] .cover {
   width: 34vw; height: 34vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
   margin-right: 3.4vw;
 }
-.face[data-layout="classic"] .copy {
+.face:not([data-size])[data-layout="classic"] .copy {
   text-align: left; margin-top: 0; min-width: 0;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
 }
-.face[data-layout="classic"] .title {
+.face:not([data-size])[data-layout="classic"] .title {
   font-size: 3.4vw; max-width: 100%; margin: 0;
   -webkit-line-clamp: 3;
 }
-.face[data-layout="classic"] .line2 { font-size: 1.75vw; margin-top: 1.4vh; }
-.face[data-layout="classic"] .line3 { font-size: 1.35vw; margin-top: 0.7vh; }
+.face:not([data-size])[data-layout="classic"] .line2 { font-size: 1.75vw; margin-top: 1.4vh; }
+.face:not([data-size])[data-layout="classic"] .line3 { font-size: 1.35vw; margin-top: 0.7vh; }
 
 /* Classic keeps a quiet blurred sleeve behind it rather than the artist: it is
    the conservative face, and a photograph is not conservative. */
-.face[data-layout="classic"] .bg canvas { opacity: .55; }
+.face:not([data-size])[data-layout="classic"] .bg canvas { opacity: .55; }
 
 @media (max-width: 900px) {
-  .face[data-layout="classic"] .np { -webkit-flex-direction: column; flex-direction: column; }
-  .face[data-layout="classic"] .cover { width: 62vw; height: 62vw; margin: 0 0 2vh 0; }
-  .face[data-layout="classic"] .copy { text-align: center; }
-  .face[data-layout="classic"] .title { font-size: 7vw; }
+  .face:not([data-size])[data-layout="classic"] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face:not([data-size])[data-layout="classic"] .cover { width: 62vw; height: 62vw; margin: 0 0 2vh 0; }
+  .face:not([data-size])[data-layout="classic"] .copy { text-align: center; }
+  .face:not([data-size])[data-layout="classic"] .title { font-size: 7vw; }
 }
 
 /* Dwell-to-select in the picker: resting on a name applies it after a beat, and
@@ -354,7 +354,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    circle — it is sacred — and nothing is drawn on top of it. */
 .cover { position: relative; overflow: visible; }
 .dialbox { display: none; }
-.face[data-ring] .dialbox {
+.face:not([data-size])[data-ring] .dialbox {
   display: block; position: absolute;
   /* The ring CLEARS the four corners with a little air, rather than passing through
      them (Peter, 08-26). Three things decide the number, and I had missed two of
@@ -367,12 +367,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   left: -38.6%; top: -38.6%; width: 177.2%; height: 177.2%;
   pointer-events: none;
 }
-.face[data-ring] .dial { width: 100%; height: 100%; display: block; }
+.face:not([data-size])[data-ring] .dial { width: 100%; height: 100%; display: block; }
 /* ⚖️ THE RING IS THE PROGRESS BAR ON THESE FACES, so it is pressed to seek
    (Peter, 08-28: "no bottom progress bar on this, so seek should be done by
    touching the progress circle"). The box around it stays inert — only this
    band is live, which is why the corners and the sleeve still do what they did. */
-.face[data-ring] .dial-hit { pointer-events: stroke; cursor: pointer; }
+.face:not([data-size])[data-ring] .dial-hit { pointer-events: stroke; cursor: pointer; }
 /**
  * ONE RING, TWO COLOURS. The track and the arc are the SAME weight, so nothing
  * changes size as a track plays — only the colour advances round the circle.
@@ -381,11 +381,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * RHEOS gets it from a conic-gradient, which Chromium 63 does not have; two SVG
  * strokes of equal width give the same reading and run everywhere.
  */
-.face[data-ring] .dial-track { stroke: rgba(242,238,230,.12); stroke-width: 2.2; }
+.face:not([data-size])[data-ring] .dial-track { stroke: rgba(242,238,230,.12); stroke-width: 2.2; }
 /* Thicker than the track by a clear margin: at equal weight the played arc read as
    part of the same circle and the progress could not be seen at a glance. */
-.face[data-ring] .dial-arc { stroke: var(--accent-rich, var(--accent)); stroke-width: 2.2; }
-.face[data-ring] .dial-fill {
+.face:not([data-size])[data-ring] .dial-arc { stroke: var(--accent-rich, var(--accent)); stroke-width: 2.2; }
+.face:not([data-size])[data-ring] .dial-fill {
   fill: var(--disc, #14161a); opacity: .55;
 }
 
@@ -395,28 +395,28 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    which is the safe area. The copy then overlays the lower arc on its own grade,
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
-.face[data-ringlayout] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .cover { width: 20vh; height: 20vh; }
+.face:not([data-size])[data-ringlayout] .cover { width: 52vh; height: 52vh; }
+.face:not([data-size]).show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .cover { width: 20vh; height: 20vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
 /* The reading sits AT TWELVE O'CLOCK, on the ring where the arc begins — one pair,
    elapsed of total. The remaining time and "ENDS hh:mm" are gone from this face:
    the ring already shows how much is left, which is the whole point of a ring. */
-.face[data-ringlayout] .dial-reading {
+.face:not([data-size])[data-ringlayout] .dial-reading {
   position: absolute; left: 0; right: 0; top: -1.4vh; bottom: auto;
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-justify-content: center; justify-content: center;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-ringlayout] .dial-remain,
-.face[data-ringlayout] .dial-ends { display: none; }
-.face[data-ring] .dial-bead {
+.face:not([data-size])[data-ringlayout] .dial-remain,
+.face:not([data-size])[data-ringlayout] .dial-ends { display: none; }
+.face:not([data-size])[data-ring] .dial-bead {
   fill: var(--accent-rich, var(--accent));
   stroke: rgba(10,11,13,.75); stroke-width: 1;
 }
-.face[data-ringlayout] .dial-remain {
+.face:not([data-size])[data-ringlayout] .dial-remain {
   font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
 }
 /* No plate and no halo: just type on the disc, exactly as the title below it is
@@ -424,24 +424,24 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    reading; the shadow that replaced it read as a smudged pill, which is the same
    fault at lower contrast. The disc's own fill is always a dark tint, so the
    figures carry on it unaided — the same reason the title needs nothing. */
-.face[data-ringlayout] .dial-times {
+.face:not([data-size])[data-ringlayout] .dial-times {
   font-size: 1.15vw; margin: 0; color: var(--bone);
   font-variant-numeric: tabular-nums; letter-spacing: .06em;
   background: none; padding: 0; border-radius: 0; text-shadow: none;
 }
 /* Over a photograph there is no disc behind it, so it takes the shadow the title
    and album take there — the same treatment as its neighbours, not its own. */
-.face[data-ringlayout][data-view="artist"] .dial-times {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .dial-times {
   text-shadow: 0 .12em .5em rgba(0,0,0,.85);
 }
-.face[data-ringlayout] .dial-ends {
+.face:not([data-size])[data-ringlayout] .dial-ends {
   font-size: .95vw; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
   margin: 0 0 0 1vw;
 }
-.face[data-ringlayout] .body {
+.face:not([data-size])[data-ringlayout] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
 }
-.face[data-ringlayout] .np {
+.face:not([data-size])[data-ringlayout] .np {
   -webkit-flex-direction: column; flex-direction: column; width: auto; max-width: 92vw;
 }
 /* CIRCLE LEFT, WORDS RIGHT (Peter, 08-26).
@@ -451,27 +451,27 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    16:9 frame is wider than the circle needs, so the words take the room the circle
    does not — and the copy goes back to being ordinary flowed text with no panel
    under it. */
-.face[data-ringlayout] .body { position: relative; }
-.face[data-ringlayout] .np {
+.face:not([data-size])[data-ringlayout] .body { position: relative; }
+.face:not([data-size])[data-ringlayout] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: center; justify-content: center;
   width: 100%; max-width: 96vw;
 }
-.face[data-ringlayout] .cover { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
-.face[data-ringlayout] .copy {
+.face:not([data-size])[data-ringlayout] .cover { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face:not([data-size])[data-ringlayout] .copy {
   position: static; background: none; padding: 0;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   text-align: left; min-width: 0;
   /* clear of the ring, which overhangs the sleeve by nearly a third of its width */
   margin-left: 12vh;
 }
-.face[data-ringlayout] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
-.face[data-ringlayout] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
-.face[data-ringlayout] .line3 { font-size: 1.25vw; margin-top: .7vh; }
+.face:not([data-size])[data-ringlayout] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
+.face:not([data-size])[data-ringlayout] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
+.face:not([data-size])[data-ringlayout] .line3 { font-size: 1.25vw; margin-top: .7vh; }
 /* the ring IS the progress: the runway and the foot's readouts would only repeat it */
-.face[data-ringlayout] .lamps, .face[data-ringlayout] .bar { display: none; }
-.face[data-ringlayout] .foot { display: none; }
+.face:not([data-size])[data-ringlayout] .lamps, .face:not([data-size])[data-ringlayout] .bar { display: none; }
+.face:not([data-size])[data-ringlayout] .foot { display: none; }
 
 /* THE ARTIST VIEW ON A RING FACE.
  *
@@ -484,18 +484,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * The artist line goes with it: the picture IS the artist, and at this size the
  * bottom segment holds a title and an album, not three lines.
  */
-.face[data-ringlayout][data-view="artist"] .dial-reading { display: -webkit-flex; display: flex; }
+.face:not([data-size])[data-ringlayout][data-view="artist"] .dial-reading { display: -webkit-flex; display: flex; }
 /* Anchored low-left, like every other face in artist view: the continuous grade
    lives at the bottom of the frame, and a dial floating in the middle sits on
    whatever the photograph happens to be doing there. */
-.face[data-ringlayout][data-view="artist"] .body {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
 /* The ring overhangs the sleeve by ~10vh at this size and that overhang is out
    of flow, so the inset from each edge is paid here or the circle runs off. */
-.face[data-ringlayout][data-view="artist"] .np,
-.face.show-chrome[data-ringlayout][data-view="artist"] .np {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .np,
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .np {
   position: relative;
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-align-items: center; align-items: center;
@@ -506,56 +506,56 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   padding: 0;
   margin-left: 13vh; margin-bottom: 14vh;
 }
-.face[data-ringlayout][data-view="artist"] .cover,
-.face.show-chrome[data-ringlayout][data-view="artist"] .cover {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .cover,
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .cover {
   width: 26vh; height: 26vh; margin: 0;
 }
-.face[data-ringlayout][data-view="artist"] .copy,
-.face.show-chrome[data-ringlayout][data-view="artist"] .copy {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .copy,
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .copy {
   position: absolute; top: 100%; left: -12%; right: -12%;
   width: auto; max-width: none; margin: 0; padding-top: 1.1vh; text-align: center;
 }
-.face[data-ringlayout][data-view="artist"] .title,
-.face[data-ringlayout][data-view="artist"] .line3 {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .title,
+.face:not([data-size])[data-ringlayout][data-view="artist"] .line3 {
   margin-left: auto; margin-right: auto; display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-shadow: 0 .12em .5em rgba(0,0,0,.85);
 }
-.face[data-ringlayout][data-view="artist"] .title { margin-top: 0; font-size: 1.5vw; max-width: 100%; }
-.face[data-ringlayout][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
+.face:not([data-size])[data-ringlayout][data-view="artist"] .title { margin-top: 0; font-size: 1.5vw; max-width: 100%; }
+.face:not([data-size])[data-ringlayout][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
 /* the photograph already names the artist */
-.face[data-ringlayout][data-view="artist"] .line2 { display: none; }
+.face:not([data-size])[data-ringlayout][data-view="artist"] .line2 { display: none; }
 /* With the chrome up the bar is centred on the foot of the frame and lands
    exactly where the ring's bottom segment — the title — otherwise sits. Lifting
    the ring at full size cleared the bar but carried it up near the badges
    (Peter, 08-26: "too close to the top — reduce size if needed"). So it SHRINKS
    as it lifts, and sits just above the bar with the frame open above it. */
-.face.show-chrome[data-ringlayout][data-view="artist"] .np { margin-bottom: 31vh; }
-.face.show-chrome[data-ringlayout][data-view="artist"] .cover { width: 18vh; height: 18vh; }
-.face.show-chrome[data-ringlayout][data-view="artist"] .title { font-size: 1.25vw; }
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .np { margin-bottom: 31vh; }
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .cover { width: 18vh; height: 18vh; }
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .title { font-size: 1.25vw; }
 /* Two lines will not fit a 47px lens at this size — the album spilled past the
    arc — and the title is the half that has to survive. */
-.face.show-chrome[data-ringlayout][data-view="artist"] .line3 { display: none; }
-.face.show-chrome[data-ringlayout][data-view="artist"] .copy { padding-top: .7vh; }
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .line3 { display: none; }
+.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .copy { padding-top: .7vh; }
 
 
 @media (max-width: 900px) {
   /* no room for two columns on a phone: the circle goes back above the words */
-  .face[data-ringlayout] .np { -webkit-flex-direction: column; flex-direction: column; }
-  .face[data-ringlayout] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
-  .face[data-ringlayout] .cover,
-  .face.show-chrome[data-ringlayout] .cover { width: 58vw; height: 58vw; }
-  .face[data-ringlayout] .title { font-size: 6vw; }
+  .face:not([data-size])[data-ringlayout] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face:not([data-size])[data-ringlayout] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
+  .face:not([data-size])[data-ringlayout] .cover,
+  .face:not([data-size]).show-chrome[data-ringlayout] .cover { width: 58vw; height: 58vw; }
+  .face:not([data-size])[data-ringlayout] .title { font-size: 6vw; }
 }
 
 /* ══ LIBRETTO ═════════════════════════════════════════════════════════════════
    Type carries the screen, the way a concert programme does: the work large
    across the full width, performers a quiet line beneath, the sleeve a plate at
    the side. Progress is a contents-page leader rather than a bar. */
-.face[data-layout="libretto"] .body {
+.face:not([data-size])[data-layout="libretto"] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
 }
-.face[data-layout="libretto"] .np {
+.face:not([data-size])[data-layout="libretto"] .np {
   -webkit-flex-direction: row-reverse; flex-direction: row-reverse;
   -webkit-align-items: flex-end; align-items: flex-end;
   width: 100%;
@@ -566,22 +566,22 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    the frame against the words' 96px — deliberately uneven, because the page is:
    a wide column of words wants its edge, a small picture wants air round it. The
    words' column absorbs the difference, being the flexible one. */
-.face[data-layout="libretto"] .cover {
+.face:not([data-size])[data-layout="libretto"] .cover {
   width: 15vw; height: 15vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
   margin-left: 3vw; margin-right: 5vw;
 }
-.face[data-layout="libretto"] .copy { text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
-.face[data-layout="libretto"] .title {
+.face:not([data-size])[data-layout="libretto"] .copy { text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.face:not([data-size])[data-layout="libretto"] .title {
   font-size: 4.6vw; line-height: 1.02; margin: 0; max-width: 100%; -webkit-line-clamp: 3;
 }
-.face[data-layout="libretto"] .line2 {
+.face:not([data-size])[data-layout="libretto"] .line2 {
   font-style: italic; font-size: 1.85vw; margin-top: 1.6vh; color: #e6e0d6;
 }
-.face[data-layout="libretto"] .line3 {
+.face:not([data-size])[data-layout="libretto"] .line3 {
   font-size: 1.2vw; letter-spacing: .1em; text-transform: uppercase; font-style: normal; margin-top: .8vh;
 }
-.face[data-layout="libretto"] .lamps { display: none; }
-.face[data-layout="libretto"] .bar {
+.face:not([data-size])[data-layout="libretto"] .lamps { display: none; }
+.face:not([data-size])[data-layout="libretto"] .bar {
   display: block; position: relative;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   height: 1vw; margin: 0 1.6vw; background: none;
@@ -596,7 +596,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * purpose: the double-position form the dashes used is CSS Images 4 and did not
  * land until Chromium 71, well past this floor.
  */
-.face[data-layout="libretto"] .bar::before {
+.face:not([data-size])[data-layout="libretto"] .bar::before {
   content: ""; position: absolute; left: 0; right: 0; top: 50%;
   height: .8vw; margin-top: -.4vw;
   background-image: -webkit-radial-gradient(circle, rgba(242,238,230,.26) 26%, rgba(0,0,0,0) 27%);
@@ -605,13 +605,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   background-repeat: repeat-x;
   background-position: 0 50%;
 }
-.face[data-layout="libretto"] .bar i {
+.face:not([data-size])[data-layout="libretto"] .bar i {
   position: absolute; left: 0; top: 50%; height: .8vw; margin-top: -.4vw;
   background: none; overflow: hidden;
 }
 /* the played circles: the same lattice, lit, and clipped by the fill's width so
    the dots stay on the SAME centres as the unplayed ones */
-.face[data-layout="libretto"] .bar i::before {
+.face:not([data-size])[data-layout="libretto"] .bar i::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 100vw;
   background-image: -webkit-radial-gradient(circle, var(--accent) 30%, rgba(0,0,0,0) 31%);
   background-image: radial-gradient(circle, var(--accent) 30%, rgba(0,0,0,0) 31%);
@@ -619,7 +619,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   background-repeat: repeat-x;
   background-position: 0 50%;
 }
-.face[data-layout="libretto"] .bg canvas { opacity: .28; }
+.face:not([data-size])[data-layout="libretto"] .bg canvas { opacity: .28; }
 
 /* ══ AMBIENT CANVAS ═══════════════════════════════════════════════════════════
    The sleeve is the still centre; everything else is slow weather made from its
@@ -633,24 +633,24 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   transform: translate(-50%, -50%) scale(1.06);
   display: none; opacity: 0;
 }
-.face[data-field] .bg canvas.field {
+.face:not([data-size])[data-field] .bg canvas.field {
   display: block; opacity: .62;
   /* Blurred at the canvas's OWN 240x135 size, before the upscale — ~30k pixels
      for the GPU rather than two million, the same trick the backdrop uses. */
   -webkit-filter: blur(1.6px); filter: blur(1.6px);
 }
-.face[data-field] .bg canvas.is-lit:not(.field) { opacity: .20; }
-.face[data-layout="canvas"] .cover { width: 22vw; height: 22vw; }
-.face[data-layout="canvas"] .title { font-size: 3.1vw; }
-.face[data-layout="canvas"] .lamps b { width: .3vw; }
+.face:not([data-size])[data-field] .bg canvas.is-lit:not(.field) { opacity: .20; }
+.face:not([data-size])[data-layout="canvas"] .cover { width: 22vw; height: 22vw; }
+.face:not([data-size])[data-layout="canvas"] .title { font-size: 3.1vw; }
+.face:not([data-size])[data-layout="canvas"] .lamps b { width: .3vw; }
 
 @media (max-width: 900px) {
-  .face[data-layout="dial"] .body { -webkit-flex-direction: column; flex-direction: column; }
-  .face[data-layout="dial"] .dialbox { width: 46vw; height: 46vw; margin: 2vh 0 0 0; }
-  .face[data-layout="dial"] .cover { width: 52vw; height: 52vw; }
-  .face[data-layout="libretto"] .np { -webkit-flex-direction: column; flex-direction: column; }
-  .face[data-layout="libretto"] .cover { width: 40vw; height: 40vw; margin: 0 0 2vh 0; }
-  .face[data-layout="libretto"] .title { font-size: 7vw; }
+  .face:not([data-size])[data-layout="dial"] .body { -webkit-flex-direction: column; flex-direction: column; }
+  .face:not([data-size])[data-layout="dial"] .dialbox { width: 46vw; height: 46vw; margin: 2vh 0 0 0; }
+  .face:not([data-size])[data-layout="dial"] .cover { width: 52vw; height: 52vw; }
+  .face:not([data-size])[data-layout="libretto"] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face:not([data-size])[data-layout="libretto"] .cover { width: 40vw; height: 40vw; margin: 0 0 2vh 0; }
+  .face:not([data-size])[data-layout="libretto"] .title { font-size: 7vw; }
 }
 
 /* Transport and volume. Same target discipline as the face buttons: 65 px tall
@@ -808,7 +808,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    opening is a press, and where you press decides what appears. */
 .zone, .status, .cog { -webkit-transition: opacity .35s ease; transition: opacity .35s ease; }
 .face .cog { opacity: 0; }
-.face.show-chrome .cog { opacity: .85; }
+.face:not([data-size]).show-chrome .cog { opacity: .85; }
 .cog {
   margin-left: 1.2vw; cursor: pointer; display: -webkit-inline-flex; display: inline-flex;
   -webkit-align-items: center; align-items: center;
@@ -838,8 +838,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    The room and the face name are indicators, not decoration — each NAMES what it
    changes — and they appear only when someone shows signs of using the screen. */
 .face .zone, .face .status, .face .artistname { opacity: 0; }
-.face.show-chrome .zone, .face.show-chrome .status { opacity: 1; }
-.face.show-chrome .artistname { opacity: .9; }
+.face:not([data-size]).show-chrome .zone, .face:not([data-size]).show-chrome .status { opacity: 1; }
+.face:not([data-size]).show-chrome .artistname { opacity: .9; }
 
 /* Both indicators read as pressable, and are sized to be pressed. */
 .face .zone, .face .cog {
@@ -848,13 +848,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   display: -webkit-inline-flex; display: inline-flex;
   -webkit-align-items: center; align-items: center;
 }
-.face.show-chrome .zone, .face.show-chrome .cog { border-color: rgba(242,238,230,.22); }
+.face:not([data-size]).show-chrome .zone, .face:not([data-size]).show-chrome .cog { border-color: rgba(242,238,230,.22); }
 .face .zone:hover, .face .cog:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
 .cog {
   margin-left: 1.2vw; font-size: 1.15vw; letter-spacing: .2em; text-transform: uppercase;
   color: var(--ash); min-width: 6vw; -webkit-justify-content: center; justify-content: center;
 }
-.face.show-chrome .cog { opacity: .9; }
+.face:not([data-size]).show-chrome .cog { opacity: .9; }
 
 /* The transport bar belongs to the revealed state, so its buttons are the ones
    reached for most — and are correspondingly bigger. */
@@ -903,7 +903,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face.show-chrome:not([data-column]):not([data-ring]):not([data-flank]) .cover { width: 12vw; height: 12vw; }
+.face:not([data-size]).show-chrome:not([data-column]):not([data-ring]):not([data-flank]) .cover { width: 12vw; height: 12vw; }
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
@@ -930,7 +930,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    their bodies already fill the frame. The faces that carry their controls in the
    layout are exactly the ones with the room to spare, so they are the ones that
    get it; the others keep the head in flow until they get the same treatment. */
-.face[data-shelf] .head { position: absolute; top: 0; left: 0; right: 0; }
+.face:not([data-size])[data-shelf] .head { position: absolute; top: 0; left: 0; right: 0; }
 
 /* ══ VOLUME, IN THE RUNWAY'S LANGUAGE ═════════════════════════════════════════
    A speaker that mutes, and a scale of segments pressed anywhere to set the level.
@@ -970,7 +970,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ⚖️ The content is centred BETWEEN the two bands, not pushed to the top of the
    frame. It used to move out of a raised strip's way, which meant upwards; now
    there is a band above it as well, and it belongs in the gap. */
-.face.show-chrome:not([data-column]) .body {
+.face:not([data-size]).show-chrome:not([data-column]) .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
   padding-top: 20vh; padding-bottom: 23vh;
 }
@@ -984,7 +984,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face.show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .body { padding-top: 12.4vh; }
+.face:not([data-size]).show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1047,11 +1047,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ARTIST VIEW: the sleeve is a reference, not the subject. At full size it masked
    the person it is meant to accompany — it now stands the same height as the three
    lines beside it. */
-.face[data-view="artist"] .cover,
-.face.show-chrome[data-view="artist"] .cover { width: 8.4vw; height: 8.4vw; }
+.face:not([data-size])[data-view="artist"] .cover,
+.face:not([data-size]).show-chrome[data-view="artist"] .cover { width: 8.4vw; height: 8.4vw; }
 @media (max-width: 900px) {
-  .face[data-view="artist"] .cover,
-  .face.show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
+  .face:not([data-size])[data-view="artist"] .cover,
+  .face:not([data-size]).show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
   .picker.mode-transport .vol-scale { min-width: 44vw; }
 }
 
@@ -1114,14 +1114,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * the clearance had been calculated against the sleeve's corners and the segment
  * below it has to hold three lines as well.
  */
-.face[data-layout="dial"] .dialbox {
+.face:not([data-size])[data-layout="dial"] .dialbox {
   left: -55.5%; top: -55.5%; width: 211%; height: 211%;
 }
-.face[data-layout="dial"] .cover { width: 44vh; height: 44vh; }
+.face:not([data-size])[data-layout="dial"] .cover { width: 44vh; height: 44vh; }
 
 /* position, so the copy's `top: 100%` means the SLEEVE's base. Left static it
    resolved against the frame instead and the title fell off the bottom edge. */
-.face[data-layout="dial"] .np {
+.face:not([data-size])[data-layout="dial"] .np {
   position: relative;
   -webkit-flex-direction: column; flex-direction: column;
   width: auto; max-width: none;
@@ -1129,22 +1129,22 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The copy fills the bottom segment: anchored to the sleeve, spread to the ring.
    A segment is a LENS, not a box — it narrows towards the ring — so each line is
    capped at the chord available where it sits, and elides rather than spilling. */
-.face[data-layout="dial"] .copy {
+.face:not([data-size])[data-layout="dial"] .copy {
   position: absolute; top: 100%; left: -12%; right: -12%;
   width: auto;  /* the base rule's `width: 100%` beat `right` and pushed it off-centre */
   margin: 0; padding-top: 1.5vh; text-align: center;
 }
-.face[data-layout="dial"] .title,
-.face[data-layout="dial"] .line2,
-.face[data-layout="dial"] .line3 {
+.face:not([data-size])[data-layout="dial"] .title,
+.face:not([data-size])[data-layout="dial"] .line2,
+.face:not([data-size])[data-layout="dial"] .line3 {
   margin-left: auto; margin-right: auto;
   /* block, because the title's -webkit-box line-clamp ignores text-overflow */
   display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.face[data-layout="dial"] .title { font-size: 1.9vw; max-width: 100%; }
-.face[data-layout="dial"] .line2 { font-size: 1.3vw; margin-top: .8vh; max-width: 85%; }
-.face[data-layout="dial"] .line3 { font-size: 1.05vw; margin-top: .4vh; max-width: 68%; }
+.face:not([data-size])[data-layout="dial"] .title { font-size: 1.9vw; max-width: 100%; }
+.face:not([data-size])[data-layout="dial"] .line2 { font-size: 1.3vw; margin-top: .8vh; max-width: 85%; }
+.face:not([data-size])[data-layout="dial"] .line3 { font-size: 1.05vw; margin-top: .4vh; max-width: 68%; }
 /**
  * WITH THE CHROME UP THE WHOLE FACE SCALES, WORDS INCLUDED.
  *
@@ -1158,10 +1158,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  */
 /* (The four rules that scaled these "by the same 34/44 the sleeve is" are gone
    with the shrink they belonged to. Dial keeps one size now — Peter, 08-29.) */
-.face.show-chrome[data-layout="dial"] .dial-times { font-size: .89vw; }
+.face:not([data-size]).show-chrome[data-layout="dial"] .dial-times { font-size: .89vw; }
 
 /* and the reading fills the top one */
-.face[data-layout="dial"] .dial-reading { top: 12%; }
+.face:not([data-size])[data-layout="dial"] .dial-reading { top: 12%; }
 
 /* ══ ORBIT — the circle to one side, the words to the other ═══════════════════
    The same ring, composed asymmetrically: a 16:9 frame is wider than the circle
@@ -1170,7 +1170,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    overhang is out of flow — so the frame's left inset and the gap to the words
    both have to be paid in sleeve-widths, or the circle runs off the edge and the
    words sit on top of it. */
-.face[data-layout="orbit"] .np {
+.face:not([data-size])[data-layout="orbit"] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: flex-start; justify-content: flex-start;
@@ -1180,8 +1180,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
      of overhang plus the 5vw margin Classic keeps. */
   width: 100%; max-width: 96vw; padding-left: 14vh;
 }
-.face[data-layout="orbit"] .cover { width: 46vh; height: 46vh; }
-.face[data-layout="orbit"] .copy {
+.face:not([data-size])[data-layout="orbit"] .cover { width: 46vh; height: 46vh; }
+.face:not([data-size])[data-layout="orbit"] .copy {
   background: none; padding: 0;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   text-align: left; min-width: 0; margin-left: 26vh; max-width: 44vw;
@@ -1196,15 +1196,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-justify-content: center; justify-content: center;
 }
-.face[data-layout="orbit"] .shelf .controls { width: 100%; }
-.face[data-layout="orbit"] .shelf-browse .row-browse { width: 100%; }
+.face:not([data-size])[data-layout="orbit"] .shelf .controls { width: 100%; }
+.face:not([data-size])[data-layout="orbit"] .shelf-browse .row-browse { width: 100%; }
 /* margin 0, not `0 auto`: the words are a left column beside the circle. */
-.face[data-layout="orbit"] .title { font-size: 2.6vw; margin: 0; max-width: 100%; }
-.face[data-layout="orbit"] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
-.face[data-layout="orbit"] .line3 { font-size: 1.25vw; margin-top: .7vh; }
+.face:not([data-size])[data-layout="orbit"] .title { font-size: 2.6vw; margin: 0; max-width: 100%; }
+.face:not([data-size])[data-layout="orbit"] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
+.face:not([data-size])[data-layout="orbit"] .line3 { font-size: 1.25vw; margin-top: .7vh; }
 /* the reading belongs to the circle, so it goes in the ring's own top segment —
    the same place Dial puts it — not floating above the frame detached from it */
-.face[data-layout="orbit"] .dial-reading { top: 12%; left: 0; right: 0; }
+.face:not([data-size])[data-layout="orbit"] .dial-reading { top: 12%; left: 0; right: 0; }
 
 /**
  * ORBIT'S RING IS A LINE, NOT A BAND.
@@ -1229,16 +1229,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    should match the more subtle dial shading") — the warm accent at .78, not a
    bright cream line. Only the WEIGHT stays Orbit's: its circle is bigger, so the
    same stroke would read heavier. Retired rather than out-specified. */
-.face[data-layout="orbit"] .dial-arc { stroke-width: 1.8; }
-.face[data-layout="orbit"] .dial-track { stroke-width: 1.3; stroke: rgba(242,238,230,.09); }
-.face[data-layout="orbit"] .dial-bead { r: 2.1; stroke-width: .7; }
+.face:not([data-size])[data-layout="orbit"] .dial-arc { stroke-width: 1.8; }
+.face:not([data-size])[data-layout="orbit"] .dial-track { stroke-width: 1.3; stroke: rgba(242,238,230,.09); }
+.face:not([data-size])[data-layout="orbit"] .dial-bead { r: 2.1; stroke-width: .7; }
 
 @media (max-width: 900px) {
-  .face[data-layout="orbit"] .np { -webkit-flex-direction: column; flex-direction: column; padding-left: 0; }
-  .face[data-layout="orbit"] .copy { text-align: center; margin-left: 0; margin-top: 12vw; }
-  .face[data-layout="orbit"] .cover,
-  .face.show-chrome[data-layout="orbit"] .cover { width: 56vw; height: 56vw; }
-  .face[data-layout="dial"] .copy { left: -20%; right: -20%; }
+  .face:not([data-size])[data-layout="orbit"] .np { -webkit-flex-direction: column; flex-direction: column; padding-left: 0; }
+  .face:not([data-size])[data-layout="orbit"] .copy { text-align: center; margin-left: 0; margin-top: 12vw; }
+  .face:not([data-size])[data-layout="orbit"] .cover,
+  .face:not([data-size]).show-chrome[data-layout="orbit"] .cover { width: 56vw; height: 56vw; }
+  .face:not([data-size])[data-layout="dial"] .copy { left: -20%; right: -20%; }
 }
 
 /* ── A ROOM IN THE PICKER ─────────────────────────────────────────────────────
@@ -1329,13 +1329,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    The cover is sacred: it is never dimmed, and now nothing sits on top of it
    either. Only the stacking order changes — no opacity, filter or mask is
    involved, on the sleeve or on any ancestor. */
-.face[data-ring] .cover img { position: relative; z-index: 1; }
-.face[data-ring] .dialbox { z-index: 0; }
+.face:not([data-size])[data-ring] .cover img { position: relative; z-index: 1; }
+.face:not([data-size])[data-ring] .dialbox { z-index: 0; }
 
 /* And the ring itself is softened — full-strength accent at this weight read as
    harsh, especially on a sleeve that samples to a bright colour. */
-.face[data-ring] .dial-arc { stroke-opacity: .78; }
-.face[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
+.face:not([data-size])[data-ring] .dial-arc { stroke-opacity: .78; }
+.face:not([data-size])[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
 
 /* The way back to the house: it appears with the rest of the chrome and is
    invisible at rest, like everything else the Face offers. */
@@ -1348,7 +1348,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   color: var(--ash); cursor: pointer; opacity: 0;
   -webkit-transition: opacity .35s ease; transition: opacity .35s ease;
 }
-.face.show-chrome .homemark { opacity: .85; }
+.face:not([data-size]).show-chrome .homemark { opacity: .85; }
 .homemark:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); color: var(--bone); }
 .homemark .glyph { width: 1.15vw; height: 1.15vw; }
 .homemark[hidden] { display: none; }
@@ -1359,7 +1359,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
 /* The way back reads as a control, not a hint: a visible edge and full weight,
    because it is the one thing on the screen a lost viewer is looking for. */
-.face.show-chrome .homemark { opacity: 1; }
+.face:not([data-size]).show-chrome .homemark { opacity: 1; }
 .homemark {
   border-color: rgba(242,238,230,.22);
   color: var(--bone, #f2eee6);
@@ -1378,19 +1378,19 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    One second, linear: it arrives exactly as the next second does, so the motion
    is continuous rather than a step followed by a wait. */
-.face[data-ring] .dial-arc {
+.face:not([data-size])[data-ring] .dial-arc {
   -webkit-transition: stroke-dashoffset 1s linear; transition: stroke-dashoffset 1s linear;
 }
-.face[data-ring] .dial-bead {
+.face:not([data-size])[data-ring] .dial-bead {
   -webkit-transition: cx 1s linear, cy 1s linear; transition: cx 1s linear, cy 1s linear;
 }
 /* a seek or a track change lands at once; only the passing of a second is eased */
-.face[data-ring].ring-jump .dial-arc,
-.face[data-ring].ring-jump .dial-bead {
+.face:not([data-size])[data-ring].ring-jump .dial-arc,
+.face:not([data-size])[data-ring].ring-jump .dial-bead {
   -webkit-transition: none; transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .face[data-ring] .dial-arc, .face[data-ring] .dial-bead {
+  .face:not([data-size])[data-ring] .dial-arc, .face:not([data-size])[data-ring] .dial-bead {
     -webkit-transition: none; transition: none;
   }
 }
@@ -1403,16 +1403,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    `ring-jump` is set for one update on a seek or a track change, so those land
    at once instead of crawling. */
-.face[data-layout="classic"] .bar i,
-.face[data-layout="libretto"] .bar i {
+.face:not([data-size])[data-layout="classic"] .bar i,
+.face:not([data-size])[data-layout="libretto"] .bar i {
   -webkit-transition: width 1s linear; transition: width 1s linear;
 }
-.face.ring-jump[data-layout="classic"] .bar i,
-.face.ring-jump[data-layout="libretto"] .bar i {
+.face:not([data-size]).ring-jump[data-layout="classic"] .bar i,
+.face:not([data-size]).ring-jump[data-layout="libretto"] .bar i {
   -webkit-transition: none; transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .face[data-layout="classic"] .bar i, .face[data-layout="libretto"] .bar i {
+  .face:not([data-size])[data-layout="classic"] .bar i, .face:not([data-size])[data-layout="libretto"] .bar i {
     -webkit-transition: none; transition: none;
   }
 }
@@ -1436,13 +1436,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    the words never move when the chrome arrives. Everywhere else the shelf is
    empty and collapses to nothing. */
 .shelf { display: none; }
-.face[data-shelf] .shelf {
+.face:not([data-size])[data-shelf] .shelf {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
   opacity: 0;
   -webkit-transition: opacity .3s ease; transition: opacity .3s ease;
 }
-.face.show-chrome[data-shelf] .shelf { opacity: 1; }
+.face:not([data-size]).show-chrome[data-shelf] .shelf { opacity: 1; }
 
 /* ⚖️ THE TWO CHROME ROWS SIT TOGETHER, on the sleeve's baseline (Peter, 08-28:
    "would the controls chrome being placed just over the volume help — looks
@@ -1455,31 +1455,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    Both are OUT OF FLOW, which is the whole point: the title and the sleeve are
    in exactly the same place whether the chrome is up or down. */
-.face[data-shelf] .shelf-transport {
+.face:not([data-size])[data-shelf] .shelf-transport {
   position: absolute; left: 0; right: 0; bottom: 4.2vw;
   margin: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
   min-height: 3.4vw;
 }
 /* the volume, directly above the progress */
-.face[data-shelf] .shelf-volume {
+.face:not([data-size])[data-shelf] .shelf-volume {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   -webkit-justify-content: center; justify-content: center;
   min-height: 3vw; margin: 0 6vw;
 }
-.face[data-shelf] .shelf .controls {
+.face:not([data-size])[data-shelf] .shelf .controls {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
   -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
 }
-.face[data-shelf] .shelf .controls > * { margin: 0 .5vw 0 0; }
-.face[data-shelf] .shelf-volume .vol-scale { min-width: 26vw; }
+.face:not([data-size])[data-shelf] .shelf .controls > * { margin: 0 .5vw 0 0; }
+.face:not([data-size])[data-shelf] .shelf-volume .vol-scale { min-width: 26vw; }
 
 /* nothing to press while it is invisible */
-.face[data-shelf] .shelf { pointer-events: none; }
-.face.show-chrome[data-shelf] .shelf { pointer-events: auto; }
+.face:not([data-size])[data-shelf] .shelf { pointer-events: none; }
+.face:not([data-size]).show-chrome[data-shelf] .shelf { pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) {
-  .face[data-shelf] .shelf { -webkit-transition: none; transition: none; }
+  .face:not([data-size])[data-shelf] .shelf { -webkit-transition: none; transition: none; }
 }
 
 /* ══ THE GROUP DOOR ═══════════════════════════════════════════════════════════
@@ -1495,7 +1495,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   color: var(--ash); cursor: pointer; opacity: 0;
   -webkit-transition: opacity .35s ease; transition: opacity .35s ease;
 }
-.face.show-chrome .groupdoor { opacity: .9; }
+.face:not([data-size]).show-chrome .groupdoor { opacity: .9; }
 /* ⚖️ THE FRAME MATCHES THE ARROW AND THE NAME (Peter, 08-28: "make the frame
    around the number of group members match that around the arrow and name —
    white I think"). The three are one mark across the top of the artwork, so
@@ -1555,7 +1555,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    It lives in the words column now, absolutely placed at the foot of a column
    the height of the sleeve, so it costs the layout nothing and its base lines up
    with the base of the art. The words stay centred exactly where they were. */
-.face[data-layout="classic"] .copy {
+.face:not([data-size])[data-layout="classic"] .copy {
   position: relative;
   min-height: 34vw;                 /* the sleeve's own height, so the two agree */
   /* the column is taller than its words now, so the words centre inside it and
@@ -1564,7 +1564,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-justify-content: center; justify-content: center;
 }
-.face[data-shelf] .shelf-volume {
+.face:not([data-size])[data-shelf] .shelf-volume {
   position: absolute; left: 0; right: 0; bottom: 0;
   margin: 0; min-height: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
@@ -1607,37 +1607,37 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
    And it stands as tall as the transport does, so the two chrome lines are the
    same weight rather than one being half again as deep as the other. */
-.face[data-shelf] .shelf-volume {
+.face:not([data-size])[data-shelf] .shelf-volume {
   min-height: 3.4vw;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-shelf] .shelf-volume .controls > * { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face:not([data-size])[data-shelf] .shelf-volume .controls > * { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
 
 /* The scale rests at 4.6vw everywhere else; in Classic's shelf it matches the
    transport's 3.4vw so the two chrome lines carry the same weight. Still a
    65px target on a 1080p screen, and volume here is tapped, never dragged. */
-.face[data-shelf] .shelf-volume .vol-scale {
+.face:not([data-size])[data-shelf] .shelf-volume .vol-scale {
   min-height: 3.4vw; margin-top: 0; margin-bottom: 0;
 }
-.face[data-shelf] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
+.face:not([data-size])[data-shelf] .shelf-volume .rooms-toggle { -webkit-align-items: center; align-items: center; }
 /* the wrapper must be exactly its button, or the row's right edge is the
    wrapper's and the button sits 13px inside the transport's last control */
-.face[data-shelf] .shelf-volume .rooms-toggle .ctl { margin: 0; }
+.face:not([data-size])[data-shelf] .shelf-volume .rooms-toggle .ctl { margin: 0; }
 
 /* ⚖️ THE TWO CHROME ROWS ARE THE SAME WIDTH — the artwork's — so they read as one
    block with two edges rather than two rows that happen to start together. The
    transport spreads across it the way the wall card's does, ending exactly where
    the volume ends. */
-.face[data-layout="classic"] .shelf .controls { width: 34vw; }
-.face[data-layout="classic"] .shelf-browse .row-browse { width: 34vw; }
-.face[data-shelf] .shelf-transport .controls {
+.face:not([data-size])[data-layout="classic"] .shelf .controls { width: 34vw; }
+.face:not([data-size])[data-layout="classic"] .shelf-browse .row-browse { width: 34vw; }
+.face:not([data-size])[data-shelf] .shelf-transport .controls {
   -webkit-justify-content: space-between; justify-content: space-between;
 }
-.face[data-shelf] .shelf-transport .controls > * { margin: 0; }
-.face[data-shelf] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.face:not([data-size])[data-shelf] .shelf-transport .controls > * { margin: 0; }
+.face:not([data-size])[data-shelf] .shelf-volume .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 @media (orientation: portrait) {
-  .face[data-layout="classic"] .shelf .controls { width: 100%; }
-  .face[data-layout="classic"] .shelf-browse .row-browse { width: 100%; }
+  .face:not([data-size])[data-layout="classic"] .shelf .controls { width: 100%; }
+  .face:not([data-size])[data-layout="classic"] .shelf-browse .row-browse { width: 100%; }
 }
 
 
@@ -1645,8 +1645,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    members to align left and right with the volume line"). The trailing margin
    on the last control was setting the volume's right edge 9px inside the
    transport's; now the outer edges of both rows are the row itself. */
-.face[data-shelf] .shelf .controls > *:first-child { margin-left: 0; }
-.face[data-shelf] .shelf .controls > *:last-child { margin-right: 0; }
+.face:not([data-size])[data-shelf] .shelf .controls > *:first-child { margin-left: 0; }
+.face:not([data-size])[data-shelf] .shelf .controls > *:last-child { margin-right: 0; }
 
 /* PLAY, subtly emphasised: a touch wider and taller than its neighbours with a
    little more light behind it, centres still on the one line. */
@@ -1671,12 +1671,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    Below the words: how to play what is on. Above them: what to play instead. The
    music sits between the two questions. Out of flow like its mirrors, so the
    title and the sleeve do not move when it arrives. */
-.face[data-shelf] .shelf-browse {
+.face:not([data-size])[data-shelf] .shelf-browse {
   position: absolute; left: 0; right: 0; top: 0;
   margin: 0; min-height: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
 }
-.face[data-shelf] .shelf-browse .row-browse {
+.face:not([data-size])[data-shelf] .shelf-browse .row-browse {
   display: -webkit-flex; display: flex;
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-justify-content: space-between; justify-content: space-between;
@@ -1688,7 +1688,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    out here they arrived as bare words. Given the CONTROLS' look rather than the
    picker's: this row is chrome in the layout, and it should read as a sibling of
    the transport and volume rows it mirrors, not as a menu that got loose. */
-.face[data-shelf] .shelf-browse .browse-entry {
+.face:not([data-size])[data-shelf] .shelf-browse .browse-entry {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: 23.5%; margin: 0 0 .6vh 0;
   display: -webkit-flex; display: flex;
@@ -1701,11 +1701,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: background .18s ease, border-color .18s ease;
   transition: background .18s ease, border-color .18s ease;
 }
-.face[data-shelf] .shelf-browse .browse-entry:hover {
+.face:not([data-size])[data-shelf] .shelf-browse .browse-entry:hover {
   background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5);
 }
 @media (orientation: portrait) {
-  .face[data-shelf] .shelf-browse .browse-entry { min-height: 8vw; font-size: 3vw; }
+  .face:not([data-size])[data-shelf] .shelf-browse .browse-entry { min-height: 8vw; font-size: 3vw; }
 }
 
 /* The marks sit BESIDE the words in both places they are drawn — the shelf and
@@ -1716,9 +1716,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: center; justify-content: center;
 }
-.face[data-shelf] .shelf-browse .browse-entry .glyph { width: 1.15vw; height: 1.15vw; }
+.face:not([data-size])[data-shelf] .shelf-browse .browse-entry .glyph { width: 1.15vw; height: 1.15vw; }
 @media (orientation: portrait) {
-  .face[data-shelf] .shelf-browse .browse-entry .glyph { width: 3.4vw; height: 3.4vw; }
+  .face:not([data-size])[data-shelf] .shelf-browse .browse-entry .glyph { width: 3.4vw; height: 3.4vw; }
 }
 
 
@@ -1732,7 +1732,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    belongs there too, exactly on top of it, rather than floating over the middle
    of the screen with the artwork behind it. `.copy` is the positioning parent on
    these faces, so `0,0,0,0` IS the column, at whatever size the face makes it. */
-.face[data-shelf] .copy > .browse {
+.face:not([data-size])[data-shelf] .copy > .browse {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0;
   width: auto; max-height: none;
   -webkit-transform: none; transform: none;
@@ -1741,14 +1741,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 
 /* The rooms' own levels, in the same window rather than a popover over the
    controls that opened it. */
-.face[data-shelf] .shelf-volume .rooms-toggle { position: static; }
+.face:not([data-size])[data-shelf] .shelf-volume .rooms-toggle { position: static; }
 /* ⚠️ `display` is set ONLY on the not-hidden case. Putting it in the base rule
    gave it (0,3,0) against `.member-vols[hidden]`'s (0,2,0), so the panel was
    shown whether or not it was hidden — sitting over the whole column and
    swallowing presses aimed at the controls beneath it. That looked like the
    disclosure vanishing when used, and it made the master mute button send a
    MEMBER's id, because the member row was what the press actually landed on. */
-.face[data-shelf] .member-vols {
+.face:not([data-size])[data-shelf] .member-vols {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0;
   margin: 0; min-width: 0; border-radius: 8px;
   padding: 1.2vh 1.2vw;
@@ -1760,23 +1760,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   box-shadow: 0 1.2vw 3vw rgba(0,0,0,.7);
   z-index: 6;
 }
-.face[data-shelf] .member-vols:not([hidden]) {
+.face:not([data-size])[data-shelf] .member-vols:not([hidden]) {
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-justify-content: center; justify-content: center;
 }
-.face[data-shelf] .member-vols .member-vol { margin-bottom: 1.1vh; }
+.face:not([data-size])[data-shelf] .member-vols .member-vol { margin-bottom: 1.1vh; }
 /* ⚖️ EVERY SLIDER THE SAME LENGTH (Peter, 08-28: "volume 'slider' should be the
    same length not dependent on the length of the output name"). `min-width`
    alone let a long room name push its own scale short, so the rooms could not be
    read against each other — which is the entire reason they are listed together.
    A fixed column, ellipsis past it, and every scale starts and ends on the same
    two pixels. */
-.face[data-shelf] .member-vols .member-name {
+.face:not([data-size])[data-shelf] .member-vols .member-name {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: 13.5vw; min-width: 0; max-width: 13.5vw; font-size: .95vw;
 }
-.face[data-shelf] .member-vols .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
+.face:not([data-size])[data-shelf] .member-vols .vol-scale { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 
 
 /* The number at the end of each room's scale, and the scale's own ends above
@@ -1785,7 +1785,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The level in a disc — a round reading beside a square scale, so the number
    reads as a value rather than as another end-label. Fixed size, so the digits
    sit under one another whether the level is 7 or 100. */
-.face[data-shelf] .member-vols .member-read {
+.face:not([data-size])[data-shelf] .member-vols .member-read {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: 2.6vw; height: 2.6vw; margin-left: .8vw;
   display: -webkit-flex; display: flex;
@@ -1796,12 +1796,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 /* Muted is the speaker's job to SAY, at the other end of the row; the disc only
    goes quiet, and keeps the level the room will come back to. */
-.face[data-shelf] .member-vols .member-read.is-muted {
+.face:not([data-size])[data-shelf] .member-vols .member-read.is-muted {
   color: var(--dim); border-color: rgba(242,238,230,.12);
 }
 
 /* The close, top right, where a window's close belongs. */
-.face[data-shelf] .member-vols .member-shut {
+.face:not([data-size])[data-shelf] .member-vols .member-shut {
   position: absolute; top: .8vh; right: .8vw;
   width: 2.2vw; height: 2.2vw; line-height: 1;
   display: -webkit-flex; display: flex;
@@ -1812,25 +1812,25 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: background .18s ease, border-color .18s ease;
   transition: background .18s ease, border-color .18s ease;
 }
-.face[data-shelf] .member-vols .member-shut:hover {
+.face:not([data-size])[data-shelf] .member-vols .member-shut:hover {
   background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); color: var(--bone);
 }
 @media (orientation: portrait) {
-  .face[data-shelf] .member-vols .member-read { width: 8vw; height: 8vw; font-size: 2.6vw; }
-  .face[data-shelf] .member-vols .member-shut { width: 8vw; height: 8vw; font-size: 4vw; }
+  .face:not([data-size])[data-shelf] .member-vols .member-read { width: 8vw; height: 8vw; font-size: 2.6vw; }
+  .face:not([data-size])[data-shelf] .member-vols .member-shut { width: 8vw; height: 8vw; font-size: 4vw; }
 }
-.face[data-shelf] .member-vols .member-head { margin-bottom: .3vh; }
-.face[data-shelf] .member-vols .member-headpad {
+.face:not([data-size])[data-shelf] .member-vols .member-head { margin-bottom: .3vh; }
+.face:not([data-size])[data-shelf] .member-vols .member-headpad {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; min-width: 4.6vw;
 }
-.face[data-shelf] .member-vols .member-ends {
+.face:not([data-size])[data-shelf] .member-vols .member-ends {
   -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0;
   display: -webkit-flex; display: flex;
   -webkit-justify-content: space-between; justify-content: space-between;
   padding: 0 .8vw; margin: 0 .35vw;
 }
-.face[data-shelf] .member-vols .member-head .member-read { border: 0; }
-.face[data-shelf] .member-vols .member-end {
+.face:not([data-size])[data-shelf] .member-vols .member-head .member-read { border: 0; }
+.face:not([data-size])[data-shelf] .member-vols .member-end {
   font-size: .8vw; letter-spacing: .1em; color: var(--dim);
 }
 
@@ -1844,7 +1844,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-column] .headmark {
+.face:not([data-size])[data-column] .headmark {
   position: relative;
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   -webkit-justify-content: center; justify-content: center;
@@ -1853,31 +1853,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    them — rather than the three sharing the space, which would slide the name
    sideways by half the difference every time the group door appeared or the
    count went from one digit to two. */
-.face[data-column] .headmark .homemark { position: absolute; left: 0; }
-.face[data-column] .headmark .groupdoor { position: absolute; right: 0; }
-.face[data-column] .headmark .zone {
+.face:not([data-size])[data-column] .headmark .homemark { position: absolute; left: 0; }
+.face:not([data-size])[data-column] .headmark .groupdoor { position: absolute; right: 0; }
+.face:not([data-size])[data-column] .headmark .zone {
   -webkit-flex: 0 1 auto; flex: 0 1 auto;
   text-align: center; min-width: 0; max-width: 62%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   margin: 0;
 }
 /* Classic: the sleeve's own 34vw, starting where the sleeve starts. */
-.face[data-layout="classic"] .headmark { width: 34vw; }
+.face:not([data-size])[data-layout="classic"] .headmark { width: 34vw; }
 /* Orbit: the RING, not the sleeve — 46vh of sleeve carries a circle 1.559 times
    as wide, and it begins 12.86vh left of the sleeve, which the 14vh inset all
    but cancels. */
-.face[data-layout="orbit"] .headmark { width: 71.7vh; margin-left: 1.14vh; }
+.face:not([data-size])[data-layout="orbit"] .headmark { width: 71.7vh; margin-left: 1.14vh; }
 @media (orientation: portrait) {
-  .face[data-column] .headmark { width: auto; }
-  .face[data-column] .headmark .zone { text-align: left; }
+  .face:not([data-size])[data-column] .headmark { width: auto; }
+  .face:not([data-size])[data-column] .headmark .zone { text-align: left; }
 }
 
 /* ⚠️ The head is a full-width bar with content only at its two ends, and out of
    flow it was CAPTURING presses across the whole strip — the browse marks sit in
    that band and could not be pressed at all on a stopped room. The bar itself
    takes no presses; the things in it still do. */
-.face[data-shelf] .head { pointer-events: none; }
-.face[data-shelf] .head > * { pointer-events: auto; }
+.face:not([data-size])[data-shelf] .head { pointer-events: none; }
+.face:not([data-size])[data-shelf] .head > * { pointer-events: auto; }
 
 /* ══ THE FACE NAME LINES UP WITH THE CONTROLS ═════════════════════════════════
    ⚖️ Peter, 08-28: "move the face name to right justify in line with the control
@@ -1889,10 +1889,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    Classic's rows are 34vw starting 37.4vw into the safe area (sleeve 34vw plus
    its 3.4vw gap), so they end 18.6vw short of the safe area's 90vw. Orbit's fill
    its column, which begins 86vh in and runs 44vw. */
-.face[data-layout="classic"] .cog { margin-right: 18.6vw; }
-.face[data-layout="orbit"] .cog { margin-right: calc(46vw - 86vh); }
+.face:not([data-size])[data-layout="classic"] .cog { margin-right: 18.6vw; }
+.face:not([data-size])[data-layout="orbit"] .cog { margin-right: calc(46vw - 86vh); }
 @media (orientation: portrait) {
-  .face[data-shelf] .cog { margin-right: 0; }
+  .face:not([data-size])[data-shelf] .cog { margin-right: 0; }
 }
 
 /* The layout mark sits before the face's name, the same way the browse marks sit
@@ -1928,7 +1928,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    edges, same ground, one place to look. The mode-specific `top`/`bottom` that
    place the strip are overridden here rather than removed, because the faces
    WITHOUT a shelf still need them. */
-.face[data-shelf] .copy > .picker {
+.face:not([data-size])[data-shelf] .copy > .picker {
   position: absolute; left: 0; right: 0; top: 0; bottom: 0;
   -webkit-transform: none; transform: none;
   max-width: none; border-radius: 8px;
@@ -1940,7 +1940,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 /* Its rows are as wide as the window, so the options spread the way the browse
    marks and the controls do rather than huddling in the middle. */
-.face[data-shelf] .copy > .picker .row { width: 100%; }
+.face:not([data-size])[data-shelf] .copy > .picker .row { width: 100%; }
 
 
 /* ══ RONDO — a Libretto that draws the ring ═══════════════════════════════════
@@ -1953,7 +1953,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    circle, which is about what a 20vw picture occupied. Sized here rather than
    left to overflow — at Libretto's own size the ring ran 33px off the top of
    the frame and past the safe edge on the right. */
-.face[data-ring][data-layout="libretto"] .cover {
+.face:not([data-size])[data-ring][data-layout="libretto"] .cover {
   width: 11vw; height: 11vw;
   margin-left: 6vw; margin-right: 9vw;
 }
@@ -1961,10 +1961,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    ring, where there is room for it. Here the circle is small and the times are
    already at the foot, so it would be the same numbers twice; unstyled, it fell
    into the flow underneath and said them there. */
-.face[data-ring][data-layout="libretto"] .dial-reading { display: none; }
+.face:not([data-size])[data-ring][data-layout="libretto"] .dial-reading { display: none; }
 /* And the page sits lower, because the ring reaches 81px above the sleeve and
    the top of the frame belongs to the room's name and the face's. */
-.face[data-ring][data-layout="libretto"] .body { padding-top: 14vh; }
+.face:not([data-size])[data-ring][data-layout="libretto"] .body { padding-top: 14vh; }
 
 /* ══ CHROME IN BANDS — the faces with no column beside the artwork ════════════
    ⚖️ Classic and Orbit hang their chrome in the words' column. Dial, Libretto,
@@ -1978,23 +1978,23 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    faces has a different positioned ancestor to hang off — Dial's body is
    relative, Libretto's is not — so absolute placement landed them in three
    different places. The frame is the one thing they all share. */
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf {
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf {
   position: fixed; left: 5vw; right: 5vw;
 }
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse { top: 11vh; bottom: auto; }
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-transport { bottom: 20vh; top: auto; }
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-volume { bottom: 11.5vh; top: auto; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse { top: 11vh; bottom: auto; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-transport { bottom: 20vh; top: auto; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-volume { bottom: 11.5vh; top: auto; }
 /* Centred, because the content they bracket is centred. */
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf { -webkit-justify-content: center; justify-content: center; }
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls { width: 46vw; }
-.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf { -webkit-justify-content: center; justify-content: center; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls { width: 46vw; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
 /* Libretto's words run the width of the frame, so its bands do too — a 46vw
    block under a 60vw title reads as a smaller, separate thing. */
-.face[data-layout="libretto"] .shelf .controls { width: 62vw; }
-.face[data-layout="libretto"] .shelf-browse .row-browse { width: 62vw; }
+.face:not([data-size])[data-layout="libretto"] .shelf .controls { width: 62vw; }
+.face:not([data-size])[data-layout="libretto"] .shelf-browse .row-browse { width: 62vw; }
 @media (orientation: portrait) {
-  .face[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls,
-  .face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 100%; }
+  .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls,
+  .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 100%; }
 }
 
 /* ══ CHROME IN THE FLANKS — Presence and Dial ═════════════════════════════════
@@ -2012,9 +2012,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    we do with classic — there's room"). Presence leaves 614px beside its sleeve
    and Dial 429px beside its ring, so they are not the same number and pretending
    otherwise wasted a third of Presence's. */
-.face[data-flank] .shelf { position: fixed; width: 21vw; }
-.face[data-layout="presence"] .shelf { width: 30vw; }
-.face[data-flank] .shelf-browse { left: 5vw; right: auto; top: 0; bottom: 0; }
+.face:not([data-size])[data-flank] .shelf { position: fixed; width: 21vw; }
+.face:not([data-size])[data-layout="presence"] .shelf { width: 30vw; }
+.face:not([data-size])[data-flank] .shelf-browse { left: 5vw; right: auto; top: 0; bottom: 0; }
 /* ⚖️ THE TWO FLANKS SHARE A CENTRE LINE (Peter, 08-29: "align left and right
    areas on center"). The browse marks centre themselves in the full height; the
    two control rows are hung off the same middle, one just above it and one just
@@ -2024,30 +2024,30 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    Offsets in vw, the unit the controls are already sized in: the transport is
    3.9vw tall and the volume 3.4vw, so the pair plus a 1.2vw gap is 8.5vw and
    half of that is where the first one starts. */
-.face[data-flank] .shelf-transport {
+.face:not([data-size])[data-flank] .shelf-transport {
   right: 5vw; left: auto; top: 50%; bottom: auto; margin-top: -4.25vw;
 }
-.face[data-flank] .shelf-volume {
+.face:not([data-size])[data-flank] .shelf-volume {
   right: 5vw; left: auto; top: 50%; bottom: auto; margin-top: .85vw;
 }
-.face[data-flank] .shelf .controls { width: 100%; }
-.face[data-flank] .shelf-browse .row-browse { width: 100%; margin: 0; }
+.face:not([data-size])[data-flank] .shelf .controls { width: 100%; }
+.face:not([data-size])[data-flank] .shelf-browse .row-browse { width: 100%; margin: 0; }
 /* Two to a line and four deep: the same block as everywhere else, stood up. */
-.face[data-flank] .shelf-browse .browse-entry { width: 48.5%; margin: 0 3% .6vh 0; }
-.face[data-flank] .shelf-browse .browse-entry:nth-child(2n) { margin-right: 0; }
+.face:not([data-size])[data-flank] .shelf-browse .browse-entry { width: 48.5%; margin: 0 3% .6vh 0; }
+.face:not([data-size])[data-flank] .shelf-browse .browse-entry:nth-child(2n) { margin-right: 0; }
 @media (orientation: portrait) {
-  .face[data-flank] .shelf { position: fixed; width: auto; left: 5vw; right: 5vw; }
-  .face[data-flank] .shelf-browse { top: 11vh; bottom: auto; }
-  .face[data-flank] .shelf-transport { top: auto; bottom: 20vh; }
-  .face[data-flank] .shelf-volume { top: auto; bottom: 11.5vh; }
-  .face[data-flank] .shelf-browse .browse-entry { width: 48.5%; }
+  .face:not([data-size])[data-flank] .shelf { position: fixed; width: auto; left: 5vw; right: 5vw; }
+  .face:not([data-size])[data-flank] .shelf-browse { top: 11vh; bottom: auto; }
+  .face:not([data-size])[data-flank] .shelf-transport { top: auto; bottom: 20vh; }
+  .face:not([data-size])[data-flank] .shelf-volume { top: auto; bottom: 11.5vh; }
+  .face:not([data-size])[data-flank] .shelf-browse .browse-entry { width: 48.5%; }
 }
 
 /* ⚖️ AND NOTHING MOVES OR SHRINKS. The band faces make room by giving up size;
    these two have the room already, so every rule that takes it is RETIRED for
    them by scope. Naming a chrome-up size instead was the same mistake one level
    down: 52vh was a guess, Dial rests at 44vh, and the ring went off the frame. */
-.face.show-chrome[data-flank] .body {
+.face:not([data-size]).show-chrome[data-flank] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
   padding-top: 0; padding-bottom: 0;
 }
@@ -2055,21 +2055,21 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ⚖️ MUTE, PICKER AND MULTI ON ONE LINE (Peter, 08-29). They are one control —
    this room's loudness — and stacking the scale under its own two marks made it
    read as two. The flank is widened instead, which is where the room was. */
-.face[data-flank] .shelf-volume .controls {
+.face:not([data-size])[data-flank] .shelf-volume .controls {
   -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
   -webkit-justify-content: space-between; justify-content: space-between;
 }
-.face[data-flank] .shelf-volume .vol-scale {
+.face:not([data-size])[data-flank] .shelf-volume .vol-scale {
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   min-width: 0; margin: 0 .5vw;
 }
 /* ⚠️ And the transport ran 54px PAST the frame: five controls at 4.6vw each is
    440px in a 403px flank. They are narrower here — the flank is the constraint,
    not the button. */
-.face[data-flank] .shelf .ctl { min-width: 3.4vw; }
-.face[data-layout="presence"] .shelf .ctl { min-width: 4.6vw; }
-.face[data-flank] .shelf .ctl.is-play { min-width: 4vw; }
-.face[data-layout="presence"] .shelf .ctl.is-play { min-width: 5.4vw; }
+.face:not([data-size])[data-flank] .shelf .ctl { min-width: 3.4vw; }
+.face:not([data-size])[data-layout="presence"] .shelf .ctl { min-width: 4.6vw; }
+.face:not([data-size])[data-flank] .shelf .ctl.is-play { min-width: 4vw; }
+.face:not([data-size])[data-layout="presence"] .shelf .ctl.is-play { min-width: 5.4vw; }
 
 
 /* ══ ON A FLANK FACE, A PANEL OPENS WHERE ITS TRIGGER LIVES ═══════════════════
@@ -2085,22 +2085,22 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    The width is the narrower of the two flanks (Dial's ring leaves 429px, so
    21vw clears it) rather than each face's own, because a panel that changed
    width with the skin would be a different object on every screen. */
-.face[data-flank] .copy > .browse {
+.face:not([data-size])[data-flank] .copy > .browse {
   position: fixed; left: 5vw; right: auto; width: 21vw;
   top: 11vh; bottom: 9vh; max-height: none;
   -webkit-transform: none; transform: none;
 }
-.face[data-flank] .member-vols {
+.face:not([data-size])[data-flank] .member-vols {
   position: fixed; right: 5vw; left: auto; width: 21vw;
   top: 11vh; bottom: 9vh;
 }
-.face[data-flank] .copy > .picker {
+.face:not([data-size])[data-flank] .copy > .picker {
   position: fixed; right: 5vw; left: auto; width: 21vw;
   top: 11vh; bottom: 9vh; max-width: none;
   -webkit-transform: none; transform: none;
 }
 /* One to a line in a column this narrow — two would be four characters wide. */
-.face[data-flank] .copy > .picker.mode-faces .row-faces span.opt {
+.face:not([data-size])[data-flank] .copy > .picker.mode-faces .row-faces span.opt {
   width: 100%; margin: 0 0 .6vh 0;
 }
 
@@ -2110,44 +2110,44 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    centred lines and cut the artist off behind the alphabet. So the row stacks —
    title on its own line, artist under it, each clipped rather than wrapped, and
    the thumbnail keeps its place beside them. */
-.face[data-flank] .browse-row {
+.face:not([data-size])[data-flank] .browse-row {
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-align-items: center; align-items: center;
   padding: .8vh .7vw; min-height: 0;
 }
-.face[data-flank] .browse-thumb { width: 2.4vw; height: 2.4vw; margin-right: .6vw; }
-.face[data-flank] .browse-name {
+.face:not([data-size])[data-flank] .browse-thumb { width: 2.4vw; height: 2.4vw; margin-right: .6vw; }
+.face:not([data-size])[data-flank] .browse-name {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: calc(100% - 3vw); font-size: 1vw; line-height: 1.3;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
 }
-.face[data-flank] .browse-sub {
+.face:not([data-size])[data-flank] .browse-sub {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: calc(100% - 3vw); margin: 0 0 0 3vw;
   font-size: .8vw; line-height: 1.3; color: var(--dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
 }
 /* The alphabet earns its keep on 2302 albums, but not 55px of a 403px column. */
-.face[data-flank] .alpha { padding: .4vh .2vw; }
-.face[data-flank] .alpha-key { font-size: .72vw; min-width: 1.1vw; padding: 0 .15vw; }
-.face[data-flank] .browse-title { font-size: 1.1vw; }
-.face[data-flank] .browse-head { padding: .9vh .7vw; }
-.face[data-flank] .browse-head .ctl { min-width: 2.2vw; min-height: 2.2vw; }
+.face:not([data-size])[data-flank] .alpha { padding: .4vh .2vw; }
+.face:not([data-size])[data-flank] .alpha-key { font-size: .72vw; min-width: 1.1vw; padding: 0 .15vw; }
+.face:not([data-size])[data-flank] .browse-title { font-size: 1.1vw; }
+.face:not([data-size])[data-flank] .browse-head { padding: .9vh .7vw; }
+.face:not([data-size])[data-flank] .browse-head .ctl { min-width: 2.2vw; min-height: 2.2vw; }
 
 /* Opaque, not nearly-opaque: at 0.97 the browse marks underneath read straight
    through their own cascade, which makes the panel look like a ghost of itself.
    Nothing is behind it that anyone needs while it is up. */
-.face[data-flank] .copy > .browse { background: #0a0b0d; }
-.face[data-flank] .browse-list { overflow-x: hidden; }
+.face:not([data-size])[data-flank] .copy > .browse { background: #0a0b0d; }
+.face:not([data-size])[data-flank] .browse-list { overflow-x: hidden; }
 
 
 /* ⚖️ AND THE PANELS OVERLAY EXACTLY WHAT IS THERE (Peter, 08-29: "make sure the
    pop ups use the full width to overlay exactly what we have put in"). A cascade
    narrower than the marks that opened it reads as a different object; the same
    rectangle reads as the marks turning into their own list. */
-.face[data-layout="presence"] .copy > .browse { width: 30vw; }
-.face[data-layout="presence"] .member-vols { width: 30vw; }
-.face[data-layout="presence"] .copy > .picker { width: 30vw; }
+.face:not([data-size])[data-layout="presence"] .copy > .browse { width: 30vw; }
+.face:not([data-size])[data-layout="presence"] .member-vols { width: 30vw; }
+.face:not([data-size])[data-layout="presence"] .copy > .picker { width: 30vw; }
 
 /* ══ THE ROOMS' LEVELS IN A FLANK ═════════════════════════════════════════════
    ⚖️ Peter, 08-29: "volume on the right, multi is a problem as it's too short —
@@ -2161,27 +2161,189 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    settle on the same line and pushed the two end marks onto their own
    (Peter: "the picker line and the name can lie on top of each other, and the
    mute and level buttons at each end occupying 2 lines"). */
-.face[data-flank] .member-vols .member-vol {
+.face:not([data-size])[data-flank] .member-vols .member-vol {
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-align-items: center; align-items: center;
   margin-bottom: 1.8vh;
 }
-.face[data-flank] .member-vols .vol-speaker {
+.face:not([data-size])[data-flank] .member-vols .vol-speaker {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 0; order: 0;
 }
-.face[data-flank] .member-vols .member-name {
+.face:not([data-size])[data-flank] .member-vols .member-name {
   -webkit-flex: 1 1 auto; flex: 1 1 auto; -webkit-order: 1; order: 1;
   width: auto; max-width: none; min-width: 0; margin: 0 .6vw;
 }
-.face[data-flank] .member-vols .member-read {
+.face:not([data-size])[data-flank] .member-vols .member-read {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 2; order: 2;
 }
-.face[data-flank] .member-vols .vol-scale {
+.face:not([data-size])[data-flank] .member-vols .vol-scale {
   -webkit-flex: 0 0 100%; flex: 0 0 100%; -webkit-order: 3; order: 3;
   width: auto; min-width: 0; margin: .7vh 0 0 0;
 }
 /* The shared "0 / 100" header was a third thing to lay out in a narrow column,
    and every room already carries its own number in its disc. */
-.face[data-flank] .member-vols .member-head { display: none; }
+.face:not([data-size])[data-flank] .member-vols .member-head { display: none; }
 /* The close sits top right; the first room must start below it, not under it. */
-.face[data-flank] .member-vols { padding-top: 4.4vh; }
+.face:not([data-size])[data-flank] .member-vols { padding-top: 4.4vh; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   THE PHONE
+   ⚖️ Peter, 08-29: "can we automatically deal with phones without an app?" Yes —
+   it is a page on the house's own network. What it needs is a layout of its own,
+   because the faces are composed in `vw` for a 16:9 frame and a phone is neither
+   that shape nor that size. Measured before this existed: at 852x393 the sleeve's
+   top sat 166px above the screen; at 393x852 Classic piled its browse marks, its
+   title and its transport on top of one another.
+
+   ONE composition, whichever face is chosen. The face still decides what is
+   BEHIND it — the artist, the sleeve, the drifting field — but where things sit
+   is the phone's business, not the television's. Every rule written for the TV
+   is scoped `:not([data-size])` so none of it reaches here to be fought with.
+
+   The chrome does not fade, either: a phone has no pointer to hover, it is held
+   in the hand on purpose, and a control that has to be summoned is a control
+   somebody has to be told about.
+   ════════════════════════════════════════════════════════════════════════════ */
+.face[data-size="phone"] .safe { top: 2.4vh; left: 4vw; right: 4vw; bottom: 2.4vh; }
+.face[data-size="phone"] .head { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face[data-size="phone"] .zone { font-size: 3.4vw; letter-spacing: .18em; }
+.face[data-size="phone"] .cog { font-size: 3vw; letter-spacing: .14em; min-width: 0; margin-left: auto; }
+.face[data-size="phone"] .cog .glyph { width: 3.4vw; height: 3.4vw; }
+.face[data-size="phone"] .homemark { padding: .5vh 2vw; }
+.face[data-size="phone"] .homemark .glyph { width: 4vw; height: 4vw; }
+.face[data-size="phone"] .status { display: none; }
+.face[data-size="phone"] .dialbox { display: none; }
+
+.face[data-size="phone"] .body {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  min-height: 0; padding: 0;
+}
+.face[data-size="phone"] .np {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  width: 100%; min-height: 0;
+}
+.face[data-size="phone"] .copy { margin: 0; width: auto; min-width: 0; }
+.face[data-size="phone"] .title { margin: 0; max-width: 100%; -webkit-line-clamp: 2; }
+
+/* The chrome is always here, and it is a stack of full-width rows. */
+.face[data-size="phone"] .shelf {
+  display: -webkit-flex; display: flex;
+  position: static; opacity: 1; pointer-events: auto;
+  width: 100%; margin: 0;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.face[data-size="phone"] .shelf .controls {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  width: 100%;
+}
+.face[data-size="phone"] .shelf .controls > * { margin: 0; }
+.face[data-size="phone"] .shelf-volume .vol-scale {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; margin: 0 2vw;
+}
+.face[data-size="phone"] .shelf-browse .row-browse {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  width: 100%; margin: 0; padding: 0; border: 0; background: none;
+}
+.face[data-size="phone"] .shelf-browse .browse-entry {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  width: 23.8%; margin: 0 0 1vh 0; padding: 0 1vw;
+  color: var(--bone); border: 1px solid rgba(242,238,230,.22); border-radius: 6px;
+  cursor: pointer;
+}
+.face[data-size="phone"] .shelf-browse .browse-entry .glyph { margin-right: 1vw; }
+
+/* ── PORTRAIT: one column, the sleeve square and large ───────────────────────── */
+.face[data-size="phone"][data-orient="portrait"] .np {
+  -webkit-flex-direction: column; flex-direction: column;
+}
+.face[data-size="phone"][data-orient="portrait"] .cover {
+  width: 74vw; height: 74vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; margin: 0 0 2.4vh 0;
+}
+.face[data-size="phone"][data-orient="portrait"] .copy { text-align: center; width: 100%; }
+.face[data-size="phone"][data-orient="portrait"] .title { font-size: 6.4vw; line-height: 1.12; }
+.face[data-size="phone"][data-orient="portrait"] .line2 { font-size: 4.2vw; margin-top: 1vh; }
+.face[data-size="phone"][data-orient="portrait"] .line3 { font-size: 3.4vw; margin-top: .5vh; }
+.face[data-size="phone"][data-orient="portrait"] .shelf-transport { margin-top: 2.4vh; }
+.face[data-size="phone"][data-orient="portrait"] .shelf-volume { margin-top: 1.4vh; }
+.face[data-size="phone"][data-orient="portrait"] .shelf-browse { margin-top: 2vh; }
+.face[data-size="phone"][data-orient="portrait"] .ctl { min-width: 15vw; min-height: 12vw; padding: 0; }
+.face[data-size="phone"][data-orient="portrait"] .ctl.is-play { min-width: 17vw; min-height: 13.6vw; }
+.face[data-size="phone"][data-orient="portrait"] .glyph { width: 5.6vw; height: 5.6vw; }
+.face[data-size="phone"][data-orient="portrait"] .ctl.is-play .glyph { width: 6.6vw; height: 6.6vw; }
+.face[data-size="phone"][data-orient="portrait"] .vol-scale { min-height: 12vw; }
+.face[data-size="phone"][data-orient="portrait"] .browse-entry { min-height: 9vw; font-size: 3.1vw; }
+.face[data-size="phone"][data-orient="portrait"] .browse-entry .glyph { width: 3.4vw; height: 3.4vw; }
+
+/* ── LANDSCAPE: the sleeve to one side, everything else beside it ────────────── */
+.face[data-size="phone"][data-orient="landscape"] .np {
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+}
+.face[data-size="phone"][data-orient="landscape"] .cover {
+  width: 56vh; height: 56vh; -webkit-flex: 0 0 auto; flex: 0 0 auto; margin: 0 3vw 0 0;
+}
+.face[data-size="phone"][data-orient="landscape"] .copy {
+  text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0;
+}
+.face[data-size="phone"][data-orient="landscape"] .title { font-size: 4.4vh; line-height: 1.1; }
+.face[data-size="phone"][data-orient="landscape"] .line2 { font-size: 3vh; margin-top: .6vh; }
+.face[data-size="phone"][data-orient="landscape"] .line3 { font-size: 2.4vh; margin-top: .4vh; }
+.face[data-size="phone"][data-orient="landscape"] .shelf-transport { margin-top: 1.6vh; }
+.face[data-size="phone"][data-orient="landscape"] .shelf-volume { margin-top: 1vh; }
+.face[data-size="phone"][data-orient="landscape"] .shelf-browse { margin-top: 1.4vh; }
+.face[data-size="phone"][data-orient="landscape"] .ctl { min-width: 9vh; min-height: 8vh; padding: 0; }
+.face[data-size="phone"][data-orient="landscape"] .ctl.is-play { min-width: 10.4vh; min-height: 9vh; }
+.face[data-size="phone"][data-orient="landscape"] .glyph { width: 3.6vh; height: 3.6vh; }
+.face[data-size="phone"][data-orient="landscape"] .vol-scale { min-height: 8vh; }
+.face[data-size="phone"][data-orient="landscape"] .browse-entry { min-height: 6vh; font-size: 2vh; }
+.face[data-size="phone"][data-orient="landscape"] .browse-entry .glyph { width: 2.4vh; height: 2.4vh; }
+/* The three chrome rows live in the words' column, under the metadata. */
+.face[data-size="phone"][data-orient="landscape"] .shelf { width: 100%; }
+
+/* The panels fill the phone, because there is nowhere else for them to be. */
+.face[data-size="phone"] .copy > .browse,
+.face[data-size="phone"] .member-vols {
+  position: fixed; left: 3vw; right: 3vw; top: 3vh; bottom: 3vh;
+  width: auto; max-height: none; margin: 0;
+  -webkit-transform: none; transform: none;
+  background: #0a0b0d; border-radius: 8px; z-index: 60;
+}
+.face[data-size="phone"] .copy > .picker {
+  position: fixed; left: 3vw; right: 3vw; top: auto; bottom: 3vh;
+  width: auto; max-width: none; -webkit-transform: none; transform: none;
+}
+/* The DOM has browse between the two control rows, which is right on a TV where
+   it stands above the words. Here everything is one column, so it reads: the
+   music, then how to play it, then what to play instead. */
+.face[data-size="phone"] .shelf-transport { -webkit-order: 1; order: 1; }
+.face[data-size="phone"] .shelf-volume { -webkit-order: 2; order: 2; }
+.face[data-size="phone"] .shelf-browse { -webkit-order: 3; order: 3; }
+.face[data-size="phone"] .copy {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+}
+.face[data-size="phone"] .title { -webkit-order: 0; order: 0; }
+.face[data-size="phone"] .line2 { -webkit-order: 0; order: 0; }
+.face[data-size="phone"] .line3 { -webkit-order: 0; order: 0; }
+/* ⚠️ `.face .zone` and `.face .cog` set opacity 0 and are lifted by
+   `.face.show-chrome`, which the phone never gets — so the room's name and the
+   face's badge were present, sized, and invisible. Nothing fades on a phone. */
+.face[data-size="phone"] .zone { opacity: 1; }
+.face[data-size="phone"] .cog { opacity: 1; }
+.face[data-size="phone"] .homemark { opacity: 1; }
+.face[data-size="phone"] .groupdoor { opacity: 1; }
+.face[data-size="phone"] .artistname { opacity: 1; }
