@@ -444,12 +444,46 @@ test('group volume moves every room and keeps them in proportion', async (t) => 
   assert.ok(Math.abs(after - before) < 1e-9, 'the offset between the rooms survives the move');
 });
 
-test('a room already at the top does not drag the others back', async (t) => {
+/**
+ * ⚖️ THE MASTER STOPS WHEN THE FIRST ROOM RUNS OUT (Peter, 08-29: "on adjusting
+ * volumes they explode — not following the alg we use for group").
+ *
+ * This test used to assert the opposite, and the opposite was the bug: asking
+ * for full sent Hall to its maximum and dragged Landing up to 64, closing the
+ * gap between them from 0.40 to 0.20. Clamp each room and you destroy the very
+ * offsets the group volume exists to preserve — a few passes down and up and the
+ * balance somebody set by hand is gone.
+ *
+ * Clamping the DELTA instead means the master's travel is bounded by what every
+ * room can take. It stops where the loudest reaches full, and the gap survives.
+ */
+test('the master stops where the first room runs out, and the offsets survive', async (t) => {
   const { post, sent } = await serve(t);
+  // Hall 60/100 = 0.60, Landing 16/80 = 0.20 — a gap of 0.40, average 0.40.
   assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 1 })).status, 200);
   const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
-  assert.equal(by.oLoud, 100, 'clamped at its own maximum');
-  assert.equal(by.oSoft, 64, 'and the quieter room keeps its offset until it too runs out');
+  assert.equal(by.oLoud, 100, 'the loudest reaches its maximum');
+  assert.equal(by.oSoft, 48, 'and the quieter room rises by the SAME amount, not further');
+  assert.ok(Math.abs(((100 / 100) - (48 / 80)) - ((60 / 100) - (16 / 80))) < 1e-9,
+    'the gap between the rooms is exactly what it was');
+});
+
+/** The same at the bottom: silence for one room is as far as the master goes. */
+test('the master stops at the floor too, rather than flattening the rooms onto it', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 0 })).status, 200);
+  const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
+  assert.equal(by.oSoft, 0, 'the quietest reaches silence');
+  assert.equal(by.oLoud, 40, 'and the louder room falls by the same 0.20, not to nothing');
+});
+
+/** Fired together against one zone, volume sets race — the mutes proved it 08-28. */
+test('the rooms are moved one at a time', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 0.5 })).status, 200);
+  const moves = sent.filter((s) => s.kind === 'setVolume');
+  assert.equal(moves.length, 2);
+  assert.deepEqual(moves.map((m) => m.a), ['oLoud', 'oSoft'], 'in the zone\u2019s own order');
 });
 
 test('group volume refuses a zone with nothing to move, and a level off the scale', async (t) => {

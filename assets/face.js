@@ -2958,7 +2958,7 @@ var memberVolsTimer = null;
  * that opened it: a press anywhere outside closes it, and so does leaving it
  * alone. Touching anything inside puts the clock back to the start.
  */
-var MEMBER_VOLS_MS = 12000;
+var MEMBER_VOLS_MS = 3000;      /* "3 secs" (Peter, 08-29) */
 
 function closeMemberVols() {
   memberVolsOpen = false;

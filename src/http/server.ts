@@ -706,13 +706,37 @@ async function handleControl(
       const levelOf = (o: (typeof movable)[number]): number =>
         ((o.volume!.value as number) - (o.volume!.min ?? 0)) / span(o);
       const average = movable.reduce((sum, o) => sum + levelOf(o), 0) / movable.length;
-      const delta = wanted - average;
 
-      await Promise.all(movable.map((o) => {
-        const next = Math.max(0, Math.min(1, levelOf(o) + delta));
-        const value = Math.round((o.volume!.min ?? 0) + next * span(o));
-        return commands.setVolume(o.id, value);
-      }));
+      /**
+       * ⚖️ THE DELTA IS CLAMPED, NOT THE ROOMS (Peter, 08-29: "on adjusting
+       * volumes they explode — not following the alg we use for group").
+       *
+       * Clamping each room destroys the very offsets the group volume exists to
+       * preserve: a room already near zero hits the floor, loses how far below
+       * the others it was, and comes back up level with them. Two or three
+       * passes down and up and the balance somebody set by hand is gone — which
+       * from the sofa looks exactly like the rooms exploding apart.
+       *
+       * So the MASTER's travel is bounded by what every room can take. It stops
+       * when the quietest reaches silence or the loudest reaches full, and every
+       * offset survives the journey intact.
+       */
+      let delta = wanted - average;
+      for (const o of movable) {
+        delta = Math.max(delta, -levelOf(o));
+        delta = Math.min(delta, 1 - levelOf(o));
+      }
+
+      /**
+       * ⚠️ AND ONE AT A TIME. Fired together against the same zone, volume sets
+       * race the way two mutes did on 08-28 — one is lost, or arrives after the
+       * device has already re-based on another. Sequential is slower by a few
+       * milliseconds and is the only version that lands what it says.
+       */
+      for (const o of movable) {
+        const value = Math.round((o.volume!.min ?? 0) + (levelOf(o) + delta) * span(o));
+        await commands.setVolume(o.id, value);
+      }
       log('group volume ' + zone.name + ' -> ' + String(Math.round(wanted * 100)) + '%');
       json(response, 200, { ok: true });
       return;
