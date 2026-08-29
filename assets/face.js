@@ -2967,6 +2967,17 @@ function closeMemberVols() {
   if (memberVolsButton !== null) memberVolsButton.className = 'ctl ctl-faders';
 }
 
+/** True when a press landed on the rooms' window or on the mark that opens it. */
+function inFaders(target) {
+  while (target !== null && target !== undefined && target !== document.body) {
+    var name = target.className;
+    if (typeof name === 'string'
+        && (name.indexOf('ctl-faders') >= 0 || name.indexOf('member-vols') >= 0)) return true;
+    target = target.parentNode;
+  }
+  return false;
+}
+
 function keepMemberVols() {
   if (!memberVolsOpen) return;
   if (memberVolsTimer !== null) clearTimeout(memberVolsTimer);
@@ -3048,6 +3059,18 @@ function roomsToggle(zone, outs) {
     memberVolsOpen = true;
     list.hidden = false;
     b.className = 'ctl ctl-faders now';
+    /**
+     * ⚠️ NOTHING APPEARS UNDER THE PRESS THAT SUMMONED IT — the rule this face
+     * already keeps for every picker, and this window was outside it.
+     *
+     * One press arrives as pointerup AND click. The pointerup opened the window,
+     * which lands a room's scale exactly where the finger already is, and the
+     * click that follows set that room's level from wherever the mark happened
+     * to be. Measured live, 08-29: opening it took a playing group's rooms to
+     * 0, 30, 0 and 0. The scales already refuse a press while a panel is fresh —
+     * they were asking `panelJustAppeared()` and nobody had told it.
+     */
+    panelShownAt = Date.now();
     keepMemberVols();
   });
   wrap.appendChild(b);
@@ -3629,9 +3652,15 @@ function onFacePress(event) {
 ['click', 'pointerup', 'touchend', 'mouseup'].forEach(function (kind) {
   document.addEventListener(kind, function (event) {
     if (!memberVolsOpen) return;
-    var target = event.target;
-    if (memberVols !== null && inNode(target, memberVols)) return;
-    if (memberVolsButton !== null && inNode(target, memberVolsButton)) return;
+    /**
+     * ⚠️ BY CLASS, NOT BY NODE. One press arrives four times — pointerup, mouseup,
+     * click — and the shelf REBUILDS between them, because opening the window is
+     * itself a structural frame. So by the third name the remembered nodes were
+     * the old ones, the press looked like it came from nowhere, and the window
+     * shut the instant it opened. What the press is ON has not changed; only the
+     * object identity has.
+     */
+    if (inFaders(event.target)) return;
     closeMemberVols();
     event.stopPropagation();
     if (event.type !== 'touchend' && event.preventDefault) event.preventDefault();

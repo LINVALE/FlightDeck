@@ -2148,3 +2148,40 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-layout="presence"] .copy > .browse { width: 30vw; }
 .face[data-layout="presence"] .member-vols { width: 30vw; }
 .face[data-layout="presence"] .copy > .picker { width: 30vw; }
+
+/* ══ THE ROOMS' LEVELS IN A FLANK ═════════════════════════════════════════════
+   ⚖️ Peter, 08-29: "volume on the right, multi is a problem as it's too short —
+   place under the text for each output?" Right on both counts: a room's row is
+   speaker, name and reading before the scale even starts, so in a 30vw column
+   the scale had about 150px and in Dial's 21vw far less.
+
+   Each room is two lines now: who it is on top, how loud underneath, the scale
+   taking the whole width. ⚠️ Every item is given an explicit ORDER and BASIS —
+   `width: 100%` on a flex item whose basis is auto let the name and the scale
+   settle on the same line and pushed the two end marks onto their own
+   (Peter: "the picker line and the name can lie on top of each other, and the
+   mute and level buttons at each end occupying 2 lines"). */
+.face[data-flank] .member-vols .member-vol {
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-align-items: center; align-items: center;
+  margin-bottom: 1.8vh;
+}
+.face[data-flank] .member-vols .vol-speaker {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 0; order: 0;
+}
+.face[data-flank] .member-vols .member-name {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; -webkit-order: 1; order: 1;
+  width: auto; max-width: none; min-width: 0; margin: 0 .6vw;
+}
+.face[data-flank] .member-vols .member-read {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 2; order: 2;
+}
+.face[data-flank] .member-vols .vol-scale {
+  -webkit-flex: 0 0 100%; flex: 0 0 100%; -webkit-order: 3; order: 3;
+  width: auto; min-width: 0; margin: .7vh 0 0 0;
+}
+/* The shared "0 / 100" header was a third thing to lay out in a narrow column,
+   and every room already carries its own number in its disc. */
+.face[data-flank] .member-vols .member-head { display: none; }
+/* The close sits top right; the first room must start below it, not under it. */
+.face[data-flank] .member-vols { padding-top: 4.4vh; }
