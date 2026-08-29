@@ -1146,6 +1146,8 @@ function markRing() {
 /** The two attributes every rule is keyed on: what it looks like, and what is behind it. */
 function markLayout() {
   root.setAttribute('data-layout', layoutOf(current));
+  if (hasColumn()) root.setAttribute('data-column', '1');
+  else root.removeAttribute('data-column');
   if (hasField(current)) root.setAttribute('data-field', '1');
   else root.removeAttribute('data-field');
 }
@@ -1234,7 +1236,20 @@ function buildBrowseRow() {
  * spelled as `!== 'classic'` in four places, which is how the third face would
  * have been missed.
  */
-function hasShelf() { var l = layoutOf(current); return l === 'classic' || l === 'orbit'; }
+/**
+ * ⚖️ EVERY FACE CARRIES ITS CHROME NOW (Peter, 08-28: "the old chrome control
+ * and browse options keep popping up on the old players — remove these").
+ *
+ * Nothing raises a strip any more. What differs is WHERE the chrome lives: the
+ * faces with a words' column beside the artwork put it in that column, and the
+ * rest put it in bands above and below the middle of the frame. Both hold their
+ * space always and only fade, which is the whole point — a control that appears
+ * under the finger that summoned it is the fault this replaces.
+ */
+function hasShelf() { return true; }
+
+/** Faces whose chrome lives in the words' column rather than in bands. */
+function hasColumn() { var l = layoutOf(current); return l === 'classic' || l === 'orbit'; }
 
 function renderShelf(zone) {
   if (!hasShelf() || zone === null) {

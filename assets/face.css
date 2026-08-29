@@ -396,7 +396,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
 .face[data-ringlayout] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-ringlayout]:not([data-shelf]) .cover { width: 38vh; height: 38vh; }
+.face.show-chrome[data-ringlayout]:not([data-column]) .cover { width: 20vh; height: 20vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
@@ -903,7 +903,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face.show-chrome:not([data-shelf]):not([data-ring]) .cover { width: 20vw; height: 20vw; }
+.face.show-chrome:not([data-column]):not([data-ring]) .cover { width: 12vw; height: 12vw; }
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
@@ -967,9 +967,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* With the controls up, the music sits higher: the sleeve shrinks and the whole
    group rises, so the transport bar and the progress row both have clear air.
    (Peter, 08-26: the art "can be placed higher on the page if needed".) */
-.face.show-chrome:not([data-shelf]) .body {
-  -webkit-box-pack: start; -webkit-justify-content: flex-start; justify-content: flex-start;
-  padding-top: 2vh;
+/* ⚖️ The content is centred BETWEEN the two bands, not pushed to the top of the
+   frame. It used to move out of a raised strip's way, which meant upwards; now
+   there is a band above it as well, and it belongs in the gap. */
+.face.show-chrome:not([data-column]) .body {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  padding-top: 20vh; padding-bottom: 23vh;
 }
 /**
  * ...but a RING face overhangs its sleeve by more than half the sleeve's width in
@@ -981,7 +984,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face.show-chrome[data-ringlayout]:not([data-shelf]) .body { padding-top: 12.4vh; }
+.face.show-chrome[data-ringlayout]:not([data-column]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1843,7 +1846,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-shelf] .headmark {
+.face[data-column] .headmark {
   position: relative;
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   -webkit-justify-content: center; justify-content: center;
@@ -1852,9 +1855,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    them — rather than the three sharing the space, which would slide the name
    sideways by half the difference every time the group door appeared or the
    count went from one digit to two. */
-.face[data-shelf] .headmark .homemark { position: absolute; left: 0; }
-.face[data-shelf] .headmark .groupdoor { position: absolute; right: 0; }
-.face[data-shelf] .headmark .zone {
+.face[data-column] .headmark .homemark { position: absolute; left: 0; }
+.face[data-column] .headmark .groupdoor { position: absolute; right: 0; }
+.face[data-column] .headmark .zone {
   -webkit-flex: 0 1 auto; flex: 0 1 auto;
   text-align: center; min-width: 0; max-width: 62%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1867,8 +1870,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    but cancels. */
 .face[data-layout="orbit"] .headmark { width: 71.7vh; margin-left: 1.14vh; }
 @media (orientation: portrait) {
-  .face[data-shelf] .headmark { width: auto; }
-  .face[data-shelf] .headmark .zone { text-align: left; }
+  .face[data-column] .headmark { width: auto; }
+  .face[data-column] .headmark .zone { text-align: left; }
 }
 
 /* ⚠️ The head is a full-width bar with content only at its two ends, and out of
@@ -1964,3 +1967,34 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* And the page sits lower, because the ring reaches 81px above the sleeve and
    the top of the frame belongs to the room's name and the face's. */
 .face[data-ring][data-layout="libretto"] .body { padding-top: 14vh; }
+
+/* ══ CHROME IN BANDS — the faces with no column beside the artwork ════════════
+   ⚖️ Classic and Orbit hang their chrome in the words' column. Dial, Libretto,
+   Canvas and Presence centre their content instead, so theirs goes in two bands:
+   what to play above, how to play it below, the music between them. Same three
+   rows, same grammar, same fade — the only difference is where the rectangle is.
+
+   `.copy` is unpositioned on these faces, so the rows resolve against `.safe`,
+   which is the frame less its 5% margin. That is the band. */
+/* FIXED, not absolute: these bands belong to the FRAME, and every one of these
+   faces has a different positioned ancestor to hang off — Dial's body is
+   relative, Libretto's is not — so absolute placement landed them in three
+   different places. The frame is the one thing they all share. */
+.face[data-shelf]:not([data-column]) .shelf {
+  position: fixed; left: 5vw; right: 5vw;
+}
+.face[data-shelf]:not([data-column]) .shelf-browse { top: 11vh; bottom: auto; }
+.face[data-shelf]:not([data-column]) .shelf-transport { bottom: 20vh; top: auto; }
+.face[data-shelf]:not([data-column]) .shelf-volume { bottom: 11.5vh; top: auto; }
+/* Centred, because the content they bracket is centred. */
+.face[data-shelf]:not([data-column]) .shelf { -webkit-justify-content: center; justify-content: center; }
+.face[data-shelf]:not([data-column]) .shelf .controls { width: 46vw; }
+.face[data-shelf]:not([data-column]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
+/* Libretto's words run the width of the frame, so its bands do too — a 46vw
+   block under a 60vw title reads as a smaller, separate thing. */
+.face[data-layout="libretto"] .shelf .controls { width: 62vw; }
+.face[data-layout="libretto"] .shelf-browse .row-browse { width: 62vw; }
+@media (orientation: portrait) {
+  .face[data-shelf]:not([data-column]) .shelf .controls,
+  .face[data-shelf]:not([data-column]) .shelf-browse .row-browse { width: 100%; }
+}
