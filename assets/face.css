@@ -903,7 +903,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face:not([data-size]).show-chrome:not([data-column]):not([data-ring]):not([data-flank]) .cover { width: 12vw; height: 12vw; }
+/* ⚖️ THE BAND FACES KEEP THEIR ARTWORK TOO (Peter, 08-29: "Libretto on main
+   changing art size — not needed, it can stay full size I think"). Checked: they
+   do. The shrink is retired rather than reduced — a face that fits does not need
+   a smaller picture, and this rule was the last place one was being taken. */
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
@@ -970,7 +973,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ⚖️ The content is centred BETWEEN the two bands, not pushed to the top of the
    frame. It used to move out of a raised strip's way, which meant upwards; now
    there is a band above it as well, and it belongs in the gap. */
-.face:not([data-size]).show-chrome:not([data-column]) .body {
+/* ⚖️ ALWAYS, not only with the chrome up. The room for the two bands was being
+   taken the moment they appeared, so the artwork jumped 14px (and Rondo's ring
+   107px) every time anybody moved. The space is simply part of these faces now:
+   nothing moves, which is the same promise the column faces already keep. */
+.face:not([data-size]):not([data-column]):not([data-flank]) .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
   padding-top: 20vh; padding-bottom: 23vh;
 }
@@ -1765,7 +1772,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-justify-content: center; justify-content: center;
 }
-.face:not([data-size])[data-shelf] .member-vols .member-vol { margin-bottom: 1.1vh; }
+.face[data-narrow] .member-vols .member-vol { margin-bottom: 1.1vh; }
 /* ⚖️ EVERY SLIDER THE SAME LENGTH (Peter, 08-28: "volume 'slider' should be the
    same length not dependent on the length of the output name"). `min-width`
    alone let a long room name push its own scale short, so the rooms could not be
@@ -1785,7 +1792,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The level in a disc — a round reading beside a square scale, so the number
    reads as a value rather than as another end-label. Fixed size, so the digits
    sit under one another whether the level is 7 or 100. */
-.face:not([data-size])[data-shelf] .member-vols .member-read {
+.face[data-narrow] .member-vols .member-read {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: 2.6vw; height: 2.6vw; margin-left: .8vw;
   display: -webkit-flex; display: flex;
@@ -1796,12 +1803,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 /* Muted is the speaker's job to SAY, at the other end of the row; the disc only
    goes quiet, and keeps the level the room will come back to. */
-.face:not([data-size])[data-shelf] .member-vols .member-read.is-muted {
+.face[data-narrow] .member-vols .member-read.is-muted {
   color: var(--dim); border-color: rgba(242,238,230,.12);
 }
 
 /* The close, top right, where a window's close belongs. */
-.face:not([data-size])[data-shelf] .member-vols .member-shut {
+.face[data-narrow] .member-vols .member-shut {
   position: absolute; top: .8vh; right: .8vw;
   width: 2.2vw; height: 2.2vw; line-height: 1;
   display: -webkit-flex; display: flex;
@@ -1812,12 +1819,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-transition: background .18s ease, border-color .18s ease;
   transition: background .18s ease, border-color .18s ease;
 }
-.face:not([data-size])[data-shelf] .member-vols .member-shut:hover {
+.face[data-narrow] .member-vols .member-shut:hover {
   background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); color: var(--bone);
 }
 @media (orientation: portrait) {
-  .face:not([data-size])[data-shelf] .member-vols .member-read { width: 8vw; height: 8vw; font-size: 2.6vw; }
-  .face:not([data-size])[data-shelf] .member-vols .member-shut { width: 8vw; height: 8vw; font-size: 4vw; }
+  .face[data-narrow] .member-vols .member-read { width: 8vw; height: 8vw; font-size: 2.6vw; }
+  .face[data-narrow] .member-vols .member-shut { width: 8vw; height: 8vw; font-size: 4vw; }
 }
 .face:not([data-size])[data-shelf] .member-vols .member-head { margin-bottom: .3vh; }
 .face:not([data-size])[data-shelf] .member-vols .member-headpad {
@@ -1964,7 +1971,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-ring][data-layout="libretto"] .dial-reading { display: none; }
 /* And the page sits lower, because the ring reaches 81px above the sleeve and
    the top of the frame belongs to the room's name and the face's. */
-.face:not([data-size])[data-ring][data-layout="libretto"] .body { padding-top: 14vh; }
+.face:not([data-size])[data-ring][data-layout="libretto"] .body { padding-top: 17vh; }
 
 /* ══ CHROME IN BANDS — the faces with no column beside the artwork ════════════
    ⚖️ Classic and Orbit hang their chrome in the words' column. Dial, Libretto,
@@ -2085,12 +2092,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    The width is the narrower of the two flanks (Dial's ring leaves 429px, so
    21vw clears it) rather than each face's own, because a panel that changed
    width with the skin would be a different object on every screen. */
-.face:not([data-size])[data-flank] .copy > .browse {
+.face[data-narrow] .copy > .browse {
   position: fixed; left: 5vw; right: auto; width: 21vw;
   top: 11vh; bottom: 9vh; max-height: none;
   -webkit-transform: none; transform: none;
 }
-.face:not([data-size])[data-flank] .member-vols {
+.face[data-narrow] .member-vols {
   position: fixed; right: 5vw; left: auto; width: 21vw;
   top: 11vh; bottom: 9vh;
 }
@@ -2110,35 +2117,35 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    centred lines and cut the artist off behind the alphabet. So the row stacks —
    title on its own line, artist under it, each clipped rather than wrapped, and
    the thumbnail keeps its place beside them. */
-.face:not([data-size])[data-flank] .browse-row {
+.face[data-narrow] .browse-row {
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-align-items: center; align-items: center;
   padding: .8vh .7vw; min-height: 0;
 }
-.face:not([data-size])[data-flank] .browse-thumb { width: 2.4vw; height: 2.4vw; margin-right: .6vw; }
-.face:not([data-size])[data-flank] .browse-name {
+.face[data-narrow] .browse-thumb { width: 2.4vw; height: 2.4vw; margin-right: .6vw; }
+.face[data-narrow] .browse-name {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: calc(100% - 3vw); font-size: 1vw; line-height: 1.3;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
 }
-.face:not([data-size])[data-flank] .browse-sub {
+.face[data-narrow] .browse-sub {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   width: calc(100% - 3vw); margin: 0 0 0 3vw;
   font-size: .8vw; line-height: 1.3; color: var(--dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left;
 }
 /* The alphabet earns its keep on 2302 albums, but not 55px of a 403px column. */
-.face:not([data-size])[data-flank] .alpha { padding: .4vh .2vw; }
-.face:not([data-size])[data-flank] .alpha-key { font-size: .72vw; min-width: 1.1vw; padding: 0 .15vw; }
-.face:not([data-size])[data-flank] .browse-title { font-size: 1.1vw; }
-.face:not([data-size])[data-flank] .browse-head { padding: .9vh .7vw; }
-.face:not([data-size])[data-flank] .browse-head .ctl { min-width: 2.2vw; min-height: 2.2vw; }
+.face[data-narrow] .alpha { padding: .4vh .2vw; }
+.face[data-narrow] .alpha-key { font-size: .72vw; min-width: 1.1vw; padding: 0 .15vw; }
+.face[data-narrow] .browse-title { font-size: 1.1vw; }
+.face[data-narrow] .browse-head { padding: .9vh .7vw; }
+.face[data-narrow] .browse-head .ctl { min-width: 2.2vw; min-height: 2.2vw; }
 
 /* Opaque, not nearly-opaque: at 0.97 the browse marks underneath read straight
    through their own cascade, which makes the panel look like a ghost of itself.
    Nothing is behind it that anyone needs while it is up. */
-.face:not([data-size])[data-flank] .copy > .browse { background: #0a0b0d; }
-.face:not([data-size])[data-flank] .browse-list { overflow-x: hidden; }
+.face[data-narrow] .copy > .browse { background: #0a0b0d; }
+.face[data-narrow] .browse-list { overflow-x: hidden; }
 
 
 /* ⚖️ AND THE PANELS OVERLAY EXACTLY WHAT IS THERE (Peter, 08-29: "make sure the
@@ -2161,30 +2168,30 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    settle on the same line and pushed the two end marks onto their own
    (Peter: "the picker line and the name can lie on top of each other, and the
    mute and level buttons at each end occupying 2 lines"). */
-.face:not([data-size])[data-flank] .member-vols .member-vol {
+.face[data-narrow] .member-vols .member-vol {
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
   -webkit-align-items: center; align-items: center;
   margin-bottom: 1.8vh;
 }
-.face:not([data-size])[data-flank] .member-vols .vol-speaker {
+.face[data-narrow] .member-vols .vol-speaker {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 0; order: 0;
 }
-.face:not([data-size])[data-flank] .member-vols .member-name {
+.face[data-narrow] .member-vols .member-name {
   -webkit-flex: 1 1 auto; flex: 1 1 auto; -webkit-order: 1; order: 1;
   width: auto; max-width: none; min-width: 0; margin: 0 .6vw;
 }
-.face:not([data-size])[data-flank] .member-vols .member-read {
+.face[data-narrow] .member-vols .member-read {
   -webkit-flex: 0 0 auto; flex: 0 0 auto; -webkit-order: 2; order: 2;
 }
-.face:not([data-size])[data-flank] .member-vols .vol-scale {
+.face[data-narrow] .member-vols .vol-scale {
   -webkit-flex: 0 0 100%; flex: 0 0 100%; -webkit-order: 3; order: 3;
   width: auto; min-width: 0; margin: .7vh 0 0 0;
 }
 /* The shared "0 / 100" header was a third thing to lay out in a narrow column,
    and every room already carries its own number in its disc. */
-.face:not([data-size])[data-flank] .member-vols .member-head { display: none; }
+.face[data-narrow] .member-vols .member-head { display: none; }
 /* The close sits top right; the first room must start below it, not under it. */
-.face:not([data-size])[data-flank] .member-vols { padding-top: 4.4vh; }
+.face[data-narrow] .member-vols { padding-top: 4.4vh; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    THE PHONE
@@ -2347,3 +2354,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face[data-size="phone"] .homemark { opacity: 1; }
 .face[data-size="phone"] .groupdoor { opacity: 1; }
 .face[data-size="phone"] .artistname { opacity: 1; }
+
+/* ⚖️ NO DISPLAY OPTIONS ON A PHONE (Peter, 08-29: "remove display options as
+   they can't be used I think"). A face is a composition for a screen on a wall —
+   the ring, the drifting field, the words beside the sleeve — and a phone gets
+   its own layout whichever one is chosen, so the chooser would be offering a
+   choice that changes nothing. The badge goes; the face is still whatever the
+   screen it belongs to is set to. */
+.face[data-size="phone"] .cog { display: none; }

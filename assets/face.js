@@ -1180,6 +1180,14 @@ function markLayout() {
   else root.removeAttribute('data-column');
   if (hasFlank()) root.setAttribute('data-flank', '1');
   else root.removeAttribute('data-flank');
+  /**
+   * ⚖️ A NARROW PLACE FOR THE ROOMS' LEVELS. A flank is about 400-600px and a
+   * phone is 393 — both too narrow for speaker, name, scale and reading on one
+   * line, and both wanting the same answer: who the room is on top, how loud
+   * underneath. Named once so the rules are written once.
+   */
+  if (hasFlank() || root.getAttribute('data-size') === 'phone') root.setAttribute('data-narrow', '1');
+  else root.removeAttribute('data-narrow');
   if (hasField(current)) root.setAttribute('data-field', '1');
   else root.removeAttribute('data-field');
 }
@@ -1306,7 +1314,13 @@ function hasColumn() { var l = layoutOf(current); return l === 'classic' || l ==
  * Presence's sleeve, top to bottom, on both sides. That is where the controls
  * go, and then nothing has to move or shrink to make room for them.
  */
-function hasFlank() { var l = layoutOf(current); return l === 'presence' || l === 'dial'; }
+function hasFlank() {
+  var l = layoutOf(current);
+  // Canvas joins them: its artwork is centred and its words run under it, which
+  // is the same shape — and at 22vw the picture is too big to leave room for a
+  // band above it without taking size off it, which is the trade we do not make.
+  return l === 'presence' || l === 'dial' || l === 'canvas';
+}
 
 function renderShelf(zone) {
   if (!hasShelf() || zone === null) {
