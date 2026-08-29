@@ -396,7 +396,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
 .face[data-ringlayout] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-ringlayout]:not([data-column]) .cover { width: 20vh; height: 20vh; }
+.face.show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .cover { width: 20vh; height: 20vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
@@ -903,13 +903,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face.show-chrome:not([data-column]):not([data-ring]) .cover { width: 12vw; height: 12vw; }
+.face.show-chrome:not([data-column]):not([data-ring]):not([data-flank]) .cover { width: 12vw; height: 12vw; }
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
    chrome is fitted into the room that is already there beside it, and 27vw is
    gone. Dial still shrinks: its ring has to clear the control bar. */
-.face.show-chrome[data-layout="dial"] .cover { width: 19vw; height: 19vw; }
+
 .picker.mode-transport { bottom: 7vh; top: auto; }
 
 /* The indicators are the topmost thing in their corners: whatever the layout does
@@ -984,7 +984,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face.show-chrome[data-ringlayout]:not([data-column]) .body { padding-top: 12.4vh; }
+.face.show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1118,7 +1118,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   left: -55.5%; top: -55.5%; width: 211%; height: 211%;
 }
 .face[data-layout="dial"] .cover { width: 44vh; height: 44vh; }
-.face.show-chrome[data-layout="dial"] .cover { width: 34vh; height: 34vh; }
+
 /* position, so the copy's `top: 100%` means the SLEEVE's base. Left static it
    resolved against the frame instead and the title fell off the bottom edge. */
 .face[data-layout="dial"] .np {
@@ -1156,10 +1156,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  *
  * Everything in the segments is therefore scaled by the same 34/44 the sleeve is.
  */
-.face.show-chrome[data-layout="dial"] .title { font-size: 1.47vw; }
-.face.show-chrome[data-layout="dial"] .line2 { font-size: 1vw; margin-top: .6vh; }
-.face.show-chrome[data-layout="dial"] .line3 { font-size: .81vw; margin-top: .3vh; }
-.face.show-chrome[data-layout="dial"] .copy { padding-top: 1.15vh; }
+/* (The four rules that scaled these "by the same 34/44 the sleeve is" are gone
+   with the shrink they belonged to. Dial keeps one size now — Peter, 08-29.) */
 .face.show-chrome[data-layout="dial"] .dial-times { font-size: .89vw; }
 
 /* and the reading fills the top one */
@@ -1980,21 +1978,83 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    faces has a different positioned ancestor to hang off — Dial's body is
    relative, Libretto's is not — so absolute placement landed them in three
    different places. The frame is the one thing they all share. */
-.face[data-shelf]:not([data-column]) .shelf {
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf {
   position: fixed; left: 5vw; right: 5vw;
 }
-.face[data-shelf]:not([data-column]) .shelf-browse { top: 11vh; bottom: auto; }
-.face[data-shelf]:not([data-column]) .shelf-transport { bottom: 20vh; top: auto; }
-.face[data-shelf]:not([data-column]) .shelf-volume { bottom: 11.5vh; top: auto; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse { top: 11vh; bottom: auto; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-transport { bottom: 20vh; top: auto; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-volume { bottom: 11.5vh; top: auto; }
 /* Centred, because the content they bracket is centred. */
-.face[data-shelf]:not([data-column]) .shelf { -webkit-justify-content: center; justify-content: center; }
-.face[data-shelf]:not([data-column]) .shelf .controls { width: 46vw; }
-.face[data-shelf]:not([data-column]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf { -webkit-justify-content: center; justify-content: center; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls { width: 46vw; }
+.face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
 /* Libretto's words run the width of the frame, so its bands do too — a 46vw
    block under a 60vw title reads as a smaller, separate thing. */
 .face[data-layout="libretto"] .shelf .controls { width: 62vw; }
 .face[data-layout="libretto"] .shelf-browse .row-browse { width: 62vw; }
 @media (orientation: portrait) {
-  .face[data-shelf]:not([data-column]) .shelf .controls,
-  .face[data-shelf]:not([data-column]) .shelf-browse .row-browse { width: 100%; }
+  .face[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls,
+  .face[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 100%; }
 }
+
+/* ══ CHROME IN THE FLANKS — Presence and Dial ═════════════════════════════════
+   ⚖️ Peter, 08-29: "keeping the main artwork and metadata blocks but working
+   controls around them without changing size or position". Measured at rest, the
+   space above and below the artwork on these two is already spoken for — the
+   words run the full width — but each has a deep empty column on either side.
+   So the artwork and the words are left exactly where they are, at exactly the
+   size they are, and the chrome takes the flanks.
+
+   What to play on the left; how to play it on the right. Both columns run the
+   full height and centre their contents, so they read as two quiet margins
+   rather than as anything stacked on the picture. */
+.face[data-flank] .shelf { position: fixed; width: 21vw; }
+.face[data-flank] .shelf-browse { left: 5vw; right: auto; top: 0; bottom: 0; }
+.face[data-flank] .shelf-transport { right: 5vw; left: auto; top: 0; bottom: 28vh; }
+.face[data-flank] .shelf-volume { right: 5vw; left: auto; top: 10vh; bottom: 0; }
+.face[data-flank] .shelf .controls { width: 100%; }
+.face[data-flank] .shelf-browse .row-browse { width: 100%; margin: 0; }
+/* Two to a line and four deep: the same block as everywhere else, stood up. */
+.face[data-flank] .shelf-browse .browse-entry { width: 48.5%; margin: 0 3% .6vh 0; }
+.face[data-flank] .shelf-browse .browse-entry:nth-child(2n) { margin-right: 0; }
+@media (orientation: portrait) {
+  .face[data-flank] .shelf { position: fixed; width: auto; left: 5vw; right: 5vw; }
+  .face[data-flank] .shelf-browse { top: 11vh; bottom: auto; }
+  .face[data-flank] .shelf-transport { top: auto; bottom: 20vh; }
+  .face[data-flank] .shelf-volume { top: auto; bottom: 11.5vh; }
+  .face[data-flank] .shelf-browse .browse-entry { width: 48.5%; }
+}
+
+/* ⚖️ AND NOTHING MOVES OR SHRINKS. The band faces make room by giving up size;
+   these two have the room already, so every rule that takes it is RETIRED for
+   them by scope. Naming a chrome-up size instead was the same mistake one level
+   down: 52vh was a guess, Dial rests at 44vh, and the ring went off the frame. */
+.face.show-chrome[data-flank] .body {
+  -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
+  padding-top: 0; padding-bottom: 0;
+}
+
+/* In a flank the row is 403px, and the speaker and the faders mark left the
+   scale about 200 of it — 44 segments in 200px is a bar, not a scale. So the
+   scale takes a line of its own underneath them and gets the whole flank. */
+.face[data-flank] .shelf-volume .controls {
+  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-justify-content: space-between; justify-content: space-between;
+}
+.face[data-flank] .shelf-volume .vol-scale {
+  width: 100%; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-top: .8vh; min-width: 0;
+}
+/* ⚠️ ORDER, not just wrap. The scale is a flex item BETWEEN the speaker and the
+   faders in the DOM, so giving it the full width pushed the faders onto a THIRD
+   line. The two marks take the first line together, the scale the second. */
+.face[data-flank] .shelf-volume .rooms-toggle { -webkit-order: 1; order: 1; }
+.face[data-flank] .shelf-volume .vol-scale { -webkit-order: 2; order: 2; }
+
+/* ⚠️ And the transport ran 54px PAST the frame: five controls at 4.6vw each is
+   440px in a 403px flank. They are narrower here — the flank is the constraint,
+   not the button. */
+.face[data-flank] .shelf .ctl { min-width: 3.9vw; }
+.face[data-flank] .shelf .ctl.is-play { min-width: 4.6vw; }
+/* the volume is two lines tall in a flank, so the transport sits well clear */
+.face[data-flank] .shelf-volume { top: 10vh; }

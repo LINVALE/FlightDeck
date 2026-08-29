@@ -1148,6 +1148,8 @@ function markLayout() {
   root.setAttribute('data-layout', layoutOf(current));
   if (hasColumn()) root.setAttribute('data-column', '1');
   else root.removeAttribute('data-column');
+  if (hasFlank()) root.setAttribute('data-flank', '1');
+  else root.removeAttribute('data-flank');
   if (hasField(current)) root.setAttribute('data-field', '1');
   else root.removeAttribute('data-field');
 }
@@ -1167,7 +1169,19 @@ function applyFace(name) {
   backdropKey = '';
   var snap = store.snapshot();
   if (snap !== null) render(snap, 'snapshot');
-  showPicker();
+  /**
+   * ⚖️ CHANGING FACE RAISES NOTHING (Peter, 08-29: "on transition between skins
+   * I get a large box with control buttons popping up — it should not").
+   *
+   * This used to call `showPicker()` bare, which means the TRANSPORT mode: back
+   * when the chrome was a thin strip along the bottom, re-raising it after a
+   * face change was invisible. Now every panel opens as a window on the screen,
+   * so the same call threw a boxful of buttons over the artwork every time
+   * somebody looked at another skin. The picker is only REDRAWN, and only if it
+   * was already open — which is what keeps the faces list showing the new choice
+   * when the choice was made from the faces list.
+   */
+  refreshPicker();
 }
 
 function faceOption(name) {
@@ -1250,6 +1264,19 @@ function hasShelf() { return true; }
 
 /** Faces whose chrome lives in the words' column rather than in bands. */
 function hasColumn() { var l = layoutOf(current); return l === 'classic' || l === 'orbit'; }
+
+/**
+ * ⚖️ FACES WHOSE CHROME GOES BESIDE THE ARTWORK (Peter, 08-29: "get presence and
+ * dial to work as elegantly now — keeping the main artwork and metadata blocks
+ * but working controls around them without changing size or position").
+ *
+ * Measured at rest, both of them: the artwork is centred and the words run the
+ * full width under it, so the space above and below is already spoken for — but
+ * there are 429px of nothing to the LEFT of Dial's ring and 614px beside
+ * Presence's sleeve, top to bottom, on both sides. That is where the controls
+ * go, and then nothing has to move or shrink to make room for them.
+ */
+function hasFlank() { var l = layoutOf(current); return l === 'presence' || l === 'dial'; }
 
 function renderShelf(zone) {
   if (!hasShelf() || zone === null) {
@@ -1880,10 +1907,29 @@ picker.addEventListener('mouseleave', function () {
   if (pickerTimer !== null) clearTimeout(pickerTimer);
   pickerTimer = setTimeout(function () { picker.hidden = true; }, 1500);
 });
+/**
+ * ⚖️ REDRAW WHAT IS OPEN; RAISE NOTHING (Peter, 08-29: "on transition between
+ * skins I get a large box with control buttons popping up — it should not").
+ *
+ * Four places called `showPicker()` bare, which means TRANSPORT mode. When the
+ * chrome was a thin strip along the bottom that was a courtesy — press a key on
+ * a remote and the controls appear so you can see what you did. Now every panel
+ * is a window on the screen, and the same call threw a boxful of buttons over
+ * the artwork on every face change, every artwork reset and every follow toggle.
+ *
+ * So: if a panel is open it is redrawn in its own mode, keeping the faces list
+ * showing the new choice. If none is open, none opens.
+ */
+function refreshPicker() {
+  if (picker.hidden) return;
+  var open = /mode-([a-z]+)/.exec(picker.className);
+  showPicker(open === null ? 'faces' : open[1]);
+}
+
 function cycleFace(delta) {
   var index = FACES.indexOf(current);
   applyFace(FACES[(index + delta + FACES.length) % FACES.length]);
-  showPicker();
+  refreshPicker();
 }
 
 /** Up/Down walk the house, in the Wall's order, from a remote. */
@@ -1918,7 +1964,7 @@ function cycleZone(delta) {
   backdropKey = null;
   applyArtistView();
   render(snapshot, 'snapshot');
-  showPicker();
+  refreshPicker();
 }
 
 function toggleFollow() {
@@ -1929,7 +1975,7 @@ function toggleFollow() {
     var snapshot = store.snapshot();
     if (snapshot !== null) render(snapshot, 'snapshot');
   }
-  showPicker();
+  refreshPicker();
 }
 
 /* ---------- the ambient field (the Canvas face) ----------
@@ -3387,7 +3433,7 @@ function onKey(event) {
     event.stopPropagation();
     return;
   }
-  if (name === '') { showPicker(); return; }
+  if (name === '') { revealChrome(); return; }
   if (name === 'left') cycleFace(-1);
   else if (name === 'right') cycleFace(1);
   // UP/DOWN IS VOLUME, not room. A TV steals the hard volume keys before the
