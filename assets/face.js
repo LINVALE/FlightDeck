@@ -17,7 +17,7 @@ import { createStream } from './stream.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'canvas', 'gallery', 'aurora'];
+var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'canvas', 'gallery', 'aurora'];
 
 /**
  * ⚖️ A FACE IS A LAYOUT AND A BACKGROUND, and they are not the same choice
@@ -33,16 +33,36 @@ var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'canvas', 'gall
  *
  * A face not named here lays itself out and has no ambient field.
  */
-var LAYOUT = { gallery: 'classic', aurora: 'orbit' };
-var FIELD = { canvas: 1, gallery: 1, aurora: 1 };
+var LAYOUT = { gallery: 'classic', aurora: 'orbit', folio: 'libretto', plate: 'libretto' };
+var FIELD = { canvas: 1, gallery: 1, aurora: 1, folio: 1 };
+
+/**
+ * ⚖️ AND THE GROUND IS A THIRD CHOICE (Peter, 08-28: "libretto can be expanded
+ * to three types ... with a background that's not the artist").
+ *
+ * The backdrop has always been the ARTIST, falling back to the sleeve only when
+ * a track has no artist photograph. Libretto's layout — detail left, image
+ * right — reads three quite different ways depending on what is behind it, so
+ * the three are made rather than argued about:
+ *
+ *   libretto   the artist, as it has always been
+ *   folio      the drifting field, which is of nobody at all
+ *   plate      the SLEEVE itself, blurred: still the music, never a face
+ *
+ * A face not named here uses the artist.
+ */
+var GROUND = { plate: 'cover' };
 
 function layoutOf(name) { return LAYOUT[name] === undefined ? name : LAYOUT[name]; }
 function hasField(name) { return FIELD[name] === 1; }
+function groundOf(name) { return GROUND[name] === undefined ? 'artist' : GROUND[name]; }
 var STORE_KEY_FACE = 'flightdeck.face.';
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
 var root = document.getElementById('face');
 var picker = document.getElementById('picker');
+/** Where the strip lives on the faces that still use it as a strip. */
+var pickerHome = picker.parentNode;
 var zoneId = root.getAttribute('data-zone') || '';
 
 /**
@@ -723,13 +743,18 @@ function setCover(art) {
 function setBackdrop(zone) {
   var np = zone.nowPlaying;
   var source = null;
+  var ground = groundOf(current);
   if (np) {
-    // Both views use the ARTIST as the backdrop: blurred behind the sleeve in the
-    // album view, sharp and full bleed in the artist view. The cover is only the
-    // fallback when a track has no artist image at all (internet radio).
-    source = np.artistArt ? np.artistArt : np.art;
+    // The ARTIST by default, blurred behind the sleeve in the album view and
+    // sharp and full bleed in the artist view; the cover is the fallback when a
+    // track has no artist image at all (internet radio). A face may ask for the
+    // COVER instead, which is a background of the music and not of a person.
+    if (ground === 'cover') source = np.art;
+    else source = np.artistArt ? np.artistArt : np.art;
   }
-  var key = (source ? source.key : null) + '@' + viewStep;
+  // The ground is part of the key, or switching to a face that wants the sleeve
+  // would keep whatever was already painted.
+  var key = (source ? source.key : null) + '@' + viewStep + '@' + ground;
   if (key === backdropKey) return;
   backdropKey = key;
   if (source === null || source === undefined) { canvas.className = ''; return; }
@@ -1123,6 +1148,12 @@ function applyFace(name) {
   markRing();
   paintFaceName();
   fieldRunning(hasField(current) && !document.hidden);
+  // The GROUND may have changed under it — the backdrop is cached by key, so
+  // without this a face that wants the sleeve keeps whatever was already there
+  // until the next track happens along.
+  backdropKey = '';
+  var snap = store.snapshot();
+  if (snap !== null) render(snap, 'snapshot');
   showPicker();
 }
 
@@ -1790,6 +1821,19 @@ function showPicker(mode) {
   if (mode === 'faces') {
     nodes.push(el('em', 'hint', 'keys:  space play  \u00B7  n next  \u00B7  b back  \u00B7  u / d volume  \u00B7  f face  \u00B7  a artwork'));
   }
+  /**
+   * ⚖️ THE PICKERS ARE WINDOWS ON THE COLUMN TOO (Peter, 08-28: "the options for
+   * faces should occupy the same space on the right as the other pop up
+   * windows").
+   *
+   * Browse and the room levels already land there; a strip across the bottom of
+   * the frame for the faces was the odd one out, and it covered the artwork on
+   * its way past. On a face that carries its chrome in the layout every panel
+   * now opens in the same rectangle, so there is one place to look and one place
+   * to press away from.
+   */
+  var host = hasShelf() ? copy : pickerHome;
+  if (picker.parentNode !== host) host.appendChild(picker);
   picker.replaceChildren.apply(picker, nodes);
   picker.className = 'picker mode-' + mode;
   picker.hidden = false;

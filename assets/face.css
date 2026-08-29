@@ -1893,12 +1893,37 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    it fell; two even lines of four is the same block the browse marks make, so
    the picker reads as something from the same house rather than a list that
    happened to wrap. */
+/* ⚠️ `space-between` throws a SHORT LAST ROW to the two edges — ten faces left
+   gallery and aurora at opposite ends of an empty line. Packed left with a real
+   gutter instead, so every row starts on the same column however many there are. */
 .picker.mode-faces .row-faces {
   display: -webkit-flex; display: flex;
   -webkit-flex-wrap: wrap; flex-wrap: wrap;
-  -webkit-justify-content: space-between; justify-content: space-between;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
 }
 .picker.mode-faces .row-faces span.opt {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
-  width: 23.5%; min-width: 0; margin: 0 0 .6vh 0;
+  width: 23.5%; min-width: 0; margin: 0 2% .6vh 0;
 }
+.picker.mode-faces .row-faces span.opt:nth-child(4n) { margin-right: 0; }
+
+
+/* ══ EVERY PANEL IN ONE RECTANGLE ═════════════════════════════════════════════
+   ⚖️ Peter, 08-28. On the faces that carry their chrome in the layout, the
+   picker opens on the column exactly as browse and the room levels do — same
+   edges, same ground, one place to look. The mode-specific `top`/`bottom` that
+   place the strip are overridden here rather than removed, because the faces
+   WITHOUT a shelf still need them. */
+.face[data-shelf] .copy > .picker {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  -webkit-transform: none; transform: none;
+  max-width: none; border-radius: 8px;
+  padding: 1.4vh 1.4vw;
+  background: rgba(8,9,11,.985);
+  -webkit-justify-content: center; justify-content: center;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  z-index: 6;
+}
+/* Its rows are as wide as the window, so the options spread the way the browse
+   marks and the controls do rather than huddling in the middle. */
+.face[data-shelf] .copy > .picker .row { width: 100%; }
