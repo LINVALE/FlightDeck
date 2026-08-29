@@ -339,7 +339,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .picker span.opt.arming::after { -webkit-transition: none; transition: none; }
 }
 
-/* ══ DIAL ═════════════════════════════════════════════════════════════════════
+/* ⚖️ `data-ring` DRAWS THE RING; `data-ringlayout` IS A FACE BUILT AROUND ONE.
+   They were the same attribute, so a face wanting only the circle would have got
+   Dial's whole composition with it — the sleeve at 52vh, the foot hidden, the
+   body repositioned. Split so Libretto can borrow the ring and keep its own page
+   (Peter, 08-28: "one should use the circle as in orbit").
+
+   ══ DIAL ═════════════════════════════════════════════════════════════════════
    The sleeve nearly fills the frame and the ring runs round it, so the progress IS
    the frame of the picture rather than a bar underneath it.
 
@@ -389,28 +395,28 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    which is the safe area. The copy then overlays the lower arc on its own grade,
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
-.face[data-ring] .cover { width: 52vh; height: 52vh; }
-.face.show-chrome[data-ring]:not([data-shelf]) .cover { width: 38vh; height: 38vh; }
+.face[data-ringlayout] .cover { width: 52vh; height: 52vh; }
+.face.show-chrome[data-ringlayout]:not([data-shelf]) .cover { width: 38vh; height: 38vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
 /* The reading sits AT TWELVE O'CLOCK, on the ring where the arc begins — one pair,
    elapsed of total. The remaining time and "ENDS hh:mm" are gone from this face:
    the ring already shows how much is left, which is the whole point of a ring. */
-.face[data-ring] .dial-reading {
+.face[data-ringlayout] .dial-reading {
   position: absolute; left: 0; right: 0; top: -1.4vh; bottom: auto;
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-justify-content: center; justify-content: center;
   -webkit-align-items: center; align-items: center;
 }
-.face[data-ring] .dial-remain,
-.face[data-ring] .dial-ends { display: none; }
+.face[data-ringlayout] .dial-remain,
+.face[data-ringlayout] .dial-ends { display: none; }
 .face[data-ring] .dial-bead {
   fill: var(--accent-rich, var(--accent));
   stroke: rgba(10,11,13,.75); stroke-width: 1;
 }
-.face[data-ring] .dial-remain {
+.face[data-ringlayout] .dial-remain {
   font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
 }
 /* No plate and no halo: just type on the disc, exactly as the title below it is
@@ -418,24 +424,24 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    reading; the shadow that replaced it read as a smudged pill, which is the same
    fault at lower contrast. The disc's own fill is always a dark tint, so the
    figures carry on it unaided — the same reason the title needs nothing. */
-.face[data-ring] .dial-times {
+.face[data-ringlayout] .dial-times {
   font-size: 1.15vw; margin: 0; color: var(--bone);
   font-variant-numeric: tabular-nums; letter-spacing: .06em;
   background: none; padding: 0; border-radius: 0; text-shadow: none;
 }
 /* Over a photograph there is no disc behind it, so it takes the shadow the title
    and album take there — the same treatment as its neighbours, not its own. */
-.face[data-ring][data-view="artist"] .dial-times {
+.face[data-ringlayout][data-view="artist"] .dial-times {
   text-shadow: 0 .12em .5em rgba(0,0,0,.85);
 }
-.face[data-ring] .dial-ends {
+.face[data-ringlayout] .dial-ends {
   font-size: .95vw; letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
   margin: 0 0 0 1vw;
 }
-.face[data-ring] .body {
+.face[data-ringlayout] .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
 }
-.face[data-ring] .np {
+.face[data-ringlayout] .np {
   -webkit-flex-direction: column; flex-direction: column; width: auto; max-width: 92vw;
 }
 /* CIRCLE LEFT, WORDS RIGHT (Peter, 08-26).
@@ -445,27 +451,27 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    16:9 frame is wider than the circle needs, so the words take the room the circle
    does not — and the copy goes back to being ordinary flowed text with no panel
    under it. */
-.face[data-ring] .body { position: relative; }
-.face[data-ring] .np {
+.face[data-ringlayout] .body { position: relative; }
+.face[data-ringlayout] .np {
   -webkit-flex-direction: row; flex-direction: row;
   -webkit-align-items: center; align-items: center;
   -webkit-justify-content: center; justify-content: center;
   width: 100%; max-width: 96vw;
 }
-.face[data-ring] .cover { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
-.face[data-ring] .copy {
+.face[data-ringlayout] .cover { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.face[data-ringlayout] .copy {
   position: static; background: none; padding: 0;
   -webkit-flex: 1 1 auto; flex: 1 1 auto;
   text-align: left; min-width: 0;
   /* clear of the ring, which overhangs the sleeve by nearly a third of its width */
   margin-left: 12vh;
 }
-.face[data-ring] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
-.face[data-ring] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
-.face[data-ring] .line3 { font-size: 1.25vw; margin-top: .7vh; }
+.face[data-ringlayout] .title { font-size: 2.6vw; margin-top: 0; max-width: 100%; }
+.face[data-ringlayout] .line2 { font-size: 1.6vw; margin-top: 1.4vh; }
+.face[data-ringlayout] .line3 { font-size: 1.25vw; margin-top: .7vh; }
 /* the ring IS the progress: the runway and the foot's readouts would only repeat it */
-.face[data-ring] .lamps, .face[data-ring] .bar { display: none; }
-.face[data-ring] .foot { display: none; }
+.face[data-ringlayout] .lamps, .face[data-ringlayout] .bar { display: none; }
+.face[data-ringlayout] .foot { display: none; }
 
 /* THE ARTIST VIEW ON A RING FACE.
  *
@@ -478,18 +484,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * The artist line goes with it: the picture IS the artist, and at this size the
  * bottom segment holds a title and an album, not three lines.
  */
-.face[data-ring][data-view="artist"] .dial-reading { display: -webkit-flex; display: flex; }
+.face[data-ringlayout][data-view="artist"] .dial-reading { display: -webkit-flex; display: flex; }
 /* Anchored low-left, like every other face in artist view: the continuous grade
    lives at the bottom of the frame, and a dial floating in the middle sits on
    whatever the photograph happens to be doing there. */
-.face[data-ring][data-view="artist"] .body {
+.face[data-ringlayout][data-view="artist"] .body {
   -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end;
   -webkit-box-align: start; -webkit-align-items: flex-start; align-items: flex-start;
 }
 /* The ring overhangs the sleeve by ~10vh at this size and that overhang is out
    of flow, so the inset from each edge is paid here or the circle runs off. */
-.face[data-ring][data-view="artist"] .np,
-.face.show-chrome[data-ring][data-view="artist"] .np {
+.face[data-ringlayout][data-view="artist"] .np,
+.face.show-chrome[data-ringlayout][data-view="artist"] .np {
   position: relative;
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-align-items: center; align-items: center;
@@ -500,46 +506,46 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   padding: 0;
   margin-left: 13vh; margin-bottom: 14vh;
 }
-.face[data-ring][data-view="artist"] .cover,
-.face.show-chrome[data-ring][data-view="artist"] .cover {
+.face[data-ringlayout][data-view="artist"] .cover,
+.face.show-chrome[data-ringlayout][data-view="artist"] .cover {
   width: 26vh; height: 26vh; margin: 0;
 }
-.face[data-ring][data-view="artist"] .copy,
-.face.show-chrome[data-ring][data-view="artist"] .copy {
+.face[data-ringlayout][data-view="artist"] .copy,
+.face.show-chrome[data-ringlayout][data-view="artist"] .copy {
   position: absolute; top: 100%; left: -12%; right: -12%;
   width: auto; max-width: none; margin: 0; padding-top: 1.1vh; text-align: center;
 }
-.face[data-ring][data-view="artist"] .title,
-.face[data-ring][data-view="artist"] .line3 {
+.face[data-ringlayout][data-view="artist"] .title,
+.face[data-ringlayout][data-view="artist"] .line3 {
   margin-left: auto; margin-right: auto; display: block;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-shadow: 0 .12em .5em rgba(0,0,0,.85);
 }
-.face[data-ring][data-view="artist"] .title { margin-top: 0; font-size: 1.5vw; max-width: 100%; }
-.face[data-ring][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
+.face[data-ringlayout][data-view="artist"] .title { margin-top: 0; font-size: 1.5vw; max-width: 100%; }
+.face[data-ringlayout][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
 /* the photograph already names the artist */
-.face[data-ring][data-view="artist"] .line2 { display: none; }
+.face[data-ringlayout][data-view="artist"] .line2 { display: none; }
 /* With the chrome up the bar is centred on the foot of the frame and lands
    exactly where the ring's bottom segment — the title — otherwise sits. Lifting
    the ring at full size cleared the bar but carried it up near the badges
    (Peter, 08-26: "too close to the top — reduce size if needed"). So it SHRINKS
    as it lifts, and sits just above the bar with the frame open above it. */
-.face.show-chrome[data-ring][data-view="artist"] .np { margin-bottom: 31vh; }
-.face.show-chrome[data-ring][data-view="artist"] .cover { width: 18vh; height: 18vh; }
-.face.show-chrome[data-ring][data-view="artist"] .title { font-size: 1.25vw; }
+.face.show-chrome[data-ringlayout][data-view="artist"] .np { margin-bottom: 31vh; }
+.face.show-chrome[data-ringlayout][data-view="artist"] .cover { width: 18vh; height: 18vh; }
+.face.show-chrome[data-ringlayout][data-view="artist"] .title { font-size: 1.25vw; }
 /* Two lines will not fit a 47px lens at this size — the album spilled past the
    arc — and the title is the half that has to survive. */
-.face.show-chrome[data-ring][data-view="artist"] .line3 { display: none; }
-.face.show-chrome[data-ring][data-view="artist"] .copy { padding-top: .7vh; }
+.face.show-chrome[data-ringlayout][data-view="artist"] .line3 { display: none; }
+.face.show-chrome[data-ringlayout][data-view="artist"] .copy { padding-top: .7vh; }
 
 
 @media (max-width: 900px) {
   /* no room for two columns on a phone: the circle goes back above the words */
-  .face[data-ring] .np { -webkit-flex-direction: column; flex-direction: column; }
-  .face[data-ring] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
-  .face[data-ring] .cover,
-  .face.show-chrome[data-ring] .cover { width: 58vw; height: 58vw; }
-  .face[data-ring] .title { font-size: 6vw; }
+  .face[data-ringlayout] .np { -webkit-flex-direction: column; flex-direction: column; }
+  .face[data-ringlayout] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
+  .face[data-ringlayout] .cover,
+  .face.show-chrome[data-ringlayout] .cover { width: 58vw; height: 58vw; }
+  .face[data-ringlayout] .title { font-size: 6vw; }
 }
 
 /* ══ LIBRETTO ═════════════════════════════════════════════════════════════════
@@ -554,8 +560,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-align-items: flex-end; align-items: flex-end;
   width: 100%;
 }
+/* ⚖️ THE IMAGE COMES IN OFF THE EDGE (Peter, 08-28: "the image is too far to the
+   right — leave a good amount of space"). It ended on the safe area's own right
+   edge, which is a boundary and not a margin. A further 5vw puts it 192px off
+   the frame against the words' 96px — deliberately uneven, because the page is:
+   a wide column of words wants its edge, a small picture wants air round it. The
+   words' column absorbs the difference, being the flexible one. */
 .face[data-layout="libretto"] .cover {
-  width: 15vw; height: 15vw; -webkit-flex: 0 0 auto; flex: 0 0 auto; margin-left: 3vw;
+  width: 15vw; height: 15vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-left: 3vw; margin-right: 5vw;
 }
 .face[data-layout="libretto"] .copy { text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 .face[data-layout="libretto"] .title {
@@ -890,7 +903,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    progress — so there is no bar to make room for and nothing to shrink. This is
    scoped rather than out-specified: an extra rule on top is how the sleeve ended
    up with four sizes and no obvious winner in the first place. */
-.face.show-chrome:not([data-shelf]) .cover { width: 20vw; height: 20vw; }
+.face.show-chrome:not([data-shelf]):not([data-ring]) .cover { width: 20vw; height: 20vw; }
 /* ⚖️ CLASSIC'S SLEEVE DOES NOT MOVE WHEN THE CHROME ARRIVES (Peter, 08-28:
    "still resulting in the main image shrinking"). The brief was to incorporate
    the chrome into the now-playing display WITHOUT resizing the art — so the
@@ -968,7 +981,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face.show-chrome[data-ring]:not([data-shelf]) .body { padding-top: 12.4vh; }
+.face.show-chrome[data-ringlayout]:not([data-shelf]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1927,3 +1940,27 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* Its rows are as wide as the window, so the options spread the way the browse
    marks and the controls do rather than huddling in the middle. */
 .face[data-shelf] .copy > .picker .row { width: 100%; }
+
+
+/* ══ RONDO — a Libretto that draws the ring ═══════════════════════════════════
+   ⚖️ Peter, 08-28: "one should use the circle as in orbit". Not Orbit's page —
+   Libretto's, with the circle round its picture and its own dotted progress
+   still at the foot.
+
+   The sleeve comes DOWN so the ring can have the space the picture had: a ring
+   is 177.2% of the sleeve it circumscribes, so 11vw of sleeve draws a 19.5vw
+   circle, which is about what a 20vw picture occupied. Sized here rather than
+   left to overflow — at Libretto's own size the ring ran 33px off the top of
+   the frame and past the safe edge on the right. */
+.face[data-ring][data-layout="libretto"] .cover {
+  width: 11vw; height: 11vw;
+  margin-left: 6vw; margin-right: 9vw;
+}
+/* The reading belongs to Dial's and Orbit's composition — it lives INSIDE their
+   ring, where there is room for it. Here the circle is small and the times are
+   already at the foot, so it would be the same numbers twice; unstyled, it fell
+   into the flow underneath and said them there. */
+.face[data-ring][data-layout="libretto"] .dial-reading { display: none; }
+/* And the page sits lower, because the ring reaches 81px above the sleeve and
+   the top of the frame belongs to the room's name and the face's. */
+.face[data-ring][data-layout="libretto"] .body { padding-top: 14vh; }

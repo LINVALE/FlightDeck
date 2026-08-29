@@ -17,7 +17,7 @@ import { createStream } from './stream.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'canvas', 'gallery', 'aurora'];
+var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora'];
 
 /**
  * ⚖️ A FACE IS A LAYOUT AND A BACKGROUND, and they are not the same choice
@@ -33,7 +33,7 @@ var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate
  *
  * A face not named here lays itself out and has no ambient field.
  */
-var LAYOUT = { gallery: 'classic', aurora: 'orbit', folio: 'libretto', plate: 'libretto' };
+var LAYOUT = { gallery: 'classic', aurora: 'orbit', folio: 'libretto', plate: 'libretto', rondo: 'libretto' };
 var FIELD = { canvas: 1, gallery: 1, aurora: 1, folio: 1 };
 
 /**
@@ -52,6 +52,14 @@ var FIELD = { canvas: 1, gallery: 1, aurora: 1, folio: 1 };
  * A face not named here uses the artist.
  */
 var GROUND = { plate: 'cover' };
+
+/**
+ * Faces that DRAW the ring without being built around one. Dial and Orbit
+ * compose the whole page from it; Rondo keeps Libretto's page and simply puts
+ * the circle round its picture (Peter, 08-28: "one should use the circle as in
+ * orbit"), which is why the ring's two jobs are two attributes.
+ */
+var RING = { rondo: 1 };
 
 function layoutOf(name) { return LAYOUT[name] === undefined ? name : LAYOUT[name]; }
 function hasField(name) { return FIELD[name] === 1; }
@@ -1128,8 +1136,11 @@ function paintFaceName() {
  *  cover's size to the whole face. */
 function markRing() {
   var layout = layoutOf(current);
-  if (layout === 'dial' || layout === 'orbit') root.setAttribute('data-ring', '1');
+  var built = layout === 'dial' || layout === 'orbit';
+  if (built || RING[current] === 1) root.setAttribute('data-ring', '1');
   else root.removeAttribute('data-ring');
+  if (built) root.setAttribute('data-ringlayout', '1');
+  else root.removeAttribute('data-ringlayout');
 }
 
 /** The two attributes every rule is keyed on: what it looks like, and what is behind it. */
