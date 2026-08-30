@@ -122,3 +122,48 @@ stands alone.
 
 I0 (pair) and I1 (spine, Wall, name) are built and tested offline; the Presence face is built. **No live Roon
 pairing has been run yet** — that is the first receipt to take. See `docs/tv-drill.md`.
+
+## Licence
+
+**FSL-1.1-MIT** — Functional Source License 1.1, MIT Future License. Copyright 2026 Peter Richardson.
+Full text in [`LICENSE`](LICENSE); the same licence RHEOS carries, deliberately, so code moves freely between
+the two repositories.
+
+FSL is a **Fair Source / source-available** licence — **not** an open-source one. The source is published and
+you may read it, run it, and modify it for your own use: internal use and access is an express permitted
+purpose, which covers everything a home user or tester actually does. What it withholds is competing
+commercial use — you may not sell it or build a competing commercial product on it. That restriction is
+time-limited, not permanent: **each version converts to MIT two years after its release**, at which point it
+becomes open source in the ordinary sense.
+
+### Money and code
+
+**Optional donations.** FlightDeck is free and stays free. If it earns a place on your screen you may support
+the work, entirely at your discretion. A donation funds development — it does not purchase support, a warranty,
+a feature, or any priority. The licence disclaims warranty and there is no support undertaking.
+
+**We are not currently accepting code contributions.** Bug reports, logs and hardware observations are very
+welcome and genuinely useful. Patches and pull requests are not being accepted at this time, so that copyright
+in the work stays with a single holder.
+
+### Third-party
+
+- **Lucide** (ISC) — genre and category icons, vendored into `assets/icons/`. See
+  [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md).
+- **`node-roon-api`, `-transport`, `-image`** (Apache-2.0) — runtime dependencies, not vendored. Their licence
+  texts ship with any distributed bundle.
+
+*FlightDeck is not affiliated with or certified by Roon Labs.*
+
+## Browser support
+
+FlightDeck targets **recent smart-TV browsers**. A TV whose built-in browser is too old is served by a **Fire TV
+stick or Roku**, not by a compatibility layer — transpiling and polyfilling the client is explicitly out of scope
+(ruling, 2026-08-30).
+
+The client uses template literals, `class`, spread, optional chaining, `fetch()` and `EventSource`. On a browser
+that predates those the script fails at **parse**, so the page paints its shell and sits on "connecting…" forever.
+**A stuck "connecting…" on an old TV is a SyntaxError, not a network or API fault** — don't debug it as one.
+Measured case: Samsung built-in browser, `Copyright 2010`, `BIN_B:170210_1.1.527`.
+
+`/now` is not a lighter page — `/now`, `/face` and `/face/` all route to the same `renderFacePage`.
