@@ -820,6 +820,9 @@ test('Dial and Orbit browse is viewport-owned and cannot move with the artwork',
   assert.doesNotMatch(shell, /inMainCircle \? dialBox|dialBox\.classList\.add\(['"]has-browse/);
   assert.match(shell, /browsePanel\.setAttribute\(['"]data-over-ring['"], ['"]1['"]\)/);
   assert.match(shell,
+    /inMainCircle && root\.getAttribute\(['"]data-view['"]\) === ['"]artist['"][\s\S]{0,140}data-artist-rail/,
+    'an artist-view disc cascade stays on the same right-hand working rail');
+  assert.match(shell,
     /\[['"]touchstart['"], ['"]click['"], ['"]pointerup['"], ['"]touchend['"], ['"]mouseup['"], ['"]keyup['"]\][\s\S]{0,180}event\.stopPropagation\(\)/,
     'every event understood by the cover stops at the Browse boundary, including Space keyup');
   assert.doesNotMatch(shell, /event\.preventDefault\(\)/,
@@ -854,10 +857,15 @@ test('ring artist view stays still and its exact sleeve always returns to album 
   assert.match(CSS,
     /\.album-return \{[\s\S]{0,180}z-index: 2[\s\S]{0,100}pointer-events: none[\s\S]{0,140}data-view="artist"\] \.album-return \{ pointer-events: auto/,
     'only artist view activates the exact sleeve-sized target');
-  assert.doesNotMatch(CSS, /show-chrome\[data-ringlayout\]\[data-view="artist"\]/,
-    'revealing controls cannot shrink, lift or reflow the artist-view dial');
-  const ringChromeRules = CSS.match(/\.face[^\n{]*show-chrome[^\n{]*data-ringlayout[^\n{]*\{/g) || [];
-  assert.ok(ringChromeRules.length >= 2, 'the ordinary ring chrome geometry remains covered');
+  const artistDiscChromeRules = (CSS.match(/\.face[^\n{]*show-chrome[^\n{]*data-ringlayout[^\n{]*data-view="artist"[^\n{]*\{/g) || [])
+    .filter((selector) => !selector.includes(':not([data-view="artist"])'));
+  for (const selector of artistDiscChromeRules) {
+    assert.doesNotMatch(selector, /\.(?:body|np|cover|copy|dialbox|dial-reading|dial-times)(?:\s|\{|$)/,
+      'artist chrome may place its shelves but never shrink, lift or reflow the disc composition');
+  }
+  const ringChromeRules = (CSS.match(/\.face[^\n{]*show-chrome[^\n{]*data-ringlayout[^\n{]*\{/g) || [])
+    .filter((selector) => /\.(?:body|np|cover|copy|dialbox|dial-reading|dial-times)(?:\s|\{|$)/.test(selector));
+  assert.ok(ringChromeRules.length >= 2, 'the ordinary ring composition geometry remains covered');
   for (const selector of ringChromeRules) {
     assert.match(selector, /:not\(\[data-view="artist"\]\)/,
       'every ring chrome geometry rule must explicitly leave artist view stationary');
@@ -877,12 +885,19 @@ test('ring artist view stays still and its exact sleeve always returns to album 
   }
   assert.match(contrast, /background: rgba\(10,11,13,\.78\)/);
   assert.match(contrast, /border: 1px solid rgba\(242,238,230,\.34\)/);
-  assert.match(CSS,
-    /show-chrome\[data-view="artist"\]\[data-flank\] \.shelf-browse \{\s*top: 12vh; bottom: auto/,
-    'artist-view flank browse chrome goes directly to the upper safe area');
-  assert.match(CSS,
-    /@media \(orientation: landscape\) \{\s*\.face[^\n]*show-chrome\[data-layout="dial"\]\[data-view="artist"\]\[data-flank\] \.shelf-browse \{\s*left: calc\(5vw \+ 26vh - 10\.5vw\); right: auto/,
-    'the high browse plate and low dial share one horizontal centre');
+  const railStart = CSS.indexOf('DISC ARTIST VIEW USES ONE RIGHT-HAND WORKING RAIL');
+  const railEnd = CSS.indexOf('/* ⚖️ MUTE, PICKER', railStart);
+  const rail = CSS.slice(railStart, railEnd);
+  assert.match(rail,
+    /show-chrome\[data-ringlayout\]\[data-view="artist"\] \.shelf \{[\s\S]{0,140}right: 5vw[\s\S]{0,80}width: 34vw/,
+    'Dial and Orbit share one right-side artist rail');
+  assert.match(rail, /\.shelf-transport \{\s*top: 17vh/);
+  assert.match(rail, /\.shelf-volume \{\s*top: 28vh/);
+  assert.match(rail, /\.shelf-browse \{\s*top: 40vh/,
+    'controls rise and Browse follows beneath in a deliberate vertical rhythm');
+  assert.match(rail,
+    /body > \.browse\[data-over-ring="1"\]\[data-artist-rail="1"\] \{[\s\S]{0,180}right: 5vw[\s\S]{0,120}width: 34vw[\s\S]{0,120}transform: none/,
+    'the opened cascade operates on the same side without covering the portrait');
 });
 
 test('browse closes successful leaf choices while hierarchy drill-down stays open', () => {

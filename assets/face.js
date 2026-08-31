@@ -4036,6 +4036,11 @@ function browseShell(title, canGoBack) {
   }
   if (inMainCircle) browsePanel.setAttribute('data-over-ring', '1');
   else browsePanel.removeAttribute('data-over-ring');
+  if (inMainCircle && root.getAttribute('data-view') === 'artist') {
+    browsePanel.setAttribute('data-artist-rail', '1');
+  } else {
+    browsePanel.removeAttribute('data-artist-rail');
+  }
   var head = el('div', 'browse-head');
   var back = el('span', canGoBack ? 'ctl small' : 'ctl small off');
   back.appendChild(glyph('left'));

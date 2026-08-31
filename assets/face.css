@@ -2421,18 +2421,47 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 .face:not([data-size]).show-chrome[data-view="artist"] .shelf-volume .controls {
   padding: .55vh .55vw;
 }
-/* Dial/Presence artist mode uses the low-left corner for its artwork. Put the
-   left-hand question high immediately; never centre it over the dial while the
-   chrome timer is running. */
-.face:not([data-size]).show-chrome[data-view="artist"][data-flank] .shelf-browse {
-  top: 12vh; bottom: auto;
-}
-/* Dial's artist composition is centred at safe-left + its 13vh inset + half of
-   the 26vh sleeve. Centre the 21vw browse plate on that same axis instead of on
-   the generic flank, while retaining the high vertical placement above it. */
+/* DISC ARTIST VIEW USES ONE RIGHT-HAND WORKING RAIL.
+ *
+ * The portrait remains open through the centre and the low-left disc stays the
+ * only object on that side. Transport and volume rise into the upper-right;
+ * Browse follows below them. An opened Browse window replaces this same rail
+ * (data-artist-rail) instead of jumping back over the person. Dial and Orbit are
+ * the ring-composed faces; Rondo keeps its Libretto composition. */
 @media (orientation: landscape) {
-  .face:not([data-size]).show-chrome[data-layout="dial"][data-view="artist"][data-flank] .shelf-browse {
-    left: calc(5vw + 26vh - 10.5vw); right: auto;
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf {
+    position: fixed; left: auto; right: 5vw; bottom: auto;
+    width: 34vw; margin: 0;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-transport {
+    top: 17vh;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-volume {
+    top: 28vh;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse {
+    top: 40vh;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf .controls,
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .row-browse {
+    width: 100%; margin-left: 0; margin-right: 0;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry,
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry:nth-child(2n),
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry:nth-child(2n+1) {
+    width: 23.5%; margin: 0 2% .6vh 0;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry:nth-child(4n+1),
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry.browse-search-entry {
+    margin-right: 0;
+  }
+  .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .browse-entry.browse-search-entry {
+    width: 100%;
+  }
+  body > .browse[data-over-ring="1"][data-artist-rail="1"] {
+    left: auto; right: 5vw; top: 11vh; bottom: 9vh;
+    width: 34vw; height: auto;
+    -webkit-transform: none; transform: none;
   }
 }
 
