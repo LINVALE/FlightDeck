@@ -445,7 +445,8 @@ var homeMark = el('span', 'homemark');
 })();
 homeMark.setAttribute('title', 'back to every room');
 homeMark.setAttribute('aria-label', 'go to the whole house');
-pressable(homeMark, function () { location.href = '/'; });
+function goToWall() { location.href = '/'; }
+pressable(homeMark, goToWall, 'header-wall');
 
 /**
  * THE HEADER HAS THREE MUSIC-GEOGRAPHY DOORS (Peter, 08-31):
@@ -480,10 +481,10 @@ pressable(zoneName, openDisplayPicker, 'header-rooms');
  * accessing the group picker?").
  */
 var groupDoor = el('span', 'groupdoor');
-pressable(groupDoor, startGroupPick);
+pressable(groupDoor, startGroupPick, 'header-group');
 var cog = el('span', 'cog');
 cog.setAttribute('aria-label', 'change face');
-pressable(cog, function () { openPanel('faces'); });
+pressable(cog, function () { openPanel('faces'); }, 'header-faces');
 var chipHost = el('span');
 var status = el('div', 'status');
 /**
@@ -2768,7 +2769,7 @@ function openQueuePanel(refreshing) {
   loadQueue(zone.id, epoch, 0);
 }
 
-/** Header menus stay viewport-owned and open immediately under their own door. */
+/** Header menus stay viewport-owned: Face opens left; room actions open right. */
 function headerPickerTrigger(mode) {
   if (mode === 'queue') return queueDoor;
   if (mode === 'rooms' || mode === 'transfer' || mode === 'pull') return zoneName;
@@ -2787,14 +2788,15 @@ function positionHeaderPicker(mode) {
   var safeY = Math.max(10, Math.round(viewportHeight * .05));
   var width;
   if (mode === 'faces') width = Math.max(220, Math.min(420, viewportWidth * .21));
-  else if (mode === 'group' && viewportWidth <= 1400) width = viewportWidth - (safeX * 2);
   else if (mode === 'group') width = Math.max(480, Math.min(720, viewportWidth * .38));
   else width = Math.max(360, Math.min(620, viewportWidth * .34));
   width = Math.min(width, viewportWidth - (safeX * 2));
   var left;
-  if (mode === 'queue') left = rect.left;
-  else if (mode === 'group') left = rect.right - width;
-  else left = rect.left + (rect.width / 2) - (width / 2);
+  // Face belongs to the artwork/Wall side. Every music-geography menu belongs
+  // to the Queue | Room | Group side. Fixed safe-edge ownership also survives
+  // artist photographs and live room names changing the trigger widths.
+  if (mode === 'faces') left = safeX;
+  else left = viewportWidth - safeX - width;
   left = Math.max(safeX, Math.min(viewportWidth - safeX - width, left));
   var top = Math.max(safeY, Math.round(rect.bottom + 8));
   picker.style.position = 'fixed';
@@ -2924,7 +2926,7 @@ function showPicker(mode, refreshing) {
       })(zones[r]);
     }
     var wall = el('span', 'opt', 'the wall');
-    pressable(wall, function () { location.href = '/'; });
+    pressable(wall, goToWall, 'picker-wall');
     roomRow.appendChild(wall);
     nodes.push(roomRow);
     nodes.push(zoneActionRow(here));
@@ -5560,9 +5562,12 @@ function onFacePress(event) {
       || (browsePanel !== null && inNode(target, browsePanel)))) return;
   lastZonePress = now;
 
-  if (target !== null && inNode(target, homeMark)) return;   // it has its own job
-  if (target !== null && inNode(target, queueDoor)) return;  // and owns Queue
-  if (target !== null && inNode(target, groupDoor)) return;  // and so has this
+  // Direct semantic handlers are primary. These routes are the compatibility
+  // fallback for a television engine that reports the gesture only at document
+  // level; every visible header door must still perform its own named action.
+  if (target !== null && inNode(target, homeMark)) { goToWall(); return; }
+  if (target !== null && inNode(target, queueDoor)) { openQueuePanel(); return; }
+  if (target !== null && inNode(target, groupDoor)) { startGroupPick(); return; }
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
   if (target !== null && inNode(target, zoneName)) { openPanel('rooms'); return; }
   if (target !== null && inNode(target, chipHost)) { openPanel('rooms'); return; }

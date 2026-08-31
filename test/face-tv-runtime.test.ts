@@ -35,11 +35,12 @@ test('header keeps Face | Queue Room Group order and each menu belongs to its ow
     'Face cannot drift back into the room-action group');
   assert.match(CSS, /data-layout=['"]classic['"]\] \.headmark \{ width: 34vw; \}/,
     'the relocated Face mark occupies Classic artwork width, not the copy rail');
-  assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}\)/);
+  assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}, ['"]header-faces['"]\)/);
   assert.match(FACE, /pressable\(queueDoor, openQueuePanel, ['"]header-queue['"]\)/);
   assert.match(FACE, /function openDisplayPicker\(\) \{ openPanel\(['"]rooms['"]\); \}/);
   assert.match(FACE, /pressable\(zoneName, openDisplayPicker, ['"]header-rooms['"]\)/);
-  assert.match(FACE, /pressable\(groupDoor, startGroupPick\)/);
+  assert.match(FACE, /pressable\(groupDoor, startGroupPick, ['"]header-group['"]\)/);
+  assert.match(FACE, /pressable\(homeMark, goToWall, ['"]header-wall['"]\)/);
 
   const anchorsStart = FACE.indexOf('function headerPickerTrigger(mode)');
   const anchorsEnd = FACE.indexOf('function clearHeaderPickerPosition()', anchorsStart);
@@ -51,10 +52,12 @@ test('header keeps Face | Queue Room Group order and each menu belongs to its ow
   assert.match(anchors, /trigger\.getBoundingClientRect\(\)/);
   assert.match(anchors, /rect\.bottom \+ 8/,
     'every popout starts immediately below the trigger that opened it');
-  assert.match(anchors, /mode === ['"]queue['"]\) left = rect\.left/);
-  assert.match(anchors, /mode === ['"]group['"]\) left = rect\.right - width/);
-  assert.match(anchors, /rect\.left \+ \(rect\.width \/ 2\) - \(width \/ 2\)/,
-    'Face and Room centre on their own variable-width triggers');
+  assert.match(anchors, /mode === ['"]faces['"]\) left = safeX/,
+    'Face owns the left safe edge');
+  assert.match(anchors, /else left = viewportWidth - safeX - width/,
+    'Queue, Room and Group own the right safe edge');
+  assert.doesNotMatch(anchors, /viewportWidth <= 1400\) width = viewportWidth/,
+    'Group remains a right-side menu instead of becoming a full-width veil');
 
   const presentStart = FACE.indexOf('function presentPicker(');
   const presentEnd = FACE.indexOf('function showPicker(', presentStart);
@@ -65,6 +68,16 @@ test('header keeps Face | Queue Room Group order and each menu belongs to its ow
   assert.match(present, /headerOwned \? ['"] header-menu['"] : ['"]['"]/);
   assert.match(CSS, /body > #picker\.picker\.header-menu \{[\s\S]{0,100}z-index: 70/,
     'body ownership gives header menus one viewport coordinate system');
+
+  const pressStart = FACE.indexOf('function onFacePress(event)');
+  const pressEnd = FACE.indexOf("['click', 'pointerup'", pressStart);
+  const press = FACE.slice(pressStart, pressEnd);
+  assert.match(press, /inNode\(target, homeMark\)[^\n]*goToWall\(\); return/);
+  assert.match(press, /inNode\(target, queueDoor\)[^\n]*openQueuePanel\(\); return/);
+  assert.match(press, /inNode\(target, groupDoor\)[^\n]*startGroupPick\(\); return/);
+  assert.match(press, /inNode\(target, cog\)[^\n]*openPanel\(['"]faces['"]\); return/);
+  assert.match(press, /inNode\(target, zoneName\)[^\n]*openPanel\(['"]rooms['"]\); return/,
+    'every header door retains its action on document-only television presses');
 });
 
 test('Queue reads a fenced forward window and only future rows can select', () => {
@@ -115,14 +128,14 @@ test('Silk Browse keeps a visible native drag rail without changing other TVs', 
 test('room name chooses the displayed player while only the group badge opens the group editor', () => {
   assert.match(FACE, /zoneName\.setAttribute\(['"]aria-label['"], ['"]choose a room to display['"]\)/);
   assert.match(FACE, /pressable\(zoneName, openDisplayPicker, ['"]header-rooms['"]\)/);
-  assert.match(FACE, /pressable\(groupDoor, startGroupPick\)/);
+  assert.match(FACE, /pressable\(groupDoor, startGroupPick, ['"]header-group['"]\)/);
   assert.match(FACE, /inNode\(target, zoneName\)[\s\S]{0,80}openPanel\(['"]rooms['"]\); return/);
   assert.doesNotMatch(FACE, /pressable\(zoneName, startGroupPick\)/);
   assert.doesNotMatch(FACE, /inNode\(target, zoneName\)[\s\S]{0,80}startGroupPick\(\)/);
 });
 
 test('face picker has a direct control and D-pad face changes expose the choices', () => {
-  assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}\)/);
+  assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}, ['"]header-faces['"]\)/);
   assert.match(FACE, /event\.type === ['"]keyup['"][\s\S]*keyCode !== 13 && keyCode !== 32/);
   assert.match(FACE, /name === ['"]left['"][\s\S]*cycleFace\(-1\)[\s\S]*showPicker\(['"]faces['"]\)/);
   assert.match(FACE, /name === ['"]right['"][\s\S]*cycleFace\(1\)[\s\S]*showPicker\(['"]faces['"]\)/);
@@ -135,7 +148,7 @@ test('an open vertical face picker keeps its presentation and press identity acr
   assert.doesNotMatch(show, /hasFlank\(\)|hasColumn\(\)/,
     'the open selector geometry cannot be re-decided by the face being previewed');
   assert.match(CSS,
-    /#picker\.picker\.mode-faces\.face-picker-vertical \{[\s\S]{0,220}position: fixed[\s\S]{0,180}right: 5vw[\s\S]{0,180}width: 21vw/,
+    /#picker\.picker\.mode-faces\.face-picker-vertical \{[\s\S]{0,220}position: fixed[\s\S]{0,180}left: 5vw[\s\S]{0,180}width: 21vw/,
     'ID ownership outranks every live data-flank/data-column rail selector');
   assert.match(CSS,
     /\.picker\.mode-faces \.row-faces span\.opt \{[\s\S]{0,120}width: 100%/);

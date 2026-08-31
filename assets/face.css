@@ -2236,8 +2236,9 @@ body > .browse[data-over-ring="1"] .browse-thumb {
   .cog .glyph { width: 3.4vw; height: 3.4vw; }
 }
 
-/* The face chooser is one right-hand vertical list on every face. Changing a
-   preview must not make the same choices turn into a different object. */
+/* The face chooser is one left-hand vertical list on every face, under the
+   artwork/Wall header group. Changing a preview must not make the same choices
+   turn into a different object. */
 .picker.mode-faces .row-faces {
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: column; flex-direction: column;
@@ -2519,10 +2520,10 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 }
 
 /* ID ownership deliberately outranks every live layout selector above. The
-   selector remains this exact right-hand rail while applyFace() changes the
+   selector remains this exact left-hand rail while applyFace() changes the
    root's data-column/data-flank markers underneath it, in either direction. */
 #picker.picker.mode-faces.face-picker-vertical {
-  position: fixed; right: 5vw; left: auto; width: 21vw;
+  position: fixed; left: 5vw; right: auto; width: 21vw;
   top: 11vh; bottom: 9vh; max-width: none;
   -webkit-transform: none; transform: none;
   -webkit-align-items: stretch; align-items: stretch;
