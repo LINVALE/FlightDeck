@@ -283,10 +283,15 @@ function zoneForOutputId(snapshot, outputId) {
 function zoneForOutput(snapshot) {
   return zoneForOutputId(snapshot, boundOutputId);
 }
-try {
-  var savedZone = localStorage.getItem(STORE_KEY_ZONE + zoneId);
-  if (savedZone !== null && savedZone !== '') shownZoneId = savedZone;
-} catch (error) { /* private mode */ }
+// An explicit Face URL is a fresh room choice and must win over the room this
+// browser happened to visit from that Face in an earlier session. Only an
+// unbound page may restore its last in-page choice.
+if (zoneId === '' && boundOutputId === null) {
+  try {
+    var savedZone = localStorage.getItem(STORE_KEY_ZONE + zoneId);
+    if (savedZone !== null && savedZone !== '') shownZoneId = savedZone;
+  } catch (error) { /* private mode */ }
+}
 
 function pickFollowed(snapshot) {
   var best = null;

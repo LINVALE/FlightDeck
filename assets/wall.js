@@ -389,8 +389,12 @@ function glyph(name) {
 
 function buildTile(zone) {
   var zoneId = zone.id;
+  var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zoneId;
   var tile = el('a', 'tile');
-  tile.href = '/face/' + encodeURIComponent(zoneId);
+  // A Roon zone id is disposable. The leader output is the durable room that
+  // the card represents, so the link still reaches that room after topology
+  // changes between the Wall frame and the click.
+  tile.href = '/face/' + encodeURIComponent(faceId);
   tile.setAttribute('data-zone', zoneId);
   var check = el('span', 'tile-check');
   tile.appendChild(check);
@@ -1060,6 +1064,9 @@ function render(snapshot, kind) {
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
       tile.node.className = classFor(zone, isHero) + (count <= 3 ? ' solo' : '');
+      var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zone.id;
+      tile.node.href = '/face/' + encodeURIComponent(faceId);
+      tile.node.setAttribute('data-zone', zone.id);
       if (selectMode) applySelect(tile, zone);
       else tile.check.textContent = '';
       // In one family's tab every tile is that family: the edge would say nothing.

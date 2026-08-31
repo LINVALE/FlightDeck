@@ -147,6 +147,14 @@ export interface ZoneLike {
  */
 export function resolveOutput(zones: readonly ZoneLike[], token: string): { outputId: string; zoneId: string } | null {
   if (token === '') return null;
+  // Wall links use the physical output id: unlike a zone id, it survives
+  // grouping, ungrouping and transfer. Resolve that exact identity before the
+  // human-friendly name path below.
+  for (const zone of zones) {
+    for (const output of zone.outputs ?? []) {
+      if (output.id === token) return { outputId: token, zoneId: zone.id };
+    }
+  }
   const wanted = zoneSlug(token);
   if (wanted === '') return null;
 

@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const WALL = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.js'), 'utf8');
+const FACE = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.js'), 'utf8');
 const CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.css'), 'utf8');
 const PAGES = readFileSync(resolve(import.meta.dirname, '..', 'src', 'http', 'pages.ts'), 'utf8');
 
@@ -209,6 +210,17 @@ test('Wall progress is a seek control and consumes card navigation', () => {
   assert.match(build, /var seconds = seekTargetSecond\(fraction, length\)/);
   assert.match(build, /post\(\{ action: ['"]seek['"], zone: current\.id, seconds: seconds \}\)/);
   assert.match(CSS, /\.grid > \.tile \.tile-rule:not\(\.vol\) \{ cursor: pointer; \}/);
+});
+
+test('Wall card navigation follows a durable room after cards or topology move', () => {
+  assert.match(WALL, /var faceId = zone\.outputs\.length > 0 \? zone\.outputs\[0\]\.id : zoneId/);
+  assert.match(WALL, /tile\.href = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/);
+  assert.match(WALL,
+    /var faceId = zone\.outputs\.length > 0 \? zone\.outputs\[0\]\.id : zone\.id;[\s\S]{0,140}tile\.node\.href = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/,
+    'every render refreshes the anchor from the room currently painted on that card');
+  assert.match(FACE,
+    /if \(zoneId === ['"]['"] && boundOutputId === null\) \{[\s\S]{0,180}localStorage\.getItem\(STORE_KEY_ZONE \+ zoneId\)/,
+    'an explicit Wall link cannot be replaced by an old room remembered by that Face');
 });
 
 test('Wall cards hide into a durable Hidden page and restore on card press', () => {

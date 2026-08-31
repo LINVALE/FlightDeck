@@ -175,10 +175,19 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   port = typeof address === 'object' && address !== null ? address.port : port;
   t.after(() => server.close());
   const base = 'http://127.0.0.1:' + String(port);
+  hub.publish(buildSnapshot(
+    { generation: 'face-route', zones: ZONES, coreName: 'ROCK', corePaired: true,
+      coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
+    relay, ledger));
 
   const page = await (await fetch(base + '/face/1601abc?face=classic')).text();
   assert.match(page, /data-zone="1601abc"/);
   assert.match(page, /data-face-param="classic"/);
+
+  const durable = await (await fetch(base + '/face/1701a')).text();
+  assert.match(durable, /data-zone="1601abc"/);
+  assert.match(durable, /data-output="1701a"/,
+    'a Wall link binds the physical room rather than its disposable zone');
 
   // Every tournament face is built now, so each is honoured...
   for (const face of ['presence', 'classic', 'dial', 'libretto', 'canvas']) {

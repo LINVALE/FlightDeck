@@ -171,6 +171,8 @@ test('a display binds to its OUTPUT, so grouping the room does not strand it', a
   ];
   const bound = resolveOutput(alone, 'study');
   assert.deepEqual(bound, { outputId: 'oStudy', zoneId: 'zStudy' });
+  assert.deepEqual(resolveOutput(alone, 'oStudy'), { outputId: 'oStudy', zoneId: 'zStudy' },
+    'the durable output id itself is a bookmarkable room identity');
 
   // Grouped: the SAME output now sits inside Downstairs. The screen must follow
   // it there, because that is what the speaker beside the TV is playing.
@@ -183,6 +185,8 @@ test('a display binds to its OUTPUT, so grouping the room does not strand it', a
   const regrouped = resolveOutput(grouped, 'study');
   assert.equal(regrouped?.outputId, 'oStudy', 'the output identity is stable');
   assert.equal(regrouped?.zoneId, 'zDown', 'the ZONE follows the grouping');
+  assert.deepEqual(resolveOutput(grouped, 'oStudy'), { outputId: 'oStudy', zoneId: 'zDown' },
+    'the same Wall link follows its physical room into the successor group');
 
   // A group name is not an output, so it does not resolve here — the zone
   // fallback handles it.
