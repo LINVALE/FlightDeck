@@ -42,25 +42,6 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
 }
-.pauseall {
-  position: absolute; top: 0; left: 50%; z-index: 2;
-  -webkit-transform: translateX(-50%); transform: translateX(-50%);
-  display: -webkit-inline-flex; display: inline-flex;
-  -webkit-align-items: center; align-items: center;
-  -webkit-justify-content: center; justify-content: center;
-  min-height: 2.6vw; padding: .55vh .9vw;
-  border: 1px solid rgba(242,238,230,.34); border-radius: 8px;
-  background: rgba(10,11,13,.78);
-  box-shadow: 0 .5vw 1.5vw rgba(0,0,0,.58);
-  color: var(--bone); cursor: pointer;
-  font-size: 1.05vw; letter-spacing: .18em; text-transform: uppercase;
-  white-space: nowrap;
-}
-.pauseall:hover { border-color: var(--accent); color: var(--accent); }
-.pauseall[hidden] { display: none; }
-/* House-wide control is chrome, not part of the artwork. A Face at rest is a
-   Now Playing display; reveal the controls before offering Pause All. */
-.face:not(.show-chrome) .pauseall { display: none; }
 .headtools {
   margin-left: auto;
   display: -webkit-flex; display: flex;
@@ -2733,10 +2714,6 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
 .face[data-size="phone"] .cog .glyph { width: 3.4vw; height: 3.4vw; }
 .face[data-size="phone"] .homemark { padding: .5vh 2vw; }
 .face[data-size="phone"] .homemark .glyph { width: 4vw; height: 4vw; }
-.face[data-size="phone"] .pauseall {
-  min-height: 8vw; padding: .5vh 2vw;
-  font-size: 2.6vw; letter-spacing: .12em;
-}
 .face[data-size="phone"] .status { display: none; }
 .face[data-size="phone"] .dialbox { display: none; }
 
