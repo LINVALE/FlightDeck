@@ -37,7 +37,8 @@ test('header keeps Face | Queue Room Group order and each menu belongs to its ow
     'the relocated Face mark occupies Classic artwork width, not the copy rail');
   assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}\)/);
   assert.match(FACE, /pressable\(queueDoor, openQueuePanel, ['"]header-queue['"]\)/);
-  assert.match(FACE, /pressable\(zoneName, function \(\) \{ openPanel\(['"]rooms['"]\); \}\)/);
+  assert.match(FACE, /function openDisplayPicker\(\) \{ openPanel\(['"]rooms['"]\); \}/);
+  assert.match(FACE, /pressable\(zoneName, openDisplayPicker, ['"]header-rooms['"]\)/);
   assert.match(FACE, /pressable\(groupDoor, startGroupPick\)/);
 
   const anchorsStart = FACE.indexOf('function headerPickerTrigger(mode)');
@@ -113,7 +114,7 @@ test('Silk Browse keeps a visible native drag rail without changing other TVs', 
 
 test('room name chooses the displayed player while only the group badge opens the group editor', () => {
   assert.match(FACE, /zoneName\.setAttribute\(['"]aria-label['"], ['"]choose a room to display['"]\)/);
-  assert.match(FACE, /pressable\(zoneName, function \(\) \{ openPanel\(['"]rooms['"]\); \}\)/);
+  assert.match(FACE, /pressable\(zoneName, openDisplayPicker, ['"]header-rooms['"]\)/);
   assert.match(FACE, /pressable\(groupDoor, startGroupPick\)/);
   assert.match(FACE, /inNode\(target, zoneName\)[\s\S]{0,80}openPanel\(['"]rooms['"]\); return/);
   assert.doesNotMatch(FACE, /pressable\(zoneName, startGroupPick\)/);
@@ -841,6 +842,11 @@ test('ring artist view stays still and its exact sleeve always returns to album 
     /cover\.appendChild\(sleeveFlip\)[\s\S]{0,760}var albumReturn = el\(['"]span['"], ['"]album-return['"]\)[\s\S]{0,180}cover\.appendChild\(albumReturn\)/,
     'the return target is the visible square, above the inert transition planes');
   assert.match(FACE, /function returnToAlbum\(\)[\s\S]{0,180}viewStep = VIEW_ALBUM[\s\S]{0,80}artistIndex = -1/);
+  const flipStart = FACE.indexOf('function flipArtwork()');
+  const flipEnd = FACE.indexOf('function returnToAlbum()', flipStart);
+  assert.match(FACE.slice(flipStart, flipEnd),
+    /root\.getAttribute\(['"]data-view['"]\) === ['"]artist['"][\s\S]{0,80}returnToAlbum\(\)/,
+    'the painted artist view wins even if asynchronous bookkeeping drifts');
   assert.match(FACE, /pressable\(albumReturn, returnToAlbum, ['"]artist-album-return['"]\)/,
     'all supported television pointer events share one deduplicated return action');
   assert.match(FACE, /albumReturn\.setAttribute\(['"]tabindex['"], ['"]-1['"]\)/,
@@ -850,6 +856,30 @@ test('ring artist view stays still and its exact sleeve always returns to album 
     'only artist view activates the exact sleeve-sized target');
   assert.doesNotMatch(CSS, /show-chrome\[data-ringlayout\]\[data-view="artist"\]/,
     'revealing controls cannot shrink, lift or reflow the artist-view dial');
+  const ringChromeRules = CSS.match(/\.face[^\n{]*show-chrome[^\n{]*data-ringlayout[^\n{]*\{/g) || [];
+  assert.ok(ringChromeRules.length >= 2, 'the ordinary ring chrome geometry remains covered');
+  for (const selector of ringChromeRules) {
+    assert.match(selector, /:not\(\[data-view="artist"\]\)/,
+      'every ring chrome geometry rule must explicitly leave artist view stationary');
+  }
+  assert.match(CSS,
+    /show-chrome\[data-layout="dial"\]:not\(\[data-view="artist"\]\) \.dial-times/,
+    'Dial reading typography remains stationary with the rest of artist view');
+  assert.match(CSS,
+    /show-chrome\[data-flank\]:not\(\[data-view="artist"\]\) \.body/,
+    'the later flank centering rule cannot override the artist anchor');
+  const contrastStart = CSS.indexOf('Artist photographs are uncontrolled content');
+  const contrastEnd = CSS.indexOf('/* ⚖️ MUTE, PICKER', contrastStart);
+  const contrast = CSS.slice(contrastStart, contrastEnd);
+  for (const host of ['headmark', 'headtools', 'shelf-browse', 'shelf-transport', 'shelf-volume']) {
+    assert.match(contrast, new RegExp('show-chrome\\[data-view="artist"\\][^\\n]*\\.' + host),
+      host + ' receives an active artist-view contrast ground');
+  }
+  assert.match(contrast, /background: rgba\(10,11,13,\.78\)/);
+  assert.match(contrast, /border: 1px solid rgba\(242,238,230,\.34\)/);
+  assert.match(CSS,
+    /show-chrome\[data-view="artist"\]\[data-flank\] \.shelf-browse \{\s*top: 12vh; bottom: auto/,
+    'artist-view flank browse chrome goes directly to the upper safe area');
 });
 
 test('browse closes successful leaf choices while hierarchy drill-down stays open', () => {

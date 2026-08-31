@@ -467,7 +467,8 @@ zoneName.setAttribute('aria-label', 'choose a room to display');
 // The name answers "which player am I looking at?"; the adjacent chain/count
 // answers "how is that player grouped?". Keeping those two targets distinct
 // makes a room switch safe and predictable on touch, mouse and TV remotes.
-pressable(zoneName, function () { openPanel('rooms'); });
+function openDisplayPicker() { openPanel('rooms'); }
+pressable(zoneName, openDisplayPicker, 'header-rooms');
 /**
  * THE WAY INTO GROUPING, and it is already on the screen.
  *
@@ -1401,11 +1402,15 @@ function startRotation(count) {
  * album cover"). With two views, the cover is a toggle.
  */
 function flipArtwork() {
+  // The painted DOM is the user's truth. If an asynchronous image/render frame
+  // ever leaves the bookkeeping a beat behind, a press on a visible artist view
+  // must still go home instead of trying to enter artist view again.
+  if (root.getAttribute('data-view') === 'artist') { returnToAlbum(); return; }
   cycleArtist();
 }
 
 function returnToAlbum() {
-  if (viewStep !== VIEW_ARTIST) return;
+  if (viewStep === VIEW_ALBUM && root.getAttribute('data-view') !== 'artist') return;
   viewStep = VIEW_ALBUM;
   artistIndex = -1;
   backdropKey = null;

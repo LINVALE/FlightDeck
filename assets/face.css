@@ -522,7 +522,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    rather than being pushed off the bottom. */
 /* ring outer diameter is 162% of the sleeve, so 52vh gives 84vh — inside the frame */
 .face:not([data-size])[data-ringlayout] .cover { width: 52vh; height: 52vh; }
-.face:not([data-size]).show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .cover { width: 20vh; height: 20vh; }
+.face:not([data-size]).show-chrome[data-ringlayout]:not([data-view="artist"]):not([data-column]):not([data-flank]) .cover { width: 20vh; height: 20vh; }
 
 
 /* The reading sits under the ring, not inside it — the middle is the picture. */
@@ -662,7 +662,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face:not([data-size])[data-ringlayout] .np { -webkit-flex-direction: column; flex-direction: column; }
   .face:not([data-size])[data-ringlayout] .copy { text-align: center; margin-left: 0; margin-top: 10vw; }
   .face:not([data-size])[data-ringlayout] .cover,
-  .face:not([data-size]).show-chrome[data-ringlayout] .cover { width: 58vw; height: 58vw; }
+  .face:not([data-size]).show-chrome[data-ringlayout]:not([data-view="artist"]) .cover { width: 58vw; height: 58vw; }
   .face:not([data-size])[data-ringlayout] .title { font-size: 6vw; }
 }
 
@@ -1215,7 +1215,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * above the transport bar. The sleeve sits lower than on a flat face, which is
  * what keeps the whole circle on screen.
  */
-.face:not([data-size]).show-chrome[data-ringlayout]:not([data-column]):not([data-flank]) .body { padding-top: 12.4vh; }
+.face:not([data-size]).show-chrome[data-ringlayout]:not([data-view="artist"]):not([data-column]):not([data-flank]) .body { padding-top: 12.4vh; }
 
 .status:empty { display: none; }
 
@@ -1394,7 +1394,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  */
 /* (The four rules that scaled these "by the same 34/44 the sleeve is" are gone
    with the shrink they belonged to. Dial keeps one size now — Peter, 08-29.) */
-.face:not([data-size]).show-chrome[data-layout="dial"] .dial-times { font-size: .89vw; }
+.face:not([data-size]).show-chrome[data-layout="dial"]:not([data-view="artist"]) .dial-times { font-size: .89vw; }
 
 /* and the reading fills the top one */
 .face:not([data-size])[data-layout="dial"] .dial-reading { top: 12%; }
@@ -2394,9 +2394,38 @@ body > .browse[data-over-ring="1"] .browse-thumb {
    these two have the room already, so every rule that takes it is RETIRED for
    them by scope. Naming a chrome-up size instead was the same mistake one level
    down: 52vh was a guess, Dial rests at 44vh, and the ring went off the frame. */
-.face:not([data-size]).show-chrome[data-flank] .body {
+.face:not([data-size]).show-chrome[data-flank]:not([data-view="artist"]) .body {
   -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center;
   padding-top: 0; padding-bottom: 0;
+}
+
+/* Artist photographs are uncontrolled content. While chrome is active, every
+   exposed control cluster therefore gets one deterministic dark ground rather
+   than hoping its outline or text shadow happens to survive that photograph.
+   The plates disappear with chrome and never cover the sleeve or resting art. */
+.face:not([data-size]).show-chrome[data-view="artist"] .headmark,
+.face:not([data-size]).show-chrome[data-view="artist"] .headtools,
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-browse .row-browse,
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-transport .controls,
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-volume .controls {
+  background: rgba(10,11,13,.78);
+  border: 1px solid rgba(242,238,230,.34); border-radius: 8px;
+  box-shadow: 0 .5vw 1.5vw rgba(0,0,0,.58);
+}
+.face:not([data-size]).show-chrome[data-view="artist"] .headmark,
+.face:not([data-size]).show-chrome[data-view="artist"] .headtools {
+  padding: .4vh .45vw;
+}
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-browse .row-browse,
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-transport .controls,
+.face:not([data-size]).show-chrome[data-view="artist"] .shelf-volume .controls {
+  padding: .55vh .55vw;
+}
+/* Dial/Presence artist mode uses the low-left corner for its artwork. Put the
+   left-hand question high immediately; never centre it over the dial while the
+   chrome timer is running. */
+.face:not([data-size]).show-chrome[data-view="artist"][data-flank] .shelf-browse {
+  top: 12vh; bottom: auto;
 }
 
 /* ⚖️ MUTE, PICKER AND MULTI ON ONE LINE (Peter, 08-29). They are one control —
