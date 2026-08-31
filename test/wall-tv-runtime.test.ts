@@ -150,8 +150,11 @@ test('Wall 2 spends card slack on larger, easier control targets', () => {
   assert.match(CSS, /\.tile-rule\.vol \{[\s\S]{0,80}height: 1\.6vh/,
     'volume receives a forgiving hit rail while retaining a thin visual line');
   assert.match(CSS,
-    /\.wall\[data-rows="1"\] \.grid > \.tile,[\s\S]{0,120}\.wall\[data-rows="3"\] \.grid > \.tile \{[\s\S]{0,100}justify-content: center/,
-    'taller cards centre the complete room display instead of crowding it against the top');
+    /\.tile-body \{[\s\S]{0,180}flex: 1 1 auto[\s\S]{0,180}\.wall\[data-rows="1"\] \.tile-body,[\s\S]{0,120}\.wall\[data-rows="3"\] \.tile-body \{[\s\S]{0,100}justify-content: center/,
+    'taller cards keep the room strip at the top and centre only the body below it');
+  assert.match(WALL,
+    /var body = el\(['"]div['"], ['"]tile-body['"]\);[\s\S]{0,220}tile\.appendChild\(head\); tile\.appendChild\(body\)/,
+    'the fixed room strip is outside the vertically centred card body');
 });
 
 test('Wall 2 Pull From chooses a durable destination then a source with content', () => {

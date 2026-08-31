@@ -555,9 +555,10 @@ function buildTile(zone) {
   var state = el('div', 'tile-state');
   actions.appendChild(left); actions.appendChild(state); actions.appendChild(infoB);
 
-  tile.appendChild(head); tile.appendChild(now);
-  tile.appendChild(progress); tile.appendChild(volLine); tile.appendChild(actions);
-  tile.appendChild(detail);
+  var body = el('div', 'tile-body');
+  body.appendChild(now); body.appendChild(progress); body.appendChild(volLine);
+  body.appendChild(actions); body.appendChild(detail);
+  tile.appendChild(head); tile.appendChild(body);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
     line2: line2, fill: fill, stamp: stamp, hideB: hideB, state: state, check: check,

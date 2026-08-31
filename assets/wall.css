@@ -822,12 +822,17 @@ body { min-height: 100vh; }
 .wall[data-rows="1"] .tile-now, .wall[data-rows="2"] .tile-now, .wall[data-rows="3"] .tile-now {
   -webkit-flex: 0 1 auto; flex: 0 1 auto;
 }
-/* Fewer rows make a taller card, so centre the complete card composition in
-   that extra height. The four-row case remains a tight fit and therefore keeps
-   its natural top-to-bottom flow. */
-.wall[data-rows="1"] .grid > .tile,
-.wall[data-rows="2"] .grid > .tile,
-.wall[data-rows="3"] .grid > .tile {
+/* The room strip remains the card's fixed top line. A body beneath it owns the
+   remaining height, and centres the music and controls when fewer rows make a
+   taller card. Four rows remain a tight natural top-to-bottom fit. */
+.tile-body {
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; min-height: 0;
+}
+.wall[data-rows="1"] .tile-body,
+.wall[data-rows="2"] .tile-body,
+.wall[data-rows="3"] .tile-body {
   -webkit-justify-content: center; justify-content: center;
 }
 .wall[data-rows="3"] .grid > .tile .tile-line2 { font-size: .78vw; }
