@@ -775,7 +775,7 @@ function render(snapshot, kind) {
       coreEl.textContent = 'catching up…';
       coreEl.className = 'wall-core away';
     } else {
-      coreEl.textContent = core.state === 'paired' ? 'paired' : 'Roon is away — showing the last known state';
+      coreEl.textContent = core.state === 'paired' ? '' : 'Roon is away — showing the last known state';
       coreEl.className = 'wall-core' + (core.state === 'paired' ? '' : ' away');
     }
 

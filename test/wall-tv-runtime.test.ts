@@ -69,6 +69,12 @@ test('Wall 2 owns the conditional top-centre Pause All action', () => {
   assert.match(CSS, /\.wall-pause-all\[hidden\] \{ display: none; \}/);
 });
 
+test('Wall omits the healthy paired plumbing state but keeps an outage visible', () => {
+  assert.match(WALL,
+    /coreEl\.textContent = core\.state === ['"]paired['"] \? ['"]['"] : ['"]Roon is away — showing the last known state['"]/);
+  assert.match(WALL, /coreEl\.className = ['"]wall-core['"] \+ \(core\.state === ['"]paired['"] \? ['"]['"] : ['"] away['"]\)/);
+});
+
 test('Wall 2 spends card slack on larger, easier control targets', () => {
   assert.match(CSS, /\.tile-actions \{ margin-top: 1\.2vh; padding-top: \.65vh; \}/,
     'the action row follows the volume rail instead of being pushed to the card floor');
