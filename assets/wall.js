@@ -14,6 +14,7 @@ import { alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder, joinedPrev
 
 var root = document.getElementById('wall');
 var grid = document.getElementById('grid');
+var startupEl = document.getElementById('wall-startup');
 var summaryEl = document.getElementById('summary');
 var coreEl = document.getElementById('core');
 var tiles = {};
@@ -23,6 +24,39 @@ var previousOutputOwners = {};
 var topologyHoldSlots = [];
 var lastTopology = null;
 var tabsEl = document.getElementById('tabs');
+var startupReady = false;
+var startupExpected = null;
+var startupDeadlineTimer = null;
+var startupStartedAt = Date.now();
+
+/** Reveal one composed Wall, not thirteen cards arriving one after another. */
+function finishStartup() {
+  if (startupReady) return;
+  var remaining = 420 - (Date.now() - startupStartedAt);
+  if (remaining > 0) { setTimeout(finishStartup, remaining); return; }
+  startupReady = true;
+  if (startupDeadlineTimer !== null) clearTimeout(startupDeadlineTimer);
+  startupDeadlineTimer = null;
+  root.classList.add('is-ready');
+  if (startupEl !== null) startupEl.setAttribute('aria-hidden', 'true');
+}
+
+function settleStartup() {
+  if (startupReady || startupExpected === null) return;
+  for (var i = 0; i < startupExpected.length; i += 1) {
+    var tile = tiles[startupExpected[i]];
+    if (tile === undefined || !tile.artReady) return;
+  }
+  finishStartup();
+}
+
+function prepareStartup(zones) {
+  if (startupReady) return;
+  startupExpected = [];
+  for (var i = 0; i < zones.length; i += 1) startupExpected.push(zones[i].id);
+  if (startupDeadlineTimer === null) startupDeadlineTimer = setTimeout(finishStartup, 2600);
+  settleStartup();
+}
 
 function resetWallOrder() {
   order = [];
@@ -205,6 +239,7 @@ function drawTabs(islands, total, hiddenCount) {
   }
   if (hiddenCount > 0) {
     var hiddenTab = el('span', showHiddenMode ? 'wall-tab now' : 'wall-tab', 'hidden  ' + String(hiddenCount));
+    hiddenTab.insertBefore(glyph('minimize'), hiddenTab.firstChild);
     hiddenTab.setAttribute('title', 'show hidden room cards');
     hiddenTab.addEventListener('click', function () {
       if (reorderMode) finishReorder();
@@ -532,7 +567,7 @@ function buildTile(zone) {
     ungroupB: ungroupB,
     shufB: shufB, repB: repB,
     detail: detail,
-    artKey: null, chips: []
+    artKey: null, artPath: null, artReady: false, chips: []
   };
 }
 
@@ -825,9 +860,19 @@ function setChips(tile, zone) {
 function setArt(tile, zone) {
   var art = zone.nowPlaying && zone.nowPlaying.art ? zone.nowPlaying.art : null;
   var key = art ? art.key : null;
-  if (key === tile.artKey) return;
+  if (key === tile.artKey) {
+    if (art === null) { tile.artReady = true; settleStartup(); }
+    return;
+  }
   tile.artKey = key;
-  if (art === null) { tile.img.removeAttribute('src'); return; }
+  tile.artPath = art === null ? null : art.path;
+  tile.artReady = false;
+  if (art === null) {
+    tile.img.removeAttribute('src');
+    tile.artReady = true;
+    settleStartup();
+    return;
+  }
   // Decode before swapping so a slow image never shows a broken or half-painted
   // frame. img.decode() is Chromium 64 — above the floor — so it is guarded.
   load(tile, art.path, 0);
@@ -836,14 +881,25 @@ function setArt(tile, zone) {
 /** One retry after a short delay: a transient miss must not leave a permanent hole. */
 function load(tile, path, attempt) {
   var next = new Image();
-  next.onload = function () { tile.img.src = next.src; };
+  var complete = function () {
+    if (tile.artPath !== path) return;
+    tile.img.src = next.src;
+    tile.artReady = true;
+    settleStartup();
+  };
+  next.onload = complete;
   next.onerror = function () {
-    if (attempt >= 1) return;
-    setTimeout(function () { if (tile.artKey !== null) load(tile, path, attempt + 1); }, 1500);
+    if (tile.artPath !== path) return;
+    if (attempt >= 1) {
+      tile.artReady = true;
+      settleStartup();
+      return;
+    }
+    setTimeout(function () { if (tile.artPath === path) load(tile, path, attempt + 1); }, 1500);
   };
   next.src = path;
   if ('decode' in HTMLImageElement.prototype) {
-    next.decode().then(function () { tile.img.src = next.src; }).catch(function () { /* onload/onerror cover it */ });
+    next.decode().then(complete).catch(function () { /* onload/onerror cover it */ });
   }
 }
 
@@ -890,6 +946,7 @@ function render(snapshot, kind) {
       root.style.setProperty('--accent', '#d8a24a');
       grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
       resetWallOrder();
+      prepareStartup([]);
       return;
     }
 
@@ -972,6 +1029,7 @@ function render(snapshot, kind) {
       orderSlots = [];
       previousOutputOwners = {};
       setOverflow([]);
+      prepareStartup([]);
       return;
     }
     /**
@@ -1077,6 +1135,7 @@ function render(snapshot, kind) {
     previousOutputOwners = wallOutputOwners(inTab);
     setOverflow(overflow);
     paintPending();
+    prepareStartup(shown);
   }
 
   // Progress on every frame, including seek ticks. Only tiles that exist.

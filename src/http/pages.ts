@@ -57,6 +57,12 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
   const reach = numeric ?? urls[0] ?? '';
   return head(nonce, 'FlightDeck', '/assets/wall.css')
     + '<body><main class="wall" id="wall" data-state="connecting">'
+    + '<div class="wall-startup" id="wall-startup" role="status" aria-live="polite">'
+    + '<div class="wall-startup-brand">FLIGHT<span>DECK</span></div>'
+    + '<span class="wall-startup-spinner" aria-hidden="true"></span>'
+    + '<div class="wall-startup-title">Preparing rooms</div>'
+    + '<div class="wall-startup-copy">Finding devices and arranging the Wall…</div>'
+    + '</div>'
     + '<header class="wall-head">'
     + '<nav class="wall-tabs" id="tabs" hidden></nav>'
     + '</header>'

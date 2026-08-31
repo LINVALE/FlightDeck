@@ -210,6 +210,9 @@ test('Wall cards hide into a durable Hidden page and restore on card press', () 
   assert.match(WALL, /localStorage\.setItem\(['"]flightdeck\.wall-hidden['"], JSON\.stringify\(hiddenSlots\)\)/);
   assert.match(WALL, /hideB\.appendChild\(glyph\(['"]minimize['"]\)\)/);
   assert.match(WALL, /hiddenTab = el\(['"]span['"], showHiddenMode \? ['"]wall-tab now['"] : ['"]wall-tab['"], ['"]hidden  ['"] \+ String\(hiddenCount\)\)/);
+  assert.match(WALL, /hiddenTab\.insertBefore\(glyph\(['"]minimize['"]\), hiddenTab\.firstChild\)/);
+  assert.match(CSS, /\.wall-tab > \.tt-glyph \{[\s\S]{0,160}width: \.78vw; height: \.78vw[\s\S]{0,120}color: var\(--accent\)/,
+    'Hidden carries a leading visual mark in the same slot as a family swatch');
   assert.match(WALL, /if \(showHiddenMode\) \{ toggleHidden\(zoneId\); return true; \}/,
     'a Hidden-page card press restores instead of opening its Face');
   assert.match(WALL, /tile\.hideB\.replaceChildren\(glyph\(showHiddenMode \? ['"]restore['"] : ['"]minimize['"]\)\)/);
@@ -249,6 +252,24 @@ test('the top belongs to the type picker and commands while identity moves to th
   assert.match(CSS, /\.wall-head > \.wall-tabs \{ -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; \}/,
     'after the server refresh, only the picker nested in the top line may flex horizontally');
   assert.match(CSS, /\.wall-foot \{[\s\S]{0,300}justify-content: space-between/);
+});
+
+test('startup builds the first Wall behind a centred progress veil and reveals it once', () => {
+  const startupAt = PAGES.indexOf('<div class="wall-startup" id="wall-startup"');
+  const headerAt = PAGES.indexOf('<header class="wall-head">');
+  assert.ok(startupAt !== -1 && startupAt < headerAt, 'the preparation state is present before any Wall chrome');
+  assert.match(PAGES, /wall-startup-spinner[\s\S]{0,180}Preparing rooms[\s\S]{0,180}Finding devices and arranging the Wall…/);
+  assert.match(CSS, /\.wall > \.wall-head, \.wall > \.grid, \.wall > \.wall-foot \{ visibility: hidden; \}/);
+  assert.match(CSS, /\.wall\.is-ready > \.wall-head, \.wall\.is-ready > \.grid, \.wall\.is-ready > \.wall-foot \{ visibility: visible; \}/);
+  assert.match(CSS, /\.wall-startup \{[\s\S]{0,420}justify-content: center[\s\S]{0,220}background: var\(--ink\)/);
+  assert.match(CSS, /\.wall-startup-spinner \{[\s\S]{0,260}border-top-color: var\(--accent\)[\s\S]{0,180}wall-startup-turn \.9s linear infinite/);
+  assert.match(WALL, /startupDeadlineTimer = setTimeout\(finishStartup, 2600\)/,
+    'one failed image cannot hold the Wall behind the curtain');
+  assert.match(WALL, /tile\.artReady = true;\s*settleStartup\(\)/,
+    'successful or exhausted artwork releases its startup obligation');
+  assert.match(WALL, /paintPending\(\);\s*prepareStartup\(shown\)/,
+    'the visible card set is fully constructed before it may reveal');
+  assert.match(WALL, /root\.classList\.add\(['"]is-ready['"]\)/);
 });
 
 test('Wall action instructions occupy the top control line', () => {
