@@ -880,6 +880,9 @@ test('ring artist view stays still and its exact sleeve always returns to album 
   assert.match(CSS,
     /show-chrome\[data-view="artist"\]\[data-flank\] \.shelf-browse \{\s*top: 12vh; bottom: auto/,
     'artist-view flank browse chrome goes directly to the upper safe area');
+  assert.match(CSS,
+    /@media \(orientation: landscape\) \{\s*\.face[^\n]*show-chrome\[data-layout="dial"\]\[data-view="artist"\]\[data-flank\] \.shelf-browse \{\s*left: calc\(5vw \+ 26vh - 10\.5vw\); right: auto/,
+    'the high browse plate and low dial share one horizontal centre');
 });
 
 test('browse closes successful leaf choices while hierarchy drill-down stays open', () => {

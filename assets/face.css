@@ -2427,6 +2427,14 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 .face:not([data-size]).show-chrome[data-view="artist"][data-flank] .shelf-browse {
   top: 12vh; bottom: auto;
 }
+/* Dial's artist composition is centred at safe-left + its 13vh inset + half of
+   the 26vh sleeve. Centre the 21vw browse plate on that same axis instead of on
+   the generic flank, while retaining the high vertical placement above it. */
+@media (orientation: landscape) {
+  .face:not([data-size]).show-chrome[data-layout="dial"][data-view="artist"][data-flank] .shelf-browse {
+    left: calc(5vw + 26vh - 10.5vw); right: auto;
+  }
+}
 
 /* ⚖️ MUTE, PICKER AND MULTI ON ONE LINE (Peter, 08-29). They are one control —
    this room's loudness — and stacking the scale under its own two marks made it
