@@ -2215,7 +2215,7 @@ function hasPullSource(destination) {
   if (snapshot === null || destination === null) return false;
   for (var i = 0; i < snapshot.zones.length; i += 1) {
     var zone = snapshot.zones[i];
-    if (zone.id !== destination.id && zone.state === 'playing'
+    if (zone.id !== destination.id
         && zone.nowPlaying !== null && zone.outputs.length > 0) return true;
   }
   return false;
@@ -3136,14 +3136,14 @@ function showPicker(mode, refreshing) {
     nodes.push(toRow);
   }
 
-  /** PULL FROM: choose live music elsewhere and bring it to this durable room. */
+  /** PULL FROM: choose retained music elsewhere and bring it to this durable room. */
   if (mode === 'pull') {
     var pullSnapshot = store.snapshot();
     var targetOutputId = lockedOutputId !== null ? lockedOutputId : pullDestinationOutputId;
     var pullZone = zoneForOutputId(pullSnapshot, targetOutputId);
     var pullOutput = outputInZone(pullZone, targetOutputId);
     var pullName = pullZone === null ? 'this player' : pullZone.name;
-    var pullGuide = el('div', 'move-guide', 'Choose an actively playing player. Its queue moves to '
+    var pullGuide = el('div', 'move-guide', 'Choose a player with content. Its queue moves to '
       + pullName + ', FlightDeck makes sure it is playing here, and this display stays here.');
     var fromRow = el('div', 'row row-faces row-column');
     var pullZones = pullSnapshot === null ? [] : pullSnapshot.zones;
@@ -3151,9 +3151,10 @@ function showPicker(mode, refreshing) {
     for (var p = 0; p < pullZones.length; p += 1) {
       (function (source) {
         if (pullZone === null || pullOutput === null || source.id === pullZone.id
-            || source.state !== 'playing' || source.nowPlaying === null || source.outputs.length === 0) return;
+            || source.nowPlaying === null || source.outputs.length === 0) return;
         pullChoices += 1;
-        var sourceCard = roomOption(source, 'is-playing', function () {
+        var sourceClass = source.state === 'playing' || source.state === 'loading' ? 'is-playing' : '';
+        var sourceCard = roomOption(source, sourceClass, function () {
           picker.hidden = true;
           // Pull's destination never changes: install its durable output before
           // the transaction so a successor snapshot cannot make this display
@@ -3170,13 +3171,13 @@ function showPicker(mode, refreshing) {
           });
         });
         sourceCard.setAttribute('title', 'pull from ' + source.name + ' to ' + pullName);
-        sourceCard.setAttribute('aria-label', 'pull the music playing in ' + source.name
+        sourceCard.setAttribute('aria-label', 'pull the music in ' + source.name
           + ' to ' + pullName + ' and keep this display here');
         roomCardAction(sourceCard, 'pull-from', 'pull from');
         fromRow.appendChild(sourceCard);
       })(pullZones[p]);
     }
-    if (pullChoices === 0) fromRow.appendChild(el('span', 'opt off', 'no other player is active'));
+    if (pullChoices === 0) fromRow.appendChild(el('span', 'opt off', 'no other player has content'));
     nodes.push(pullGuide);
     nodes.push(fromRow);
   }

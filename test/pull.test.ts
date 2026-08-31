@@ -135,6 +135,34 @@ test('paused landing gets one Play and only a later exact active publication com
   ]);
 });
 
+test('paused and stopped sources with retained content can both be pulled', async (t) => {
+  for (const sourceState of ['paused', 'stopped'] as const) {
+    await t.test(sourceState, async () => {
+      const first = initial([
+        zone('source-zone', 'source-output', sourceState, ITEM, false),
+        zone('destination-zone', 'destination-output', 'stopped', null),
+      ]);
+      const h = harness({
+        transfer: (publish) => publish(snapshot(8, [
+          zone('source-zone', 'source-output', 'stopped', null),
+          zone('landed-zone', 'destination-output', 'paused', ITEM),
+        ])),
+        control: (publish) => publish(snapshot(9, [
+          zone('source-zone', 'source-output', 'stopped', null),
+          zone('landed-zone', 'destination-output', 'loading', ITEM),
+        ])),
+      }, first);
+
+      const outcome = await h.coordinator.pull(REQUEST);
+      assert.equal(outcome.playIssued, true);
+      assert.deepEqual(h.calls, [
+        { kind: 'transfer', target: 'source-zone', other: 'destination-output' },
+        { kind: 'control', target: 'destination-output', other: 'play' },
+      ]);
+    });
+  }
+});
+
 test('Play acknowledgement alone is not success and never causes a second Play', async () => {
   const h = harness({
     transfer: (publish) => publish(snapshot(8, [

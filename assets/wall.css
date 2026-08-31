@@ -212,10 +212,13 @@ body { min-height: 100vh; }
 .wall-pause-all:hover { color: var(--accent); border-color: var(--accent); }
 .wall-pause-all[hidden] { display: none; }
 
-/* The bar: fixed over the footer so appearing never shifts a tile mid-gesture. */
+/* An active instruction replaces the header line where the action began. It
+   never moves a card and does not make the viewer look at the opposite edge. */
 .wall-bar {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-  padding: 1.4vh 2.4vw; background: rgba(10,11,13,.96); border-top: 1px solid var(--line);
+  position: absolute; left: 0; right: 0; top: -.55vh; bottom: auto; z-index: 40;
+  min-height: 3.2vw; padding: .55vh .7vw;
+  background: rgba(10,11,13,.96); border-bottom: 1px solid var(--line);
+  border-radius: 7px;
   display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
 }
 .wall-bar[hidden] { display: none; }
@@ -347,6 +350,8 @@ body { min-height: 100vh; }
 .grid > .tile.is-idle { --tile-frame: var(--line); }
 .grid > .tile.send-target { --tile-frame: var(--accent); }
 .grid > .tile.send-source { --tile-frame: var(--accent); background: #191b20; }
+.grid > .tile.pull-source { --tile-frame: var(--accent); }
+.grid > .tile.pull-destination { --tile-frame: var(--accent); background: #191b20; }
 
 .tile-head {
   display: -webkit-flex; display: flex;
@@ -411,10 +416,20 @@ body { min-height: 100vh; }
 }
 .tile-t.total { text-align: right; }
 .tile-vol-mark {
+  position: relative;
   -webkit-flex: 0 0 auto; flex: 0 0 auto; width: 2.1vw;
   color: var(--ash); display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  cursor: pointer;
 }
-.tile-vol-mark.muted { opacity: .35; }
+.tile-vol-mark.muted { color: var(--accent); }
+.tile-vol-mark.muted:after {
+  content: ''; position: absolute; width: .85vw; height: 1px;
+  background: currentColor;
+  -webkit-transform: rotate(-45deg); transform: rotate(-45deg);
+}
+.tile-vol-mark.off { opacity: .3; cursor: default; }
 .tile-vol-mark .tt-glyph { width: .7vw; height: .7vw; }
 .grid > .tile .tile-rule {
   position: relative; height: 3px; border-radius: 2px; background: var(--line);
@@ -443,6 +458,7 @@ body { min-height: 100vh; }
 }
 .ta:hover { border-color: var(--accent); color: var(--accent); }
 .ta.off { opacity: .3; cursor: default; }
+.ta.now { color: var(--accent); border-color: var(--accent); background: rgba(216,162,74,.16); }
 .ta .tt-glyph { width: .78vw; height: .78vw; }
 .grid > .tile .tile-state {
   margin-left: auto; font-size: .56vw; color: var(--dim);
@@ -665,28 +681,35 @@ body { min-height: 100vh; }
    spare height collects below the complete control cluster rather than opening
    a dead pointing area between the volume rail and the buttons. */
 .tile-now { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
-.tile-actions { margin-top: .65vh; padding-top: .45vh; }
+.tile-actions { margin-top: 1.2vh; padding-top: .65vh; }
 
 /* Three pixels between a round button's border and a bar's rounded end is
    geometrically clear and visually touching — Peter read it as the bars covering
    the controls, and he is right that it looks that way. Since the foot is pinned
    to the bottom, the spare space was collecting there doing nothing; it is spent
    here instead, separating the two things that were reading as one. */
-.tile-bar-line { margin-top: .72vh; }
-.tile-bar-line + .tile-bar-line { margin-top: .35vh; }
+.tile-bar-line { margin-top: 1.25vh; }
+.tile-bar-line + .tile-bar-line { margin-top: 1.15vh; }
 
-/* Volume is aimed at directly, so its hit rail is taller than its visual line. */
+/* Progress is one continuous journey; volume is 44 separate steps. Both
+   rails use the same endpoint columns, so their actual lengths match exactly. */
+.grid > .tile .tile-t,
+.grid > .tile .tile-vol-mark {
+  width: 2.5vw; min-width: 2.5vw; padding: 0; text-align: center;
+}
+.grid > .tile .tile-t.total { text-align: center; }
 .grid > .tile .tile-rule.vol {
   height: 1.6vh; background: transparent; overflow: visible;
-}
-.grid > .tile .tile-rule.vol:before {
-  content: ''; position: absolute; left: 0; right: 0; top: 50%;
-  height: 6px; margin-top: -3px; border-radius: 3px;
-  background: rgba(242,238,230,.18);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: space-between; justify-content: space-between;
 }
 .grid > .tile .tile-rule.vol i {
-  top: 50%; bottom: auto; height: 6px; margin-top: -3px; z-index: 1;
+  position: static; -webkit-flex: 0 0 .12vw; flex: 0 0 .12vw;
+  width: .12vw; height: .72vw; margin: 0;
+  background: rgba(242,238,230,.18); border-radius: .06vw;
 }
+.grid > .tile .tile-rule.vol i.on { background: var(--accent); }
 
 /* With fewer rows each card has real height, so the sleeve and the type grow
    back into it. Four rows is the crowded case the small sizes were tuned for. */

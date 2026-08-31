@@ -122,6 +122,8 @@ test('Pause all appears only for live zones and sends one strict Pause per zone'
   assert.match(CSS, /\.pauseall \{[\s\S]{0,500}background: rgba\(10,11,13,\.78\)/,
     'the active action remains legible over unpredictable artist photography');
   assert.match(CSS, /\.pauseall\[hidden\] \{ display: none; \}/);
+  assert.match(CSS, /\.face:not\(\.show-chrome\) \.pauseall \{ display: none; \}/,
+    'Pause all cannot persist over a resting Now Playing face');
   assert.match(CSS, /data-size=['"]phone['"]\] \.pauseall \{[\s\S]{0,120}font-size: 2\.6vw/,
     'the same action remains readable on the phone composition');
 });
@@ -429,7 +431,7 @@ test('Transfer To freezes its source, moves the queue honestly, then follows onl
     'a locked display cannot offer a verb whose contract is to leave that player');
 });
 
-test('Pull From keeps the durable destination, lists only active sources and sends one fenced request', () => {
+test('Pull From keeps the durable destination, lists sources with content and sends one fenced request', () => {
   assert.match(FACE, /pickerAction\(['"]pull-from['"], ['"]pull from['"][\s\S]{0,180}startPullInto/);
   assert.match(FACE, /var pullDestinationOutputId = null/);
   const pullStart = FACE.indexOf("if (mode === 'pull')");
@@ -437,8 +439,10 @@ test('Pull From keeps the durable destination, lists only active sources and sen
   const pull = FACE.slice(pullStart, pullEnd);
   assert.match(pull, /row row-faces row-column/);
   assert.match(pull,
-    /source\.id === pullZone\.id[\s\S]{0,100}source\.state !== ['"]playing['"][\s\S]{0,100}source\.nowPlaying === null[\s\S]{0,100}source\.outputs\.length === 0/,
-    'paused, loading, empty and current zones are not Pull sources');
+    /source\.id === pullZone\.id[\s\S]{0,100}source\.nowPlaying === null[\s\S]{0,100}source\.outputs\.length === 0/,
+    'empty and current zones are not Pull sources');
+  assert.doesNotMatch(pull, /source\.state !== ['"]playing['"]/,
+    'paused and stopped players remain eligible while they retain content');
   assert.match(pull,
     /shownZoneId = pullZone\.id;\s*boundOutputId = pullOutput\.id;\s*following = false;\s*command\(\{\s*action: ['"]pull['"],\s*from: source\.id,\s*output: pullOutput\.id,\s*generation: pullSnapshot\.generation,\s*revision: pullSnapshot\.revision/,
     'the exact source, durable destination and snapshot fence cross the wire');

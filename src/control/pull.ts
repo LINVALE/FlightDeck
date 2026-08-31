@@ -33,7 +33,6 @@ export type PullErrorCode =
   | 'snapshot-unavailable'
   | 'stale-request'
   | 'source-not-found'
-  | 'source-not-playing'
   | 'source-empty'
   | 'destination-not-found'
   | 'destination-ambiguous'
@@ -218,7 +217,6 @@ function prepare(snapshot: Snapshot, request: PullRequest): PreparedPull {
 
   const source = snapshot.zones.find((zone) => zone.id === request.sourceZoneId);
   if (source === undefined) throw new PullError('source-not-found', 'the source zone no longer exists');
-  if (source.state !== 'playing') throw new PullError('source-not-playing', 'the source zone is not actively playing');
   if (source.nowPlaying === null) throw new PullError('source-empty', 'the source zone has no current item');
 
   const owners = outputOwners(snapshot, request.destinationOutputId);

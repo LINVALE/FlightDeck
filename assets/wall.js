@@ -262,6 +262,8 @@ function glyph(name) {
             'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
     send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
            'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3'],
+    pull: ['M11.4 5.5h6.2a1.9 1.9 0 0 1 1.9 1.9v9.2a1.9 1.9 0 0 1-1.9 1.9h-6.2',
+           'M3.7 12h9.5', 'M9.7 8.7 13.2 12l-3.5 3.3'],
     ungroup: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
               'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4',
               'M5 5l14 14'],
@@ -302,14 +304,9 @@ function buildTile(zone) {
   }, { passive: true });
   tile.addEventListener('click', function (event) {
     if (Date.now() < squelchUntil) { event.preventDefault(); event.stopPropagation(); return; }
-    if (pendingSend !== null) {
+    if (activateTile(zoneId)) {
       event.preventDefault(); event.stopPropagation();
-      finishSend(zoneId);
-      return;
     }
-    if (!selectMode) return;
-    event.preventDefault(); event.stopPropagation();
-    tapToggle(zoneId);
   });
 
   /** A press on any control inside the card must never also follow it to the Face. */
@@ -382,15 +379,27 @@ function buildTile(zone) {
   var volLine = el('div', 'tile-bar-line');
   var volMark = el('span', 'tile-vol-mark');
   volMark.appendChild(glyph('speaker'));
+  volMark.setAttribute('title', 'mute');
+  volMark.setAttribute('aria-label', 'mute ' + zone.name);
+  quiet(volMark, function () {
+    var body = muteCommand(zoneId);
+    if (body !== null) post(body);
+  });
   var volBar = el('span', 'tile-rule vol');
-  var volFill = el('i');
-  volBar.appendChild(volFill);
+  var volSegments = [];
+  // Presence uses 44 narrow runway lamps. The Wall speaks the same visual
+  // language, so a small level change changes one tick rather than a whole bar.
+  for (var vs = 0; vs < 44; vs += 1) {
+    var segment = el('i');
+    volSegments.push(segment);
+    volBar.appendChild(segment);
+  }
   var volNum = el('span', 'tile-t total');
   quiet(volBar, function (event) {
     var box = volBar.getBoundingClientRect();
     if (box.width <= 0) return;
     var want = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
-    volFill.style.width = (want * 100).toFixed(1) + '%';      // answer the press at once
+    paintVolumeSegments(volSegments, want, false);            // answer the press at once
     volNum.textContent = String(Math.round(want * 100));
     // ⚖️ Press to position, never drag (Peter, 08-28). One grammar with the Face.
     post(volumeCommand(zoneId, want));
@@ -413,7 +422,12 @@ function buildTile(zone) {
   var sendB = quiet(el('span', 'ta'), function () { beginSendFrom(zoneId); });
   sendB.appendChild(glyph('send'));
   sendB.setAttribute('title', 'send what is playing here to another room');
-  left.appendChild(groupB); left.appendChild(ungroupB); left.appendChild(sendB);
+  sendB.setAttribute('aria-label', 'send from ' + zone.name + ' to another room');
+  var pullB = quiet(el('span', 'ta'), function () { beginPullInto(zoneId); });
+  pullB.appendChild(glyph('pull'));
+  pullB.setAttribute('title', 'pull music from a player with content into ' + zone.name);
+  pullB.setAttribute('aria-label', 'pull music from a player with content into ' + zone.name);
+  left.appendChild(groupB); left.appendChild(ungroupB); left.appendChild(sendB); left.appendChild(pullB);
 
   /** The room's own details — what it actually is, which Roon never says aloud. */
   var detail = el('div', 'tile-detail');
@@ -434,7 +448,8 @@ function buildTile(zone) {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
     line2: line2, fill: fill, stamp: stamp, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
-    volFill: volFill, volNum: volNum, volMark: volMark, sendB: sendB, groupB: groupB,
+    volSegments: volSegments, volNum: volNum, volMark: volMark,
+    sendB: sendB, pullB: pullB, groupB: groupB,
     ungroupB: ungroupB,
     shufB: shufB, repB: repB,
     detail: detail,
@@ -449,9 +464,34 @@ function buildTile(zone) {
  * and the same shape whether you are grouping or sending.
  */
 var pendingSend = null;
+var pendingPull = null;          // { zoneId, outputId }: destination is durable by output
+
+function zoneForOutputId(snapshot, outputId) {
+  if (snapshot === null || outputId === null) return null;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    for (var o = 0; o < snapshot.zones[i].outputs.length; o += 1) {
+      if (snapshot.zones[i].outputs[o].id === outputId) return snapshot.zones[i];
+    }
+  }
+  return null;
+}
+
+function stopPullPick() {
+  pendingPull = null;
+  root.classList.remove('is-pulling');
+}
+
+function activateTile(zoneId) {
+  if (pendingPull !== null) { finishPull(zoneId); return true; }
+  if (pendingSend !== null) { finishSend(zoneId); return true; }
+  if (selectMode) { tapToggle(zoneId); return true; }
+  return false;
+}
 
 function beginGroupFrom(zoneId) {
   pendingSend = null;
+  stopPullPick();
+  paintPending();
   if (!selectMode) enterSelect();
   toggleSelect(zoneId);
 }
@@ -459,17 +499,47 @@ function beginGroupFrom(zoneId) {
 function beginSendFrom(zoneId) {
   var zone = zoneOf(zoneId);
   if (zone === null || zone.nowPlaying === null) { say('nothing is playing in there to send'); return; }
+  if (pendingSend === zoneId) { pendingSend = null; say(''); paintPending(); return; }
+  stopPullPick();
   pendingSend = zoneId;
   say('now press the room to send ' + zone.name + '\u2019s music to \u00B7 press again here to cancel');
   paintPending();
 }
 
+function beginPullInto(zoneId) {
+  var zone = zoneOf(zoneId);
+  if (zone === null || zone.outputs.length === 0) { say('that player is not available'); return; }
+  var outputId = zone.outputs[0].id;
+  if (pendingPull !== null && pendingPull.outputId === outputId) {
+    stopPullPick();
+    say('');
+    paintPending();
+    return;
+  }
+  pendingSend = null;
+  pendingPull = { zoneId: zone.id, outputId: outputId };
+  root.classList.add('is-pulling');
+  say('now press a player with content to pull its music into ' + zone.name + ' \u00B7 press again here to cancel');
+  paintPending();
+}
+
 function paintPending() {
+  var snapshot = store === undefined ? null : store.snapshot();
+  var pullDestination = pendingPull === null ? null : zoneForOutputId(snapshot, pendingPull.outputId);
+  if (pendingPull !== null && pullDestination === null) stopPullPick();
   var keys = Object.keys(tiles);
   for (var i = 0; i < keys.length; i += 1) {
-    var on = pendingSend !== null && keys[i] !== pendingSend;
-    tiles[keys[i]].node.classList.toggle('send-target', on);
-    tiles[keys[i]].node.classList.toggle('send-source', pendingSend === keys[i]);
+    var tile = tiles[keys[i]];
+    var zone = snapshot === null ? null : zoneOf(keys[i]);
+    var sendTarget = pendingSend !== null && keys[i] !== pendingSend;
+    var pullHere = pullDestination !== null && keys[i] === pullDestination.id;
+    var pullSource = pendingPull !== null && zone !== null && !pullHere
+      && zone.nowPlaying !== null && zone.outputs.length > 0;
+    tile.node.classList.toggle('send-target', sendTarget);
+    tile.node.classList.toggle('send-source', pendingSend === keys[i]);
+    tile.node.classList.toggle('pull-destination', pullHere);
+    tile.node.classList.toggle('pull-source', pullSource);
+    tile.pullB.className = pullHere ? 'ta now' : 'ta';
   }
 }
 
@@ -482,6 +552,47 @@ function finishSend(toZoneId) {
   return true;
 }
 
+function finishPull(fromZoneId) {
+  var destination = pendingPull;
+  if (destination === null) return false;
+  var snapshot = store.snapshot();
+  var destinationZone = zoneForOutputId(snapshot, destination.outputId);
+  if (destinationZone === null) {
+    stopPullPick();
+    paintPending();
+    say('that destination is no longer available');
+    return true;
+  }
+  if (fromZoneId === destinationZone.id) {
+    stopPullPick();
+    paintPending();
+    say('');
+    return true;
+  }
+  var source = null;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    if (snapshot.zones[i].id === fromZoneId) { source = snapshot.zones[i]; break; }
+  }
+  if (source === null || source.nowPlaying === null || source.outputs.length === 0) {
+    say('choose a player that has content');
+    paintPending();
+    return true;
+  }
+
+  stopPullPick();
+  paintPending();
+  post({
+    action: 'pull',
+    from: source.id,
+    output: destination.outputId,
+    generation: snapshot.generation,
+    revision: snapshot.revision,
+  }).then(function (ok) {
+    if (ok) say('pulled ' + source.name + '\u2019s music into ' + destinationZone.name);
+  });
+  return true;
+}
+
 /** The family's name, if anyone has given it one. */
 function islandName(id) {
   var snap = store.snapshot();
@@ -489,6 +600,38 @@ function islandName(id) {
   var list = snap.islands || [];
   for (var i = 0; i < list.length; i += 1) if (list[i].id === id) return list[i].label || '';
   return '';
+}
+
+function paintVolumeSegments(nodes, level, muted) {
+  var exact = muted || level === null ? 0 : level * nodes.length;
+  var whole = Math.floor(exact);
+  var part = exact - whole;
+  for (var i = 0; i < nodes.length; i += 1) {
+    var on = i < whole || (i === whole && part > .04);
+    nodes[i].className = on ? 'on' : '';
+    nodes[i].style.opacity = on && i === whole && part > .04 ? String(.25 + part * .75) : '';
+  }
+}
+
+function muteState(zone) {
+  var found = false;
+  var allMuted = true;
+  for (var i = 0; i < zone.outputs.length; i += 1) {
+    if (zone.outputs[i].volume === null) continue;
+    found = true;
+    if (!zone.outputs[i].volume.muted) allMuted = false;
+  }
+  return found ? allMuted : null;
+}
+
+function muteCommand(zoneId) {
+  var zone = zoneOf(zoneId);
+  if (zone === null) return null;
+  if (zone.outputs.length > 1) {
+    return muteState(zone) === null ? null : { action: 'group-mute', zone: zone.id };
+  }
+  if (zone.outputs.length === 0 || zone.outputs[0].volume === null) return null;
+  return { action: 'mute', output: zone.outputs[0].id, muted: !zone.outputs[0].volume.muted };
 }
 
 function volumeCommand(zoneId, level) {
@@ -748,10 +891,16 @@ function render(snapshot, kind) {
       // something is genuinely in flight.
       tile.state.textContent = zone.state === 'loading' ? 'loading' : '';
       var vl = volumeLevel(zone);
-      tile.volFill.style.width = vl === null ? '0' : ((vl.muted ? 0 : vl.level) * 100).toFixed(1) + '%';
+      paintVolumeSegments(tile.volSegments, vl === null ? null : vl.level, vl !== null && vl.muted);
       tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
-      tile.volMark.className = vl !== null && vl.muted ? 'tile-vol-mark muted' : 'tile-vol-mark';
+      var muted = muteState(zone);
+      tile.volMark.className = muted === null ? 'tile-vol-mark off'
+        : (muted ? 'tile-vol-mark muted' : 'tile-vol-mark');
+      var muteLabel = muted ? 'unmute ' : 'mute ';
+      tile.volMark.setAttribute('title', muted === null ? 'mute is not available' : muteLabel + zone.name);
+      tile.volMark.setAttribute('aria-label', muted === null ? 'mute is not available' : muteLabel + zone.name);
       tile.sendB.className = zone.nowPlaying === null ? 'ta off' : 'ta';
+      tile.pullB.className = zone.outputs.length === 0 ? 'ta off' : 'ta';
       var grouped = zone.outputs.length > 1;
       tile.groupB.hidden = grouped;
       tile.ungroupB.hidden = !grouped;
@@ -787,6 +936,7 @@ function render(snapshot, kind) {
     }
     previousOutputOwners = wallOutputOwners(inTab);
     setOverflow(overflow);
+    paintPending();
   }
 
   // Progress on every frame, including seek ticks. Only tiles that exist.
@@ -897,19 +1047,25 @@ function tap(node, onPress) {
   node.setAttribute('role', 'button');
 }
 
-/* The bar: what a release will do, said before the finger lifts; and in choose
-   mode, whose music the group will play. Fixed over the footer so entering a
-   mode never shifts a tile under a pointer. */
+/* The header becomes the control line while an action is in progress. */
 var bar = el('div', 'wall-bar');
 bar.hidden = true;
 var barHint = el('span', 'wall-bar-hint');
 var barActs = el('span', 'wall-bar-acts');
 bar.appendChild(barHint);
 bar.appendChild(barActs);
-document.body.appendChild(bar);
+var controlHead = document.querySelector('.wall-head');
+if (controlHead !== null) controlHead.appendChild(bar);
+else document.body.appendChild(bar);
 
 var sayTimer = null;
 function say(message) {
+  if (message === '') {
+    if (sayTimer !== null) clearTimeout(sayTimer);
+    sayTimer = null;
+    updateBar();
+    return;
+  }
   bar.hidden = false;
   barHint.textContent = message;
   if (sayTimer !== null) clearTimeout(sayTimer);
@@ -1034,6 +1190,26 @@ function applySelect(tile, zone) {
 function updateBar() {
   if (drag !== null && drag.armed) return;     // the drag owns the bar
   if (sayTimer !== null) return;               // a message is still being read
+  if (pendingPull !== null) {
+    var pullZone = zoneForOutputId(store.snapshot(), pendingPull.outputId);
+    if (pullZone === null) { stopPullPick(); paintPending(); }
+    else {
+      bar.hidden = false;
+      barHint.textContent = 'Pull into ' + pullZone.name + ' · choose a player with content';
+      barActs.replaceChildren(doBtn('cancel', function () { stopPullPick(); paintPending(); updateBar(); }));
+      return;
+    }
+  }
+  if (pendingSend !== null) {
+    var sendZone = zoneOf(pendingSend);
+    if (sendZone === null) { pendingSend = null; paintPending(); }
+    else {
+      bar.hidden = false;
+      barHint.textContent = 'Send from ' + sendZone.name + ' · choose a destination';
+      barActs.replaceChildren(doBtn('cancel', function () { pendingSend = null; paintPending(); updateBar(); }));
+      return;
+    }
+  }
   if (!selectMode) { bar.hidden = true; return; }
   bar.hidden = false;
 
@@ -1051,15 +1227,15 @@ function updateBar() {
   // Same measured rule as the drag hint: a group formed from a head that is not
   // playing lands stopped and stays that way until somebody presses play.
   var leadLive = lead !== null && (lead.state === 'playing' || lead.state === 'loading');
-  if (lead === null) barHint.textContent = 'choose rooms to group — the first chosen leads';
+  if (lead === null) barHint.textContent = 'Group rooms · first chosen leads';
   else if (selected.length === 1) {
     barHint.textContent = leadLive
-      ? lead.name + ' leads — its music plays in every room you add'
-      : lead.name + ' leads — it is not playing, so the group will be silent until you press play';
+      ? lead.name + ' leads · choose rooms to add'
+      : lead.name + ' leads · choose rooms to add · starts silent';
   } else {
     barHint.textContent = leadLive
-      ? String(rooms) + ' rooms — ' + lead.name + '’s music plays in all of them'
-      : String(rooms) + ' rooms — ' + lead.name + ' leads, silent until you press play';
+      ? String(rooms) + ' rooms · ' + lead.name + ' leads'
+      : String(rooms) + ' rooms · ' + lead.name + ' leads · starts silent';
   }
 
   var acts = [];
@@ -1109,7 +1285,7 @@ function startPress(event, src) {
   var isTouch = event.type === 'touchstart';
   if (!isTouch && Date.now() < mouseBlockUntil) return;   // the touch's mouse echo
   if (!isTouch && typeof event.button === 'number' && event.button !== 0) return;
-  var tapOnly = selectMode;
+  var tapOnly = selectMode || pendingSend !== null || pendingPull !== null;
   if (!tapOnly && src.kind === 'zone') {
     var zone = zoneOf(src.zoneId);
     if (zone === null || zoneIsland(zone) === '') return; // nothing to drag toward
@@ -1182,7 +1358,8 @@ function docEnd(event) {
     cancelPress();
     if (wasTap) {
       if (event.cancelable) event.preventDefault();
-      tapToggle(d.src.zoneId);
+      squelchUntil = Date.now() + 600;
+      activateTile(d.src.zoneId);
     }
     return;
   }
@@ -1368,6 +1545,9 @@ document.addEventListener('contextmenu', function (event) {
 document.addEventListener('keydown', function (event) {
   if (event.key !== 'Escape') return;
   if (drag !== null) { if (drag.armed) teardownDrag(); else cancelPress(); return; }
+  if (pendingPull !== null || pendingSend !== null) {
+    pendingSend = null; stopPullPick(); paintPending(); updateBar(); return;
+  }
   if (selectMode) exitSelect();
 });
 

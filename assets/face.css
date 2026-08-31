@@ -58,6 +58,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .pauseall:hover { border-color: var(--accent); color: var(--accent); }
 .pauseall[hidden] { display: none; }
+/* House-wide control is chrome, not part of the artwork. A Face at rest is a
+   Now Playing display; reveal the controls before offering Pause All. */
+.face:not(.show-chrome) .pauseall { display: none; }
 .headtools {
   margin-left: auto;
   display: -webkit-flex; display: flex;

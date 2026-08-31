@@ -31,7 +31,7 @@ test('a grouped Wall 2 card replaces Group with a bottom-left Ungroup action', (
   const build = WALL.slice(buildStart, buildEnd);
   assert.match(build, /post\(\{ action: ['"]ungroup['"], zone: zoneId \}\)/,
     'the existing whole-zone Ungroup contract is used directly');
-  assert.match(build, /left\.appendChild\(groupB\);\s*left\.appendChild\(ungroupB\);\s*left\.appendChild\(sendB\)/,
+  assert.match(build, /left\.appendChild\(groupB\);\s*left\.appendChild\(ungroupB\);\s*left\.appendChild\(sendB\);\s*left\.appendChild\(pullB\)/,
     'Ungroup occupies the first bottom-left action slot');
   assert.match(WALL, /var grouped = zone\.outputs\.length > 1;\s*tile\.groupB\.hidden = grouped;\s*tile\.ungroupB\.hidden = !grouped/,
     'only a real multi-output zone offers Ungroup');
@@ -70,11 +70,64 @@ test('Wall 2 owns the conditional top-centre Pause All action', () => {
 });
 
 test('Wall 2 spends card slack on larger, easier control targets', () => {
-  assert.match(CSS, /\.tile-actions \{ margin-top: \.65vh; padding-top: \.45vh; \}/,
+  assert.match(CSS, /\.tile-actions \{ margin-top: 1\.2vh; padding-top: \.65vh; \}/,
     'the action row follows the volume rail instead of being pushed to the card floor');
   assert.doesNotMatch(CSS, /\.tile-actions \{ margin-top: auto; \}/);
+  assert.match(CSS, /\.tile-bar-line \{ margin-top: 1\.25vh; \}/);
+  assert.match(CSS, /\.tile-bar-line \+ \.tile-bar-line \{ margin-top: 1\.15vh; \}/,
+    'progress, volume, and actions use the card height instead of crowding one another');
   assert.match(CSS, /\.tt, \.ta \{ width: 1\.75vw; height: 1\.75vw; \}/);
   assert.match(CSS, /\.tt\.play \{ width: 2\.05vw; height: 2\.05vw; \}/);
   assert.match(CSS, /\.tile-rule\.vol \{[\s\S]{0,80}height: 1\.6vh/,
     'volume receives a forgiving hit rail while retaining a thin visual line');
+});
+
+test('Wall 2 Pull From chooses a durable destination then a source with content', () => {
+  const buildStart = WALL.indexOf('function buildTile(zone)');
+  const buildEnd = WALL.indexOf('function beginGroupFrom(', buildStart);
+  const build = WALL.slice(buildStart, buildEnd);
+  assert.match(build, /pullB\.appendChild\(glyph\(['"]pull['"]\)\)/);
+  assert.match(build, /left\.appendChild\(sendB\);\s*left\.appendChild\(pullB\)/,
+    'Pull sits beside Send in the card action row');
+  assert.match(WALL, /pendingPull = \{ zoneId: zone\.id, outputId: outputId \}/,
+    'the destination survives grouping changes by output identity');
+  assert.match(WALL, /!pullHere\s*&& zone\.nowPlaying !== null && zone\.outputs\.length > 0/,
+    'playing, paused, and stopped players with retained content are presented as sources');
+  assert.match(WALL, /source === null \|\| source\.nowPlaying === null \|\| source\.outputs\.length === 0/,
+    'content and source identity are revalidated at the second press');
+  assert.doesNotMatch(WALL, /source\.state !== ['"]playing['"]/);
+  assert.match(WALL, /action: ['"]pull['"][\s\S]{0,160}from: source\.id[\s\S]{0,160}output: destination\.outputId[\s\S]{0,160}generation: snapshot\.generation[\s\S]{0,160}revision: snapshot\.revision/,
+    'the browser sends the exact coordinator fence and performs no imitation transfer');
+  assert.match(CSS, /\.grid > \.tile\.pull-source \{ --tile-frame: var\(--accent\); \}/);
+  assert.match(CSS, /\.grid > \.tile\.pull-destination[\s\S]{0,100}background: #191b20/);
+  assert.match(CSS, /\.ta\.now[\s\S]{0,130}border-color: var\(--accent\)/);
+});
+
+test('Wall 2 volume is segmented, aligned, and the speaker owns mute', () => {
+  assert.match(WALL, /for \(var vs = 0; vs < 44; vs \+= 1\)/,
+    'the Wall uses the same fine-grained runway scale as Presence');
+  assert.match(WALL, /paintVolumeSegments\(tile\.volSegments, vl === null \? null : vl\.level, vl !== null && vl\.muted\)/);
+  assert.doesNotMatch(WALL, /volFill/,
+    'render cannot abort by referring to the removed continuous volume fill');
+  assert.match(WALL, /quiet\(volMark, function \(\) \{[\s\S]{0,120}muteCommand\(zoneId\)[\s\S]{0,80}post\(body\)/,
+    'the speaker is a real touch/click control');
+  assert.match(WALL, /action: ['"]group-mute['"], zone: zone\.id/);
+  assert.match(WALL, /action: ['"]mute['"], output: zone\.outputs\[0\]\.id, muted: !zone\.outputs\[0\]\.volume\.muted/);
+  assert.match(CSS, /\.grid > \.tile \.tile-t,\s*\.grid > \.tile \.tile-vol-mark \{\s*width: 2\.5vw; min-width: 2\.5vw/,
+    'progress and volume reserve identical endpoint columns');
+  assert.match(CSS, /\.tile-t\.total \{ text-align: center; \}/,
+    'the level is centred under the total time');
+  assert.match(CSS, /\.tile-rule\.vol i \{[\s\S]{0,180}position: static[\s\S]{0,180}flex: 0 0 \.12vw[\s\S]{0,180}height: \.72vw/,
+    'volume marks are narrow vertical Presence-style ticks, unlike continuous progress');
+  assert.match(CSS, /\.tile-rule\.vol i\.on \{ background: var\(--accent\); \}/);
+  assert.match(CSS, /\.tile-vol-mark\.muted:after[\s\S]{0,220}rotate\(-45deg\)/,
+    'muted is visible on the speaker itself');
+});
+
+test('Wall action instructions occupy the top control line', () => {
+  assert.match(WALL, /var controlHead = document\.querySelector\(['"]\.wall-head['"]\);\s*if \(controlHead !== null\) controlHead\.appendChild\(bar\)/);
+  assert.match(WALL, /Pull into ['"] \+ pullZone\.name \+ ['"] · choose a player with content/);
+  assert.match(WALL, /Send from ['"] \+ sendZone\.name \+ ['"] · choose a destination/);
+  assert.match(CSS, /\.wall-bar \{\s*position: absolute; left: 0; right: 0; top: -\.55vh; bottom: auto/);
+  assert.doesNotMatch(CSS, /\.wall-bar \{[\s\S]{0,100}position: fixed/);
 });
