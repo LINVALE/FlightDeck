@@ -5,9 +5,10 @@ import assert from 'node:assert/strict';
 
 const WALL = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.js'), 'utf8');
 const CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.css'), 'utf8');
+const PAGES = readFileSync(resolve(import.meta.dirname, '..', 'src', 'http', 'pages.ts'), 'utf8');
 
-test('Wall card header is one state-coloured strip containing room and last seen', () => {
-  assert.match(WALL, /head\.appendChild\(zoneLine\); head\.appendChild\(stamp\)/);
+test('Wall card header is one state-coloured strip containing room, last seen, and hide', () => {
+  assert.match(WALL, /head\.appendChild\(zoneLine\); head\.appendChild\(stamp\); head\.appendChild\(hideB\)/);
   assert.match(WALL, /tile\.stamp\.textContent = stampFor\(zone, now\)/);
   assert.match(CSS, /--tile-frame: var\(--line\)/);
   assert.match(CSS, /border: 1px solid var\(--tile-frame\)/);
@@ -24,7 +25,7 @@ test('Wall omits device-family choices with no active zone members', () => {
   assert.match(WALL, /if \(!activePresent\)[\s\S]{0,180}activeIsland = ['"][\s\S]{0,180}localStorage\.removeItem\(['"]flightdeck\.island['"]\)/);
   assert.doesNotMatch(WALL, /zone\.state === ['"]playing['"][\s\S]{0,100}members\[key\]/,
     'stopped but awake rooms remain valid family members');
-  assert.match(WALL, /if \(snapshot\.zones\.length === 0\)[\s\S]{0,360}drawTabs\(\[\], 0\)[\s\S]{0,180}groupBtn\.hidden = true/,
+  assert.match(WALL, /if \(snapshot\.zones\.length === 0\)[\s\S]{0,360}drawTabs\(\[\], 0, 0\)[\s\S]{0,180}groupBtn\.hidden = true/,
     'the final device disappearing also clears the old selector and group action');
 });
 
@@ -46,17 +47,18 @@ test('a grouped Wall 2 card keeps Group and adds a bottom-left Ungroup action', 
     'transport and card-action glyphs share the same legible base size');
 });
 
-test('Wall 2 preserves a topology successor by stable leader output', () => {
+test('Wall 2 is alphabetical or explicitly ordered and preserves a topology successor slot', () => {
+  assert.match(WALL, /var alphabetical = alphabeticalWallZones\(zones\)/);
+  assert.match(WALL, /if \(Array\.isArray\(saved\)\) return applyWallSlotOrder\(alphabetical, saved\)/,
+    'a saved screen-local order wins without consulting playback state');
   assert.match(WALL, /joinedPreviousZones\(zones, previousOutputOwners\)/);
-  assert.match(WALL, /if \(resort && !joined\) return zones/,
-    'ordinary starts and stops still take the server recency order');
-  assert.match(WALL, /return inheritWallOrder\(zones, order, orderSlots\)/,
+  assert.match(WALL, /var inherited = inheritWallOrder\(alphabetical, order, orderSlots\)/,
     'a group transition uses visual slot inheritance instead of new-zone recency');
   assert.match(WALL, /previousOutputOwners = wallOutputOwners\(inTab\)/,
     'the comparison is fenced to the immediately preceding family view');
 });
 
-test('Wall 2 owns the conditional top-centre Pause All action', () => {
+test('Wall 2 owns the conditional Pause All action inside the common command deck', () => {
   assert.match(WALL, /var pauseAllBtn = el\(['"]span['"], ['"]wall-act wall-pause-all['"]\)/);
   assert.match(WALL, /pauseAllBtn\.appendChild\(glyph\(['"]pause['"]\)\)/);
   assert.match(WALL, /pauseAllBtn\.hidden = playing === 0/);
@@ -68,9 +70,9 @@ test('Wall 2 owns the conditional top-centre Pause All action', () => {
   assert.doesNotMatch(pause, /playpause|loading/,
     'a global press cannot accidentally start a room or pause a non-playing transition');
   assert.match(pause, /Promise\.all\(requests\)/);
-  assert.match(CSS, /\.wall-pause-all \{[\s\S]{0,100}left: 50%/);
-  assert.match(CSS, /\.wall-pause-all \{[\s\S]{0,180}translateX\(-50%\)/);
-  assert.match(CSS, /\.wall-pause-all\[hidden\] \{ display: none; \}/);
+  assert.match(WALL, /cluster\.appendChild\(reorderBtn\);\s*cluster\.appendChild\(pauseAllBtn\);\s*cluster\.appendChild\(groupBtn\)/);
+  assert.doesNotMatch(CSS, /\.wall-pause-all \{[^}]*position:\s*absolute/,
+    'Pause All can no longer float over the other controls');
 });
 
 test('top-row commands share one restrained geometry and type treatment', () => {
@@ -85,9 +87,17 @@ test('top-row commands share one restrained geometry and type treatment', () => 
     'the shared surface uses a quiet inset edge and restrained depth');
   assert.doesNotMatch(CSS, /\.wall-pause-all \{[^}]*font-size/,
     'Pause All cannot silently override the common type treatment');
-  assert.match(WALL, /cluster\.appendChild\(groupBtn\);\s*cluster\.appendChild\(groupAllBtn\);\s*cluster\.appendChild\(ungroupAllBtn\)/);
+  assert.match(WALL, /cluster\.appendChild\(reorderBtn\);\s*cluster\.appendChild\(pauseAllBtn\);\s*cluster\.appendChild\(groupBtn\);\s*cluster\.appendChild\(groupAllBtn\);\s*cluster\.appendChild\(ungroupAllBtn\)/);
   assert.match(CSS, /\.wall-command-cluster[\s\S]{0,180}display: -webkit-inline-flex; display: inline-flex/,
     'the related grouping commands form one deliberate deck');
+});
+
+test('grouping commands render a high-contrast glyph on the legacy TV floor', () => {
+  assert.match(WALL, /var groupingMark = name === ['"]group['"] \|\| name === ['"]groupall['"][\s\S]{0,90}name === ['"]ungroup['"] \|\| name === ['"]ungroupall['"]/);
+  assert.match(WALL, /line\.setAttribute\(['"]stroke['"], groupingMark \? ['"]#f2eee6['"] : ['"]currentColor['"]\)/,
+    'group glyphs do not depend on inherited SVG currentColor in Chromium 63');
+  assert.match(WALL, /line\.setAttribute\(['"]stroke-width['"], groupingMark \? ['"]2\.15['"] : ['"]1\.7['"]\)/,
+    'the chain and split marks remain readable at card-button scale');
 });
 
 test('Group All and Ungroup All stay inside one compatible family', () => {
@@ -101,15 +111,15 @@ test('Group All and Ungroup All stay inside one compatible family', () => {
   assert.match(family, /if \(family !== ['"]['"] && family !== found\) return \[\]/,
     'the aggregate tab cannot manufacture a cross-protocol All');
   assert.match(family, /zoneIsland\(snapshot\.zones\[z\]\) === family/);
-  assert.match(WALL, /groupAllBtn\.hidden = selectMode \|\| familyZones\.length < 2/);
-  assert.match(WALL, /ungroupAllBtn\.hidden = selectMode \|\| familyGroups === 0/);
+  assert.match(WALL, /groupAllBtn\.hidden = selectMode \|\| reorderMode \|\| showHiddenMode \|\| familyZones\.length < 2/);
+  assert.match(WALL, /ungroupAllBtn\.hidden = selectMode \|\| reorderMode \|\| showHiddenMode \|\| familyGroups === 0/);
 
   const groupStart = WALL.indexOf('function beginGroupAll()');
   const groupEnd = WALL.indexOf('\nfunction beginUngroupAll()', groupStart);
   const groupAll = WALL.slice(groupStart, groupEnd);
   assert.match(groupAll, /ids\.push\(zones\[i\]\.id\)/);
   assert.match(groupAll, /enterSelect\(ids\)/,
-    'Group All preselects the visible recent-order leader but still enters confirmation mode');
+    'Group All preselects the visible leader but still enters confirmation mode');
 
   const ungroupStart = WALL.indexOf('function beginUngroupAll()');
   const ungroupEnd = WALL.indexOf('\nfunction exitSelect()', ungroupStart);
@@ -181,6 +191,64 @@ test('Wall 2 volume is segmented, aligned, and the speaker owns mute', () => {
   assert.match(CSS, /\.tile-rule\.vol i\.on \{ background: var\(--accent\); \}/);
   assert.match(CSS, /\.tile-vol-mark\.muted:after[\s\S]{0,220}rotate\(-45deg\)/,
     'muted is visible on the speaker itself');
+});
+
+test('Wall progress is a seek control and consumes card navigation', () => {
+  const buildStart = WALL.indexOf('function buildTile(zone)');
+  const buildEnd = WALL.indexOf('function beginGroupFrom(', buildStart);
+  const build = WALL.slice(buildStart, buildEnd);
+  assert.match(build, /quiet\(rule, function \(event\) \{/,
+    'the progress press uses the same navigation-suppressing control wrapper as buttons');
+  assert.match(build, /var fraction = \(event\.clientX - box\.left\) \/ box\.width/);
+  assert.match(build, /var seconds = seekTargetSecond\(fraction, length\)/);
+  assert.match(build, /post\(\{ action: ['"]seek['"], zone: current\.id, seconds: seconds \}\)/);
+  assert.match(CSS, /\.grid > \.tile \.tile-rule:not\(\.vol\) \{ cursor: pointer; \}/);
+});
+
+test('Wall cards hide into a durable Hidden page and restore on card press', () => {
+  assert.match(WALL, /localStorage\.getItem\(['"]flightdeck\.wall-hidden['"]\)/);
+  assert.match(WALL, /localStorage\.setItem\(['"]flightdeck\.wall-hidden['"], JSON\.stringify\(hiddenSlots\)\)/);
+  assert.match(WALL, /hideB\.appendChild\(glyph\(['"]minimize['"]\)\)/);
+  assert.match(WALL, /hiddenTab = el\(['"]span['"], showHiddenMode \? ['"]wall-tab now['"] : ['"]wall-tab['"], ['"]hidden  ['"] \+ String\(hiddenCount\)\)/);
+  assert.match(WALL, /if \(showHiddenMode\) \{ toggleHidden\(zoneId\); return true; \}/,
+    'a Hidden-page card press restores instead of opening its Face');
+  assert.match(WALL, /tile\.hideB\.replaceChildren\(glyph\(showHiddenMode \? ['"]restore['"] : ['"]minimize['"]\)\)/);
+  assert.match(CSS, /\.wall\.is-hidden-page \.grid > \.tile > \* \{ pointer-events: none; \}/,
+    'the whole hidden card is one large restore target');
+});
+
+test('Wall Reorder is an explicit saved drag mode, separate from grouping', () => {
+  assert.match(WALL, /localStorage\.setItem\(['"]flightdeck\.wall-orders['"], JSON\.stringify\(manualOrders\)\)/);
+  assert.match(WALL, /barHint\.textContent = ['"]Reorder cards · drag into place, then Save['"]/);
+  assert.match(WALL, /doBtn\(['"]save['"], saveReorder\)[\s\S]{0,100}doBtn\(['"]a–z['"], resetReorder\)[\s\S]{0,100}doBtn\(['"]cancel['"], cancelReorder\)/);
+  assert.match(WALL, /reorder: reorderMode, moved: false, armed: false/);
+  assert.match(WALL, /if \(drag\.reorder\) \{[\s\S]{0,180}drag\.valid\[keys\[i\]\] = true[\s\S]{0,120}continue/);
+  const finishStart = WALL.indexOf('function finishDrag(d, overId)');
+  const actionStart = WALL.indexOf('var action = null;', finishStart);
+  const reorder = WALL.slice(finishStart, actionStart);
+  assert.match(reorder, /draftSlots\.splice\(to, 0, sourceSlot\)/);
+  assert.doesNotMatch(reorder, /post\(/, 'reordering cards never sends a grouping command');
+  assert.match(CSS, /\.wall\.is-reordering \.grid > \.tile \{ cursor: move; \}/);
+});
+
+test('the card grid is the only scrolling window between held top and bottom lines', () => {
+  assert.match(CSS, /\.wall \{[\s\S]{0,160}height: 100vh; min-height: 0; overflow: hidden/);
+  assert.match(CSS, /\.grid \{[\s\S]{0,720}overflow-y: auto/);
+  assert.match(CSS, /\.wall-head \{[\s\S]{0,180}flex: 0 0 auto/);
+  assert.match(CSS, /\.wall-foot \{ -webkit-flex: 0 0 auto; flex: 0 0 auto; \}/);
+});
+
+test('the top belongs to the type picker and commands while identity moves to the held footer', () => {
+  const header = PAGES.slice(PAGES.indexOf('+ \'<header class="wall-head">\''), PAGES.indexOf('+ \'<div class="grid"', PAGES.indexOf('+ \'<header class="wall-head">\'')));
+  const footer = PAGES.slice(PAGES.indexOf('+ \'<footer class="wall-foot">\''), PAGES.indexOf('+ \'</footer>', PAGES.indexOf('+ \'<footer class="wall-foot">\'')));
+  assert.match(header, /<nav class="wall-tabs" id="tabs" hidden><\/nav>/);
+  assert.doesNotMatch(header, /FLIGHT<span>DECK|id="summary"|id="core"/);
+  assert.match(footer, /wall-status[\s\S]{0,300}FLIGHT<span>DECK[\s\S]{0,200}id="summary"[\s\S]{0,160}id="core"/);
+  assert.match(CSS, /\.wall > \.wall-tabs \{ -webkit-flex: 0 0 auto; flex: 0 0 auto; \}/,
+    'the still-running old page cannot let its sibling picker consume card height');
+  assert.match(CSS, /\.wall-head > \.wall-tabs \{ -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; \}/,
+    'after the server refresh, only the picker nested in the top line may flex horizontally');
+  assert.match(CSS, /\.wall-foot \{[\s\S]{0,300}justify-content: space-between/);
 });
 
 test('Wall action instructions occupy the top control line', () => {

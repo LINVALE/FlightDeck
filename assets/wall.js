@@ -1,12 +1,13 @@
 import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
-import { inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
+import { seekTargetSecond } from './seek-target.js';
+import { alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
 
 /**
- * The House Wall. Ordered by MOST RECENTLY PLAYED (Peter's ruling 08-25): the
- * server does the ordering, so every screen agrees. State is shown by tile SIZE
- * and by the copy — never by moving a zone, so a track change never reshuffles.
+ * The House Wall. Rooms are alphabetical until somebody deliberately saves a
+ * screen-local order. Playback state is shown by tile SIZE and by the copy —
+ * never by moving a zone, so starting music never reshuffles the room.
  *
  * DOM is bounded: tiles are reused by zone id and never re-created per tick (R7).
  */
@@ -19,13 +20,16 @@ var tiles = {};
 var order = [];
 var orderSlots = [];
 var previousOutputOwners = {};
+var topologyHoldSlots = [];
+var lastTopology = null;
 var tabsEl = document.getElementById('tabs');
 
 function resetWallOrder() {
   order = [];
   orderSlots = [];
   previousOutputOwners = {};
-  lastLive = null;
+  topologyHoldSlots = [];
+  lastTopology = null;
 }
 
 /**
@@ -38,6 +42,23 @@ function resetWallOrder() {
  */
 var activeIsland = '';
 try { activeIsland = localStorage.getItem('flightdeck.island') || ''; } catch (e) { activeIsland = ''; }
+var manualOrders = {};
+try {
+  var savedOrders = JSON.parse(localStorage.getItem('flightdeck.wall-orders') || '{}');
+  if (savedOrders !== null && typeof savedOrders === 'object') manualOrders = savedOrders;
+} catch (e) { manualOrders = {}; }
+var hiddenSlots = [];
+try {
+  var savedHidden = JSON.parse(localStorage.getItem('flightdeck.wall-hidden') || '[]');
+  if (Array.isArray(savedHidden)) hiddenSlots = savedHidden;
+} catch (e) { hiddenSlots = []; }
+var showHiddenMode = false;
+
+function wallOrderScope() { return activeIsland === '' ? 'all' : activeIsland; }
+function isHiddenZone(zone) { return hiddenSlots.indexOf(wallSlot(zone)) !== -1; }
+function persistHidden() {
+  try { localStorage.setItem('flightdeck.wall-hidden', JSON.stringify(hiddenSlots)); } catch (e) { /* private window */ }
+}
 var tabsKey = '';
 
 /**
@@ -139,17 +160,20 @@ function renameIsland(island, node) {
   input.focus();
 }
 
-function drawTabs(islands, total) {
-  var key = islands.map(function (i) { return i.id + ':' + String(i.count) + ':' + i.label; }).join('|') + '#' + activeIsland;
+function drawTabs(islands, total, hiddenCount) {
+  var key = islands.map(function (i) { return i.id + ':' + String(i.count) + ':' + i.label; }).join('|')
+    + '#' + activeIsland + '#' + String(hiddenCount) + '#' + String(showHiddenMode);
   if (key === tabsKey) return;
   tabsKey = key;
-  if (islands.length < 2) { tabsEl.hidden = true; tabsEl.replaceChildren(); return; }
+  if (islands.length < 2 && hiddenCount === 0) { tabsEl.hidden = true; tabsEl.replaceChildren(); return; }
   tabsEl.hidden = false;
   var nodes = [];
   var tab = function (id, label) {
-    var node = el('span', activeIsland === id ? 'wall-tab now' : 'wall-tab', label);
+    var node = el('span', !showHiddenMode && activeIsland === id ? 'wall-tab now' : 'wall-tab', label);
     node.addEventListener('click', function () {
       if (node.className.indexOf('asleep') >= 0) return;   // nothing awake to show
+      if (reorderMode) finishReorder();
+      showHiddenMode = false;
       activeIsland = id;
       try { localStorage.setItem('flightdeck.island', id); } catch (e) { /* private window */ }
       tabsKey = '';
@@ -179,38 +203,61 @@ function drawTabs(islands, total) {
       nodes.push(node);
     })(islands[i]);
   }
+  if (hiddenCount > 0) {
+    var hiddenTab = el('span', showHiddenMode ? 'wall-tab now' : 'wall-tab', 'hidden  ' + String(hiddenCount));
+    hiddenTab.setAttribute('title', 'show hidden room cards');
+    hiddenTab.addEventListener('click', function () {
+      if (reorderMode) finishReorder();
+      showHiddenMode = true;
+      tabsKey = '';
+      resetWallOrder();
+      var snap = store.snapshot();
+      if (snap !== null) render(snap, 'snapshot');
+    });
+    nodes.push(hiddenTab);
+  }
   tabsEl.replaceChildren.apply(tabsEl, nodes);
 }
 
 /**
  * HOLDING YOUR PLACE.
  *
- * The wall is ordered most-recently-played first, which is right, but re-sorting
- * on every frame moved every tile each time any room changed track — and a wall
- * you cannot keep your place on is not a wall (Peter, 08-26: "things change
- * dynamically and I can get lost"). So it re-sorts when a room STARTS or STOPS,
- * which is news, and holds still through track changes, which are not.
+ * Playback state never owns layout. The default is alphabetical; an explicit
+ * Reorder mode stores durable leader-output slots for this screen and family.
+ * A topology successor still inherits its leader's slot when there is no saved
+ * order, so forming a group does not throw the user's place away.
  */
-var lastLive = null;
 function holdOrder(zones) {
-  var live = [];
+  var alphabetical = alphabeticalWallZones(zones);
+  var scope = wallOrderScope();
+  var saved = manualOrders[scope];
+  if (reorderMode && draftOrderScope === scope) return applyWallSlotOrder(alphabetical, draftSlots);
+  if (Array.isArray(saved)) return applyWallSlotOrder(alphabetical, saved);
+
+  var parts = [];
   for (var i = 0; i < zones.length; i += 1) {
-    if (zones[i].state === 'playing' || zones[i].state === 'loading') live.push(zones[i].id);
+    var outputs = [];
+    for (var o = 0; o < zones[i].outputs.length; o += 1) outputs.push(zones[i].outputs[o].id);
+    parts.push(zones[i].id + ':' + zones[i].name.toLowerCase() + ':' + outputs.join(','));
   }
-  var signature = live.sort().join(',');
-  var resort = lastLive === null || signature !== lastLive || order.length === 0;
+  var signature = parts.sort().join('|');
+  var changed = lastTopology === null || signature !== lastTopology || order.length === 0;
   var joined = joinedPreviousZones(zones, previousOutputOwners);
-  lastLive = signature;
-  // Starting or stopping is news and follows the server's recency order. A
-  // topology successor is not a new room: it inherits the leader's old slot.
-  if (resort && !joined) return zones;
-  return inheritWallOrder(zones, order, orderSlots);
+  lastTopology = signature;
+  if (changed && joined) {
+    var inherited = inheritWallOrder(alphabetical, order, orderSlots);
+    topologyHoldSlots = inherited.map(wallSlot);
+    return inherited;
+  }
+  if (changed) topologyHoldSlots = [];
+  return topologyHoldSlots.length > 0
+    ? applyWallSlotOrder(alphabetical, topologyHoldSlots)
+    : alphabetical;
 }
 
 /**
- * A wall shows the zones worth looking at, not every zone that exists. Because
- * the order is most-recently-played, the cap curates itself: the rooms in use
- * are the rooms on screen, and a room silent for a week does not need a tile.
+ * A wall shows the zones worth looking at, not every zone that exists. A cap is
+ * optional; alphabetical or explicitly saved order owns the visible sequence.
  *
  * The remainder becomes one quiet line rather than a second page — a TV is
  * driven by a remote from a sofa, and a wall nobody has to operate is the point.
@@ -268,6 +315,9 @@ function glyph(name) {
                  'M6.5 15.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
                  'M17.5 10a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
                  'M8.2 7.4l7.6 3.8', 'M8.2 16.6l7.6-3.8', 'M4 4l16 16'],
+    reorder: ['M5 7h14', 'M16 4l3 3-3 3', 'M19 17H5', 'M8 14l-3 3 3 3'],
+    minimize: ['M5 17h14', 'M8 10l4 4 4-4'],
+    restore: ['M5 17h14', 'M8 13l4-4 4 4'],
     send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
            'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3'],
     pull: ['M11.4 5.5h6.2a1.9 1.9 0 0 1 1.9 1.9v9.2a1.9 1.9 0 0 1-1.9 1.9h-6.2',
@@ -284,12 +334,17 @@ function glyph(name) {
                    'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10', 'M4 10.2 6 8 8 10.2',
                    'M11 11.2 12.6 10.2V14']
   }[name] || [];
+  var groupingMark = name === 'group' || name === 'groupall'
+    || name === 'ungroup' || name === 'ungroupall';
   for (var i = 0; i < strokes.length; i += 1) {
     var line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     line.setAttribute('d', strokes[i]);
     line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', 'currentColor');
-    line.setAttribute('stroke-width', '1.7');
+    // Chromium 63 can lose inherited `currentColor` on a dynamically-created
+    // stroked SVG. Grouping is too important to become a blank button, so those
+    // marks own a bright explicit stroke; the others retain their colour states.
+    line.setAttribute('stroke', groupingMark ? '#f2eee6' : 'currentColor');
+    line.setAttribute('stroke-width', groupingMark ? '2.15' : '1.7');
     line.setAttribute('stroke-linecap', 'round');
     line.setAttribute('stroke-linejoin', 'round');
     svg.appendChild(line);
@@ -339,7 +394,11 @@ function buildTile(zone) {
   var name = el('span', '', zone.name);
   zoneLine.appendChild(name);
   var stamp = el('div', 'tile-stamp');
-  head.appendChild(zoneLine); head.appendChild(stamp);
+  var hideB = quiet(el('span', 'tile-hide'), function () { toggleHidden(zoneId); });
+  hideB.appendChild(glyph('minimize'));
+  hideB.setAttribute('title', 'hide ' + zone.name + ' from this wall');
+  hideB.setAttribute('aria-label', 'hide ' + zone.name + ' from this wall');
+  head.appendChild(zoneLine); head.appendChild(stamp); head.appendChild(hideB);
 
   /* ── the art, with the music and the transport beside it ────────────────── */
   var now = el('div', 'tile-now');
@@ -381,6 +440,18 @@ function buildTile(zone) {
   var rule = el('span', 'tile-rule');
   var fill = el('i');
   rule.appendChild(fill);
+  rule.setAttribute('title', 'press to seek');
+  rule.setAttribute('aria-label', 'seek in ' + zone.name);
+  quiet(rule, function (event) {
+    var current = zoneOf(zoneId);
+    if (current === null || current.nowPlaying === null || !current.allowed.seek) return;
+    var length = current.nowPlaying.lengthSec;
+    var box = rule.getBoundingClientRect();
+    if (box.width <= 0) return;
+    var fraction = (event.clientX - box.left) / box.width;
+    var seconds = seekTargetSecond(fraction, length);
+    if (seconds !== null) post({ action: 'seek', zone: current.id, seconds: seconds });
+  });
   var total = el('span', 'tile-t total');
   progress.appendChild(elapsed); progress.appendChild(rule); progress.appendChild(total);
 
@@ -454,7 +525,7 @@ function buildTile(zone) {
   tile.appendChild(detail);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
-    line2: line2, fill: fill, stamp: stamp, state: state, check: check,
+    line2: line2, fill: fill, stamp: stamp, hideB: hideB, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
     volSegments: volSegments, volNum: volNum, volMark: volMark,
     sendB: sendB, pullB: pullB, groupB: groupB,
@@ -490,10 +561,27 @@ function stopPullPick() {
 }
 
 function activateTile(zoneId) {
+  if (showHiddenMode) { toggleHidden(zoneId); return true; }
+  if (reorderMode) return true;
   if (pendingPull !== null) { finishPull(zoneId); return true; }
   if (pendingSend !== null) { finishSend(zoneId); return true; }
   if (selectMode) { tapToggle(zoneId); return true; }
   return false;
+}
+
+function toggleHidden(zoneId) {
+  var zone = zoneOf(zoneId);
+  if (zone === null) return;
+  var slot = wallSlot(zone);
+  var at = hiddenSlots.indexOf(slot);
+  if (at === -1) hiddenSlots.push(slot);
+  else hiddenSlots.splice(at, 1);
+  persistHidden();
+  if (showHiddenMode && hiddenSlots.length === 0) showHiddenMode = false;
+  tabsKey = '';
+  resetWallOrder();
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
 }
 
 function beginGroupFrom(zoneId) {
@@ -794,7 +882,8 @@ function render(snapshot, kind) {
       activeIsland = '';
       try { localStorage.removeItem('flightdeck.island'); } catch (e) { /* private window */ }
       tabsKey = '';
-      drawTabs([], 0);
+      drawTabs([], 0, 0);
+      reorderBtn.hidden = true;
       groupBtn.hidden = true;
       groupAllBtn.hidden = true;
       ungroupAllBtn.hidden = true;
@@ -819,12 +908,18 @@ function render(snapshot, kind) {
         resetWallOrder();
       }
     }
-    drawTabs(islands, snapshot.zones.length);
+    var hiddenCount = 0;
+    for (var hc = 0; hc < snapshot.zones.length; hc += 1) {
+      if (isHiddenZone(snapshot.zones[hc])) hiddenCount += 1;
+    }
+    if (showHiddenMode && hiddenCount === 0) showHiddenMode = false;
+    root.classList.toggle('is-hidden-page', showHiddenMode);
+    drawTabs(islands, snapshot.zones.length - hiddenCount, hiddenCount);
     // "group rooms" appears only when Roon would let SOMETHING be formed: an
     // island with two zones in it. One zone per island means nothing to join.
     var canGroup = false;
     for (var gi = 0; gi < islands.length; gi += 1) if (islands[gi].count >= 2) canGroup = true;
-    groupBtn.hidden = selectMode || !canGroup;
+    groupBtn.hidden = selectMode || reorderMode || showHiddenMode || !canGroup;
     // every tile wears its family's colour, which is how the tab's colour comes
     // to mean something without a legend anywhere
     var colourOf = {};
@@ -848,18 +943,37 @@ function render(snapshot, kind) {
       // an island that has gone away must not leave an empty wall
       if (inTab.length === 0) { activeIsland = ''; inTab = snapshot.zones; tabsKey = ''; }
     }
+    var filtered = [];
+    for (var hz = 0; hz < snapshot.zones.length; hz += 1) {
+      var hiddenHere = isHiddenZone(snapshot.zones[hz]);
+      if (showHiddenMode ? hiddenHere : (inTab.indexOf(snapshot.zones[hz]) !== -1 && !hiddenHere)) {
+        filtered.push(snapshot.zones[hz]);
+      }
+    }
+    inTab = filtered;
     var familyZones = currentFamilyZones(snapshot);
     var familyGroups = 0;
     for (var fg = 0; fg < familyZones.length; fg += 1) {
       if (familyZones[fg].outputs.length > 1) familyGroups += 1;
     }
-    groupAllBtn.hidden = selectMode || familyZones.length < 2;
-    ungroupAllBtn.hidden = selectMode || familyGroups === 0;
+    reorderBtn.hidden = selectMode || showHiddenMode || inTab.length < 2;
+    groupAllBtn.hidden = selectMode || reorderMode || showHiddenMode || familyZones.length < 2;
+    ungroupAllBtn.hidden = selectMode || reorderMode || showHiddenMode || familyGroups === 0;
     var held = holdOrder(inTab);
     // A TV cannot scroll, so density scales with what is on the page.
     var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
     var overflow = held.slice(shown.length);
     var count = shown.length;
+    if (count === 0) {
+      grid.replaceChildren(el('div', 'empty', hiddenCount > 0
+        ? 'All room cards are hidden · open Hidden to restore one.'
+        : 'No rooms in this device family.'));
+      order = [];
+      orderSlots = [];
+      previousOutputOwners = {};
+      setOverflow([]);
+      return;
+    }
     /**
      * THE CARDS FILL THE SCREEN, up to sixteen (Peter, 08-28: "would we be better
      * varying size to fill screen up to max 16 per screen?" — which is what
@@ -907,6 +1021,9 @@ function render(snapshot, kind) {
       tile.title.textContent = np ? np.title : 'nothing played yet';
       tile.line2.textContent = np ? np.line2 : '';
       tile.stamp.textContent = stampFor(zone, now);
+      tile.hideB.replaceChildren(glyph(showHiddenMode ? 'restore' : 'minimize'));
+      tile.hideB.setAttribute('title', (showHiddenMode ? 'restore ' : 'hide ') + zone.name);
+      tile.hideB.setAttribute('aria-label', (showHiddenMode ? 'restore ' : 'hide ') + zone.name);
       // The frame carries the state now, so the word only earns its place while
       // something is genuinely in flight.
       tile.state.textContent = zone.state === 'loading' ? 'loading' : '';
@@ -1012,6 +1129,9 @@ function render(snapshot, kind) {
 var selectMode = false;
 var selected = [];             // zone ids in the order chosen; the FIRST leads
 var pendingUngroupAll = null;   // exact grouped zone ids awaiting confirmation
+var reorderMode = false;
+var draftSlots = [];
+var draftOrderScope = '';
 var selectTimer = null;
 var drag = null;               // the live press/drag, or null
 var dragLock = false;          // render suppression while a drag holds the wall
@@ -1126,6 +1246,13 @@ function doBtn(label, onPress) {
   return b;
 }
 
+var reorderBtn = el('span', 'wall-act');
+reorderBtn.appendChild(glyph('reorder'));
+var reorderLabel = el('span', 'wall-act-label', 'reorder');
+reorderBtn.appendChild(reorderLabel);
+reorderBtn.setAttribute('title', 'reorder cards on this screen');
+reorderBtn.setAttribute('aria-label', 'reorder cards on this screen');
+tap(reorderBtn, function () { if (reorderMode) saveReorder(); else beginReorder(); });
 var groupBtn = el('span', 'wall-act');
 groupBtn.appendChild(glyph('group'));
 groupBtn.appendChild(el('span', 'wall-act-label', 'group rooms'));
@@ -1178,10 +1305,11 @@ tap(pauseAllBtn, pauseAllOnWall);
   var head = document.querySelector('.wall-head');
   if (head !== null) {
     var cluster = el('span', 'wall-command-cluster');
+    cluster.appendChild(reorderBtn);
+    cluster.appendChild(pauseAllBtn);
     cluster.appendChild(groupBtn);
     cluster.appendChild(groupAllBtn);
     cluster.appendChild(ungroupAllBtn);
-    head.appendChild(pauseAllBtn);
     head.appendChild(cluster);
   }
 })();
@@ -1202,14 +1330,70 @@ function enterSelect(initial) {
   if (snap !== null) render(snap, 'snapshot');
 }
 
+function beginReorder() {
+  if (orderSlots.length < 2) { say('there is only one card to order'); return; }
+  pendingSend = null;
+  pendingUngroupAll = null;
+  stopPullPick();
+  reorderMode = true;
+  draftOrderScope = wallOrderScope();
+  draftSlots = orderSlots.slice();
+  reorderLabel.textContent = 'save';
+  reorderBtn.className = 'wall-act now';
+  root.classList.add('is-reordering');
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+  updateBar();
+}
+
+function saveReorder() {
+  if (!reorderMode) return;
+  manualOrders[draftOrderScope] = draftSlots.slice();
+  try { localStorage.setItem('flightdeck.wall-orders', JSON.stringify(manualOrders)); } catch (e) { /* private window */ }
+  finishReorder();
+  say('card order saved on this screen');
+}
+
+function resetReorder() {
+  var snapshot = store.snapshot();
+  if (snapshot === null) return;
+  var zones = snapshot.zones;
+  if (draftOrderScope !== 'all') {
+    zones = [];
+    for (var i = 0; i < snapshot.zones.length; i += 1) {
+      if (zoneIsland(snapshot.zones[i]) === draftOrderScope) zones.push(snapshot.zones[i]);
+    }
+  }
+  draftSlots = alphabeticalWallZones(zones).map(wallSlot);
+  render(snapshot, 'snapshot');
+  updateBar();
+}
+
+function cancelReorder() {
+  if (!reorderMode) return;
+  finishReorder();
+}
+
+function finishReorder() {
+  reorderMode = false;
+  draftSlots = [];
+  draftOrderScope = '';
+  reorderLabel.textContent = 'reorder';
+  reorderBtn.className = 'wall-act';
+  root.classList.remove('is-reordering');
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+  updateBar();
+}
+
 function beginGroupAll() {
   var snapshot = store === undefined ? null : store.snapshot();
   var zones = currentFamilyZones(snapshot);
   if (zones.length < 2) { say('choose a device-family tab with at least two rooms'); return; }
   var ids = [];
   for (var i = 0; i < zones.length; i += 1) ids.push(zones[i].id);
-  // Snapshot order is the Wall's most-recent order, so the visible first room
-  // becomes leader. The top control line still requires explicit confirmation.
+  // The visible first room becomes leader. The top control line still requires
+  // explicit confirmation before the grouping command is sent.
   enterSelect(ids);
 }
 
@@ -1310,6 +1494,16 @@ function applySelect(tile, zone) {
 function updateBar() {
   if (drag !== null && drag.armed) return;     // the drag owns the bar
   if (sayTimer !== null) return;               // a message is still being read
+  if (reorderMode) {
+    bar.hidden = false;
+    barHint.textContent = 'Reorder cards · drag into place, then Save';
+    barActs.replaceChildren(
+      doBtn('save', saveReorder),
+      doBtn('a–z', resetReorder),
+      doBtn('cancel', cancelReorder)
+    );
+    return;
+  }
   if (pendingUngroupAll !== null) {
     bar.hidden = false;
     barHint.textContent = pendingUngroupAll.length === 1
@@ -1412,19 +1606,20 @@ function point(event) {
 }
 
 function startPress(event, src) {
-  if (drag !== null) return;
+  if (drag !== null || showHiddenMode) return;
   var isTouch = event.type === 'touchstart';
   if (!isTouch && Date.now() < mouseBlockUntil) return;   // the touch's mouse echo
   if (!isTouch && typeof event.button === 'number' && event.button !== 0) return;
-  var tapOnly = selectMode || pendingSend !== null || pendingPull !== null;
+  if (reorderMode && src.kind !== 'zone') return;
+  var tapOnly = !reorderMode && (selectMode || pendingSend !== null || pendingPull !== null);
   if (!tapOnly && src.kind === 'zone') {
     var zone = zoneOf(src.zoneId);
-    if (zone === null || zoneIsland(zone) === '') return; // nothing to drag toward
+    if (zone === null || (!reorderMode && zoneIsland(zone) === '')) return; // nothing to drag toward
   }
   var p = point(event);
   if (p === null) return;
   drag = {
-    src: src, isTouch: isTouch, tapOnly: tapOnly, moved: false, armed: false,
+    src: src, isTouch: isTouch, tapOnly: tapOnly, reorder: reorderMode, moved: false, armed: false,
     sx: p.x, sy: p.y, x: p.x, y: p.y, timer: null, over: null, valid: {}, ghost: null,
   };
   if (isTouch && !tapOnly) {
@@ -1485,6 +1680,12 @@ function docEnd(event) {
   var d = drag;
   if (d.isTouch) mouseBlockUntil = Date.now() + 800;
   if (!d.armed) {
+    if (d.reorder) {
+      cancelPress();
+      if (event.cancelable) event.preventDefault();
+      squelchUntil = Date.now() + 600;
+      return;
+    }
     var wasTap = d.tapOnly && !d.moved;
     cancelPress();
     if (wasTap) {
@@ -1522,6 +1723,11 @@ function armDrag() {
       continue;
     }
     var zone = zoneOf(keys[i]);
+    if (drag.reorder) {
+      drag.valid[keys[i]] = true;
+      node.classList.add('drop-ok');
+      continue;
+    }
     // Roon will not group across its islands: only a room in the SAME island
     // lights up, and the refusal is visible before the drop, not after it.
     var ok = src.kind === 'zone' && zone !== null && island !== '' && zoneIsland(zone) === island;
@@ -1571,6 +1777,13 @@ function hover(overId) {
 function dragHint(overId) {
   var src = drag.src;
   var srcZone = zoneOf(src.zoneId);
+  if (drag.reorder) {
+    if (overId !== null && drag.valid[overId] === true) {
+      var before = zoneOf(overId);
+      if (before !== null) return 'release: move ' + src.name + ' before ' + before.name;
+    }
+    return 'drag ' + src.name + ' to its new position';
+  }
   if (src.kind === 'member') {
     var home = srcZone === null ? 'its group' : srcZone.name;
     if (overId === src.zoneId) return src.name + ' is in ' + home + ' — drag it away to take it out';
@@ -1613,6 +1826,20 @@ function dragHint(overId) {
 function finishDrag(d, overId) {
   var src = d.src;
   var srcZone = zoneOf(src.zoneId);
+  if (d.reorder) {
+    var targetZone = overId === null ? null : zoneOf(overId);
+    if (srcZone !== null && targetZone !== null && d.valid[overId] === true) {
+      var sourceSlot = wallSlot(srcZone);
+      var targetSlot = wallSlot(targetZone);
+      var from = draftSlots.indexOf(sourceSlot);
+      if (from !== -1) draftSlots.splice(from, 1);
+      var to = draftSlots.indexOf(targetSlot);
+      if (to === -1) draftSlots.push(sourceSlot);
+      else draftSlots.splice(to, 0, sourceSlot);
+    }
+    teardownDrag();
+    return;
+  }
   var action = null;
   if (src.kind === 'zone') {
     if (overId !== null && d.valid[overId] === true && srcZone !== null) {
@@ -1680,6 +1907,7 @@ document.addEventListener('keydown', function (event) {
     pendingSend = null; stopPullPick(); paintPending(); updateBar(); return;
   }
   if (pendingUngroupAll !== null) { pendingUngroupAll = null; updateBar(); return; }
+  if (reorderMode) { cancelReorder(); return; }
   if (selectMode) exitSelect();
 });
 

@@ -917,27 +917,32 @@ async function handleControl(
         Math.max(1, (o.volume!.max as number) - (o.volume!.min ?? 0));
       const levelOf = (o: (typeof movable)[number]): number =>
         ((o.volume!.value as number) - (o.volume!.min ?? 0)) / span(o);
-      const average = movable.reduce((sum, o) => sum + levelOf(o), 0) / movable.length;
 
       /**
-       * ⚖️ THE DELTA IS CLAMPED, NOT THE ROOMS (Peter, 08-29: "on adjusting
-       * volumes they explode — not following the alg we use for group").
+       * ⚖️ SATURATE A ROOM, NOT THE GROUP (Peter, 08-31).
        *
-       * Clamping each room destroys the very offsets the group volume exists to
-       * preserve: a room already near zero hits the floor, loses how far below
-       * the others it was, and comes back up level with them. Two or three
-       * passes down and up and the balance somebody set by hand is gone — which
-       * from the sofa looks exactly like the rooms exploding apart.
+       * Every member receives one shared shift, which preserves its offset while
+       * it has room to move. A member at 0 or 1 stays there; the remaining shift
+       * is carried by members that can still move. This is the constrained value
+       * whose CLAMPED member average equals the requested master level.
        *
-       * So the MASTER's travel is bounded by what every room can take. It stops
-       * when the quietest reaches silence or the loudest reaches full, and every
-       * offset survives the journey intact.
+       * The old rule clamped the shared delta to the first boundary. One room at
+       * zero therefore prevented every other room being reduced, and one room at
+       * maximum prevented every other room being increased. Binary search is a
+       * small, deterministic water-fill over the monotonic clamped average.
        */
-      let delta = wanted - average;
-      for (const o of movable) {
-        delta = Math.max(delta, -levelOf(o));
-        delta = Math.min(delta, 1 - levelOf(o));
+      const levels = movable.map(levelOf);
+      const shiftedAverage = (delta: number): number => levels.reduce(
+        (sum, level) => sum + Math.max(0, Math.min(1, level + delta)), 0,
+      ) / levels.length;
+      let low = -1;
+      let high = 1;
+      for (let pass = 0; pass < 40; pass += 1) {
+        const middle = (low + high) / 2;
+        if (shiftedAverage(middle) < wanted) low = middle;
+        else high = middle;
       }
+      const delta = (low + high) / 2;
 
       /**
        * ⚠️ AND ONE AT A TIME. Fired together against the same zone, volume sets
@@ -945,8 +950,10 @@ async function handleControl(
        * device has already re-based on another. Sequential is slower by a few
        * milliseconds and is the only version that lands what it says.
        */
-      for (const o of movable) {
-        const value = Math.round((o.volume!.min ?? 0) + (levelOf(o) + delta) * span(o));
+      for (let index = 0; index < movable.length; index += 1) {
+        const o = movable[index];
+        const target = Math.max(0, Math.min(1, levels[index] + delta));
+        const value = Math.round((o.volume!.min ?? 0) + target * span(o));
         await commands.setVolume(o.id, value);
       }
       log('group volume ' + zone.name + ' -> ' + String(Math.round(wanted * 100)) + '%');

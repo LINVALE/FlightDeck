@@ -1,10 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from '../assets/wall-order.js';
+import {
+  alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder,
+  joinedPreviousZones, wallOutputOwners, wallSlot,
+} from '../assets/wall-order.js';
 
-const zone = (id: string, outputs: string[]) => ({
+const zone = (id: string, outputs: string[], name = id) => ({
   id,
+  name,
   outputs: outputs.map((output) => ({ id: output })),
+});
+
+test('the Wall defaults to alphabetical room names rather than playback recency', () => {
+  const zones = [zone('z', ['oz'], 'Study'), zone('a', ['oa'], 'attic'), zone('k', ['ok'], 'Kitchen')];
+  assert.deepEqual(alphabeticalWallZones(zones).map((item) => item.name), ['attic', 'Kitchen', 'Study']);
+  assert.deepEqual(zones.map((item) => item.name), ['Study', 'attic', 'Kitchen'], 'the snapshot is not mutated');
+});
+
+test('a saved Wall order follows durable leader-output slots and appends new rooms', () => {
+  const zones = [zone('study', ['oStudy']), zone('attic', ['oAttic']), zone('kitchen', ['oKitchen'])];
+  const slots = [wallSlot(zones[2]), wallSlot(zones[0])];
+  assert.deepEqual(applyWallSlotOrder(zones, slots).map((item) => item.id),
+    ['kitchen', 'study', 'attic']);
 });
 
 test('a new group successor inherits its leader position on Wall 2', () => {

@@ -555,37 +555,51 @@ test('group volume moves every room and keeps them in proportion', async (t) => 
   assert.ok(Math.abs(after - before) < 1e-9, 'the offset between the rooms survives the move');
 });
 
-/**
- * ⚖️ THE MASTER STOPS WHEN THE FIRST ROOM RUNS OUT (Peter, 08-29: "on adjusting
- * volumes they explode — not following the alg we use for group").
- *
- * This test used to assert the opposite, and the opposite was the bug: asking
- * for full sent Hall to its maximum and dragged Landing up to 64, closing the
- * gap between them from 0.40 to 0.20. Clamp each room and you destroy the very
- * offsets the group volume exists to preserve — a few passes down and up and the
- * balance somebody set by hand is gone.
- *
- * Clamping the DELTA instead means the master's travel is bounded by what every
- * room can take. It stops where the loudest reaches full, and the gap survives.
- */
-test('the master stops where the first room runs out, and the offsets survive', async (t) => {
+/** At an end stop every member reaches the requested end, not merely the first. */
+test('full group volume carries every room to its maximum', async (t) => {
   const { post, sent } = await serve(t);
-  // Hall 60/100 = 0.60, Landing 16/80 = 0.20 — a gap of 0.40, average 0.40.
   assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 1 })).status, 200);
   const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
-  assert.equal(by.oLoud, 100, 'the loudest reaches its maximum');
-  assert.equal(by.oSoft, 48, 'and the quieter room rises by the SAME amount, not further');
-  assert.ok(Math.abs(((100 / 100) - (48 / 80)) - ((60 / 100) - (16 / 80))) < 1e-9,
-    'the gap between the rooms is exactly what it was');
+  assert.equal(by.oLoud, 100);
+  assert.equal(by.oSoft, 80, 'the quieter room continues after the louder room saturates');
 });
 
-/** The same at the bottom: silence for one room is as far as the master goes. */
-test('the master stops at the floor too, rather than flattening the rooms onto it', async (t) => {
+test('zero group volume carries every room to its minimum', async (t) => {
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 0 })).status, 200);
   const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
-  assert.equal(by.oSoft, 0, 'the quietest reaches silence');
-  assert.equal(by.oLoud, 40, 'and the louder room falls by the same 0.20, not to nothing');
+  assert.equal(by.oSoft, 0);
+  assert.equal(by.oLoud, 0, 'the louder room continues after the quieter room saturates');
+});
+
+function boundaryVolumeGroup(first: number, second: number): unknown[] {
+  return [{
+    zone_id: 'zBoundary', display_name: 'Boundary group', state: 'playing',
+    outputs: [
+      { output_id: 'oFirst', display_name: 'First', can_group_with_output_ids: ['oFirst', 'oSecond'],
+        volume: { type: 'number', min: 0, max: 100, value: first, step: 1, is_muted: false } },
+      { output_id: 'oSecond', display_name: 'Second', can_group_with_output_ids: ['oFirst', 'oSecond'],
+        volume: { type: 'number', min: 0, max: 100, value: second, step: 1, is_muted: false } },
+    ],
+    is_play_allowed: false, is_pause_allowed: true, is_next_allowed: false,
+    is_previous_allowed: false, is_seek_allowed: false,
+  }];
+}
+
+test('a room at zero does not prevent the remainder of its group being reduced', async (t) => {
+  const { post, sent } = await serve(t, boundaryVolumeGroup(0, 60));
+  assert.equal((await post({ action: 'group-volume', zone: 'zBoundary', level: 0.1 })).status, 200);
+  const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
+  assert.equal(by.oFirst, 0, 'the saturated room stays at its floor');
+  assert.equal(by.oSecond, 20, 'the remaining room carries the requested average down to 10%');
+});
+
+test('a room at maximum does not prevent the remainder of its group being increased', async (t) => {
+  const { post, sent } = await serve(t, boundaryVolumeGroup(100, 20));
+  assert.equal((await post({ action: 'group-volume', zone: 'zBoundary', level: 0.9 })).status, 200);
+  const by = Object.fromEntries(sent.filter((s) => s.kind === 'setVolume').map((m) => [m.a, m.b]));
+  assert.equal(by.oFirst, 100, 'the saturated room stays at its ceiling');
+  assert.equal(by.oSecond, 80, 'the remaining room carries the requested average up to 90%');
 });
 
 /** Fired together against one zone, volume sets race — the mutes proved it 08-28. */
