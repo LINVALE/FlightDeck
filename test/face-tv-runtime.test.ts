@@ -827,6 +827,19 @@ test('paused and stopped players wait for the selected idle deadline before beco
     'a deliberate press can still reach Play');
 });
 
+test('pointer or touch activity dismisses the idle clock without activating what lies beneath it', () => {
+  assert.match(FACE,
+    /function wakeIdleFace\(target\)[\s\S]{0,260}inNode\(target, homeMark\)[\s\S]{0,420}idlePolicy\.wake\(zone\.id, zone\.nowPlaying !== null\)[\s\S]{0,160}render\(snapshot, ['"]snapshot['"]\)/,
+    'wake restores the same room, while the visible Wall mark retains its direct destination');
+  assert.match(FACE,
+    /function consumeIdleWake\(event\)[\s\S]{0,320}preventDefault\(\)[\s\S]{0,160}stopImmediatePropagation\(\)/,
+    'the wake gesture cannot also press a newly revealed control');
+  assert.match(FACE,
+    /\[['"]pointerdown['"], ['"]mousedown['"], ['"]touchstart['"], ['"]pointerup['"], ['"]mouseup['"], ['"]touchend['"], ['"]click['"]\][\s\S]{0,180}consumeIdleWake/);
+  assert.match(FACE, /if \(wakeIdleFace\(null\)\) return;[\s\S]{0,80}revealChrome\(false\)/,
+    'meaningful cursor movement restores Now Playing before revealing ordinary chrome');
+});
+
 test('linear progress, picker and chrome consume one layout rail', () => {
   assert.match(CSS, /data-layout="classic"\] \.shelf \.controls \{ width: 100%; \}/);
   assert.match(CSS, /data-layout="classic"\] \.foot[\s\S]{0,180}width: 100%/,

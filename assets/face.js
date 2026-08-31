@@ -5527,7 +5527,10 @@ function revealChromeFromMovement(event) {
   lastPassiveX = x;
   lastPassiveY = y;
   // Same-position and sub-six-pixel Silk noise is not human activity.
-  if (first || meaningful) revealChrome(false);
+  if (first || meaningful) {
+    if (wakeIdleFace(null)) return;
+    revealChrome(false);
+  }
 }
 
 /** True while a panel is too freshly raised to be pressed by the touch that raised it. */
@@ -5558,6 +5561,36 @@ function closeSettings() {
   if (chromeTimer !== null) { clearTimeout(chromeTimer); chromeTimer = null; }
   root.className = root.className.replace(' show-chrome', '');
   chromeHeldUntil = Date.now() + 900;
+}
+
+/**
+ * The clock is a saver, not a modal page. Human activity restores the exact
+ * room composition underneath it and starts a fresh idle interval. If there is
+ * no same-room composition to restore, the honest destination is the Wall.
+ */
+var idleWakeHeldUntil = 0;
+function wakeIdleFace(target) {
+  if (root.getAttribute('data-idle') !== '1') return false;
+  if (target !== null && inNode(target, homeMark)) { goToWall(); return true; }
+  var snapshot = store === undefined ? null : store.snapshot();
+  var zone = snapshot === null ? null : resolveZone(snapshot);
+  if (zone === null || !idlePolicy.wake(zone.id, zone.nowPlaying !== null)) {
+    goToWall();
+    return true;
+  }
+  closeSettings();
+  render(snapshot, 'snapshot');
+  return true;
+}
+
+function consumeIdleWake(event) {
+  var now = Date.now();
+  var waking = now < idleWakeHeldUntil || wakeIdleFace(event.target || null);
+  if (!waking) return;
+  idleWakeHeldUntil = now + 900;
+  if (event.preventDefault) event.preventDefault();
+  if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+  else if (event.stopPropagation) event.stopPropagation();
 }
 
 var lastZonePress = 0;
@@ -5733,6 +5766,11 @@ foot.setAttribute('title', 'press to seek');
   });
 });
 dialHit.setAttribute('title', 'press the ring to seek');
+// A wake press is only a wake press: its pointer/mouse compatibility echoes may
+// not seek, play or open a panel underneath the clock.
+['pointerdown', 'mousedown', 'touchstart', 'pointerup', 'mouseup', 'touchend', 'click']
+  .forEach(function (kind) { document.addEventListener(kind, consumeIdleWake, true); });
+
 // A movement episode reveals once; continuous Fire TV pointer noise cannot hold
 // the page open. Touch is deliberate and receives the full interaction timeout.
 ['mousemove', 'pointermove'].forEach(function (kind) {

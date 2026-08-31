@@ -24,7 +24,11 @@ export function createIdleDelayPolicy(options) {
   var paintedZoneId = null;
   var timer = null;
   var timerDeadline = null;
+  var wakeUntil = null;
   var epoch = 0;
+  // An "Immediately" clock must still be dismissible. One quiet minute is long
+  // enough to use the restored Face without silently redefining that setting.
+  var immediateWakeGraceMs = 60000;
 
   function cancelTimer() {
     epoch += 1;
@@ -52,6 +56,7 @@ export function createIdleDelayPolicy(options) {
     if (!inactive) {
       inactiveZoneId = null;
       inactiveSince = null;
+      wakeUntil = null;
       cancelTimer();
       return false;
     }
@@ -59,6 +64,7 @@ export function createIdleDelayPolicy(options) {
     if (inactiveZoneId !== zoneId || inactiveSince === null) {
       inactiveZoneId = zoneId;
       inactiveSince = now();
+      wakeUntil = null;
       cancelTimer();
     }
 
@@ -68,8 +74,8 @@ export function createIdleDelayPolicy(options) {
       return true;
     }
 
-    var deadline = inactiveSince + delayMinutes * 60000;
-    if (delayMinutes === 0 || now() >= deadline) {
+    var deadline = wakeUntil !== null ? wakeUntil : inactiveSince + delayMinutes * 60000;
+    if ((delayMinutes === 0 && wakeUntil === null) || now() >= deadline) {
       cancelTimer();
       return true;
     }
@@ -79,10 +85,21 @@ export function createIdleDelayPolicy(options) {
 
   function markPainted(zoneId) { paintedZoneId = zoneId; }
 
+  /** User activity dismisses the clock without pretending playback resumed. */
+  function wake(zoneId, hasNowPlaying) {
+    if (!hasNowPlaying && paintedZoneId !== zoneId) return false;
+    inactiveZoneId = zoneId;
+    inactiveSince = now();
+    wakeUntil = delayMinutes === 0 ? inactiveSince + immediateWakeGraceMs : null;
+    cancelTimer();
+    return true;
+  }
+
   function setDelay(value) {
     var next = normalizeIdleDelay(value);
     if (next === delayMinutes) return false;
     delayMinutes = next;
+    wakeUntil = null;
     // Keep the original inactivity anchor; the next reconcile decides whether a
     // shorter delay is already due or a longer one should restore held content.
     cancelTimer();
@@ -91,5 +108,5 @@ export function createIdleDelayPolicy(options) {
 
   function delay() { return delayMinutes; }
 
-  return { reconcile: reconcile, markPainted: markPainted, setDelay: setDelay, delay: delay };
+  return { reconcile: reconcile, markPainted: markPainted, wake: wake, setDelay: setDelay, delay: delay };
 }

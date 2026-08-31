@@ -118,3 +118,28 @@ test('null now-playing receives grace only for content painted by that same zone
   assert.equal(idle.reconcile('z1', true, false), false);
   assert.equal(clock.deadline(), 15 * 60000);
 });
+
+test('human wake restores the same room and starts a fresh idle interval', () => {
+  const clock = fakeClock();
+  const { idle } = policy(clock);
+  idle.markPainted('z1');
+  idle.reconcile('z1', true, true);
+  clock.advance(15 * 60000);
+  assert.equal(idle.reconcile('z1', true, true), true);
+  assert.equal(idle.wake('z1', true), true);
+  assert.equal(idle.reconcile('z1', true, true), false);
+  assert.equal(clock.deadline(), 30 * 60000, 'wake restarts this display’s chosen delay');
+  assert.equal(idle.wake('cold', false), false, 'a blank room cannot pretend it has a Face to restore');
+});
+
+test('an immediate clock still gives a deliberate wake one usable minute', () => {
+  const clock = fakeClock();
+  const { idle } = policy(clock, 0);
+  idle.markPainted('z1');
+  assert.equal(idle.reconcile('z1', true, true), true);
+  assert.equal(idle.wake('z1', true), true);
+  assert.equal(idle.reconcile('z1', true, true), false);
+  assert.equal(clock.deadline(), 60000);
+  clock.advance(60000);
+  assert.equal(idle.reconcile('z1', true, true), true);
+});
