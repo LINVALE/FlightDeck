@@ -2424,23 +2424,24 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 /* DISC ARTIST VIEW USES ONE RIGHT-HAND WORKING RAIL.
  *
  * The portrait remains open through the centre and the low-left disc stays the
- * only object on that side. Transport and volume rise into the upper-right;
- * Browse follows below them. An opened Browse window replaces this same rail
- * (data-artist-rail) instead of jumping back over the person. Dial and Orbit are
- * the ring-composed faces; Rondo keeps its Libretto composition. */
+ * only object on that side. Transport, volume and Browse occupy the same low
+ * vertical band as that disc, below the usual face and eye line. An opened
+ * Browse window replaces this same rail (data-artist-rail) instead of jumping
+ * back over the person. Dial and Orbit are the ring-composed faces; Rondo keeps
+ * its Libretto composition. */
 @media (orientation: landscape) {
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf {
     position: fixed; left: auto; right: 5vw; bottom: auto;
     width: 34vw; margin: 0;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-transport {
-    top: 17vh;
+    top: 54vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-volume {
-    top: 28vh;
+    top: 66vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse {
-    top: 40vh;
+    top: 78vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf .controls,
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .row-browse {
@@ -2459,7 +2460,7 @@ body > .browse[data-over-ring="1"] .browse-thumb {
     width: 100%;
   }
   body > .browse[data-over-ring="1"][data-artist-rail="1"] {
-    left: auto; right: 5vw; top: 11vh; bottom: 9vh;
+    left: auto; right: 5vw; top: 45vh; bottom: 5vh;
     width: 34vw; height: auto;
     -webkit-transform: none; transform: none;
   }
