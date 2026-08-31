@@ -891,10 +891,11 @@ test('ring artist view stays still and its exact sleeve always returns to album 
   assert.match(rail,
     /show-chrome\[data-ringlayout\]\[data-view="artist"\] \.shelf \{[\s\S]{0,140}right: 5vw[\s\S]{0,80}width: 34vw/,
     'Dial and Orbit share one right-side artist rail');
-  assert.match(rail, /\.shelf-transport \{\s*top: 54vh/);
-  assert.match(rail, /\.shelf-volume \{\s*top: 66vh/);
-  assert.match(rail, /\.shelf-browse \{\s*top: 78vh/,
-    'controls and Browse keep their rhythm inside the low disc-height band');
+  assert.match(rail, /\.shelf-transport \{\s*top: 45vh/,
+    'the right chrome begins level with the top of the Dial ring');
+  assert.match(rail, /\.shelf-volume \{\s*top: 57vh/);
+  assert.match(rail, /\.shelf-browse \{\s*top: 69vh/,
+    'volume and Browse keep their rhythm below the dial-aligned control row');
   assert.match(rail,
     /body > \.browse\[data-over-ring="1"\]\[data-artist-rail="1"\] \{[\s\S]{0,180}right: 5vw; top: 45vh; bottom: 5vh[\s\S]{0,120}width: 34vw[\s\S]{0,120}transform: none/,
     'the opened cascade operates inside the same low-right disc-height envelope');

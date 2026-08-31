@@ -2424,8 +2424,8 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 /* DISC ARTIST VIEW USES ONE RIGHT-HAND WORKING RAIL.
  *
  * The portrait remains open through the centre and the low-left disc stays the
- * only object on that side. Transport, volume and Browse occupy the same low
- * vertical band as that disc, below the usual face and eye line. An opened
+ * only object on that side. Transport begins exactly on the Dial ring's top
+ * edge; volume and Browse follow below in the same low band. An opened
  * Browse window replaces this same rail (data-artist-rail) instead of jumping
  * back over the person. Dial and Orbit are the ring-composed faces; Rondo keeps
  * its Libretto composition. */
@@ -2435,13 +2435,13 @@ body > .browse[data-over-ring="1"] .browse-thumb {
     width: 34vw; margin: 0;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-transport {
-    top: 54vh;
+    top: 45vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-volume {
-    top: 66vh;
+    top: 57vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse {
-    top: 78vh;
+    top: 69vh;
   }
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf .controls,
   .face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .shelf-browse .row-browse {
