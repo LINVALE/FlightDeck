@@ -829,7 +829,8 @@ test('paused and stopped players wait for the selected idle deadline before beco
 
 test('linear progress, picker and chrome consume one layout rail', () => {
   assert.match(CSS, /data-layout="classic"\] \.shelf \.controls \{ width: 100%; \}/);
-  assert.match(CSS, /data-layout="classic"\] \.foot[\s\S]*width: 52\.6vw/);
+  assert.match(CSS, /data-layout="classic"\] \.foot[\s\S]{0,180}width: 100%/,
+    'Classic progress spans the safe screen width instead of the right metadata column');
   assert.match(CSS, /data-layout="classic"\] \.headmark \{ width: 34vw; \}/,
     'Classic keeps the relocated Face mark on the artwork rail');
   assert.match(CSS, /--flightdeck-rail-width: 46vw/);

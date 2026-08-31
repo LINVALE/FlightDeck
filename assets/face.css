@@ -1940,7 +1940,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-layout="classic"] .shelf .controls { width: 100%; }
 .face:not([data-size])[data-layout="classic"] .shelf-browse .row-browse { width: 100%; }
 .face:not([data-size])[data-layout="classic"] .foot {
-  width: 52.6vw; margin-left: auto; margin-right: 0;
+  /* Progress belongs to the whole screen, not to the metadata column. */
+  width: 100%; margin-left: 0; margin-right: 0;
 }
 .face:not([data-size])[data-shelf] .shelf-transport .controls {
   -webkit-justify-content: space-between; justify-content: space-between;
