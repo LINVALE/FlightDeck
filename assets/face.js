@@ -2632,6 +2632,7 @@ function bindGroupDoubleClick(node, zoneId) {
  * room when its Queue door is opened.
  */
 var queueRequestEpoch = 0;
+var queueLoadEpoch = 0;
 var queueView = {
   zoneId: '', generation: '', revision: -1,
   loading: false, error: '', items: [], atLimit: false,
@@ -2686,6 +2687,49 @@ function queueOption(item, index, zoneId) {
   return node;
 }
 
+/** Build Queue's two children without disturbing the mounted picker shell. */
+function queuePanelNodes() {
+  var queueZone = currentZone();
+  var queueGuide = queueZone === null ? 'Roon queue'
+    : 'Roon queue \u00B7 ' + queueZone.name
+      + (queueView.atLimit ? ' \u00B7 current + next 49' : '');
+  var guide = el('div', 'move-guide queue-guide', queueGuide);
+  var row = el('div', 'row row-column queue-list');
+  if (queueView.loading) {
+    row.appendChild(el('span', 'opt off queue-message', 'loading queue\u2026'));
+  } else if (queueView.error !== '') {
+    row.appendChild(el('span', 'opt off queue-message', queueView.error));
+  } else if (queueView.items.length === 0) {
+    row.appendChild(el('span', 'opt off queue-message', 'queue is empty'));
+  } else {
+    for (var q = 0; q < queueView.items.length; q += 1) {
+      row.appendChild(queueOption(queueView.items[q], q, queueView.zoneId));
+    }
+  }
+  return [guide, row];
+}
+
+/**
+ * A local Queue response must not unmount and rebuild the whole dropdown. On a
+ * fast LAN that blank compositor frame reads as a flicker. Replace only the
+ * contents that changed; the panel, its geometry and its focus rail stay put.
+ */
+function paintQueuePanel() {
+  if (picker.hidden || picker.className.indexOf('mode-queue') < 0) return;
+  var oldGuide = picker.querySelector('.queue-guide');
+  var oldRow = picker.querySelector('.queue-list');
+  if (oldGuide === null || oldRow === null) { showPicker('queue', true); return; }
+  var preservedNavigation = pickerNavigationIdentity(pickerNavigationCurrent);
+  var nodes = queuePanelNodes();
+  var scrollTop = oldRow.scrollTop;
+  var replacements = [];
+  while (nodes[1].firstChild !== null) replacements.push(nodes[1].removeChild(nodes[1].firstChild));
+  oldGuide.textContent = nodes[0].textContent;
+  oldRow.replaceChildren.apply(oldRow, replacements);
+  oldRow.scrollTop = scrollTop;
+  seedPickerNavigation(preservedNavigation);
+}
+
 function selectQueueItem(zoneId, item) {
   var snapshot = store.snapshot();
   var zone = currentZone();
@@ -2716,6 +2760,7 @@ function selectQueueItem(zoneId, item) {
 }
 
 function loadQueue(zoneId, epoch, attempt) {
+  if (attempt === 0) queueLoadEpoch = epoch;
   fetch('/api/v1/queue?zone=' + encodeURIComponent(zoneId), { cache: 'no-store' })
     .then(function (response) {
       if (!response.ok) return response.json().catch(function () { return {}; }).then(function (data) {
@@ -2744,7 +2789,8 @@ function loadQueue(zoneId, epoch, attempt) {
         queueView.error = 'queue changed — reopen Queue';
         queueView.items = [];
       }
-      showPicker('queue', true);
+      queueLoadEpoch = 0;
+      paintQueuePanel();
     }).catch(function (error) {
       if (!queuePanelIsOpen(zoneId, epoch)) return;
       queueView.loading = false;
@@ -2753,7 +2799,8 @@ function loadQueue(zoneId, epoch, attempt) {
       queueView.atLimit = false;
       queueView.generation = '';
       queueView.revision = -1;
-      showPicker('queue', true);
+      queueLoadEpoch = 0;
+      paintQueuePanel();
     });
 }
 
@@ -2766,6 +2813,16 @@ function openQueuePanel(refreshing) {
     loading: true, error: '', items: [], atLimit: false,
   };
   showPicker('queue', refreshing === true);
+  loadQueue(zone.id, epoch, 0);
+}
+
+/** Refresh an open queue without flashing its useful rows back to Loading. */
+function refreshQueuePanel() {
+  var zone = currentZone();
+  if (zone === null) return;
+  if (queueView.zoneId !== zone.id) { openQueuePanel(true); return; }
+  if (queueLoadEpoch === queueRequestEpoch) return;
+  var epoch = ++queueRequestEpoch;
   loadQueue(zone.id, epoch, 0);
 }
 
@@ -3073,24 +3130,9 @@ function showPicker(mode, refreshing) {
   }
 
   if (mode === 'queue') {
-    var queueZone = currentZone();
-    var queueGuide = queueZone === null ? 'Roon queue'
-      : 'Roon queue \u00B7 ' + queueZone.name
-        + (queueView.atLimit ? ' \u00B7 current + next 49' : '');
-    nodes.push(el('div', 'move-guide queue-guide', queueGuide));
-    var queueRow = el('div', 'row row-column queue-list');
-    if (queueView.loading) {
-      queueRow.appendChild(el('span', 'opt off queue-message', 'loading queue\u2026'));
-    } else if (queueView.error !== '') {
-      queueRow.appendChild(el('span', 'opt off queue-message', queueView.error));
-    } else if (queueView.items.length === 0) {
-      queueRow.appendChild(el('span', 'opt off queue-message', 'queue is empty'));
-    } else {
-      for (var q = 0; q < queueView.items.length; q += 1) {
-        queueRow.appendChild(queueOption(queueView.items[q], q, queueView.zoneId));
-      }
-    }
-    nodes.push(queueRow);
+    var queueNodes = queuePanelNodes();
+    nodes.push(queueNodes[0]);
+    nodes.push(queueNodes[1]);
   }
 
   if (mode === 'faces') {
@@ -3165,7 +3207,7 @@ function refreshStructuralPicker(kind) {
   if (open === null) return;
   var mode = open[1];
   if (mode === 'queue') {
-    openQueuePanel(true);
+    refreshQueuePanel();
   } else if (mode === 'group' || mode === 'rooms' || mode === 'transfer' || mode === 'pull') {
     showPicker(mode, true);
   }

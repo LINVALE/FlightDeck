@@ -100,6 +100,26 @@ test('Queue reads a fenced forward window and only future rows can select', () =
     'a response from a closed, replaced or different-room Queue cannot repaint');
   assert.match(load, /queueView\.generation = typeof data\.generation/);
   assert.match(load, /queueView\.revision = typeof data\.revision/);
+  assert.doesNotMatch(load, /showPicker\(['"]queue['"], true\)/,
+    'a fast Queue response cannot rebuild and briefly blank its whole dropdown');
+  assert.match(load, /paintQueuePanel\(\)/);
+
+  const paintStart = FACE.indexOf('function paintQueuePanel()');
+  const paintEnd = FACE.indexOf('function selectQueueItem(', paintStart);
+  const paint = FACE.slice(paintStart, paintEnd);
+  assert.match(paint, /oldRow\.replaceChildren\.apply\(oldRow, replacements\)/,
+    'only the changing Queue row contents are replaced');
+  assert.match(paint, /var scrollTop = oldRow\.scrollTop[\s\S]{0,260}oldRow\.scrollTop = scrollTop/,
+    'a passive Queue refresh does not throw the viewer back to the top');
+  assert.doesNotMatch(paint,
+    /picker\.replaceChildren|picker\.replaceChild|picker\.className\s*=|picker\.hidden\s*=|positionHeaderPicker/,
+    'the mounted shell, row, geometry and visibility remain stable');
+
+  const structural = /function refreshStructuralPicker\(kind\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
+  assert.match(structural, /mode === ['"]queue['"][\s\S]{0,80}refreshQueuePanel\(\)/);
+  const refresh = /function refreshQueuePanel\(\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
+  assert.doesNotMatch(refresh, /loading:\s*true|showPicker/,
+    'live snapshots refresh the mounted Queue in place without flashing Loading');
 
   const selectStart = FACE.indexOf('function selectQueueItem(');
   const selectEnd = FACE.indexOf('function loadQueue(', selectStart);
