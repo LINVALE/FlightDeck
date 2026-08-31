@@ -260,6 +260,14 @@ function glyph(name) {
   var strokes = {
     group: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
             'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
+    groupall: ['M6.5 4.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+               'M6.5 15.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+               'M17.5 10a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+               'M8.2 7.4l7.6 3.8', 'M8.2 16.6l7.6-3.8'],
+    ungroupall: ['M6.5 4.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+                 'M6.5 15.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+                 'M17.5 10a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
+                 'M8.2 7.4l7.6 3.8', 'M8.2 16.6l7.6-3.8', 'M4 4l16 16'],
     send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
            'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3'],
     pull: ['M11.4 5.5h6.2a1.9 1.9 0 0 1 1.9 1.9v9.2a1.9 1.9 0 0 1-1.9 1.9h-6.2',
@@ -490,6 +498,7 @@ function activateTile(zoneId) {
 
 function beginGroupFrom(zoneId) {
   pendingSend = null;
+  pendingUngroupAll = null;
   stopPullPick();
   paintPending();
   if (!selectMode) enterSelect();
@@ -500,6 +509,7 @@ function beginSendFrom(zoneId) {
   var zone = zoneOf(zoneId);
   if (zone === null || zone.nowPlaying === null) { say('nothing is playing in there to send'); return; }
   if (pendingSend === zoneId) { pendingSend = null; say(''); paintPending(); return; }
+  pendingUngroupAll = null;
   stopPullPick();
   pendingSend = zoneId;
   say('now press the room to send ' + zone.name + '\u2019s music to \u00B7 press again here to cancel');
@@ -517,6 +527,7 @@ function beginPullInto(zoneId) {
     return;
   }
   pendingSend = null;
+  pendingUngroupAll = null;
   pendingPull = { zoneId: zone.id, outputId: outputId };
   root.classList.add('is-pulling');
   say('now press a player with content to pull its music into ' + zone.name + ' \u00B7 press again here to cancel');
@@ -785,6 +796,8 @@ function render(snapshot, kind) {
       tabsKey = '';
       drawTabs([], 0);
       groupBtn.hidden = true;
+      groupAllBtn.hidden = true;
+      ungroupAllBtn.hidden = true;
       root.style.setProperty('--accent', '#d8a24a');
       grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
       resetWallOrder();
@@ -835,6 +848,13 @@ function render(snapshot, kind) {
       // an island that has gone away must not leave an empty wall
       if (inTab.length === 0) { activeIsland = ''; inTab = snapshot.zones; tabsKey = ''; }
     }
+    var familyZones = currentFamilyZones(snapshot);
+    var familyGroups = 0;
+    for (var fg = 0; fg < familyZones.length; fg += 1) {
+      if (familyZones[fg].outputs.length > 1) familyGroups += 1;
+    }
+    groupAllBtn.hidden = selectMode || familyZones.length < 2;
+    ungroupAllBtn.hidden = selectMode || familyGroups === 0;
     var held = holdOrder(inTab);
     // A TV cannot scroll, so density scales with what is on the page.
     var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
@@ -902,7 +922,10 @@ function render(snapshot, kind) {
       tile.sendB.className = zone.nowPlaying === null ? 'ta off' : 'ta';
       tile.pullB.className = zone.outputs.length === 0 ? 'ta off' : 'ta';
       var grouped = zone.outputs.length > 1;
-      tile.groupB.hidden = grouped;
+      // A group is also a valid leader: Group adds more rooms, while Ungroup
+      // dismantles the existing group. They are different verbs, so grouped
+      // cards offer both rather than replacing one with the other.
+      tile.groupB.hidden = false;
       tile.ungroupB.hidden = !grouped;
       var rooms = [];
       for (var oi = 0; oi < zone.outputs.length; oi += 1) rooms.push(zone.outputs[oi].name);
@@ -988,6 +1011,7 @@ function render(snapshot, kind) {
 
 var selectMode = false;
 var selected = [];             // zone ids in the order chosen; the FIRST leads
+var pendingUngroupAll = null;   // exact grouped zone ids awaiting confirmation
 var selectTimer = null;
 var drag = null;               // the live press/drag, or null
 var dragLock = false;          // render suppression while a drag holds the wall
@@ -1014,6 +1038,30 @@ function zoneIsland(zone) {
   if (island === '') return '';
   for (var i = 1; i < zone.outputs.length; i += 1) if (zone.outputs[i].island !== island) return '';
   return island;
+}
+
+/**
+ * The one compatible family meant by "all". The aggregate tab may contain
+ * incompatible protocols, so it owns a bulk action only when exactly one
+ * family is present. Choosing a family tab makes that scope explicit.
+ */
+function currentFamilyZones(snapshot) {
+  if (snapshot === null) return [];
+  var family = activeIsland;
+  if (family === '') {
+    for (var i = 0; i < snapshot.zones.length; i += 1) {
+      var found = zoneIsland(snapshot.zones[i]);
+      if (found === '') continue;
+      if (family !== '' && family !== found) return [];
+      family = found;
+    }
+  }
+  if (family === '') return [];
+  var zones = [];
+  for (var z = 0; z < snapshot.zones.length; z += 1) {
+    if (zoneIsland(snapshot.zones[z]) === family) zones.push(snapshot.zones[z]);
+  }
+  return zones;
 }
 
 function post(body) {
@@ -1085,6 +1133,20 @@ groupBtn.hidden = true;
 groupBtn.setAttribute('title', 'choose rooms to group');
 groupBtn.setAttribute('aria-label', 'choose rooms to group');
 tap(groupBtn, function () { if (!selectMode) enterSelect(); });
+var groupAllBtn = el('span', 'wall-act');
+groupAllBtn.appendChild(glyph('groupall'));
+groupAllBtn.appendChild(el('span', 'wall-act-label', 'group all'));
+groupAllBtn.hidden = true;
+groupAllBtn.setAttribute('title', 'group every room in this device family');
+groupAllBtn.setAttribute('aria-label', 'group every room in this device family');
+tap(groupAllBtn, beginGroupAll);
+var ungroupAllBtn = el('span', 'wall-act');
+ungroupAllBtn.appendChild(glyph('ungroupall'));
+ungroupAllBtn.appendChild(el('span', 'wall-act-label', 'ungroup all'));
+ungroupAllBtn.hidden = true;
+ungroupAllBtn.setAttribute('title', 'ungroup every group in this device family');
+ungroupAllBtn.setAttribute('aria-label', 'ungroup every group in this device family');
+tap(ungroupAllBtn, beginUngroupAll);
 var pauseAllBtn = el('span', 'wall-act wall-pause-all');
 pauseAllBtn.appendChild(glyph('pause'));
 pauseAllBtn.appendChild(el('span', 'wall-act-label', 'pause all'));
@@ -1114,20 +1176,72 @@ function pauseAllOnWall() {
 tap(pauseAllBtn, pauseAllOnWall);
 (function () {
   var head = document.querySelector('.wall-head');
-  if (head !== null) { head.appendChild(pauseAllBtn); head.appendChild(groupBtn); }
+  if (head !== null) {
+    var cluster = el('span', 'wall-command-cluster');
+    cluster.appendChild(groupBtn);
+    cluster.appendChild(groupAllBtn);
+    cluster.appendChild(ungroupAllBtn);
+    head.appendChild(pauseAllBtn);
+    head.appendChild(cluster);
+  }
 })();
 
 /* ---- choosing rooms (the checkbox path) ---- */
 
-function enterSelect() {
+function enterSelect(initial) {
   selectMode = true;
-  selected = [];
+  pendingUngroupAll = null;
+  selected = initial === undefined ? [] : initial.slice();
   root.classList.add('is-selecting');
   groupBtn.hidden = true;
+  groupAllBtn.hidden = true;
+  ungroupAllBtn.hidden = true;
   bumpSelectTimer();
   updateBar();
   var snap = store.snapshot();
   if (snap !== null) render(snap, 'snapshot');
+}
+
+function beginGroupAll() {
+  var snapshot = store === undefined ? null : store.snapshot();
+  var zones = currentFamilyZones(snapshot);
+  if (zones.length < 2) { say('choose a device-family tab with at least two rooms'); return; }
+  var ids = [];
+  for (var i = 0; i < zones.length; i += 1) ids.push(zones[i].id);
+  // Snapshot order is the Wall's most-recent order, so the visible first room
+  // becomes leader. The top control line still requires explicit confirmation.
+  enterSelect(ids);
+}
+
+function beginUngroupAll() {
+  var snapshot = store === undefined ? null : store.snapshot();
+  var zones = currentFamilyZones(snapshot);
+  var ids = [];
+  for (var i = 0; i < zones.length; i += 1) {
+    if (zones[i].outputs.length > 1) ids.push(zones[i].id);
+  }
+  if (ids.length === 0) { say('there are no groups in this device family'); return; }
+  pendingSend = null;
+  stopPullPick();
+  pendingUngroupAll = ids;
+  say('');
+}
+
+function finishUngroupAll() {
+  var ids = pendingUngroupAll;
+  pendingUngroupAll = null;
+  if (ids === null) { updateBar(); return; }
+  var requests = [];
+  for (var i = 0; i < ids.length; i += 1) {
+    var zone = zoneOf(ids[i]);
+    if (zone !== null && zone.outputs.length > 1) requests.push(post({ action: 'ungroup', zone: zone.id }));
+  }
+  if (requests.length === 0) { say('those groups have already changed'); return; }
+  Promise.all(requests).then(function (results) {
+    var count = 0;
+    for (var r = 0; r < results.length; r += 1) if (results[r]) count += 1;
+    say(count === 1 ? 'ungrouped one group' : 'ungrouped ' + count + ' groups');
+  });
 }
 
 function exitSelect() {
@@ -1196,6 +1310,17 @@ function applySelect(tile, zone) {
 function updateBar() {
   if (drag !== null && drag.armed) return;     // the drag owns the bar
   if (sayTimer !== null) return;               // a message is still being read
+  if (pendingUngroupAll !== null) {
+    bar.hidden = false;
+    barHint.textContent = pendingUngroupAll.length === 1
+      ? 'Ungroup the group in this device family?'
+      : 'Ungroup all ' + String(pendingUngroupAll.length) + ' groups in this device family?';
+    barActs.replaceChildren(
+      doBtn('ungroup all', finishUngroupAll),
+      doBtn('cancel', function () { pendingUngroupAll = null; updateBar(); })
+    );
+    return;
+  }
   if (pendingPull !== null) {
     var pullZone = zoneForOutputId(store.snapshot(), pendingPull.outputId);
     if (pullZone === null) { stopPullPick(); paintPending(); }
@@ -1554,6 +1679,7 @@ document.addEventListener('keydown', function (event) {
   if (pendingPull !== null || pendingSend !== null) {
     pendingSend = null; stopPullPick(); paintPending(); updateBar(); return;
   }
+  if (pendingUngroupAll !== null) { pendingUngroupAll = null; updateBar(); return; }
   if (selectMode) exitSelect();
 });
 

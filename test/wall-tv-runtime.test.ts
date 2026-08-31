@@ -28,16 +28,16 @@ test('Wall omits device-family choices with no active zone members', () => {
     'the final device disappearing also clears the old selector and group action');
 });
 
-test('a grouped Wall 2 card replaces Group with a bottom-left Ungroup action', () => {
+test('a grouped Wall 2 card keeps Group and adds a bottom-left Ungroup action', () => {
   const buildStart = WALL.indexOf('function buildTile(zone)');
   const buildEnd = WALL.indexOf('function beginGroupFrom(', buildStart);
   const build = WALL.slice(buildStart, buildEnd);
   assert.match(build, /post\(\{ action: ['"]ungroup['"], zone: zoneId \}\)/,
     'the existing whole-zone Ungroup contract is used directly');
   assert.match(build, /left\.appendChild\(groupB\);\s*left\.appendChild\(ungroupB\);\s*left\.appendChild\(sendB\);\s*left\.appendChild\(pullB\)/,
-    'Ungroup occupies the first bottom-left action slot');
-  assert.match(WALL, /var grouped = zone\.outputs\.length > 1;\s*tile\.groupB\.hidden = grouped;\s*tile\.ungroupB\.hidden = !grouped/,
-    'only a real multi-output zone offers Ungroup');
+    'Group and Ungroup remain adjacent at the start of the action row');
+  assert.match(WALL, /var grouped = zone\.outputs\.length > 1;[\s\S]{0,260}tile\.groupB\.hidden = false;\s*tile\.ungroupB\.hidden = !grouped/,
+    'a group can add more rooms, while only a real multi-output zone offers Ungroup');
   assert.match(CSS, /\.tile-actions \.ta\[hidden\] \{ display: none; \}/);
   assert.match(build, /ungroupB\.appendChild\(glyph\(['"]ungroup['"]\)\)/);
   assert.doesNotMatch(build, /ungroupB\.appendChild\(el\(/,
@@ -85,6 +85,41 @@ test('top-row commands share one restrained geometry and type treatment', () => 
     'the shared surface uses a quiet inset edge and restrained depth');
   assert.doesNotMatch(CSS, /\.wall-pause-all \{[^}]*font-size/,
     'Pause All cannot silently override the common type treatment');
+  assert.match(WALL, /cluster\.appendChild\(groupBtn\);\s*cluster\.appendChild\(groupAllBtn\);\s*cluster\.appendChild\(ungroupAllBtn\)/);
+  assert.match(CSS, /\.wall-command-cluster[\s\S]{0,180}display: -webkit-inline-flex; display: inline-flex/,
+    'the related grouping commands form one deliberate deck');
+});
+
+test('Group All and Ungroup All stay inside one compatible family', () => {
+  assert.match(WALL, /groupAllBtn\.appendChild\(glyph\(['"]groupall['"]\)\)/);
+  assert.match(WALL, /ungroupAllBtn\.appendChild\(glyph\(['"]ungroupall['"]\)\)/);
+  assert.match(WALL, /groupAllBtn\.appendChild\(el\(['"]span['"], ['"]wall-act-label['"], ['"]group all['"]\)\)/);
+  assert.match(WALL, /ungroupAllBtn\.appendChild\(el\(['"]span['"], ['"]wall-act-label['"], ['"]ungroup all['"]\)\)/);
+  const familyStart = WALL.indexOf('function currentFamilyZones(snapshot)');
+  const familyEnd = WALL.indexOf('\nfunction post(', familyStart);
+  const family = WALL.slice(familyStart, familyEnd);
+  assert.match(family, /if \(family !== ['"]['"] && family !== found\) return \[\]/,
+    'the aggregate tab cannot manufacture a cross-protocol All');
+  assert.match(family, /zoneIsland\(snapshot\.zones\[z\]\) === family/);
+  assert.match(WALL, /groupAllBtn\.hidden = selectMode \|\| familyZones\.length < 2/);
+  assert.match(WALL, /ungroupAllBtn\.hidden = selectMode \|\| familyGroups === 0/);
+
+  const groupStart = WALL.indexOf('function beginGroupAll()');
+  const groupEnd = WALL.indexOf('\nfunction beginUngroupAll()', groupStart);
+  const groupAll = WALL.slice(groupStart, groupEnd);
+  assert.match(groupAll, /ids\.push\(zones\[i\]\.id\)/);
+  assert.match(groupAll, /enterSelect\(ids\)/,
+    'Group All preselects the visible recent-order leader but still enters confirmation mode');
+
+  const ungroupStart = WALL.indexOf('function beginUngroupAll()');
+  const ungroupEnd = WALL.indexOf('\nfunction exitSelect()', ungroupStart);
+  const ungroupAll = WALL.slice(ungroupStart, ungroupEnd);
+  assert.match(ungroupAll, /zones\[i\]\.outputs\.length > 1/,
+    'only actual groups enter the bulk ungroup transaction');
+  assert.match(ungroupAll, /pendingUngroupAll = ids/);
+  assert.match(ungroupAll, /post\(\{ action: ['"]ungroup['"], zone: zone\.id \}\)/);
+  assert.match(WALL, /Ungroup all ['"] \+ String\(pendingUngroupAll\.length\) \+ ['"] groups in this device family\?/,
+    'Ungroup All requires a visible top-line confirmation');
 });
 
 test('Wall omits the healthy paired plumbing state but keeps an outage visible', () => {
