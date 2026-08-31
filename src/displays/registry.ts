@@ -21,12 +21,27 @@ const MAX_NAME = 40;
 /** Screens not seen for a fortnight are forgotten, so the list stays the house. */
 const FORGET_AFTER_MS = 14 * 24 * 60 * 60 * 1000;
 
+export const IDLE_DELAY_MINUTES = [0, 15, 30, 60, 120, 240] as const;
+export type IdleDelayMinutes = typeof IDLE_DELAY_MINUTES[number];
+export const DEFAULT_IDLE_DELAY_MINUTES: IdleDelayMinutes = 15;
+
+export function isIdleDelayMinutes(value: unknown): value is IdleDelayMinutes {
+  return typeof value === 'number'
+    && IDLE_DELAY_MINUTES.includes(value as IdleDelayMinutes);
+}
+
+function normaliseIdleDelay(value: unknown): IdleDelayMinutes {
+  return isIdleDelayMinutes(value) ? value : DEFAULT_IDLE_DELAY_MINUTES;
+}
+
 export interface DisplayRecord {
   readonly id: string;
   readonly name: string;
   readonly lastSeenAt: string;
   /** The output this screen is locked to, or null to let it roam. */
   readonly outputId: string | null;
+  /** Minutes of paused/stopped playback before this screen becomes its idle clock. */
+  readonly idleDelayMinutes: IdleDelayMinutes;
 }
 
 export class DisplayRegistry {
@@ -43,18 +58,23 @@ export class DisplayRegistry {
     try {
       const raw: unknown = JSON.parse(readFileSync(this.path, 'utf8'));
       if (!Array.isArray(raw)) return;
+      let migrated = false;
       for (const entry of raw) {
         if (entry === null || typeof entry !== 'object') continue;
         const record = entry as Record<string, unknown>;
         const id = typeof record.id === 'string' ? record.id : '';
         if (id === '') continue;
+        const idleDelayMinutes = normaliseIdleDelay(record.idleDelayMinutes);
+        if (record.idleDelayMinutes !== idleDelayMinutes) migrated = true;
         this.records.set(id, {
           id,
           name: typeof record.name === 'string' ? record.name.slice(0, MAX_NAME) : id,
           lastSeenAt: typeof record.lastSeenAt === 'string' ? record.lastSeenAt : new Date(0).toISOString(),
           outputId: typeof record.outputId === 'string' && record.outputId !== '' ? record.outputId : null,
+          idleDelayMinutes,
         });
       }
+      if (migrated) this.save();
     } catch {
       // no file yet, or an unreadable one: a house with no screens on record
     }
@@ -83,6 +103,7 @@ export class DisplayRegistry {
       name: clean === '' ? (existing?.name ?? id.slice(0, 8)) : clean,
       lastSeenAt: at,
       outputId: existing?.outputId ?? null,
+      idleDelayMinutes: existing?.idleDelayMinutes ?? DEFAULT_IDLE_DELAY_MINUTES,
     };
     const changed = existing === undefined || existing.name !== record.name;
     this.records.set(id, record);
@@ -96,6 +117,15 @@ export class DisplayRegistry {
     const existing = this.records.get(id);
     if (existing === undefined) return false;
     this.records.set(id, { ...existing, outputId: outputId === '' ? null : outputId });
+    this.save();
+    return true;
+  }
+
+  setIdleDelay(id: string, idleDelayMinutes: number): boolean {
+    const existing = this.records.get(id);
+    if (existing === undefined || !isIdleDelayMinutes(idleDelayMinutes)) return false;
+    if (existing.idleDelayMinutes === idleDelayMinutes) return true;
+    this.records.set(id, { ...existing, idleDelayMinutes });
     this.save();
     return true;
   }

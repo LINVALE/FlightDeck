@@ -1,11 +1,9 @@
 /**
  * A thin, honest wrapper over Roon's Browse service.
  *
- * Deliberately NOT opinionated yet: the live shapes of the search hierarchy have
- * never been captured anywhere in this project's history, and two plausible ways
- * to submit a query were both guesses. This passes Roon's own structures through
- * (sanitised and bounded) so the truth can be recorded first and the UI built on
- * it second.
+ * Search and the other hierarchies keep Roon's own server-side stack semantics.
+ * Their live shapes are recorded in docs/browse-shapes.md; this layer simply
+ * passes those structures through, sanitised and bounded.
  */
 
 export interface BrowseItem {
@@ -159,7 +157,13 @@ export class BrowseGateway {
   private serialised(sessionKey: string, work: () => Promise<unknown>): Promise<unknown> {
     const previous = this.chains.get(sessionKey) ?? Promise.resolve();
     const next = previous.catch(() => undefined).then(work);
-    this.chains.set(sessionKey, next.catch(() => undefined));
+    const settled = next.catch(() => undefined);
+    this.chains.set(sessionKey, settled);
+    // The key is identity, not history. Retaining every screen ever seen would
+    // turn browsing over months into an unbounded Map even after all calls end.
+    void settled.then(() => {
+      if (this.chains.get(sessionKey) === settled) this.chains.delete(sessionKey);
+    });
     return next;
   }
 

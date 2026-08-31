@@ -81,12 +81,23 @@ Roon's Display: art left, three lines, a progress bar, lyrics/queue, flat dark. 
 - **Composition by aspect.** Landscape: art 42% left, copy right. Portrait tablet: art top. Square: art centred.
 - **Composer/artist subtly.** Roon's `three_line` carries it; line 2 secondary, line 3 tertiary.
 - **Grouped zone:** member chips under the zone name (`Study · Kitchen · Garden`).
-- **State cues:** playing → progress moves · paused → progress holds, soft pulse · loading → shimmer on art ·
-  stopped ≥ 2 min → **Idle Face**.
+- **Header grammar:** **Face | Queue · current room · Group**. Face sits over the artwork it changes; the other
+  three are one stable right-hand music-geography group. Each opens one viewport-owned panel immediately below
+  its own trigger, so changing face cannot move the open menu into a transformed artwork or copy column.
+- **Queue means forward, not history.** The current item is a read-only `now` row. A later row is an explicit
+  play-from-here action carrying the exact zone, Core generation and queue revision the viewer just read; a stale
+  window refuses the action and asks to be reopened.
+- **State cues:** playing → progress moves · paused/stopped → the composition holds for the display's selected
+  delay (15 min default; Immediate, 30 min, 1 h, 2 h and 4 h are available) → **Idle Face**.
 - **Idle Face:** dim clock + slow gallery of recently played art from **our own ledger** (Roon's API has no history;
   FlightDeck sees every zone, so it can keep one — a feature Roon's own display lacks).
 - **OLED care:** ±8 px composition shift every 5 min; idle luminance low.
-- **Motion:** crossfades ≤ 600 ms; `prefers-reduced-motion` honoured. Dark only, day 1.
+- **Motion:** a witnessed finite-track change to genuinely different artwork may use Flip, Slide, Dissolve or Lift.
+  **Tasteful Random** is the default and cannot choose the same actual effect twice in succession. A screen remembers
+  an independent choice for each face (for example Dial = Flip, Canvas = Dissolve); **None** is also available. Every
+  effect finishes inside the existing 760 ms receipt window, while the outer cover geometry and every progress ring
+  remain still. Reconnects, room/view changes, live radio, same-cover tracks and artwork corrections settle directly.
+  `prefers-reduced-motion` is honoured with a direct swap. Dark only, day 1.
 - **Honest gap:** no lyrics — not in the Roon API. Goes in `KNOWN-LIMITATIONS.md`, not hidden.
 
 ## 3b. The face lineup (⚖️ tournament wf_886d6786-ecb + Peter 08-25: "These should be user selectable")
@@ -107,7 +118,8 @@ Roon's Display: art left, three lines, a progress bar, lyrics/queue, flat dark. 
 - Otherwise the screen remembers, per screen AND per zone, beside the zone choice itself (R1's mechanism, no new
   server state, nothing to expire).
 - On a TV: any key/tap/pointer raises a quiet auto-hiding strip naming the current face; **arrow keys cycle** (TV
-  remotes send arrows + Enter). The strip NEVER covers the cover.
+  remotes send arrows + Enter). Its face panel also carries that face's remembered cover-transition choice. The strip
+  NEVER covers the cover.
 - The Wall offers "open as…" per zone — how a phone sets up the TV it is standing next to.
 - ⚖️ Receipt: choose a face on the TV, pull the power, it returns as chosen.
 
@@ -166,7 +178,7 @@ Modules:
   IPv4 interface, TTL 255, loopback on — it **coexists with host avahi** (Chrome and avahi already share 5353 here).
   Rejected: delegating to avahi (absent in containers/NAS images) and npm (`multicast-dns` last released 2022).
 - `src/http/events.ts` — SSE hub: `snapshot|update|resync` with `id`=revision; `Last-Event-ID` (previous+1 → `update`;
-  gap → `resync`); `retry: 3000`; heartbeat comment every 10 s; per-IP cap; 64 total. Plus the 1 Hz batched `seek` frame.
+  gap → `resync`); `retry: 3000`; named heartbeat every 10 s; per-IP cap; 64 total. Plus the 1 Hz batched `seek` frame.
 - `src/art/relay.ts` — HMAC token per run; two sizes (`640` faces, `320` tiles); 1 MiB cap; LRU 96 × 30 min;
   4 concurrent; 6 s timeout; `Cache-Control: private, max-age=86400, immutable`.
 - `src/ledger/recent.ts` — ring of `(zone, track, art, at)` from now-playing transitions; memory → JSON in I4.

@@ -41,17 +41,23 @@ export function createStore(onChange) {
      * revisions. FlightDeck restarts its counter at zero, so a display holding a
      * high revision from the previous process rejected EVERY frame the new one
      * sent and froze until someone reloaded it by hand — which is precisely the
-     * failure this whole project exists to avoid. A changed generation, or an
-     * authoritative frame, clears it.
+     * failure this whole project exists to avoid. A changed generation clears
+     * it. "Authoritative" does not make an older response from the SAME process
+     * newer than a frame already on the screen.
      */
     accept: function (next, authoritative) {
       if (!next || typeof next.revision !== 'number' || !Array.isArray(next.zones)) return;
       var newProcess = snapshot !== null && next.generation !== snapshot.generation;
-      if (!authoritative && !newProcess
-          && snapshot !== null && next.revision < snapshot.revision) return;
+      if (!newProcess && snapshot !== null && next.revision < snapshot.revision) return;
+      var sameRevision = !newProcess && snapshot !== null && next.revision === snapshot.revision;
       snapshot = next;
-      seekAt = {};
-      emit('snapshot');
+      // A same-revision /snapshot fetch contains no newer seek truth. Preserve a
+      // 1 Hz frame that may have arrived while the HTTP response was in flight.
+      if (!sameRevision) seekAt = {};
+      // Preserve provenance for effects that must distinguish a live successor
+      // from a cold/reconnect baseline. Existing renderers already treat every
+      // non-seek kind structurally; only the Face consumes the finer distinction.
+      emit(authoritative === true ? 'snapshot' : 'update');
       cache();
     },
 
@@ -76,20 +82,26 @@ export function createStore(onChange) {
     snapshot: function () { return snapshot; },
 
     /**
-     * The position Roon last reported for a zone — the latest seek frame, or the snapshot's own stamp before the
-     * first frame — clamped to the track length. Never estimated, never advanced on the browser clock.
+     * The position Roon last reported for a FINITE timeline — the latest seek
+     * frame, or the snapshot's own stamp before the first frame — clamped to the
+     * track length. A live stream may expose a steadily increasing
+     * `seek_position` even though it has no duration and cannot seek; that is a
+     * stream-age counter, not progress, and must never inherit the previous
+     * track's rail or ring. Loading is blank for the same reason: its metadata
+     * may still be in transition.
      */
     positionSec: function (zone) {
       if (!zone || !zone.nowPlaying) return null;
+      var length = zone.nowPlaying.lengthSec;
+      if (zone.state === 'loading' || !zone.allowed || zone.allowed.seek !== true
+          || typeof length !== 'number' || length <= 0) return null;
       var base = seekAt[zone.id];
       var seek = zone.nowPlaying.seek;
       var value;
       if (base) value = base.positionSec;
       else if (seek && typeof seek.positionSec === 'number') value = seek.positionSec;
       else return null;
-      var length = zone.nowPlaying.lengthSec;
-      if (typeof length === 'number' && length > 0) value = Math.min(value, length);
-      return value;
+      return Math.min(value, length);
     },
 
     subscribe: function (listener) { listeners.push(listener); }

@@ -1,5 +1,11 @@
+import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
+import { createIdleDelayPolicy } from './idle-delay.js';
+import { coverTransitionReceipt, shouldFlipCover, stableCoverReceipt } from './cover-transition.js';
+import { seekTargetSecond } from './seek-target.js';
+import { createSeekIntentGate } from './seek-intent.js';
+import { chooseCoverEffect } from './cover-effects.js';
 
 /**
  * The Zone Face. Presence is the default (it won every lens in the 25 Aug
@@ -65,10 +71,16 @@ function layoutOf(name) { return LAYOUT[name] === undefined ? name : LAYOUT[name
 function hasField(name) { return FIELD[name] === 1; }
 function groundOf(name) { return GROUND[name] === undefined ? 'artist' : GROUND[name]; }
 var STORE_KEY_FACE = 'flightdeck.face.';
+var STORE_KEY_TRANSITION = 'flightdeck.cover-transition.';
+var TRANSITIONS = ['random', 'flip', 'slide', 'dissolve', 'lift', 'none'];
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
 var root = document.getElementById('face');
 var picker = document.getElementById('picker');
+// Silk inherits Android's fading overlay scrollbar, which is only a hairline on
+// a television. Mark that browser narrowly so Browse can keep a proper native
+// drag rail without changing the already-good Samsung and desktop renderings.
+if (/\bSilk\//i.test(String(navigator.userAgent || ''))) root.setAttribute('data-silk', '1');
 /** Where the strip lives on the faces that still use it as a strip. */
 var pickerHome = picker.parentNode;
 var zoneId = root.getAttribute('data-zone') || '';
@@ -106,7 +118,10 @@ var shownZoneId = zoneId;
  * joined (which is what that speaker is actually playing) instead of stranding on
  * a zone that no longer exists.
  *
- * Cleared when someone browses rooms by hand; the URL restores it on reload.
+ * Replaced when someone browses to another room by hand: the selected room's
+ * output becomes the session's new durable anchor, so a later grouping cannot
+ * strand the display on the zone id Roon just destroyed. The URL restores the
+ * original room on reload.
  */
 var boundOutputId = root.getAttribute('data-output') || null;
 
@@ -130,12 +145,35 @@ try {
   }
 } catch (error) { displayId = null; }   // private mode: this screen cannot be bound
 
+// Roon's Browse stack lives server-side and is keyed by `multi_session_key`.
+// Sharing one literal key made two screens move each other's Back/Into position.
+// A private-mode screen still gets an isolated key for this page lifetime.
+var browseSessionKey = 'face-' + (displayId || ('private-' + String(Date.now()).slice(-8)
+  + Math.random().toString(36).slice(2, 8)));
+
+// Recent's station lookup owns a DIFFERENT Roon Browse stack. It may refresh the
+// Live Radio root while an ordinary album/search stack is still on screen, and
+// those two questions must never move one another's Back/Into position.
+var recentRadioSessionKey = 'recent-radio-' + String(Date.now()).slice(-8)
+  + Math.random().toString(36).slice(2, 8);
+
 var lockedOutputId = null;
+
+/**
+ * A move picker freezes the OUTPUT at the side that must survive Roon replacing
+ * either zone. Merely opening a picker changes neither playback nor the player
+ * on this display; the frozen identity is only a durable description of intent.
+ */
+var transferSourceOutputId = null;
+var pullDestinationOutputId = null;
 
 function displayName() {
   var slug = root.getAttribute('data-zone-slug');
   var where = root.getAttribute('data-zone') !== '' && slug ? slug : (following ? 'follows the music' : 'wall');
-  return where + ' · ' + String(current);
+  // The browser id is the physical screen; Canvas, Libretto and the other faces
+  // are merely its clothes. Keep one stable human name and therefore one room
+  // binding and idle policy for the whole family of faces.
+  return where;
 }
 
 function sayHello() {
@@ -147,12 +185,18 @@ function sayHello() {
     return response.ok ? response.json() : null;
   }).then(function (data) {
     if (data === null) return;
+    // Settings arrive on the same heartbeat as room binding. Apply the delay
+    // BEFORE the unchanged-output return, or changing only the saver setting
+    // would never reach a screen already locked to the right room.
+    var delayChanged = idlePolicy.setDelay(data.idleDelayMinutes);
+    root.setAttribute('data-idle-delay-minutes', String(idlePolicy.delay()));
     var wanted = data.output || null;
-    if (wanted === lockedOutputId) return;
-    lockedOutputId = wanted;
+    var outputChanged = wanted !== lockedOutputId;
+    if (!outputChanged && !delayChanged) return;
+    if (outputChanged) lockedOutputId = wanted;
     // A lock is a decision made elsewhere and it wins: the screen stops following
     // the music, releases any hand-picked room, and belongs to its speaker.
-    if (lockedOutputId !== null) {
+    if (outputChanged && lockedOutputId !== null) {
       boundOutputId = lockedOutputId;
       following = false;
     }
@@ -225,15 +269,19 @@ function drawKeyLog() {
   keyLog.replaceChildren.apply(keyLog, rows);
 }
 
-function zoneForOutput(snapshot) {
-  if (boundOutputId === null) return null;
+function zoneForOutputId(snapshot, outputId) {
+  if (snapshot === null || outputId === null) return null;
   for (var i = 0; i < snapshot.zones.length; i += 1) {
     var outs = snapshot.zones[i].outputs;
     for (var j = 0; j < outs.length; j += 1) {
-      if (outs[j].id === boundOutputId) return snapshot.zones[i];
+      if (outs[j].id === outputId) return snapshot.zones[i];
     }
   }
   return null;
+}
+
+function zoneForOutput(snapshot) {
+  return zoneForOutputId(snapshot, boundOutputId);
 }
 try {
   var savedZone = localStorage.getItem(STORE_KEY_ZONE + zoneId);
@@ -267,6 +315,19 @@ function remember(name) {
 var pinned = root.getAttribute('data-face-param');
 var current = pinned || remembered() || 'presence';
 if (FACES.indexOf(current) === -1) current = 'presence';
+
+function rememberedTransition(face) {
+  try { return localStorage.getItem(STORE_KEY_TRANSITION + face); } catch (error) { return null; }
+}
+function transitionForFace(face) {
+  var stored = rememberedTransition(face);
+  return TRANSITIONS.indexOf(stored) === -1 ? 'random' : stored;
+}
+function rememberTransition(face, name) {
+  try { localStorage.setItem(STORE_KEY_TRANSITION + face, name); } catch (error) { /* private mode */ }
+}
+var transitionMode = transitionForFace(current);
+root.setAttribute('data-cover-transition', transitionMode);
 
 /* ---------- structure ---------- */
 function el(tag, className, text) {
@@ -317,7 +378,7 @@ var ROTATE_MS = 10000;       // how long each artist portrait holds
 var viewStep = VIEW_ALBUM;
 var artistIndex = -1;        // -1 = no portrait on screen
 var rotateTimer = null;
-var lastTitle = null;
+var lastTrackIdentity = null;
 var artistLayer = null;
 
 var bg = el('div', 'bg');
@@ -386,7 +447,27 @@ homeMark.setAttribute('title', 'back to every room');
 homeMark.setAttribute('aria-label', 'go to the whole house');
 pressable(homeMark, function () { location.href = '/'; });
 
+/**
+ * THE HEADER HAS THREE MUSIC-GEOGRAPHY DOORS (Peter, 08-31):
+ *
+ *   Queue  |  current room  |  group
+ *
+ * The face chooser moves into the artwork mark those two room controls used to
+ * occupy.  Queue is deliberately its own door: Recent is listening history;
+ * this is Roon's live forward play queue.
+ */
+var queueDoor = el('span', 'queuedoor', 'queue');
+queueDoor.setAttribute('title', 'show the Roon queue');
+queueDoor.setAttribute('aria-label', 'show the Roon queue');
+pressable(queueDoor, openQueuePanel, 'header-queue');
+
 var zoneName = el('span', 'zone');
+zoneName.setAttribute('title', 'choose a room to display');
+zoneName.setAttribute('aria-label', 'choose a room to display');
+// The name answers "which player am I looking at?"; the adjacent chain/count
+// answers "how is that player grouped?". Keeping those two targets distinct
+// makes a room switch safe and predictable on touch, mouse and TV remotes.
+pressable(zoneName, function () { openPanel('rooms'); });
 /**
  * THE WAY INTO GROUPING, and it is already on the screen.
  *
@@ -399,6 +480,9 @@ var zoneName = el('span', 'zone');
  */
 var groupDoor = el('span', 'groupdoor');
 pressable(groupDoor, startGroupPick);
+var cog = el('span', 'cog');
+cog.setAttribute('aria-label', 'change face');
+pressable(cog, function () { openPanel('faces'); });
 var chipHost = el('span');
 var status = el('div', 'status');
 /**
@@ -413,14 +497,42 @@ var status = el('div', 'status');
  */
 var headMark = el('div', 'headmark');
 headMark.appendChild(homeMark);
-headMark.appendChild(zoneName); headMark.appendChild(groupDoor); headMark.appendChild(chipHost);
-head.appendChild(headMark); head.appendChild(status);
+headMark.appendChild(cog);
+var headTools = el('div', 'headtools');
+headTools.appendChild(queueDoor);
+headTools.appendChild(zoneName);
+headTools.appendChild(groupDoor);
+headTools.appendChild(chipHost);
+head.appendChild(headMark); head.appendChild(status); head.appendChild(headTools);
 
 var body = el('div', 'body');
 var cover = el('div', 'cover');
+var sleeveFlip = el('div', 'sleeveflip');
+var sleeveFront = el('div', 'sleeveside sleevefront');
 var coverImg = document.createElement('img');
 coverImg.alt = '';
-cover.appendChild(coverImg);
+var sleeveBack = el('div', 'sleeveside sleeveback');
+var coverNextImg = document.createElement('img');
+coverNextImg.alt = '';
+sleeveFront.appendChild(coverImg);
+sleeveBack.appendChild(coverNextImg);
+sleeveFlip.appendChild(sleeveFront);
+sleeveFlip.appendChild(sleeveBack);
+cover.appendChild(sleeveFlip);
+/**
+ * THE VISIBLE SLEEVE IS ALWAYS THE WAY BACK FROM ARTIST VIEW.
+ *
+ * The transition planes deliberately ignore pointer events, and Dial puts a
+ * separately pressable seek ring around them. Relying on the outer cover for
+ * the return therefore made the smallest artist-view sleeve an ambiguous hit:
+ * some television pointer stacks landed on the ring/cover choreography instead
+ * of changing the view. This exact square sits above the sleeve only in artist
+ * view. The ring outside it remains seekable and album view still uses the
+ * outer cover to enter artist view.
+ */
+var albumReturn = el('span', 'album-return');
+albumReturn.setAttribute('aria-label', 'return to album artwork');
+cover.appendChild(albumReturn);
 var copy = el('div', 'copy');
 var title = el('h1', 'title');
 var line2 = el('div', 'line2');
@@ -462,7 +574,7 @@ head.insertBefore(artistName, status);
  *   the cover        flips album / artist
  *   the title band   opens BROWSE — change what is playing
  *   the lower band   raises TRANSPORT — play, skip, volume
- *   the cog          raises the FACES picker
+ *   the face badge   raises the FACES picker
  *
  * Nothing appears under the press that summoned it, and a freshly raised panel
  * ignores presses for a moment so the summoning touch cannot fall through onto a
@@ -475,15 +587,40 @@ head.insertBefore(artistName, status);
  *
  * Both are hidden at rest. The resting face is the music and nothing else.
  */
-var cog = el('span', 'cog');           // top right: the FACE, and where to change it
-cog.setAttribute('aria-label', 'change face');
-head.appendChild(cog);
-
 var idle = el('div', 'idle');
 var idleClock = el('div', 'clock');
 var idleNote = el('div', 'note');
 idle.appendChild(idleClock); idle.appendChild(idleNote);
 idle.style.display = 'none';
+
+/**
+ * Pausing is not an instruction to erase the music. Hold the exact room's last
+ * composition until its per-display deadline, then become the low-light clock.
+ * The controller uses an absolute deadline so snapshot and seek traffic cannot
+ * postpone it, and its callback always re-reads the current store.
+ */
+var idlePolicy = createIdleDelayPolicy({
+  delayMinutes: 15,
+  now: function () { return Date.now(); },
+  setTimer: function (callback, delay) { return setTimeout(callback, delay); },
+  clearTimer: function (timer) { clearTimeout(timer); },
+  onDue: function () {
+    var snapshot = store === undefined ? null : store.snapshot();
+    if (snapshot !== null) render(snapshot, 'snapshot');
+  },
+});
+root.setAttribute('data-idle-delay-minutes', String(idlePolicy.delay()));
+
+/** Keep the idle face a real clock, with a tiny five-minute drift for OLED care. */
+function updateIdleClock() {
+  if (root.getAttribute('data-idle') !== '1') return;
+  var now = new Date();
+  idleClock.textContent = now.toTimeString().slice(0, 5);
+  var shifts = [[-0.35, -0.28], [0.32, -0.2], [0.28, 0.3], [-0.3, 0.24]];
+  var shift = shifts[Math.floor(now.getTime() / 300000) % shifts.length];
+  idle.style.transform = 'translate(' + String(shift[0]) + 'vw,' + String(shift[1]) + 'vh)';
+}
+setInterval(updateIdleClock, 30000);
 // cover and copy share a wrapper so the artist view can put them side by side
 // (Peter, 08-25: "position it to the left of the three line info section at the
 // same level") while the default view keeps them stacked.
@@ -513,6 +650,54 @@ var RING_C = 2 * Math.PI * RING_R;
 var dial = document.createElementNS(SVG_NS, 'svg');
 dial.setAttribute('class', 'dial');
 dial.setAttribute('viewBox', '0 0 100 100');
+/**
+ * The progress head is a little pearl rather than a flat painted dot. A plain
+ * SVG radial gradient is cheap on a TV GPU and predates our Chromium 63 floor;
+ * no filter, mask or second moving element can lag behind the real position.
+ */
+var dialDefs = document.createElementNS(SVG_NS, 'defs');
+var dialPearl = document.createElementNS(SVG_NS, 'radialGradient');
+dialPearl.setAttribute('id', 'dial-pearl');
+dialPearl.setAttribute('cx', '32%'); dialPearl.setAttribute('cy', '28%');
+dialPearl.setAttribute('r', '72%'); dialPearl.setAttribute('fx', '28%'); dialPearl.setAttribute('fy', '24%');
+[
+  ['0%', 'dial-pearl-glint'], ['30%', 'dial-pearl-light'],
+  ['68%', 'dial-pearl-tone'], ['100%', 'dial-pearl-depth'],
+].forEach(function (spec) {
+  var stop = document.createElementNS(SVG_NS, 'stop');
+  stop.setAttribute('offset', spec[0]); stop.setAttribute('class', spec[1]);
+  dialPearl.appendChild(stop);
+});
+
+/**
+ * The ring is the pearl drawn out into a cord. A radial gradient centred on the
+ * disc shades ACROSS the existing stroke: RING_R=44 samples 88% of an r=50
+ * gradient, so the five close stops make a raised cross-section all the way
+ * round without another circle, filter, mask or animated paint layer.
+ */
+function dialRingGradient(id, classes) {
+  var gradient = document.createElementNS(SVG_NS, 'radialGradient');
+  gradient.setAttribute('id', id);
+  gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+  gradient.setAttribute('cx', '50'); gradient.setAttribute('cy', '50');
+  gradient.setAttribute('r', '50');
+  var offsets = ['84%', '86.5%', '88%', '89.5%', '92%'];
+  for (var i = 0; i < offsets.length; i += 1) {
+    var stop = document.createElementNS(SVG_NS, 'stop');
+    stop.setAttribute('offset', offsets[i]); stop.setAttribute('class', classes[i]);
+    gradient.appendChild(stop);
+  }
+  return gradient;
+}
+var dialRingProgress = dialRingGradient('dial-ring-progress', [
+  'dial-ring-depth', 'dial-ring-tone', 'dial-ring-light', 'dial-ring-tone', 'dial-ring-depth',
+]);
+var dialRingTrack = dialRingGradient('dial-ring-track', [
+  'dial-track-depth', 'dial-track-tone', 'dial-track-light', 'dial-track-tone', 'dial-track-depth',
+]);
+dialDefs.appendChild(dialPearl);
+dialDefs.appendChild(dialRingProgress); dialDefs.appendChild(dialRingTrack);
+dial.appendChild(dialDefs);
 var dialTrack = document.createElementNS(SVG_NS, 'circle');
 var dialArc = document.createElementNS(SVG_NS, 'circle');
 [dialTrack, dialArc].forEach(function (c) {
@@ -722,30 +907,146 @@ function ensureLamps(count) {
   }
 }
 
+/**
+ * A live stream has no fraction. Clear EVERY surface that can remember the
+ * previous finite track before saying that plainly; otherwise radio inherits a
+ * convincing-looking bar, bead or ring from whatever happened to play before it.
+ */
+function resetProgress(zone) {
+  ensureLamps(0);
+  for (var i = 0; i < lampNodes.length; i += 1) lampNodes[i].className = '';
+  barFill.style.width = '0%';
+  dialArc.setAttribute('stroke-dashoffset', String(RING_C));
+  dialBead.style.display = 'none';
+  dialBead.removeAttribute('cx');
+  dialBead.removeAttribute('cy');
+  root.className = root.className.replace(' ring-jump', '');
+  lastRingKey = '';
+  lastRingFraction = 0;
+
+  var isLive = zone.nowPlaying !== null
+    && zone.allowed.seek === false
+    && (zone.state === 'playing' || zone.state === 'loading');
+  var live = isLive ? 'LIVE' : '';
+  elapsed.textContent = live;
+  remaining.textContent = '';
+  ends.textContent = '';
+  dialRemain.textContent = '';
+  dialTimes.textContent = live;
+  dialEnds.textContent = '';
+}
+
 /* ---------- render ---------- */
 var artKey = null;
-function setCover(art) {
+var paintedArtKey = null;
+var coverReceipt = null;
+var coverLoadEpoch = 0;
+var coverFlipEpoch = 0;
+var coverFlipTargetKey = null;
+var coverFlipTimer = null;
+var lastCoverEffectByFace = {};
+var COVER_TRANSITION_MS = 760;
+
+function reducedCoverMotion() {
+  try {
+    return typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (error) { return false; }
+}
+
+function coverPalette(url, request, key) {
+  readPalette(url, function (tones) {
+    if (request !== coverLoadEpoch || key !== artKey) return;
+    palette = tones;
+    var root2 = document.documentElement.style;
+    root2.setProperty('--accent', tones[2]);
+    root2.setProperty('--accent-rich', tones[3] || tones[2]);
+    root2.setProperty('--disc', tones[0]);
+  });
+}
+
+/** Land the reverse side, then reset the card with both paints identical. */
+function finishCoverFlip(epoch) {
+  if (epoch !== coverFlipEpoch || coverFlipTargetKey === null) return;
+  if (coverFlipTimer !== null) { clearTimeout(coverFlipTimer); coverFlipTimer = null; }
+  var nextSource = coverNextImg.getAttribute('src');
+  sleeveFlip.className = 'sleeveflip is-resetting';
+  if (nextSource === null || nextSource === '') coverImg.removeAttribute('src');
+  else coverImg.src = nextSource;
+  coverNextImg.removeAttribute('src');
+  paintedArtKey = coverFlipTargetKey;
+  coverFlipTargetKey = null;
+  // No second return-flip: reset at zero while front and back are the same paint.
+  sleeveFlip.getBoundingClientRect();
+  sleeveFlip.className = 'sleeveflip';
+}
+
+function settleCoverFlip() {
+  if (coverFlipTargetKey !== null) finishCoverFlip(coverFlipEpoch);
+  else sleeveFlip.className = 'sleeveflip';
+}
+
+function showCoverNow(source, key, request) {
+  settleCoverFlip();
+  coverImg.src = source;
+  coverNextImg.removeAttribute('src');
+  paintedArtKey = key;
+  coverPalette(source, request, key);
+}
+
+function beginCoverTransition(source, key, request, effect) {
+  settleCoverFlip();
+  coverNextImg.src = source;
+  sleeveFlip.className = 'sleeveflip effect-' + effect;
+  sleeveFlip.getBoundingClientRect();       // establish the unturned side
+  coverFlipEpoch += 1;
+  var epoch = coverFlipEpoch;
+  coverFlipTargetKey = key;
+  sleeveFlip.className = 'sleeveflip effect-' + effect + ' is-flipped';
+  coverPalette(source, request, key);
+  coverFlipTimer = setTimeout(function () { finishCoverFlip(epoch); }, COVER_TRANSITION_MS + 100);
+}
+
+function setCover(art, receipt, kind, albumView) {
+  var previous = coverReceipt;
   var key = art ? art.key : null;
+  var sameArt = key === artKey;
+  var animate = !sameArt && shouldFlipCover(previous, receipt, kind, paintedArtKey,
+    document.hidden !== true, albumView === true);
+  coverReceipt = stableCoverReceipt(previous, receipt, kind, sameArt);
   if (key === artKey) return;
   artKey = key;
-  if (art === null) { coverImg.removeAttribute('src'); return; }
-  var next = new Image();
-  var swap = function () {
-    coverImg.src = next.src;
-    // The palette comes from the COVER, always — it is what the backdrop agrees with.
-    readPalette(next.src, function (tones) {
-      palette = tones;
-      var root2 = document.documentElement.style;
-      root2.setProperty('--accent', tones[2]);
-      root2.setProperty('--accent-rich', tones[3] || tones[2]);
-      root2.setProperty('--disc', tones[0]);
-    });
-  };
-  next.onload = swap;
-  if ('decode' in HTMLImageElement.prototype) {
-    next.decode().then(swap).catch(function () { /* onload covers it */ });
+  coverLoadEpoch += 1;
+  var request = coverLoadEpoch;
+  settleCoverFlip();
+  if (art === null) {
+    coverImg.removeAttribute('src');
+    coverNextImg.removeAttribute('src');
+    paintedArtKey = null;
+    return;
   }
+  var next = new Image();
+  var committed = false;
+  var commitOnce = function () {
+    if (committed || request !== coverLoadEpoch || key !== artKey) return;
+    committed = true;
+    // Decode and onload may both report success. Exactly one of them owns paint.
+    if (animate && transitionMode !== 'none' && !reducedCoverMotion()
+        && paintedArtKey === previous.artKey && coverImg.getAttribute('src') !== null) {
+      var previousEffect = lastCoverEffectByFace[current] || '';
+      var effect = chooseCoverEffect(transitionMode, previousEffect, Math.random());
+      if (effect === null) showCoverNow(next.src, key, request);
+      else {
+        lastCoverEffectByFace[current] = effect;
+        beginCoverTransition(next.src, key, request, effect);
+      }
+    } else showCoverNow(next.src, key, request);
+  };
+  next.onload = commitOnce;
   next.src = art.path;
+  if ('decode' in HTMLImageElement.prototype) {
+    next.decode().then(commitOnce).catch(function () { /* onload covers it */ });
+  }
 }
 
 function setBackdrop(zone) {
@@ -784,6 +1085,7 @@ function render(snapshot, kind) {
   // the remembered id, then the room's own name.
   var zone = resolveZone(snapshot);
   if (zone !== null && zone.id !== was) kind = 'snapshot';
+  refreshStructuralPicker(kind);
   if (zone === null) {
     /**
      * Hold, don't accuse. Through a regrouping the room really is in no zone for
@@ -814,15 +1116,26 @@ function render(snapshot, kind) {
     if (plus !== null) {
       groupDoor.textContent = '+ ' + plus[2];
       groupDoor.className = 'groupdoor grouped';
+      groupDoor.setAttribute('aria-disabled', 'false');
       groupDoor.setAttribute('title', plus[2] + ' more rooms \u00B7 press to change the group');
+      groupDoor.setAttribute('aria-label', 'edit group for ' + zone.name);
       groupDoor.hidden = false;
     } else if (canGroup) {
       groupDoor.replaceChildren(glyph('group'));
       groupDoor.className = 'groupdoor';
+      groupDoor.setAttribute('aria-disabled', 'false');
       groupDoor.setAttribute('title', 'group ' + zone.name + ' with another room');
+      groupDoor.setAttribute('aria-label', 'group ' + zone.name + ' with another room');
       groupDoor.hidden = false;
     } else {
-      groupDoor.hidden = true;
+      // The three-door order never jumps.  A disabled chain answers why Group
+      // is absent without moving Queue or the room name into its old place.
+      groupDoor.replaceChildren(glyph('group'));
+      groupDoor.className = 'groupdoor unavailable';
+      groupDoor.setAttribute('aria-disabled', 'true');
+      groupDoor.setAttribute('title', zone.name + ' cannot be grouped');
+      groupDoor.setAttribute('aria-label', zone.name + ' cannot be grouped');
+      groupDoor.hidden = false;
     }
     renderShelf(zone);
     /**
@@ -846,7 +1159,20 @@ function render(snapshot, kind) {
       : (away ? 'Roon is away' : (zone.state === 'loading' ? 'loading' : ''));
 
     var np = zone.nowPlaying;
-    if (np === null || zone.state === 'stopped') {
+    if (np === null) {
+      // A short playing/loading gap is part of Roon's ordinary successor
+      // sequence. Keep the receipt for the still-painted old sleeve so the new
+      // cover can turn from it. Pause, stop and an authoritative baseline end
+      // that evidence immediately.
+      if (kind !== 'update' || (zone.state !== 'playing' && zone.state !== 'loading')) {
+        coverReceipt = null;
+        lastTrackIdentity = null;
+      }
+    }
+    var inactive = np === null || zone.state === 'paused' || zone.state === 'stopped';
+    var idleNow = idlePolicy.reconcile(zone.id, inactive, np !== null);
+    root.setAttribute('data-idle', idleNow ? '1' : '0');
+    if (idleNow) {
       idle.style.display = '';
       /**
        * ⚠️ THE SLEEVE KEEPS ITS FOOTPRINT when there is nothing playing, on the
@@ -858,23 +1184,31 @@ function render(snapshot, kind) {
        */
       if (np === null && hasShelf()) { cover.style.display = ''; cover.style.visibility = 'hidden'; }
       else { cover.style.display = np === null ? 'none' : ''; cover.style.visibility = ''; }
-      idleClock.textContent = new Date().toTimeString().slice(0, 5);
       idleNote.textContent = zone.name;
+      updateIdleClock();
     } else {
       idle.style.display = 'none';
       cover.style.display = ''; cover.style.visibility = '';
-      if (np.title !== lastTitle) {
-        lastTitle = np.title;
-        // A new track means a new artist; never leave a stale face on screen.
-        if (viewStep !== VIEW_ALBUM) {
-          viewStep = VIEW_ALBUM; artistIndex = -1; backdropKey = null; applyArtistView();
+      // A stopped zone commonly drops nowPlaying. During its grace period retain
+      // only this same room's already-painted composition; progress is still
+      // cleared below, so no old position masquerades as live playback.
+      if (np !== null) {
+        var nextCoverReceipt = coverTransitionReceipt(snapshot, zone);
+        var wasAlbumView = viewStep === VIEW_ALBUM;
+        if (nextCoverReceipt !== null && nextCoverReceipt.trackKey !== lastTrackIdentity) {
+          lastTrackIdentity = nextCoverReceipt.trackKey;
+          // A new track means a new artist; never leave a stale face on screen.
+          if (viewStep !== VIEW_ALBUM) {
+            viewStep = VIEW_ALBUM; artistIndex = -1; backdropKey = null; applyArtistView();
+          }
         }
+        title.textContent = np.title;
+        line2.textContent = np.line2;
+        line3.textContent = np.line3;
+        setCover(np.art, nextCoverReceipt, kind, wasAlbumView);
+        setBackdrop(zone);
+        idlePolicy.markPainted(zone.id);
       }
-      title.textContent = np.title;
-      line2.textContent = np.line2;
-      line3.textContent = np.line3;
-      setCover(np.art);
-      setBackdrop(zone);
     }
   }
 
@@ -882,9 +1216,9 @@ function render(snapshot, kind) {
 
   var position = store.positionSec(zone);
   var length = zone.nowPlaying ? zone.nowPlaying.lengthSec : null;
-  if (position === null || !length) {
-    ensureLamps(0);
-    elapsed.textContent = ''; remaining.textContent = ''; ends.textContent = '';
+  if (position === null || typeof position !== 'number' || !isFinite(position)
+      || typeof length !== 'number' || !isFinite(length) || length <= 0) {
+    resetProgress(zone);
     return;
   }
   // Lamp COUNT encodes track length (~1 lamp per 10 s): density tells you how
@@ -894,7 +1228,9 @@ function render(snapshot, kind) {
   var litTo = Math.floor((position / length) * count);
   for (var l = 0; l < count; l += 1) {
     var node = lampNodes[l];
-    var wantClass = l < litTo ? 'lit' : (l === litTo && zone.state === 'playing' ? 'head' : '');
+    // This state must not be called `head`: the page header uses that class for
+    // absolute positioning, which pulled the first runway lamp over elapsed time.
+    var wantClass = l < litTo ? 'lit' : (l === litTo && zone.state === 'playing' ? 'lamp-head' : '');
     if (node.className !== wantClass) node.className = wantClass;
   }
   var fraction = Math.max(0, Math.min(1, position / length));
@@ -920,6 +1256,7 @@ function render(snapshot, kind) {
   if (jump && root.className.indexOf('ring-jump') === -1) root.className += ' ring-jump';
   barFill.style.width = (fraction * 100).toFixed(2) + '%';
   dialArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - fraction)));
+  dialBead.style.display = '';
   var angle = (-90 + fraction * 360) * Math.PI / 180;
   dialBead.setAttribute('cx', String(50 + RING_R * Math.cos(angle)));
   dialBead.setAttribute('cy', String(50 + RING_R * Math.sin(angle)));
@@ -1067,6 +1404,16 @@ function flipArtwork() {
   cycleArtist();
 }
 
+function returnToAlbum() {
+  if (viewStep !== VIEW_ARTIST) return;
+  viewStep = VIEW_ALBUM;
+  artistIndex = -1;
+  backdropKey = null;
+  applyArtistView();
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+}
+
 function cycleArtist() {
   var zone = currentZone();
   var shots = zone && zone.nowPlaying ? (zone.nowPlaying.artistArts || []) : [];
@@ -1085,6 +1432,9 @@ function cycleArtist() {
 // pointerup/touchend/mouseup, and drifts between down and up — the same fault
 // that made the control buttons unresponsive.
 pressable(cover, flipArtwork);
+pressable(albumReturn, returnToAlbum, 'artist-album-return');
+// It is a pointer target, not a second D-pad stop nested inside the cover.
+albumReturn.setAttribute('tabindex', '-1');
 
 /* ---------- the picker: arrow keys, because a TV has a remote ---------- */
 var pickerTimer = null;
@@ -1100,10 +1450,124 @@ var pickerTimer = null;
 var DWELL_MS = 900;
 var dwellTimer = null;
 var dwellNode = null;
+var pickerNavigationCurrent = null;
 
 function cancelDwell() {
   if (dwellTimer !== null) { clearTimeout(dwellTimer); dwellTimer = null; }
   if (dwellNode !== null) { dwellNode.className = dwellNode.className.replace(' arming', ''); dwellNode = null; }
+}
+
+/** Enabled, visible picker controls in DOM order — the order a D-pad walks. */
+function pickerNavigationChoices() {
+  var nodes = picker.querySelectorAll('[role="button"]');
+  var choices = [];
+  for (var i = 0; i < nodes.length; i += 1) {
+    var node = nodes[i];
+    var classes = ' ' + (node.getAttribute('class') || '') + ' ';
+    if (node.getAttribute('aria-disabled') === 'true' || classes.indexOf(' off ') !== -1) continue;
+    var parent = node;
+    var visible = false;
+    while (parent !== null) {
+      if (parent.hidden === true || parent.getAttribute('aria-hidden') === 'true') break;
+      if (parent === picker) { visible = true; break; }
+      parent = parent.parentNode;
+    }
+    if (visible) choices.push(node);
+  }
+  return choices;
+}
+
+/** A semantic identity survives a structural picker repaint; a node does not. */
+function pickerNavigationIdentity(node) {
+  if (node === null) return '';
+  var names = ['data-picker-key', 'data-face-option', 'data-transition-option', 'data-room-zone', 'data-group-zone', 'data-queue-item',
+    'data-output', 'aria-label', 'title'];
+  for (var i = 0; i < names.length; i += 1) {
+    var value = node.getAttribute(names[i]);
+    if (value !== null && value !== '') return names[i] + ':' + value;
+  }
+  return 'text:' + String(node.textContent || '').replace(/^\s+|\s+$/g, '');
+}
+
+function setPickerNavigation(node) {
+  if (pickerNavigationCurrent !== null) pickerNavigationCurrent.classList.remove('picker-key-current');
+  pickerNavigationCurrent = node;
+  if (node === null) return;
+  node.classList.add('picker-key-current');
+  try { node.focus(); } catch (error) { /* old TV engine: the visible mark still works */ }
+  if (typeof node.scrollIntoView === 'function') {
+    try { node.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    catch (error) { node.scrollIntoView(false); }
+  }
+}
+
+/** Seed the current choice on open; retain the same choice through live repaint. */
+function seedPickerNavigation(preferred) {
+  var choices = pickerNavigationChoices();
+  if (choices.length === 0) { setPickerNavigation(null); return null; }
+  var chosen = null;
+  if (preferred !== '') {
+    for (var p = 0; p < choices.length; p += 1) {
+      if (pickerNavigationIdentity(choices[p]) === preferred) { chosen = choices[p]; break; }
+    }
+  }
+  if (chosen === null) {
+    for (var c = 0; c < choices.length; c += 1) {
+      var classes = ' ' + (choices[c].getAttribute('class') || '') + ' ';
+      if (classes.indexOf(' now ') !== -1 || classes.indexOf(' is-current ') !== -1
+          || choices[c].getAttribute('aria-pressed') === 'true') {
+        chosen = choices[c];
+        break;
+      }
+    }
+  }
+  if (chosen === null) chosen = choices[0];
+  setPickerNavigation(chosen);
+  return chosen;
+}
+
+function movePickerNavigation(delta) {
+  var choices = pickerNavigationChoices();
+  if (choices.length === 0) return false;
+  var at = -1;
+  for (var i = 0; i < choices.length; i += 1) {
+    if (choices[i] === pickerNavigationCurrent) { at = i; break; }
+  }
+  if (at === -1) {
+    setPickerNavigation(delta < 0 ? choices[choices.length - 1] : choices[0]);
+  } else {
+    setPickerNavigation(choices[(at + delta + choices.length) % choices.length]);
+  }
+  return true;
+}
+
+function activatePickerNavigation() {
+  var choices = pickerNavigationChoices();
+  var active = false;
+  for (var i = 0; i < choices.length; i += 1) {
+    if (choices[i] === pickerNavigationCurrent) { active = true; break; }
+  }
+  if (!active && seedPickerNavigation('') === null) return false;
+  if (typeof pickerNavigationCurrent.click === 'function') pickerNavigationCurrent.click();
+  else {
+    var event = document.createEvent('MouseEvents');
+    event.initEvent('click', true, true);
+    pickerNavigationCurrent.dispatchEvent(event);
+  }
+  return true;
+}
+
+function handlePickerNavigation(name) {
+  // Browse is its own full window. Do not drive the picker left behind it.
+  if (picker.hidden || browsePanel !== null) return false;
+  // The transport strip is not a selection menu. Let Up/Down remain room volume
+  // and OK remain artwork even while the chrome is visible; otherwise revealing
+  // the strip with the first key silently changes the meaning of the next one.
+  if (picker.className.indexOf('mode-transport') >= 0) return false;
+  if (name === 'up') return movePickerNavigation(-1);
+  if (name === 'down') return movePickerNavigation(1);
+  if (name === 'ok') return activatePickerNavigation();
+  return false;
 }
 
 function armDwell(node, name) {
@@ -1145,36 +1609,23 @@ function markRing() {
 
 /** The two attributes every rule is keyed on: what it looks like, and what is behind it. */
 /**
- * ⚖️ A PHONE IS NOT A SMALL TELEVISION (Peter, 08-29: "can we automatically deal
- * with phones without an app?").
- *
- * No app: it is a page on the house's own network, and a phone opens it in the
- * browser it already has. What it needs is a layout of its own — measured, the
- * faces are composed in `vw` for a 16:9 frame, so at 852x393 the sleeve's top
- * sat 166px ABOVE the screen and at 393x852 Classic piled its browse marks, its
- * title and its transport on top of one another.
- *
- * The discriminator is the SHORT SIDE, not the width. `max-width: 900px` was
- * catching a phone in LANDSCAPE — 852px wide — and handing it rules written for
- * a portrait phone. A screen whose short side is under 540px is a phone in
- * either orientation, and it says which one it is in.
+ * FORM FACTOR IS ROUTE-OWNED. `/phone` is the phone; `/now` and `/face` are
+ * displays. A Fire TV may report a 960x540 CSS viewport, so viewport size cannot
+ * decide which interface it receives: that classified the television as a phone,
+ * made all chrome permanent and deliberately removed its face chooser.
  */
-var PHONE_SHORT_SIDE = 540;
-
-function markSize() {
+function markOrientation() {
   var w = window.innerWidth || 0;
   var h = window.innerHeight || 0;
-  var short = Math.min(w, h);
-  if (short > 0 && short <= PHONE_SHORT_SIDE) root.setAttribute('data-size', 'phone');
-  else root.removeAttribute('data-size');
+  root.removeAttribute('data-size');
   root.setAttribute('data-orient', h >= w ? 'portrait' : 'landscape');
 }
 
-window.addEventListener('resize', markSize);
-window.addEventListener('orientationchange', function () { setTimeout(markSize, 120); });
+window.addEventListener('resize', markOrientation);
+window.addEventListener('orientationchange', function () { setTimeout(markOrientation, 120); });
 
 function markLayout() {
-  markSize();
+  markOrientation();
   root.setAttribute('data-layout', layoutOf(current));
   if (hasColumn()) root.setAttribute('data-column', '1');
   else root.removeAttribute('data-column');
@@ -1186,17 +1637,32 @@ function markLayout() {
    * line, and both wanting the same answer: who the room is on top, how loud
    * underneath. Named once so the rules are written once.
    */
-  if (hasFlank() || root.getAttribute('data-size') === 'phone') root.setAttribute('data-narrow', '1');
+  if (hasFlank()) root.setAttribute('data-narrow', '1');
   else root.removeAttribute('data-narrow');
   if (hasField(current)) root.setAttribute('data-field', '1');
   else root.removeAttribute('data-field');
 }
 
 function applyFace(name) {
-  if (FACES.indexOf(name) === -1 || name === current) return;
+  if (FACES.indexOf(name) === -1) return;
+  // Pointer and dwell choices must move the remote's current mark too. Without
+  // this, the new face was .now while the old face retained the focus outline,
+  // and the next Up/Down continued from the wrong choice after the rebuild.
+  if (!picker.hidden && picker.className.indexOf('mode-faces') >= 0) {
+    var faceChoices = picker.querySelectorAll('[data-face-option]');
+    for (var fc = 0; fc < faceChoices.length; fc += 1) {
+      if (faceChoices[fc].getAttribute('data-face-option') === name) {
+        setPickerNavigation(faceChoices[fc]);
+        break;
+      }
+    }
+  }
+  if (name === current) return;
   current = name;
   remember(current);
+  transitionMode = transitionForFace(current);
   root.setAttribute('data-face', current);
+  root.setAttribute('data-cover-transition', transitionMode);
   markLayout();
   markRing();
   paintFaceName();
@@ -1228,7 +1694,41 @@ function faceOption(name) {
   node.addEventListener('mouseenter', function () { armDwell(node, name); });
   node.addEventListener('mouseleave', cancelDwell);
   // A tap or click is an explicit choice: apply it at once rather than dwelling.
-  pressable(node, function () { cancelDwell(); applyFace(name); });
+  // The choice rebuilds this node. A semantic press key lets the shared echo
+  // gate consume the pointerup/mouseup/click tail on the replacement node.
+  pressable(node, function () { cancelDwell(); applyFace(name); }, 'face:' + name);
+  return node;
+}
+
+function applyTransition(name) {
+  if (TRANSITIONS.indexOf(name) === -1) return;
+  // Keep pointer and remote navigation on the same semantic choice when the
+  // menu repaints. The face is part of the identity because every face owns an
+  // independent preference.
+  if (!picker.hidden && picker.className.indexOf('mode-faces') >= 0) {
+    var transitionChoices = picker.querySelectorAll('[data-transition-option]');
+    var wanted = 'transition:' + current + ':' + name;
+    for (var tc = 0; tc < transitionChoices.length; tc += 1) {
+      if (transitionChoices[tc].getAttribute('data-picker-key') === wanted) {
+        setPickerNavigation(transitionChoices[tc]);
+        break;
+      }
+    }
+  }
+  if (name === transitionMode) return;
+  transitionMode = name;
+  rememberTransition(current, name);
+  root.setAttribute('data-cover-transition', name);
+  refreshPicker();
+}
+
+function transitionOption(name) {
+  var label = name === 'random' ? 'tasteful random' : name;
+  var node = el('span', name === transitionMode ? 'opt now' : 'opt', label);
+  var key = 'transition:' + current + ':' + name;
+  node.setAttribute('data-transition-option', name);
+  node.setAttribute('data-picker-key', key);
+  pressable(node, function () { applyTransition(name); }, key);
   return node;
 }
 
@@ -1258,21 +1758,26 @@ function openBrowseMenu() {
  */
 function buildBrowseRow() {
   var row = el('div', 'row row-browse');
-  var entry = function (label, onPress) {
+  var entry = function (icon, label, onPress) {
     var b = el('span', 'opt browse-entry');
-    b.appendChild(glyph(label));
+    b.appendChild(glyph(icon));
     b.appendChild(document.createTextNode(label));
-    pressable(b, onPress);
+    b.setAttribute('aria-label', label);
+    pressable(b, onPress, 'browse-entry:' + icon);
     return b;
   };
-  row.appendChild(entry('explore', function () { openHierarchy('browse', 'Explore'); }));
-  row.appendChild(entry('genres', function () { openHierarchy('genres', 'Genres'); }));
-  row.appendChild(entry('albums', function () { openHierarchy('albums', 'Albums'); }));
-  row.appendChild(entry('artists', function () { openHierarchy('artists', 'Artists'); }));
-  row.appendChild(entry('composers', function () { openHierarchy('composers', 'Composers'); }));
-  row.appendChild(entry('playlists', function () { openHierarchy('playlists', 'Playlists'); }));
-  row.appendChild(entry('radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
-  row.appendChild(entry('recent', openRecent));
+  var search = entry('search', 'search Roon', openRoonSearch);
+  search.className += ' browse-search-entry';
+  search.setAttribute('title', 'find artists, albums and tracks in your library and connected services');
+  row.appendChild(search);
+  row.appendChild(entry('explore', 'explore', function () { openHierarchy('browse', 'Explore'); }));
+  row.appendChild(entry('genres', 'genres', function () { openHierarchy('genres', 'Genres'); }));
+  row.appendChild(entry('albums', 'albums', function () { openHierarchy('albums', 'Albums'); }));
+  row.appendChild(entry('artists', 'artists', function () { openHierarchy('artists', 'Artists'); }));
+  row.appendChild(entry('composers', 'composers', function () { openHierarchy('composers', 'Composers'); }));
+  row.appendChild(entry('playlists', 'playlists', function () { openHierarchy('playlists', 'Playlists'); }));
+  row.appendChild(entry('radio', 'radio', function () { openHierarchy('internet_radio', 'Live radio'); }));
+  row.appendChild(entry('recent', 'recent', openRecent));
   return row;
 }
 
@@ -1352,9 +1857,11 @@ function renderShelf(zone) {
  */
 function appendVolume(controls, zone, button) {
   var groupOuts = [];
+  var muteOuts = [];
   if (zone !== null && zone.outputs.length > 1) {
     for (var gi = 0; gi < zone.outputs.length; gi += 1) {
       var go = zone.outputs[gi];
+      if (go.volume !== null) muteOuts.push(go);
       if (go.volume !== null && go.volume.value !== null && go.volume.max !== null
           && go.volume.type !== 'incremental') groupOuts.push(go);
     }
@@ -1371,12 +1878,13 @@ function appendVolume(controls, zone, button) {
     mean = mean / levels.length;
 
     var master = groupScale(zone, mean);
-    // ALL of them, not any: the name said `anyMuted` and the loop computed the
-    // opposite, which is the sort of thing that survives until somebody presses it.
     var allMuted = true;
-    for (var qi = 0; qi < groupOuts.length; qi += 1) if (!groupOuts[qi].volume.muted) allMuted = false;
-    var masterSpeaker = volumeSpeaker(groupOuts[0], allMuted ? 0 : mean, groupOuts);
-    volUi = { speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true };
+    for (var qi = 0; qi < muteOuts.length; qi += 1) if (!muteOuts[qi].volume.muted) allMuted = false;
+    var masterSpeaker = groupVolumeSpeaker(zone, muteOuts, allMuted);
+    volUi = {
+      speaker: masterSpeaker, scale: master, outputId: groupOuts[0].id, group: true,
+      scaleOutputIds: groupOuts.map(function (o) { return o.id; }),
+    };
     controls.appendChild(masterSpeaker);
     controls.appendChild(master);
     controls.appendChild(roomsToggle(zone, groupOuts));
@@ -1389,16 +1897,18 @@ function appendVolume(controls, zone, button) {
     controls.appendChild(button('minus', 'no volume control', false, function () {}));
     controls.appendChild(button('plus', 'no volume control', false, function () {}));
   } else if (vol.type === 'incremental' || vol.value === null || vol.max === null) {
-    var incSpeaker = volumeSpeaker(output, 0.5);
+    var incSpeaker = volumeSpeaker(output);
     volUi = { speaker: incSpeaker, scale: null, outputId: output.id };
     controls.appendChild(incSpeaker);
-    controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true, function () { nudgeVolume(-1); }));
-    controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true, function () { nudgeVolume(1); }));
+    controls.appendChild(button('minus', 'quieter \u00B7 ' + output.name, true,
+      function () { nudgeVolume(-1); }, 'volume-down:' + output.id));
+    controls.appendChild(button('plus', 'louder \u00B7 ' + output.name, true,
+      function () { nudgeVolume(1); }, 'volume-up:' + output.id));
   } else {
     var min = vol.min === null ? 0 : vol.min;
     var span = Math.max(1, vol.max - min);
     var level = Math.max(0, Math.min(1, (vol.value - min) / span));
-    var speakerNode = volumeSpeaker(output, vol.muted ? 0 : level);
+    var speakerNode = volumeSpeaker(output);
     var scaleNode = volumeScale(output, level, min, span);
     volUi = { speaker: speakerNode, scale: scaleNode, outputId: output.id };
     controls.appendChild(speakerNode);
@@ -1423,12 +1933,13 @@ function appendVolume(controls, zone, button) {
  */
 function buildControls(zone, withVolume) {
   var controls = el('div', 'controls');
-  var button = function (label, title, enabled, onPress) {
+  var zoneKey = zone === null ? '' : zone.id;
+  var button = function (label, title, enabled, onPress, pressKey) {
     var b = el('span', enabled ? 'ctl' : 'ctl off');
     b.appendChild(glyph(label));
     b.setAttribute('title', title);
     b.setAttribute('aria-label', title);
-    if (enabled) pressable(b, onPress);
+    if (enabled) pressable(b, onPress, pressKey);
     return b;
   };
   var playing = zone !== null && zone.state === 'playing';
@@ -1439,31 +1950,36 @@ function buildControls(zone, withVolume) {
    * state is the point, and the state belongs to Roon.
    */
   var settings = zone === null ? null : zone.settings;
-  var lit = function (name, title, on, onPress) {
+  var lit = function (name, title, on, onPress, pressKey) {
     var b = el('span', settings === null ? 'ctl off' : (on ? 'ctl lit' : 'ctl'));
     b.appendChild(glyph(name));
     b.setAttribute('title', title);
     b.setAttribute('aria-label', title);
-    if (settings !== null) pressable(b, onPress);
+    if (settings !== null) pressable(b, onPress, pressKey);
     return b;
   };
   controls.appendChild(lit('shuffle',
     settings !== null && settings.shuffle ? 'shuffle is on' : 'shuffle',
     settings !== null && settings.shuffle,
-    function () { command({ action: 'shuffle', zone: zone.id }); }));
-  controls.appendChild(button('prev', 'previous', zone !== null && zone.allowed.previous,
-    function () { transport('previous'); }));
+    function () { command({ action: 'shuffle', zone: zone.id }); }, 'shuffle:' + zoneKey));
+  var previousBtn = button('prev', 'previous', zone !== null && zone.allowed.previous,
+    function () { transport('previous'); }, 'previous:' + zoneKey);
+  previousBtn.className += ' is-skip';
+  controls.appendChild(previousBtn);
   /**
    * PLAY IS THE ONE YOU REACH FOR, so it is a little larger and a little
    * brighter than its neighbours — the same emphasis the wall card gives it.
    * Subtle on purpose: the row still has to read as one line of equals.
    */
   var playBtn = button(playing ? 'pause' : 'play', playing ? 'pause' : 'play',
-    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); });
+    zone !== null && (zone.allowed.pause || zone.allowed.play), function () { transport('playpause'); },
+    'playpause:' + zoneKey);
   playBtn.className += ' is-play';
   controls.appendChild(playBtn);
-  controls.appendChild(button('next', 'next', zone !== null && zone.allowed.next,
-    function () { transport('next'); }));
+  var nextBtn = button('next', 'next', zone !== null && zone.allowed.next,
+    function () { transport('next'); }, 'next:' + zoneKey);
+  nextBtn.className += ' is-skip';
+  controls.appendChild(nextBtn);
 
   /**
    * VOLUME, in the runway's own language.
@@ -1500,7 +2016,7 @@ function buildControls(zone, withVolume) {
   controls.appendChild(lit(loop === 'loop_one' ? 'repeat-one' : 'repeat',
     loop === 'loop_one' ? 'repeating this track' : (loop === 'loop' ? 'repeating the queue' : 'repeat'),
     loop !== 'disabled',
-    function () { command({ action: 'repeat', zone: zone.id }); }));
+    function () { command({ action: 'repeat', zone: zone.id }); }, 'repeat:' + zoneKey));
   return controls;
 }
 
@@ -1519,57 +2035,40 @@ function buildVolumeOnly(zone) {
 }
 
 /**
- * The pause after the last choice, after which the group is simply formed.
- * Long enough to pick a second and third room without hurrying; short enough
- * that nobody wonders whether it heard them.
+ * The zones selected in the explicit group editor, in selection order.
+ *
+ * A Roon zone is the object the viewer sees: a solo output is one card and an
+ * existing group is one card. The first selected zone leads, so its outputs are
+ * flattened first when Group is pressed and its queue is the one Roon keeps.
+ * Merely selecting never changes playback.
  */
-var GROUP_SETTLE_MS = 2600;
-var groupSettleTimer = null;
+var groupPick = [];
 
-function cancelGroupSettle() {
-  if (groupSettleTimer !== null) { clearTimeout(groupSettleTimer); groupSettleTimer = null; }
+/** Open a fresh explicit selection. The X/outside press remains cancellation. */
+function startGroupPick() {
+  var here = currentZone();
+  if (here === null) { flash('no room is available'); return; }
+  var head = here.outputs.length > 0 ? here.outputs[0] : null;
+  var canEdit = here.outputs.length > 1
+    || (head !== null && head.island !== '' && head.groupableWith.length > 1);
+  if (!canEdit) { flash(here.name + ' cannot be grouped'); return; }
+  groupPick = [];
+  showPicker('group');
 }
 
 /**
- * ⚖️ ONE GESTURE, ONE REGROUPING (Peter, 08-28: "don't trigger group with each
- * addition or removal — wait until all done... it causes a playback glitch
- * repeating the first second or so").
- *
- * `groupPick` is the MEMBERSHIP someone is arriving at — the output ids that
- * should be in this group when they stop touching it — not a list of rooms to
- * add. That is what makes adding two and dropping one a single instruction:
- * every press rewrites the same answer, and only the answer is sent.
- *
- * The lead is always first and always in it. Roon keeps the first output's
- * queue, so the lead is the room whose music this is; dropping it would be
- * asking whose music survives, which is a different question with a different
- * gesture (ungroup).
+ * One owner for dissolving a whole group. Every visible Ungroup route comes
+ * through here so the explicit button and the optional double-click shortcut
+ * cannot drift into different control behaviour.
  */
-function armGroupSettle(head) {
-  cancelGroupSettle();
-  groupSettleTimer = setTimeout(function () {
-    groupSettleTimer = null;
-    if (head === null || head.outputs.length === 0) return;
-    var ids = [head.outputs[0].id];
-    for (var i = 0; i < groupPick.length; i += 1) {
-      if (ids.indexOf(groupPick[i]) === -1) ids.push(groupPick[i]);
-    }
-    groupPick = [];
-    picker.hidden = true;
-    // The server works out the smallest set of calls, and sends none at all if
-    // this is the membership it already has.
-    command({ action: 'regroup', zone: head.id, outputs: ids });
-  }, GROUP_SETTLE_MS);
-}
-
-/** The membership being chosen, as output ids. Kept across the picker's redraws. */
-var groupPick = [];
-
-/** Open the picker on what the group IS, so a press can take a room out of it. */
-function startGroupPick() {
-  var here = currentZone();
-  groupPick = here === null ? [] : here.outputs.map(function (o) { return o.id; });
-  showPicker('group');
+function ungroupWhole(zone, reopenEditor) {
+  if (zone === null || zone.outputs.length < 2) return;
+  groupPick = [];
+  if (!reopenEditor) picker.hidden = true;
+  command({ action: 'ungroup', zone: zone.id });
+  if (reopenEditor) {
+    setTimeout(function () { if (!picker.hidden) startGroupPick(); }, 900);
+  }
 }
 
 /**
@@ -1622,6 +2121,14 @@ function roomOption(zone, extra, onPress, label) {
   return node;
 }
 
+/** A visible verb on a room card: the card no longer hides what pressing does. */
+function roomCardAction(node, mark, label) {
+  var action = el('span', 'roomcard-action');
+  action.appendChild(glyph(mark));
+  action.appendChild(document.createTextNode(label));
+  node.appendChild(action);
+}
+
 function zoneById(id) {
   var snap = store.snapshot();
   if (snap === null) return null;
@@ -1629,44 +2136,725 @@ function zoneById(id) {
   return null;
 }
 
+function outputInZone(zone, outputId) {
+  if (zone === null || outputId === null) return null;
+  for (var i = 0; i < zone.outputs.length; i += 1) {
+    if (zone.outputs[i].id === outputId) return zone.outputs[i];
+  }
+  return null;
+}
+
+/** The room this display means when its current player is a multi-room zone. */
+function displayedOutput(zone) {
+  if (zone === null) return null;
+  var preferred = lockedOutputId !== null ? lockedOutputId : boundOutputId;
+  var exact = outputInZone(zone, preferred);
+  return exact !== null ? exact : (zone.outputs.length > 0 ? zone.outputs[0] : null);
+}
+
+function hasPullSource(destination) {
+  var snapshot = store.snapshot();
+  if (snapshot === null || destination === null) return false;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    var zone = snapshot.zones[i];
+    if (zone.id !== destination.id && zone.state === 'playing'
+        && zone.nowPlaying !== null && zone.outputs.length > 0) return true;
+  }
+  return false;
+}
+
+function startTransferFrom(zone) {
+  if (lockedOutputId !== null || zone === null || zone.nowPlaying === null) return;
+  var source = displayedOutput(zone);
+  if (source === null) return;
+  transferSourceOutputId = source.id;
+  groupPick = [];
+  showPicker('transfer');
+}
+
+function startPullInto(zone) {
+  var destination = displayedOutput(zone);
+  if (destination === null) return;
+  pullDestinationOutputId = destination.id;
+  showPicker('pull');
+}
+
+/*
+ * DRAG A SOLO ROOM ONTO ANOTHER ROOM OR GROUP.
+ *
+ * This is deliberately an enhancement to the explicit Group editor, never a
+ * second control protocol. A completed drop is already an explicit instruction,
+ * so it sends one `group` call immediately. The drop target's outputs go first,
+ * which keeps its queue and lets the dragged solo room join it.
+ *
+ * A small handle owns the gesture. The rest of the card remains a reliable
+ * click/Enter target, and a touch can still scroll a long room list normally.
+ */
+var roomDrag = null;
+var roomDragSuppressUntil = 0;
+var ROOM_DRAG_ARM = 10;
+
+function roomZoneIsland(zone) {
+  if (zone === null || zone.outputs.length === 0) return '';
+  var island = zone.outputs[0].island;
+  if (island === '') return '';
+  for (var i = 1; i < zone.outputs.length; i += 1) {
+    if (zone.outputs[i].island !== island) return '';
+  }
+  return island;
+}
+
+function canDropRoom(source, target) {
+  return source !== null && target !== null
+    && source.id !== target.id
+    // A group already owns a queue. Dragging it onto another group would make
+    // queue ownership a guess, so v1 only picks up one honest room.
+    && source.outputs.length === 1
+    && target.outputs.length > 0
+    && roomZoneIsland(source) !== ''
+    && roomZoneIsland(source) === roomZoneIsland(target);
+}
+
+function roomDragPoint(event) {
+  var touches = event && (event.touches || event.changedTouches);
+  if (touches && touches.length > 0) return { x: touches[0].clientX, y: touches[0].clientY };
+  return event && typeof event.clientX === 'number'
+    ? { x: event.clientX, y: event.clientY } : null;
+}
+
+function roomDragGuide(message) {
+  var guide = picker.querySelector('.room-drag-guide');
+  if (guide !== null) guide.textContent = message;
+}
+
+var GROUP_HELP_TEXT = '2+ cards \u2192 group \u00B7 one group \u2192 ungroup'
+  + ' \u00B7 drag chain \u2192 target leads';
+
+/**
+ * The grouping lesson belongs on the window's edge, not among the rooms. The
+ * same popover becomes live drop feedback once a drag starts. Hover/focus opens
+ * it for a pointer or keyboard; a press pins it for touch and TV remotes.
+ */
+function roomDragHelp(message) {
+  var help = el('span', 'group-help');
+  var tab = el('span', 'group-help-tab', '?');
+  var guide = el('span', 'room-drag-guide', message);
+  var pinned = false;
+  var hovered = false;
+  var focused = false;
+  var paint = function () {
+    var open = pinned || hovered || focused;
+    help.className = open ? 'group-help is-open' : 'group-help';
+    tab.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  guide.id = 'group-help-copy';
+  guide.setAttribute('aria-live', 'polite');
+  tab.setAttribute('title', 'how grouping works');
+  tab.setAttribute('aria-label', 'how grouping works');
+  tab.setAttribute('aria-controls', guide.id);
+  tab.setAttribute('aria-expanded', 'false');
+  pressable(tab, function () {
+    pinned = !pinned;
+    if (!pinned && tab.blur) tab.blur();
+    paint();
+  }, 'group-help');
+  tab.addEventListener('mouseenter', function () { hovered = true; paint(); });
+  tab.addEventListener('mouseleave', function () { hovered = false; paint(); });
+  tab.addEventListener('focus', function () { focused = true; paint(); });
+  tab.addEventListener('blur', function () { focused = false; paint(); });
+  help.appendChild(tab);
+  help.appendChild(guide);
+  return help;
+}
+
+function roomDragCard(zoneId) {
+  var cards = picker.querySelectorAll('[data-room-zone]');
+  for (var i = 0; i < cards.length; i += 1) {
+    if (cards[i].getAttribute('data-room-zone') === zoneId) return cards[i];
+  }
+  return null;
+}
+
+function bindRoomDragDocuments() {
+  document.addEventListener('pointermove', moveRoomDrag, true);
+  document.addEventListener('pointerup', endRoomDrag, true);
+  document.addEventListener('pointercancel', cancelRoomDrag, true);
+  document.addEventListener('mousemove', moveRoomDrag, true);
+  document.addEventListener('mouseup', endRoomDrag, true);
+  document.addEventListener('touchmove', moveRoomDrag, { passive: false, capture: true });
+  document.addEventListener('touchend', endRoomDrag, true);
+  document.addEventListener('touchcancel', cancelRoomDrag, true);
+}
+
+function unbindRoomDragDocuments() {
+  document.removeEventListener('pointermove', moveRoomDrag, true);
+  document.removeEventListener('pointerup', endRoomDrag, true);
+  document.removeEventListener('pointercancel', cancelRoomDrag, true);
+  document.removeEventListener('mousemove', moveRoomDrag, true);
+  document.removeEventListener('mouseup', endRoomDrag, true);
+  document.removeEventListener('touchmove', moveRoomDrag, true);
+  document.removeEventListener('touchend', endRoomDrag, true);
+  document.removeEventListener('touchcancel', cancelRoomDrag, true);
+}
+
+function startRoomDrag(event, zone, node) {
+  if (roomDrag !== null || zone.outputs.length !== 1) return;
+  if (typeof event.button === 'number' && event.button !== 0) return;
+  var point = roomDragPoint(event);
+  if (point === null) return;
+  if (event.preventDefault) event.preventDefault();
+  if (event.stopPropagation) event.stopPropagation();
+  roomDrag = {
+    sourceZoneId: zone.id,
+    sourceOutputId: zone.outputs[0].id,
+    sourceName: zone.outputs[0].name,
+    node: node,
+    startX: point.x,
+    startY: point.y,
+    x: point.x,
+    y: point.y,
+    armed: false,
+    over: null,
+    valid: {},
+    ghost: null,
+  };
+  bindRoomDragDocuments();
+}
+
+function enableRoomDrag(node, zone) {
+  node.setAttribute('data-room-zone', zone.id);
+  if (zone.outputs.length !== 1 || roomZoneIsland(zone) === '') return;
+  var handle = el('span', 'roomcard-drag');
+  handle.appendChild(glyph('group'));
+  handle.setAttribute('title', 'drag ' + zone.name + ' onto a room or group');
+  handle.setAttribute('aria-label', handle.getAttribute('title'));
+  var begin = function (event) { startRoomDrag(event, zone, node); };
+  handle.addEventListener('pointerdown', begin);
+  handle.addEventListener('mousedown', begin);
+  handle.addEventListener('touchstart', begin, { passive: false });
+  handle.addEventListener('contextmenu', function (event) { event.preventDefault(); });
+  node.appendChild(handle);
+}
+
+function armRoomDrag() {
+  if (roomDrag === null || roomDrag.armed) return;
+  var source = zoneById(roomDrag.sourceZoneId);
+  if (source === null || source.outputs.length !== 1) { cancelRoomDrag(); return; }
+  roomDrag.armed = true;
+  picker.classList.add('is-room-dragging');
+  roomDrag.node.classList.add('drag-source');
+  if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
+
+  var cards = picker.querySelectorAll('[data-room-zone]');
+  for (var i = 0; i < cards.length; i += 1) {
+    var targetId = cards[i].getAttribute('data-room-zone');
+    if (targetId === source.id) continue;
+    var target = zoneById(targetId);
+    if (canDropRoom(source, target)) {
+      roomDrag.valid[targetId] = true;
+      cards[i].classList.add('drop-ok');
+    } else {
+      cards[i].classList.add('drop-no');
+    }
+  }
+
+  roomDrag.ghost = el('div', 'room-drag-ghost', roomDrag.sourceName);
+  document.body.appendChild(roomDrag.ghost);
+  roomDragGuide('drop on a lit room · the drop target leads');
+  moveRoomDragGhost();
+}
+
+function moveRoomDragGhost() {
+  if (roomDrag === null || roomDrag.ghost === null) return;
+  roomDrag.ghost.style.transform = 'translate(' + String(roomDrag.x + 18)
+    + 'px, ' + String(roomDrag.y + 14) + 'px)';
+}
+
+function hitRoomDrag(x, y) {
+  var hit = document.elementFromPoint(x, y);
+  if (hit === null || hit.closest === undefined) return null;
+  var card = hit.closest('[data-room-zone]');
+  return card === null ? null : card.getAttribute('data-room-zone');
+}
+
+function hoverRoomDrag(zoneId) {
+  if (roomDrag === null) return;
+  if (roomDrag.over !== zoneId) {
+    var old = roomDrag.over === null ? null : roomDragCard(roomDrag.over);
+    if (old !== null) old.classList.remove('drop-hot');
+    var next = zoneId === null ? null : roomDragCard(zoneId);
+    if (next !== null && roomDrag.valid[zoneId] === true) next.classList.add('drop-hot');
+    roomDrag.over = zoneId;
+  }
+  if (zoneId !== null && roomDrag.valid[zoneId] === true) {
+    var target = zoneById(zoneId);
+    if (target !== null) {
+      roomDragGuide('release: ' + roomDrag.sourceName + ' joins ' + target.name
+        + ' · ' + target.outputs[0].name + ' leads');
+      return;
+    }
+  }
+  roomDragGuide('drop on a lit room · the drop target leads');
+}
+
+function moveRoomDrag(event) {
+  if (roomDrag === null) return;
+  var point = roomDragPoint(event);
+  if (point === null) return;
+  roomDrag.x = point.x;
+  roomDrag.y = point.y;
+  var moved = Math.abs(point.x - roomDrag.startX) + Math.abs(point.y - roomDrag.startY);
+  if (!roomDrag.armed && moved >= ROOM_DRAG_ARM) armRoomDrag();
+  if (!roomDrag.armed) return;
+  if (event.cancelable) event.preventDefault();
+  moveRoomDragGhost();
+  hoverRoomDrag(hitRoomDrag(point.x, point.y));
+}
+
+function teardownRoomDrag(suppressPress) {
+  unbindRoomDragDocuments();
+  if (roomDrag !== null && roomDrag.ghost !== null && roomDrag.ghost.parentNode !== null) {
+    roomDrag.ghost.parentNode.removeChild(roomDrag.ghost);
+  }
+  picker.classList.remove('is-room-dragging');
+  var cards = picker.querySelectorAll('[data-room-zone]');
+  for (var i = 0; i < cards.length; i += 1) {
+    cards[i].classList.remove('drag-source');
+    cards[i].classList.remove('drop-ok');
+    cards[i].classList.remove('drop-no');
+    cards[i].classList.remove('drop-hot');
+  }
+  roomDrag = null;
+  if (suppressPress) roomDragSuppressUntil = Date.now() + 650;
+  roomDragGuide(GROUP_HELP_TEXT);
+}
+
+function cancelRoomDrag() {
+  if (roomDrag === null) return;
+  teardownRoomDrag(true);
+}
+
+function endRoomDrag(event) {
+  if (roomDrag === null) return;
+  var drag = roomDrag;
+  var targetId = drag.armed ? drag.over : null;
+  var allowed = targetId !== null && drag.valid[targetId] === true;
+  var source = allowed ? zoneById(drag.sourceZoneId) : null;
+  var target = allowed ? zoneById(targetId) : null;
+  if (event && event.cancelable) event.preventDefault();
+  if (event && event.stopPropagation) event.stopPropagation();
+  teardownRoomDrag(true);
+  if (!canDropRoom(source, target)) return;
+
+  // Re-resolved from the latest snapshot: a drag can outlive a Roon zone id.
+  // Selecting the target's durable output also makes its face follow the group
+  // Roon is about to create instead of reporting the destroyed zone unavailable.
+  shownZoneId = target.id;
+  boundOutputId = target.outputs[0].id;
+  following = false;
+  var ids = target.outputs.map(function (o) { return o.id; });
+  if (ids.indexOf(source.outputs[0].id) === -1) ids.push(source.outputs[0].id);
+  groupPick = [];
+  picker.hidden = true;
+  command({ action: 'group', outputs: ids });
+}
+
 /**
  * What can be DONE with this room, as opposed to which room to look at. Only what
  * is actually possible is offered: no "ungroup" on a room that is not a group, no
- * "group" where Roon has no peer to offer, no "transfer" with nothing playing.
+ * "group" where Roon has no peer to offer, no "transfer to" with nothing playing.
  */
+/** One compact icon-and-word action, shared by both grouping action rows. */
+function pickerAction(mark, label, enabled, onPress, pressKey) {
+  var b = el('span', enabled ? 'opt act' : 'opt act off');
+  b.appendChild(glyph(mark));
+  b.appendChild(document.createTextNode(label));
+  b.setAttribute('title', label);
+  b.setAttribute('aria-label', label);
+  if (enabled) pressable(b, onPress, pressKey);
+  return b;
+}
+
+/** Actions for the room currently on the display, outside the group editor. */
 function zoneActionRow(here) {
   var row = el('div', 'row row-actions');
   if (here === null) return row;
   var island = here.outputs.length === 0 ? [] : here.outputs[0].groupableWith;
   var hasPeer = island.length > 1;
   var isGroup = here.outputs.length > 1;
-
-  /**
-   * Icon AND word. These three are rare enough that nobody has learned their
-   * shapes, and "two circles apart" is only obviously ungroup once you have seen
-   * it beside group — so the mark speeds up recognition rather than carrying the
-   * meaning on its own (Peter, 08-26: "or replace with icon if meaning is
-   * evident" — here it is not).
-   */
-  var act = function (mark, label, enabled, onPress) {
-    var b = el('span', enabled ? 'opt act' : 'opt act off');
-    b.appendChild(glyph(mark));
-    b.appendChild(document.createTextNode(label));
-    if (enabled) pressable(b, onPress);
-    return b;
-  };
-  row.appendChild(act('group', 'group\u2026', hasPeer, startGroupPick));
-  row.appendChild(act('ungroup', 'ungroup', isGroup, function () {
-    picker.hidden = true;
-    command({ action: 'ungroup', zone: here.id });
-  }));
-  row.appendChild(act('send-to', 'send to\u2026', here.nowPlaying !== null, function () { showPicker('transfer'); }));
+  row.appendChild(pickerAction('group', 'edit', hasPeer, startGroupPick, 'group-edit:' + here.id));
+  row.appendChild(pickerAction('ungroup', 'ungroup', isGroup,
+    function () { ungroupWhole(here, false); }, 'group-ungroup:' + here.id));
+  row.appendChild(pickerAction('transfer-to', 'transfer to',
+    lockedOutputId === null && here.nowPlaying !== null,
+    function () { startTransferFrom(here); }, 'group-transfer:' + here.id));
+  row.appendChild(pickerAction('pull-from', 'pull from', hasPullSource(here),
+    function () { startPullInto(here); }, 'group-pull:' + here.id));
   return row;
 }
 
-function showPicker(mode) {
+/** Resolve the live zone objects behind the ordered editor selection. */
+function selectedGroupZones() {
+  var zones = [];
+  var alive = [];
+  for (var i = 0; i < groupPick.length; i += 1) {
+    var zone = zoneById(groupPick[i]);
+    if (zone !== null && zone.outputs.length > 0) {
+      alive.push(zone.id);
+      zones.push(zone);
+    }
+  }
+  groupPick = alive;
+  return zones;
+}
+
+function groupZonesCompatible(first, next) {
+  var firstIsland = roomZoneIsland(first);
+  return firstIsland !== '' && firstIsland === roomZoneIsland(next);
+}
+
+/** Selection changes only the editor. Playback changes only through its verbs. */
+function toggleGroupPick(zoneId) {
+  var zone = zoneById(zoneId);
+  if (zone === null || zone.outputs.length === 0) return;
+  var at = groupPick.indexOf(zoneId);
+  if (at !== -1) {
+    groupPick.splice(at, 1);
+  } else {
+    var selected = selectedGroupZones();
+    if (selected.length > 0 && !groupZonesCompatible(selected[0], zone)) {
+      flash('Roon cannot group ' + zone.name + ' with ' + selected[0].name);
+      return;
+    }
+    groupPick.push(zoneId);
+  }
+  paintGroupPick();
+}
+
+/** Repaint selection marks and actions without replacing the cards themselves. */
+function paintGroupPick() {
+  if (picker.hidden || picker.className.indexOf('mode-group') < 0) return;
+  var selected = selectedGroupZones();
+  var lead = selected.length === 0 ? null : selected[0];
+  var cards = picker.querySelectorAll('[data-group-zone]');
+  for (var i = 0; i < cards.length; i += 1) {
+    var id = cards[i].getAttribute('data-group-zone');
+    var at = groupPick.indexOf(id);
+    var zone = zoneById(id);
+    var unavailable = at === -1 && lead !== null
+      && (zone === null || !groupZonesCompatible(lead, zone));
+    cards[i].classList.remove('now');
+    cards[i].classList.remove('is-lead');
+    cards[i].classList.remove('off');
+    if (at !== -1) cards[i].classList.add('now');
+    if (at === 0) cards[i].classList.add('is-lead');
+    if (unavailable) cards[i].classList.add('off');
+    cards[i].setAttribute('aria-pressed', at === -1 ? 'false' : 'true');
+    cards[i].setAttribute('aria-disabled', unavailable ? 'true' : 'false');
+    var order = cards[i].querySelector('.group-pick-order');
+    if (order !== null) order.textContent = at === -1 ? '' : String(at + 1);
+  }
+  var oldActions = picker.querySelector('.group-actions');
+  if (oldActions !== null && oldActions.parentNode !== null) {
+    oldActions.parentNode.replaceChild(groupEditorActionRow(), oldActions);
+  }
+}
+
+/** The explicit Group button: first selected leads and therefore comes first. */
+function commitGroupPick() {
+  var zones = selectedGroupZones();
+  if (zones.length < 2) return;
+  var ids = [];
+  for (var i = 0; i < zones.length; i += 1) {
+    if (!groupZonesCompatible(zones[0], zones[i])) return;
+    for (var j = 0; j < zones[i].outputs.length; j += 1) {
+      if (ids.indexOf(zones[i].outputs[j].id) === -1) ids.push(zones[i].outputs[j].id);
+    }
+  }
+  if (ids.length < 2) return;
+  shownZoneId = zones[0].id;
+  boundOutputId = zones[0].outputs[0].id;
+  following = false;
+  groupPick = [];
+  picker.hidden = true;
+  command({ action: 'group', outputs: ids });
+}
+
+function ungroupGroupPick() {
+  var zones = selectedGroupZones();
+  if (zones.length === 1 && zones[0].outputs.length > 1) ungroupWhole(zones[0], false);
+}
+
+function transferGroupPick() {
+  var zones = selectedGroupZones();
+  if (zones.length !== 1 || zones[0].nowPlaying === null || lockedOutputId !== null) return;
+  startTransferFrom(zones[0]);
+}
+
+/** Group-editor verbs act on its selection rather than on an implicit room. */
+function groupEditorActionRow() {
+  var zones = selectedGroupZones();
+  var row = el('div', 'row row-actions group-actions');
+  var canGroup = zones.length > 1;
+  for (var i = 1; i < zones.length; i += 1) {
+    if (!groupZonesCompatible(zones[0], zones[i])) canGroup = false;
+  }
+  var oneGroup = zones.length === 1 && zones[0].outputs.length > 1;
+  var canTransfer = lockedOutputId === null && zones.length === 1 && zones[0].nowPlaying !== null;
+  row.appendChild(pickerAction('group', 'group', canGroup, commitGroupPick, 'group-commit'));
+  row.appendChild(pickerAction('ungroup', 'ungroup', oneGroup, ungroupGroupPick, 'group-ungroup-picked'));
+  row.appendChild(pickerAction('transfer-to', 'transfer to', canTransfer,
+    transferGroupPick, 'group-transfer-picked'));
+  return row;
+}
+
+/** Optional mouse shortcut; Fire TV always has the explicit Ungroup button. */
+function bindGroupDoubleClick(node, zoneId) {
+  node.addEventListener('dblclick', function (event) {
+    if (event.stopPropagation) event.stopPropagation();
+    if (event.preventDefault) event.preventDefault();
+    var zone = zoneById(zoneId);
+    if (zone !== null && zone.outputs.length > 1) ungroupWhole(zone, false);
+  });
+}
+
+/* ---------- the live Roon queue ------------------------------------------------
+ *
+ * Queue is a forward window, not history: item zero is what Roon is playing and
+ * the remaining rows are what it will play next.  FlightDeck's server owns the
+ * subscription and exposes only a bounded projection; the face fetches that one
+ * room when its Queue door is opened.
+ */
+var queueRequestEpoch = 0;
+var queueView = {
+  zoneId: '', generation: '', revision: -1,
+  loading: false, error: '', items: [], atLimit: false,
+};
+
+function queuePanelIsOpen(zoneId, epoch) {
+  return epoch === queueRequestEpoch && !picker.hidden
+    && picker.className.indexOf('mode-queue') >= 0
+    && queueView.zoneId === zoneId;
+}
+
+function queueDuration(seconds) {
+  if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0) return '';
+  var whole = Math.round(seconds);
+  var minutes = Math.floor(whole / 60);
+  var tail = String(whole % 60);
+  return String(minutes) + ':' + (tail.length < 2 ? '0' : '') + tail;
+}
+
+function queueOption(item, index, zoneId) {
+  var node = el('span', 'opt queuecard' + (index === 0 ? ' now is-current' : ''));
+  node.setAttribute('data-queue-item', String(item.id || ''));
+  var art = el('span', 'roomcard-art');
+  if (item.art) {
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = item.art;
+    art.appendChild(img);
+  } else {
+    art.className += ' is-quiet';
+    var note = browseIcon('note');
+    if (note !== null) art.appendChild(note);
+  }
+  node.appendChild(art);
+  var words = el('span', 'roomcard-text');
+  words.appendChild(el('span', 'roomcard-name', item.title || '(untitled)'));
+  var byline = [item.artist || '', item.album || ''].filter(function (part) { return part !== ''; }).join(' \u00B7 ');
+  words.appendChild(el('span', 'roomcard-np', byline || (index === 0 ? 'playing now' : 'up next')));
+  node.appendChild(words);
+  var duration = queueDuration(item.lengthSec);
+  if (duration !== '') node.appendChild(el('span', 'queue-duration', duration));
+  if (index === 0) {
+    node.setAttribute('role', 'listitem');
+    node.setAttribute('aria-label', (item.title || 'current item') + ', playing now');
+    node.appendChild(el('span', 'queue-now', 'now'));
+  } else {
+    node.setAttribute('title', 'play from ' + (item.title || 'this item'));
+    node.setAttribute('aria-label', 'play from ' + (item.title || 'this queue item'));
+    pressable(node, function () { selectQueueItem(zoneId, item); },
+      'queue:' + zoneId + ':' + String(item.id || ''));
+  }
+  return node;
+}
+
+function selectQueueItem(zoneId, item) {
+  var snapshot = store.snapshot();
+  var zone = currentZone();
+  if (snapshot === null || zone === null || zone.id !== zoneId
+      || queueView.zoneId !== zoneId || queueView.generation !== snapshot.generation
+      || !Number.isInteger(queueView.revision) || queueView.revision < 0) {
+    flash('the room changed — reopen Queue');
+    return;
+  }
+  fetch('/api/v1/queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      zone: zoneId,
+      itemId: String(item.id || ''),
+      generation: queueView.generation,
+      queueRevision: queueView.revision,
+    }),
+  }).then(function (response) {
+    if (!response.ok) return response.json().catch(function () { return {}; }).then(function (data) {
+      flash(data.error || ('queue selection failed (' + response.status + ')'));
+      return false;
+    });
+    picker.hidden = true;
+    flash('playing from ' + (item.title || 'the queue'));
+    return true;
+  }).catch(function () { flash('could not reach FlightDeck'); });
+}
+
+function loadQueue(zoneId, epoch, attempt) {
+  fetch('/api/v1/queue?zone=' + encodeURIComponent(zoneId), { cache: 'no-store' })
+    .then(function (response) {
+      if (!response.ok) return response.json().catch(function () { return {}; }).then(function (data) {
+        throw new Error(data.error || ('queue unavailable (' + response.status + ')'));
+      });
+      return response.json();
+    }).then(function (data) {
+      if (!queuePanelIsOpen(zoneId, epoch)) return;
+      // The subscription is created as zones arrive.  On the first few hundred
+      // milliseconds it may honestly be loading; wait in this one open panel,
+      // never by adding another subscription.
+      if (data.ready !== true && attempt < 8) {
+        setTimeout(function () {
+          if (queuePanelIsOpen(zoneId, epoch)) loadQueue(zoneId, epoch, attempt + 1);
+        }, 250);
+        return;
+      }
+      queueView.loading = false;
+      queueView.error = data.ready === true ? '' : 'queue is still loading';
+      queueView.items = Array.isArray(data.items) ? data.items : [];
+      queueView.atLimit = data.atLimit === true;
+      queueView.generation = typeof data.generation === 'string' ? data.generation : '';
+      queueView.revision = typeof data.revision === 'number' && Number.isInteger(data.revision)
+        ? data.revision : -1;
+      if (data.ready === true && (queueView.generation === '' || queueView.revision < 0)) {
+        queueView.error = 'queue changed — reopen Queue';
+        queueView.items = [];
+      }
+      showPicker('queue', true);
+    }).catch(function (error) {
+      if (!queuePanelIsOpen(zoneId, epoch)) return;
+      queueView.loading = false;
+      queueView.error = String(error && error.message ? error.message : error);
+      queueView.items = [];
+      queueView.atLimit = false;
+      queueView.generation = '';
+      queueView.revision = -1;
+      showPicker('queue', true);
+    });
+}
+
+function openQueuePanel(refreshing) {
+  var zone = currentZone();
+  if (zone === null) { flash('no room is available'); return; }
+  var epoch = ++queueRequestEpoch;
+  queueView = {
+    zoneId: zone.id, generation: '', revision: -1,
+    loading: true, error: '', items: [], atLimit: false,
+  };
+  showPicker('queue', refreshing === true);
+  loadQueue(zone.id, epoch, 0);
+}
+
+/** Header menus stay viewport-owned and open immediately under their own door. */
+function headerPickerTrigger(mode) {
+  if (mode === 'queue') return queueDoor;
+  if (mode === 'rooms' || mode === 'transfer' || mode === 'pull') return zoneName;
+  if (mode === 'group') return groupDoor;
+  if (mode === 'faces') return cog;
+  return null;
+}
+
+function positionHeaderPicker(mode) {
+  var trigger = headerPickerTrigger(mode);
+  if (trigger === null || picker.hidden) return;
+  var rect = trigger.getBoundingClientRect();
+  var viewportWidth = window.innerWidth || document.documentElement.clientWidth || 1280;
+  var viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+  var safeX = Math.max(12, Math.round(viewportWidth * .05));
+  var safeY = Math.max(10, Math.round(viewportHeight * .05));
+  var width;
+  if (mode === 'faces') width = Math.max(220, Math.min(420, viewportWidth * .21));
+  else if (mode === 'group' && viewportWidth <= 1400) width = viewportWidth - (safeX * 2);
+  else if (mode === 'group') width = Math.max(480, Math.min(720, viewportWidth * .38));
+  else width = Math.max(360, Math.min(620, viewportWidth * .34));
+  width = Math.min(width, viewportWidth - (safeX * 2));
+  var left;
+  if (mode === 'queue') left = rect.left;
+  else if (mode === 'group') left = rect.right - width;
+  else left = rect.left + (rect.width / 2) - (width / 2);
+  left = Math.max(safeX, Math.min(viewportWidth - safeX - width, left));
+  var top = Math.max(safeY, Math.round(rect.bottom + 8));
+  picker.style.position = 'fixed';
+  picker.style.left = Math.round(left) + 'px';
+  picker.style.right = 'auto';
+  picker.style.top = top + 'px';
+  picker.style.bottom = 'auto';
+  picker.style.width = Math.round(width) + 'px';
+  picker.style.maxWidth = 'none';
+  picker.style.maxHeight = Math.max(160, viewportHeight - top - safeY) + 'px';
+  picker.style.webkitTransform = 'none';
+  picker.style.transform = 'none';
+}
+
+function clearHeaderPickerPosition() {
+  picker.style.position = '';
+  picker.style.left = '';
+  picker.style.right = '';
+  picker.style.top = '';
+  picker.style.bottom = '';
+  picker.style.width = '';
+  picker.style.maxWidth = '';
+  picker.style.maxHeight = '';
+  picker.style.webkitTransform = '';
+  picker.style.transform = '';
+}
+
+function repositionHeaderPicker() {
+  if (picker.hidden || picker.className.indexOf('header-menu') < 0) return;
+  var open = /mode-([a-z]+)/.exec(picker.className);
+  if (open !== null) positionHeaderPicker(open[1]);
+}
+window.addEventListener('resize', repositionHeaderPicker);
+window.addEventListener('orientationchange', function () { setTimeout(repositionHeaderPicker, 140); });
+
+function presentPicker(nodes, mode, refreshing, preservedNavigation) {
+  var trigger = headerPickerTrigger(mode);
+  var headerOwned = trigger !== null && root.getAttribute('data-size') === null;
+  // A header menu must not inherit the artwork/copy transform beneath it.  That
+  // exact ancestry was what let artist view carry Search off screen.
+  var host = headerOwned ? document.body
+    : (root.getAttribute('data-idle') === '1' ? pickerHome : (hasShelf() ? copy : pickerHome));
+  if (picker.parentNode !== host) host.appendChild(picker);
+  picker.replaceChildren.apply(picker, nodes);
+  picker.className = 'picker mode-' + mode
+    + (mode === 'faces' ? ' face-picker-vertical' : '')
+    + (headerOwned ? ' header-menu' : '');
+  picker.hidden = false;
+  if (headerOwned) positionHeaderPicker(mode);
+  else clearHeaderPickerPosition();
+  seedPickerNavigation(refreshing ? preservedNavigation : '');
+  if (!refreshing) {
+    panelShownAt = Date.now();
+    if (pickerTimer !== null) clearTimeout(pickerTimer);
+    var linger = (mode === 'group' || mode === 'transfer' || mode === 'pull'
+      || mode === 'rooms' || mode === 'queue') ? 22000 : 8000;
+    pickerTimer = setTimeout(function () { picker.hidden = true; }, linger);
+  }
+}
+
+function showPicker(mode, refreshing) {
   cancelDwell();
   mode = mode || 'transport';
+  refreshing = refreshing === true;
+  var preservedNavigation = refreshing ? pickerNavigationIdentity(pickerNavigationCurrent) : '';
   /**
    * Two rows, deliberately. Everything shared one wrapping flex container, so the
    * fifth face fell onto the second line and sat among the transport buttons — an
@@ -1685,41 +2873,48 @@ function showPicker(mode) {
    * the whole house is what you want.
    */
   if (mode === 'rooms') {
-    var roomRow = el('div', 'row row-faces');
+    // A room chooser is a scrollable LIST, not a centred face-card runway. The
+    // old horizontal row clipped later rooms on TV viewports and made them look
+    // absent even though they were present in the snapshot.
+    var roomRow = el('div', 'row row-faces row-column');
     var snapshot = store.snapshot();
     var zones = snapshot === null ? [] : snapshot.zones;
     var here = currentZone();
     /**
      * A LOCKED SCREEN DOES NOT OFFER OTHER ROOMS — that is the whole point of
      * locking it. It still shows the room it is bound to, and it still gets the
-     * group and send-to actions, because the room joining a group is exactly the
-     * case the binding was designed to follow.
+     * group and Pull From actions, because both keep this display on its locked
+     * output. Transfer To is disabled: its contract is to leave this player.
      */
     if (lockedOutputId !== null) {
       if (here !== null) roomRow.appendChild(roomOption(here, 'now is-playing', null));
       roomRow.appendChild(el('span', 'opt off', 'locked to this room'));
       nodes.push(roomRow);
       nodes.push(zoneActionRow(here));
-      picker.replaceChildren.apply(picker, nodes);
-      picker.className = 'picker mode-' + mode;
-      picker.hidden = false;
-      panelShownAt = Date.now();
-      if (pickerTimer !== null) clearTimeout(pickerTimer);
-      pickerTimer = setTimeout(function () { picker.hidden = true; }, 22000);
+      presentPicker(nodes, mode, refreshing, preservedNavigation);
       return;
     }
     for (var r = 0; r < zones.length; r += 1) {
+      if (zones[r].outputs.length === 0) continue;
       (function (z) {
+        var isCurrent = here !== null && z.id === here.id;
         var opt = roomOption(z,
-          ((here !== null && z.id === here.id) ? 'now' : '') + (z.state === 'playing' ? ' is-playing' : ''),
+          (isCurrent ? 'now' : '') + (z.state === 'playing' ? ' is-playing' : ''),
           function () {
+            // Every card in the Rooms picker means the same thing: make this
+            // zone the player on screen. Group editing belongs to the separate
+            // chain/count door, even when this zone already contains a group.
             shownZoneId = z.id;
-            boundOutputId = null;        // a deliberate look elsewhere releases the binding
+            // Release the OLD room binding by replacing it with the room just
+            // chosen. A zone id dies when Roon groups; this output id survives
+            // and leads the display into the newly created group.
+            boundOutputId = z.outputs.length > 0 ? z.outputs[0].id : null;
             following = false;
             picker.hidden = true;
             var snap = store.snapshot();
             if (snap !== null) render(snap, 'snapshot');
           });
+        enableRoomDrag(opt, z);
         roomRow.appendChild(opt);
       })(zones[r]);
     }
@@ -1738,169 +2933,170 @@ function showPicker(mode) {
    * Study not in this list" is a worse question than seeing it there, unavailable,
    * and understanding that Roon will not join those two.
    *
-   * The zone we came from is the head, and Roon preserves the head's queue — so
-   * grouping from a room that is playing carries that music to the others, which
-   * is what pressing "group" from a playing room ought to mean.
+   * Every live Roon zone is shown once: an existing group is one choice, not a
+   * row per output. Nothing is implicitly selected. The first explicit choice
+   * becomes the leader when Group is pressed, so its queue is the one Roon keeps.
    */
   if (mode === 'group') {
-    var head = currentZone();
-    var island = head === null || head.outputs.length === 0 ? '' : head.outputs[0].island;
-    var pickRow = el('div', 'row row-faces row-column');
-    /**
-     * THIS ROOM COMES FIRST, and pressing it lets the others go (Peter, 08-28).
-     * It reads as a list of members with the one you are standing in at the top,
-     * so releasing them is where your eye already is. It is only offered when
-     * there IS a group — a room on its own has nothing to release.
-     *
-     * ⚠️ The room name in the HEADER still goes to the wall. These are two
-     * different objects in two different places, which is how the same word can
-     * mean "leave here" up there and "let them go" down here.
-     */
-    /**
-     * THE LEAD COMES FIRST and is never a checkbox (Peter, 08-28: "anchored
-     * always on the group lead"). It owns the queue, so it is what the group IS;
-     * pressing it lets every room go at once, which is the one grouping action
-     * that should not wait for a settle.
-     */
-    if (head !== null) {
-      var lead = head.outputs[0];
-      var isGroup = head.outputs.length > 1;
-      var mine = roomOption(head, isGroup ? 'now is-lead' : 'now is-lead solo', isGroup ? function () {
-        cancelGroupSettle();
-        groupPick = [];
-        picker.hidden = true;
-        command({ action: 'ungroup', zone: head.id });
-      } : null, lead.name);
-      mine.setAttribute('title', isGroup
-        ? lead.name + ' leads \u00B7 press to let every room go'
-        : lead.name + ' \u00B7 the room you are in');
-      pickRow.appendChild(mine);
-      // The row that leads the group must be the one you see first: something
-      // was scrolling it 34px out of sight the moment the column was built.
-      setTimeout(function () { pickRow.scrollTop = 0; }, 0);
-
-      /**
-       * THE ROOMS ALREADY IN, shown as what they are — chosen. Unchoosing one is
-       * a removal that waits with everything else, so adding two rooms and
-       * dropping one is still a single instruction to Roon.
-       */
-      for (var m = 1; m < head.outputs.length; m += 1) {
-        (function (o) {
-          var held = groupPick.indexOf(o.id) !== -1;
-          pickRow.appendChild(roomOption(head, held ? 'now' : 'leaving', function () {
-            var at = groupPick.indexOf(o.id);
-            if (at === -1) groupPick.push(o.id); else groupPick.splice(at, 1);
-            showPicker('group');
-          }, o.name));
-        })(head.outputs[m]);
-      }
+    var liveHead = currentZone();
+    var liveRow = el('div', 'row row-faces row-column');
+    var liveSnapshot = store.snapshot();
+    var liveZones = liveSnapshot === null ? [] : liveSnapshot.zones;
+    var liveOrdered = [];
+    if (liveHead !== null) liveOrdered.push(liveHead);
+    for (var lo = 0; lo < liveZones.length; lo += 1) {
+      if (liveHead === null || liveZones[lo].id !== liveHead.id) liveOrdered.push(liveZones[lo]);
     }
-    var snap2 = store.snapshot();
-    var all = snap2 === null ? [] : snap2.zones;
-    for (var g = 0; g < all.length; g += 1) {
+    for (var lg = 0; lg < liveOrdered.length; lg += 1) {
       (function (z) {
-        if (head !== null && z.id === head.id) return;
-        // One island per zone: every output of a grouped zone is in the same one,
-        // because Roon could not have grouped them otherwise.
-        var joinable = island !== '' && z.outputs.length > 0 && z.outputs.every(function (o) {
-          return o.island === island;
-        });
-        // A room Roon will not join is simply NOT HERE (Peter, 08-26). Showing it
-        // greyed explained the rule but made the list twice as long to read, and
-        // the list is what you are trying to choose from.
-        if (!joinable) return;
-        var ids = z.outputs.map(function (o) { return o.id; });
-        var chosen = ids.every(function (id) { return groupPick.indexOf(id) !== -1; });
-        pickRow.appendChild(roomOption(z, chosen ? 'now' : '', function () {
-          for (var k = 0; k < ids.length; k += 1) {
-            var at = groupPick.indexOf(ids[k]);
-            if (chosen) { if (at !== -1) groupPick.splice(at, 1); }
-            else if (at === -1) groupPick.push(ids[k]);
-          }
-          showPicker('group');
-        }));
-      })(all[g]);
+        // Empty zones are dead snapshot husks, not choices. Compatibility is
+        // evaluated against the first explicit selection by paintGroupPick();
+        // hiding alternatives up front made the editor look inert and broke the
+        // promise that every current Roon room/group appears exactly once.
+        if (z.outputs.length === 0) return;
+        var selectedAt = groupPick.indexOf(z.id);
+        var extra = (liveHead !== null && z.id === liveHead.id ? 'is-current' : '')
+          + (z.state === 'playing' || z.state === 'loading' ? ' is-playing' : '')
+          + (selectedAt !== -1 ? ' now' : '') + (selectedAt === 0 ? ' is-lead' : '');
+        var opt = roomOption(z, extra.replace(/^\s+|\s+$/g, ''), function () { toggleGroupPick(z.id); });
+        opt.setAttribute('data-group-zone', z.id);
+        opt.setAttribute('aria-pressed', selectedAt === -1 ? 'false' : 'true');
+        if (z.outputs.length > 1) {
+          opt.className += ' is-group';
+          roomCardAction(opt, 'group', String(z.outputs.length) + ' rooms');
+          opt.setAttribute('title', 'select ' + z.name + ' \u00B7 double click to ungroup');
+          bindGroupDoubleClick(opt, z.id);
+        } else {
+          opt.setAttribute('title', 'select ' + z.name);
+        }
+        enableRoomDrag(opt, z);
+        opt.appendChild(el('span', 'group-pick-order', selectedAt === -1 ? '' : String(selectedAt + 1)));
+        liveRow.appendChild(opt);
+      })(liveOrdered[lg]);
     }
-    nodes.push(pickRow);
-
-    /**
-     * ⚖️ THE SELECTION SETTLES AND FIRES ITSELF (Peter, 08-28: "should be after
-     * x secs of the input being made... the chrome closes and the grouping
-     * actually happens").
-     *
-     * No confirm button: choosing rooms IS the instruction, and a button only
-     * asks you to say it twice. The clock restarts on every choice, so picking
-     * five rooms is one settle, not five — and cancel still stops it, which is
-     * what keeps an automatic commit honest.
-     *
-     * It says what it is about to do and counts down while it does, because an
-     * action that fires on its own must never be a surprise.
-     */
-    var doneRow = el('div', 'row row-faces');
-    /**
-     * WHAT IS ABOUT TO HAPPEN, in the words of the change rather than the count:
-     * "adding 2 rooms" and "letting 1 room go" are different enough that reading
-     * the wrong one is a mistake, and this line is the only warning there is.
-     */
-    var inNow = head === null ? [] : head.outputs.map(function (o) { return o.id; });
-    var adding = 0, dropping = 0;
-    for (var ai = 0; ai < groupPick.length; ai += 1) if (inNow.indexOf(groupPick[ai]) === -1) adding += 1;
-    for (var di = 1; di < inNow.length; di += 1) if (groupPick.indexOf(inNow[di]) === -1) dropping += 1;
-    var roomWord = function (n) { return String(n) + (n === 1 ? ' room' : ' rooms'); };
-    var said = adding === 0 && dropping === 0
-      ? (head !== null && head.outputs.length > 1 ? 'this group is as it is' : 'choose the rooms to add')
-      : (adding > 0 && dropping > 0
-        ? 'adding ' + roomWord(adding) + ', letting ' + roomWord(dropping) + ' go\u2026'
-        : (adding > 0 ? 'adding ' + roomWord(adding) + '\u2026'
-          : 'letting ' + roomWord(dropping) + ' go\u2026'));
-    var settling = adding > 0 || dropping > 0;
-    var form = el('span', settling ? 'opt settling' : 'opt off settling', said);
-    doneRow.appendChild(form);
-    if (head !== null && head.outputs.length > 1) {
-      var dissolve = el('span', 'opt', 'ungroup');
-      pressable(dissolve, function () {
-        // Immediately, and the list stays open showing every room unselected —
-        // which is the truth the moment the group is gone.
-        cancelGroupSettle();
-        groupPick = [];
-        command({ action: 'ungroup', zone: head.id });
-        setTimeout(function () { if (!picker.hidden) startGroupPick(); }, 900);
-      });
-      doneRow.appendChild(dissolve);
-    }
-    var cancel = el('span', 'opt', 'cancel');
-    pressable(cancel, function () { cancelGroupSettle(); groupPick = []; showPicker('rooms'); });
-    doneRow.appendChild(cancel);
-
-    // Nothing to send is nothing to count down: the clock only runs when a real
-    // change is waiting, so opening the picker to look never regroups anything.
-    if (settling && head !== null) armGroupSettle(head); else cancelGroupSettle();
-    nodes.push(doneRow);
+    nodes.push(liveRow);
+    nodes.push(groupEditorActionRow());
+    nodes.push(roomDragHelp(GROUP_HELP_TEXT));
   }
 
-  /** WHERE SHOULD THIS MUSIC GO? One press, and the queue and position go with it. */
+
+  /** TRANSFER TO: move this queue away, then follow its confirmed destination. */
   if (mode === 'transfer') {
-    var fromZone = currentZone();
-    var toRow = el('div', 'row row-faces');
     var snap3 = store.snapshot();
+    var fromZone = lockedOutputId === null ? zoneForOutputId(snap3, transferSourceOutputId) : null;
+    var fromName = fromZone === null ? 'this player' : fromZone.name;
+    var transferGuide = el('div', 'move-guide', 'Choose a player. The current queue from ' + fromName
+      + ' moves there; after Roon confirms the transfer, this display switches to that player.');
+    var toRow = el('div', 'row row-faces row-column');
     var others = snap3 === null ? [] : snap3.zones;
     for (var x = 0; x < others.length; x += 1) {
       (function (z) {
-        if (fromZone !== null && z.id === fromZone.id) return;
-        toRow.appendChild(roomOption(z, '', function () {
+        if (fromZone === null || z.id === fromZone.id || z.outputs.length === 0) return;
+        var destinationOutputId = z.outputs[0].id;
+        var destinationZoneId = z.id;
+        var destination = roomOption(z, '', function () {
           picker.hidden = true;
-          command({ action: 'transfer', zone: fromZone.id, to: z.id });
-          shownZoneId = z.id;
-        }));
+          command({ action: 'transfer', zone: fromZone.id, output: destinationOutputId }).then(function (ok) {
+            if (!ok || lockedOutputId !== null) return;
+            // Transfer is the move-away verb: only a successful Core response may
+            // make the display follow the destination. The output, not its
+            // disposable zone id, is the durable anchor.
+            boundOutputId = destinationOutputId;
+            var live = store.snapshot();
+            var owner = zoneForOutputId(live, destinationOutputId);
+            shownZoneId = owner === null ? destinationZoneId : owner.id;
+            following = false;
+            if (live !== null) render(live, 'snapshot');
+          });
+        });
+        destination.setAttribute('title', 'transfer ' + fromZone.name + ' to ' + z.name);
+        destination.setAttribute('aria-label', 'transfer the current music from ' + fromZone.name
+          + ' to ' + z.name + ' and switch this display to ' + z.name);
+        roomCardAction(destination, 'transfer-to', 'transfer here');
+        toRow.appendChild(destination);
       })(others[x]);
     }
+    nodes.push(transferGuide);
     nodes.push(toRow);
+  }
+
+  /** PULL FROM: choose live music elsewhere and bring it to this durable room. */
+  if (mode === 'pull') {
+    var pullSnapshot = store.snapshot();
+    var targetOutputId = lockedOutputId !== null ? lockedOutputId : pullDestinationOutputId;
+    var pullZone = zoneForOutputId(pullSnapshot, targetOutputId);
+    var pullOutput = outputInZone(pullZone, targetOutputId);
+    var pullName = pullZone === null ? 'this player' : pullZone.name;
+    var pullGuide = el('div', 'move-guide', 'Choose an actively playing player. Its queue moves to '
+      + pullName + ', FlightDeck makes sure it is playing here, and this display stays here.');
+    var fromRow = el('div', 'row row-faces row-column');
+    var pullZones = pullSnapshot === null ? [] : pullSnapshot.zones;
+    var pullChoices = 0;
+    for (var p = 0; p < pullZones.length; p += 1) {
+      (function (source) {
+        if (pullZone === null || pullOutput === null || source.id === pullZone.id
+            || source.state !== 'playing' || source.nowPlaying === null || source.outputs.length === 0) return;
+        pullChoices += 1;
+        var sourceCard = roomOption(source, 'is-playing', function () {
+          picker.hidden = true;
+          // Pull's destination never changes: install its durable output before
+          // the transaction so a successor snapshot cannot make this display
+          // follow the source that was just selected.
+          shownZoneId = pullZone.id;
+          boundOutputId = pullOutput.id;
+          following = false;
+          command({
+            action: 'pull',
+            from: source.id,
+            output: pullOutput.id,
+            generation: pullSnapshot.generation,
+            revision: pullSnapshot.revision,
+          });
+        });
+        sourceCard.setAttribute('title', 'pull from ' + source.name + ' to ' + pullName);
+        sourceCard.setAttribute('aria-label', 'pull the music playing in ' + source.name
+          + ' to ' + pullName + ' and keep this display here');
+        roomCardAction(sourceCard, 'pull-from', 'pull from');
+        fromRow.appendChild(sourceCard);
+      })(pullZones[p]);
+    }
+    if (pullChoices === 0) fromRow.appendChild(el('span', 'opt off', 'no other player is active'));
+    nodes.push(pullGuide);
+    nodes.push(fromRow);
+  }
+
+  if (mode === 'queue') {
+    var queueZone = currentZone();
+    var queueGuide = queueZone === null ? 'Roon queue'
+      : 'Roon queue \u00B7 ' + queueZone.name
+        + (queueView.atLimit ? ' \u00B7 current + next 49' : '');
+    nodes.push(el('div', 'move-guide queue-guide', queueGuide));
+    var queueRow = el('div', 'row row-column queue-list');
+    if (queueView.loading) {
+      queueRow.appendChild(el('span', 'opt off queue-message', 'loading queue\u2026'));
+    } else if (queueView.error !== '') {
+      queueRow.appendChild(el('span', 'opt off queue-message', queueView.error));
+    } else if (queueView.items.length === 0) {
+      queueRow.appendChild(el('span', 'opt off queue-message', 'queue is empty'));
+    } else {
+      for (var q = 0; q < queueView.items.length; q += 1) {
+        queueRow.appendChild(queueOption(queueView.items[q], q, queueView.zoneId));
+      }
+    }
+    nodes.push(queueRow);
   }
 
   if (mode === 'faces') {
     var faceRow = el('div', 'row row-faces');
     for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
     nodes.push(faceRow);
+    nodes.push(el('div', 'move-guide transition-guide',
+      'Cover transition for ' + current + ' · Random never repeats immediately'));
+    var transitionRow = el('div', 'row row-faces row-transitions');
+    for (var fx = 0; fx < TRANSITIONS.length; fx += 1) {
+      transitionRow.appendChild(transitionOption(TRANSITIONS[fx]));
+    }
+    nodes.push(transitionRow);
   }
 
   var actionRow = el('div', 'row row-actions');
@@ -1918,28 +3114,7 @@ function showPicker(mode) {
   if (mode === 'faces') {
     nodes.push(el('em', 'hint', 'keys:  space play  \u00B7  n next  \u00B7  b back  \u00B7  u / d volume  \u00B7  f face  \u00B7  a artwork'));
   }
-  /**
-   * ⚖️ THE PICKERS ARE WINDOWS ON THE COLUMN TOO (Peter, 08-28: "the options for
-   * faces should occupy the same space on the right as the other pop up
-   * windows").
-   *
-   * Browse and the room levels already land there; a strip across the bottom of
-   * the frame for the faces was the odd one out, and it covered the artwork on
-   * its way past. On a face that carries its chrome in the layout every panel
-   * now opens in the same rectangle, so there is one place to look and one place
-   * to press away from.
-   */
-  var host = hasShelf() ? copy : pickerHome;
-  if (picker.parentNode !== host) host.appendChild(picker);
-  picker.replaceChildren.apply(picker, nodes);
-  picker.className = 'picker mode-' + mode;
-  picker.hidden = false;
-  panelShownAt = Date.now();
-  if (pickerTimer !== null) clearTimeout(pickerTimer);
-  // Choosing several rooms takes longer than choosing one face, and a strip that
-  // vanishes mid-choice loses the choice. Touch has no hover to hold it open.
-  var linger = (mode === 'group' || mode === 'transfer' || mode === 'rooms') ? 22000 : 8000;
-  pickerTimer = setTimeout(function () { picker.hidden = true; }, linger);
+  presentPicker(nodes, mode, refreshing, preservedNavigation);
 }
 
 // Hovering anywhere in the strip holds it open — it must not vanish mid-choice.
@@ -1947,6 +3122,7 @@ picker.addEventListener('mouseenter', function () {
   if (pickerTimer !== null) { clearTimeout(pickerTimer); pickerTimer = null; }
 });
 picker.addEventListener('mouseleave', function () {
+  if (roomDrag !== null) return;
   cancelDwell();
   if (pickerTimer !== null) clearTimeout(pickerTimer);
   pickerTimer = setTimeout(function () { picker.hidden = true; }, 1500);
@@ -1967,13 +3143,30 @@ picker.addEventListener('mouseleave', function () {
 function refreshPicker() {
   if (picker.hidden) return;
   var open = /mode-([a-z]+)/.exec(picker.className);
-  showPicker(open === null ? 'faces' : open[1]);
+  showPicker(open === null ? 'faces' : open[1], true);
+}
+
+/**
+ * A room/group/transfer/pull window is a view of the live zone graph. Rebuild it on
+ * structural snapshots so an external regroup cannot leave vanished cards or
+ * stale enabled verbs behind. Seek ticks do not touch it, and this refresh keeps
+ * both the explicit selection and the original close deadline.
+ */
+function refreshStructuralPicker(kind) {
+  if ((kind !== 'snapshot' && kind !== 'update') || picker.hidden) return;
+  var open = /mode-([a-z]+)/.exec(picker.className);
+  if (open === null) return;
+  var mode = open[1];
+  if (mode === 'queue') {
+    openQueuePanel(true);
+  } else if (mode === 'group' || mode === 'rooms' || mode === 'transfer' || mode === 'pull') {
+    showPicker(mode, true);
+  }
 }
 
 function cycleFace(delta) {
   var index = FACES.indexOf(current);
   applyFace(FACES[(index + delta + FACES.length) % FACES.length]);
-  refreshPicker();
 }
 
 /** Up/Down walk the house, in the Wall's order, from a remote. */
@@ -1992,14 +3185,19 @@ function cycleZone(delta) {
   var chosen = stops[next];
   if (chosen === null) {
     following = true;
+    // Following belongs to the currently active music, not to one room.
+    // A configured lock still wins; an ordinary session releases its anchor.
+    if (lockedOutputId === null) boundOutputId = null;
     writeFlag(STORE_KEY_FOLLOW + zoneId, true);
     try { localStorage.removeItem(STORE_KEY_ZONE + zoneId); } catch (error) { /* private mode */ }
   } else {
     following = false;
     shownZoneId = chosen;
-    // Browsing by hand releases the room binding for this session — otherwise the
-    // next snapshot would snap the screen straight back to its own room.
-    boundOutputId = null;
+    // Replace the OLD room binding with the selected room's output. Keeping only
+    // `chosen` would strand the display when Roon destroys that zone to group it.
+    var chosenZone = zoneById(chosen);
+    boundOutputId = chosenZone !== null && chosenZone.outputs.length > 0
+      ? chosenZone.outputs[0].id : null;
     writeFlag(STORE_KEY_FOLLOW + zoneId, false);
     try { localStorage.setItem(STORE_KEY_ZONE + zoneId, chosen); } catch (error) { /* private mode */ }
   }
@@ -2015,6 +3213,7 @@ function toggleFollow() {
   following = !following;
   writeFlag(STORE_KEY_FOLLOW + zoneId, following);
   if (following) {
+    if (lockedOutputId === null) boundOutputId = null;
     try { localStorage.removeItem(STORE_KEY_ZONE + zoneId); } catch (error) { /* private mode */ }
     var snapshot = store.snapshot();
     if (snapshot !== null) render(snapshot, 'snapshot');
@@ -2108,8 +3307,14 @@ document.addEventListener('visibilitychange', function () {
  * to the click enter button when its over a part of the screen").
  *
  * So bind them all, and de-duplicate: one physical press must never fire twice.
+ * A semantic key can outlive a rebuilt control node — essential for shuffle,
+ * whose own state update replaces the button before Fire TV finishes emitting
+ * pointerup/mouseup/click for the original press.
  */
-function pressable(node, onPress) {
+var pressEchoAt = {};
+var PRESS_ECHO_MS = 800;
+
+function pressable(node, onPress, pressKey) {
   var last = 0;
 
   /**
@@ -2129,6 +3334,14 @@ function pressable(node, onPress) {
   }, { passive: true });
 
   var fire = function (event) {
+    if (event && event.type !== 'keyup') {
+      if ((roomDrag !== null && roomDrag.armed) || Date.now() < roomDragSuppressUntil) return;
+    }
+    if (event && event.type === 'keyup') {
+      var keyCode = event.keyCode || event.which || 0;
+      var key = event.key || '';
+      if (key !== 'Enter' && key !== ' ' && keyCode !== 13 && keyCode !== 32) return;
+    }
     if (event && event.type === 'touchend' && touchStart !== null) {
       var t = event.changedTouches && event.changedTouches[0];
       if (t) {
@@ -2138,11 +3351,23 @@ function pressable(node, onPress) {
       }
     }
     var now = Date.now();
-    if (now - last < 400) return;      // the same press arriving under another name
+    var echoed = now - last < 400;
+    if (pressKey !== undefined && pressKey !== '') {
+      var previous = pressEchoAt[pressKey];
+      if (previous !== undefined && now - previous < PRESS_ECHO_MS) echoed = true;
+    }
+    if (echoed) {
+      // Consume the compatibility event too. Letting a rejected mouseup bubble
+      // can open a different control surface under the same physical press.
+      if (event && event.stopPropagation) event.stopPropagation();
+      if (event && event.preventDefault && event.type !== 'touchend') event.preventDefault();
+      return;
+    }
     // The touch that summoned a panel must not fall through onto a control that
     // appeared beneath it — the cause of music starting at random.
     if (panelJustAppeared()) return;
     last = now;
+    if (pressKey !== undefined && pressKey !== '') pressEchoAt[pressKey] = now;
     if (event && event.stopPropagation) event.stopPropagation();
     // preventDefault on a touchend cancels the browser's own momentum, so it is
     // only used where it is needed to stop a duplicate synthetic click.
@@ -2200,6 +3425,23 @@ function glyphSpeaker(level, muted) {
     if (level > 0.34) svg.appendChild(wave('M16.9 8.4a6.6 6.6 0 0 1 0 7.2'));
     if (level > 0.67) svg.appendChild(wave('M19.2 6.6a9.8 9.8 0 0 1 0 10.8'));
   }
+  return svg;
+}
+
+/**
+ * MUTE IS AN ACTION, not an end of the volume scale. Its own diagonal-slash
+ * mark stays distinct from both the quiet and loud speaker buttons; the filled
+ * accent frame still says when mute is currently engaged.
+ */
+function glyphMute() {
+  var svg = glyphSpeaker(0, false);
+  var slash = document.createElementNS(SVG_NS, 'path');
+  slash.setAttribute('fill', 'none');
+  slash.setAttribute('stroke', 'currentColor');
+  slash.setAttribute('stroke-width', '2.5');
+  slash.setAttribute('stroke-linecap', 'round');
+  slash.setAttribute('d', 'M4.7 4.7l14.8 14.8');
+  svg.appendChild(slash);
   return svg;
 }
 
@@ -2348,6 +3590,11 @@ function browseIcon(name) {
 /** Which icon suits a row, from what Roon says it is and what it is called. */
 function iconFor(item, hierarchy) {
   var title = String(item.title || '').toLowerCase();
+  if (item.rejoinLive === true) return 'radio';
+  // Live Radio stations are action leaves, but their action is "play this
+  // station", not a generic Play/Shuffle verb. Classify the hierarchy first so
+  // a station whose artwork is unavailable still gets the broadcast mark.
+  if (hierarchy === 'internet_radio') return 'radio';
   if (item.hint === 'action') {
     if (title.indexOf('play') === 0) return 'playnow';
     if (title.indexOf('add') === 0) return 'addnext';
@@ -2361,7 +3608,6 @@ function iconFor(item, hierarchy) {
   if (hierarchy === 'composers') return 'clef';
   if (hierarchy === 'artists') return 'person';
   if (hierarchy === 'playlists') return 'list';
-  if (hierarchy === 'internet_radio') return 'radio';
   if (hierarchy === 'albums') return 'album';
   // The Explore tree names its own categories.
   if (title.indexOf('genre') >= 0) return 'score';
@@ -2433,11 +3679,14 @@ var glyph = function (name) {
         'M14.5 9.5 16.8 7.2a3.6 3.6 0 1 1 5.1 5.1l-2.3 2.3',
         'M9.5 14.5 7.2 16.8a3.6 3.6 0 1 1-5.1-5.1l2.3-2.3',
       ],
-      /* out of this room, into another */
-      'send-to': [
-        'M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
-        'M10.8 12h9.1',
-        'M16.8 8.7 20.3 12l-3.5 3.3',
+      /* A matched pair: current music goes right, other music comes left. */
+      'transfer-to': [
+        'M4.5 12h14.2',
+        'M14.5 7.8 18.9 12l-4.4 4.2',
+      ],
+      'pull-from': [
+        'M19.5 12H5.3',
+        'M9.5 7.8 5.1 12l4.4 4.2',
       ],
       /**
        * FADERS — three tracks at three different levels. It says "there is more
@@ -2466,6 +3715,10 @@ var glyph = function (name) {
        * a colour font would hijack (the pause button once arrived bright blue).
        */
       /* a compass: the needle points somewhere you have not been */
+      search: [
+        'M10.8 4.5a6.3 6.3 0 1 0 0 12.6 6.3 6.3 0 1 0 0-12.6',
+        'M15.4 15.4 20 20',
+      ],
       explore: [
         'M12 4.2a7.8 7.8 0 1 0 0 15.6 7.8 7.8 0 1 0 0-15.6',
         'M15.4 8.6 10.5 10.5 8.6 15.4 13.5 13.5z',
@@ -2552,13 +3805,36 @@ var glyph = function (name) {
 var browsePanel = null;
 var browseUniform = false;
 var browseCtx = null;      // { hierarchy, trail: [titles] }
+var browseNavigationCurrent = null;
+var browseEpoch = 0;
+var browsePending = false;
+var browseOkHeldUntil = 0;
+
+/** A new root/query invalidates every callback and selection from the old one. */
+function beginBrowse(context) {
+  browseEpoch += 1;
+  browseCtx = context;
+  browsePending = false;
+  browsePaging = false;
+  return browseEpoch;
+}
+
+function browseIsCurrent(epoch, context, node) {
+  if (epoch !== browseEpoch || context !== browseCtx || browsePanel === null) return false;
+  return node === undefined || inNode(node, browsePanel);
+}
 
 function browseCall(body) {
   return fetch('/api/v1/browse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).then(function (r) { return r.json().catch(function () { return {}; }); });
+  }).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (result) {
+      if (!r.ok) throw new Error(result.error || ('browse failed ' + String(r.status)));
+      return result;
+    });
+  });
 }
 
 /**
@@ -2581,8 +3857,126 @@ function browseAlive() {
 
 function closeBrowse() {
   if (browseIdleTimer !== null) { clearTimeout(browseIdleTimer); browseIdleTimer = null; }
+  browseEpoch += 1;
+  browsePending = false;
+  browsePaging = false;
+  setBrowseNavigation(null);
   if (browsePanel !== null) { browsePanel.parentNode.removeChild(browsePanel); browsePanel = null; }
   browseCtx = null;
+}
+
+/** Enabled Browse controls in the order a Fire TV D-pad walks them. */
+function browseNavigationChoices() {
+  if (browsePanel === null) return [];
+  var nodes = browsePanel.querySelectorAll('[role="button"]');
+  var choices = [];
+  for (var i = 0; i < nodes.length; i += 1) {
+    var classes = ' ' + (nodes[i].getAttribute('class') || '') + ' ';
+    if (nodes[i].getAttribute('aria-disabled') === 'true' || classes.indexOf(' off ') !== -1) continue;
+    choices.push(nodes[i]);
+  }
+  return choices;
+}
+
+function browseNavigationIdentity(node) {
+  if (node === null) return '';
+  var names = ['data-browse-key', 'aria-label', 'title'];
+  for (var i = 0; i < names.length; i += 1) {
+    var value = node.getAttribute(names[i]);
+    if (value !== null && value !== '') return names[i] + ':' + value;
+  }
+  return 'text:' + String(node.textContent || '').replace(/^\s+|\s+$/g, '');
+}
+
+function setBrowseNavigation(node) {
+  if (browseNavigationCurrent !== null) browseNavigationCurrent.classList.remove('browse-key-current');
+  browseNavigationCurrent = node;
+  if (node === null) return;
+  node.classList.add('browse-key-current');
+  try { node.focus(); } catch (error) { /* visible current mark still works */ }
+  if (typeof node.scrollIntoView === 'function') {
+    try { node.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
+    catch (error) { node.scrollIntoView(false); }
+  }
+}
+
+/** Native focus wins over a stale internal cursor, especially on Search's Go. */
+function browseNavigationIndex(choices) {
+  var active = document.activeElement;
+  for (var a = 0; a < choices.length; a += 1) {
+    if (choices[a] === active) {
+      if (browseNavigationCurrent !== active) setBrowseNavigation(active);
+      return a;
+    }
+  }
+  for (var i = 0; i < choices.length; i += 1) {
+    if (choices[i] === browseNavigationCurrent) return i;
+  }
+  return -1;
+}
+
+/** Prefer a result row; header controls remain one Up press away. */
+function seedBrowseNavigation(preferred) {
+  var choices = browseNavigationChoices();
+  if (choices.length === 0) { setBrowseNavigation(null); return null; }
+  var chosen = null;
+  if (preferred !== '') {
+    for (var p = 0; p < choices.length; p += 1) {
+      if (browseNavigationIdentity(choices[p]) === preferred) { chosen = choices[p]; break; }
+    }
+  }
+  if (chosen === null) {
+    for (var r = 0; r < choices.length; r += 1) {
+      if ((' ' + choices[r].className + ' ').indexOf(' browse-row ') !== -1) {
+        chosen = choices[r];
+        break;
+      }
+    }
+  }
+  if (chosen === null) chosen = choices[0];
+  setBrowseNavigation(chosen);
+  return chosen;
+}
+
+function moveBrowseNavigation(delta) {
+  var choices = browseNavigationChoices();
+  if (choices.length === 0) return false;
+  var at = browseNavigationIndex(choices);
+  if (at === -1) setBrowseNavigation(delta < 0 ? choices[choices.length - 1] : choices[0]);
+  else setBrowseNavigation(choices[(at + delta + choices.length) % choices.length]);
+  return true;
+}
+
+function activateBrowseNavigation() {
+  var choices = browseNavigationChoices();
+  if (browseNavigationIndex(choices) === -1 && seedBrowseNavigation('') === null) return false;
+  if (typeof browseNavigationCurrent.click === 'function') browseNavigationCurrent.click();
+  return true;
+}
+
+/** Browse owns its vertical D-pad and centre press; left is a conventional Back. */
+function handleBrowseNavigation(name, event) {
+  if (browsePanel === null) return false;
+  if (name === 'up') return moveBrowseNavigation(-1);
+  if (name === 'down') return moveBrowseNavigation(1);
+  if (name === 'ok') {
+    var now = Date.now();
+    // Android repeats keydown while Select is held. Extend the latch on every
+    // repeat, and release it only on keyup, so one hold can cross one level only.
+    if ((event && event.repeat === true) || now < browseOkHeldUntil) {
+      browseOkHeldUntil = now + PRESS_ECHO_MS;
+      return true;
+    }
+    browseOkHeldUntil = now + PRESS_ECHO_MS;
+    return activateBrowseNavigation();
+  }
+  if (name === 'left') {
+    if (browseCtx !== null && browseCtx.trail.length > 1) browseBack();
+    return true;
+  }
+  // Never let Right change the face behind an open Browse window.
+  if (name === 'right') return true;
+  return false;
 }
 
 function browseShell(title, canGoBack) {
@@ -2598,25 +3992,56 @@ function browseShell(title, canGoBack) {
    * question rather than floating over the middle of the screen and covering the
    * artwork with it. Everywhere else it stays the centred panel it was.
    */
-  var host = hasShelf() ? copy : document.body;
+  /**
+   * Dial and Orbit are composed around the progress circle. Their old 21vw
+   * flank could collapse a long artist/album cascade to one visible row; the
+   * circle is both larger and already the viewer's focal point. Put the browse
+   * window inside the ring itself. Rondo only borrows a small ring around its
+   * sleeve, so it keeps the ordinary full-height cascade.
+   */
+  /**
+   * The ring is INSIDE the cover, and the cover owns the album/artist press.
+   * Mounting Browse in `dialBox` therefore made every press in the window bubble
+   * into `flipArtwork`; artist view then moved the cover and carried the window
+   * off the left edge with it. Keep the full central overlay, but make the viewport
+   * the panel's positioning and event owner. Phone routes use their normal page
+   * panel because their ring is deliberately not part of the compact layout.
+   */
+  var inMainCircle = root.getAttribute('data-ringlayout') === '1'
+    && root.getAttribute('data-size') === null
+    && root.getAttribute('data-idle') !== '1';
+  var host = inMainCircle ? document.body
+    : (root.getAttribute('data-idle') === '1' ? document.body
+      : (hasShelf() ? copy : document.body));
   if (browsePanel === null) {
     browsePanel = el('div', 'browse');
     host.appendChild(browsePanel);
     // Any sign of life resets the clock, including simply scrolling a long list.
-    ['pointermove', 'mousemove', 'scroll', 'click', 'touchstart', 'wheel', 'keydown']
+    ['pointermove', 'mousemove', 'scroll', 'click', 'touchstart', 'wheel', 'keydown', 'input']
       .forEach(function (kind) { browsePanel.addEventListener(kind, browseAlive, true); });
+    // Browse may move between visual hosts as a face changes, so it also owns an
+    // explicit event boundary. Stop only propagation: native input, voice
+    // keyboard, scrolling and default form submission remain untouched.
+    ['touchstart', 'click', 'pointerup', 'touchend', 'mouseup', 'keyup']
+      .forEach(function (kind) {
+        browsePanel.addEventListener(kind, function (event) { event.stopPropagation(); });
+      });
   } else if (browsePanel.parentNode !== host) {
     host.appendChild(browsePanel);        // the face changed under an open panel
   }
+  if (inMainCircle) browsePanel.setAttribute('data-over-ring', '1');
+  else browsePanel.removeAttribute('data-over-ring');
   var head = el('div', 'browse-head');
   var back = el('span', canGoBack ? 'ctl small' : 'ctl small off');
   back.appendChild(glyph('left'));
   back.setAttribute('aria-label', 'back');
-  if (canGoBack) pressable(back, browseBack);
+  if (canGoBack) pressable(back, browseBack, 'browse-back');
   head.appendChild(back);
   head.appendChild(el('span', 'browse-title', title));
   var shut = el('span', 'ctl small', '\u2715');
-  pressable(shut, closeBrowse);
+  shut.setAttribute('title', 'cancel browse');
+  shut.setAttribute('aria-label', 'cancel browse');
+  pressable(shut, closeBrowse, 'browse-close');
   head.appendChild(shut);
   var list = el('div', 'browse-list', 'loading\u2026');
   // The list and the alphabet rail share a row INSIDE the column panel. Making the
@@ -2624,13 +4049,36 @@ function browseShell(title, canGoBack) {
   // content and pushed the rail thousands of pixels off screen.
   var body = el('div', 'browse-body');
   body.appendChild(list);
+  setBrowseNavigation(null);
   browsePanel.replaceChildren(head, body);
   browseAlive();
   return list;
 }
 
+/**
+ * Roon Search puts one library shortcut above its merged catalogue buckets.
+ * `Joe Jackson · 1 Album` beside `Albums · 41 Results` is truthful but reads as
+ * a contradiction on a television. Name the two scopes without guessing which
+ * connected provider supplied an individual catalogue result.
+ */
+function browseResultSubtitle(item) {
+  var subtitle = String(item.subtitle || '');
+  var searchRoot = browseCtx !== null
+    && browseCtx.hierarchy === 'search' && browseCtx.trail.length === 1;
+  if (!searchRoot || subtitle === '') return subtitle;
+  if (/^\d+\s+Results?$/.test(subtitle)) return subtitle + ' \u00B7 Roon catalogue';
+  if (/^\d+\s+Albums?$/.test(subtitle)) return subtitle + ' \u00B7 my library';
+  return subtitle;
+}
+
 function browseRow(item, onPick) {
   var row = el('div', 'browse-row');
+  var itemIdentity = String(item.itemKey || item.title || '');
+  row.setAttribute('data-browse-key', itemIdentity);
+  if (item.intent) {
+    row.setAttribute('title', item.intent);
+    row.setAttribute('aria-label', item.intent);
+  }
   var thumbBox = el('span', 'browse-thumb');
   if (item.art) {
     var img = document.createElement('img');
@@ -2647,8 +4095,10 @@ function browseRow(item, onPick) {
   }
   row.appendChild(thumbBox);
   row.appendChild(el('span', 'browse-name', item.title || '(untitled)'));
-  if (item.subtitle) row.appendChild(el('span', 'browse-sub', item.subtitle));
-  pressable(row, function () { onPick(item); });
+  var shownSubtitle = browseResultSubtitle(item);
+  if (shownSubtitle) row.appendChild(el('span', 'browse-sub', shownSubtitle));
+  var hierarchy = browseCtx === null ? 'browse' : browseCtx.hierarchy;
+  pressable(row, function () { onPick(item); }, 'browse:' + hierarchy + ':' + itemIdentity);
   return row;
 }
 
@@ -2670,12 +4120,17 @@ function uniformIcon(items, hierarchy) {
 }
 
 function browseRows(list, items, onPick) {
-  if (items.length === 0) { list.replaceChildren(el('div', 'browse-empty', 'nothing here')); return; }
+  if (items.length === 0) {
+    list.replaceChildren(el('div', 'browse-empty', 'nothing here'));
+    if (browsePanel !== null && inNode(list, browsePanel)) seedBrowseNavigation('');
+    return;
+  }
   browseUniform = uniformIcon(items, browseCtx === null ? '' : browseCtx.hierarchy);
   // One row builder for both the first page and every page after it, so an icon
   // never appears on one and not the other.
   var rows = items.map(function (item) { return browseRow(item, onPick); });
   list.replaceChildren.apply(list, rows);
+  if (browsePanel !== null && inNode(list, browsePanel)) seedBrowseNavigation('');
 }
 
 /**
@@ -2700,18 +4155,19 @@ function browseRows(list, items, onPick) {
 var PAGE = 100;
 var browsePaging = false;
 
-function browseAttachPaging(list, hierarchy, total, onPick, startOffset) {
+function browseAttachPaging(list, hierarchy, total, onPick, startOffset, epoch, context) {
   // After an alphabet jump the rows on screen begin partway down the list, so
   // paging continues from THERE rather than from the count of visible rows.
   var loaded = typeof startOffset === 'number'
     ? startOffset : list.querySelectorAll('.browse-row').length;
   var more = function () {
-    if (browsePaging || loaded >= total) return;
+    if (!browseIsCurrent(epoch, context, list) || browsePaging || loaded >= total) return;
     browsePaging = true;
     var marker = el('div', 'browse-empty', 'loading\u2026');
     list.appendChild(marker);
-    browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: loaded, sessionKey: 'flightdeck-face' })
+    browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: loaded, sessionKey: browseSessionKey })
       .then(function (data) {
+        if (!browseIsCurrent(epoch, context, list)) return;
         if (marker.parentNode === list) list.removeChild(marker);
         var items = data.items || [];
         for (var i = 0; i < items.length; i += 1) list.appendChild(browseRow(items[i], onPick));
@@ -2722,6 +4178,7 @@ function browseAttachPaging(list, hierarchy, total, onPick, startOffset) {
         if (items.length === 0) loaded = total;
       })
       .catch(function () {
+        if (!browseIsCurrent(epoch, context, list)) return;
         if (marker.parentNode === list) list.removeChild(marker);
         browsePaging = false;
       });
@@ -2752,7 +4209,7 @@ function firstLetter(title) {
 }
 
 function probeTitle(hierarchy, offset) {
-  return browseCall({ hierarchy: hierarchy, load: true, count: 1, offset: offset, sessionKey: 'flightdeck-face' })
+  return browseCall({ hierarchy: hierarchy, load: true, count: 1, offset: offset, sessionKey: browseSessionKey })
     .then(function (data) {
       var items = data.items || [];
       return items.length > 0 ? items[0].title : null;
@@ -2760,21 +4217,28 @@ function probeTitle(hierarchy, offset) {
 }
 
 /** The offset of the first item at or after `letter`, by bisection. */
-function findLetter(hierarchy, letter, total, done) {
+function findLetter(hierarchy, letter, total, epoch, context, list, done) {
   var low = 0;
   var high = Math.max(0, total - 1);
   var best = null;
   var steps = 0;
   var step = function () {
+    // The shared Roon Browse session is serial. Stop probing as soon as this
+    // alphabet jump no longer owns the visible panel, rather than making an old
+    // bisection delay the listener's newer Search or Browse request.
+    if (!browseIsCurrent(epoch, context, list)) return;
     if (low > high || steps > 14) { done(best); return; }
     steps += 1;
     var mid = Math.floor((low + high) / 2);
     probeTitle(hierarchy, mid).then(function (title) {
+      if (!browseIsCurrent(epoch, context, list)) return;
       if (title === null) { high = mid - 1; step(); return; }
       if (firstLetter(title) >= letter) { best = mid; high = mid - 1; }
       else { low = mid + 1; }
       step();
-    }).catch(function () { done(best); });
+    }).catch(function () {
+      if (browseIsCurrent(epoch, context, list)) done(best);
+    });
   };
   step();
 }
@@ -2785,22 +4249,29 @@ function alphabetRail(hierarchy, total, onPick) {
   for (var i = 0; i < letters.length; i += 1) {
     (function (letter) {
       var node = el('span', 'alpha-key', letter);
-      pressable(node, function () { onPick(letter); });
+      pressable(node, function () { onPick(letter); }, 'browse-letter:' + letter);
       rail.appendChild(node);
     })(letters[i]);
   }
   return rail;
 }
 
-function browseDraw(result) {
-  var hierarchy = browseCtx.hierarchy;
+function browseDraw(result, epoch, context) {
+  if (!browseIsCurrent(epoch, context) || context === null) return;
+  // A new level owns its own pager. Any older list is detached and its fenced
+  // completion cannot put the global paging latch back.
+  browsePaging = false;
+  var hierarchy = context.hierarchy;
   var listInfo = result.list || {};
-  var heading = listInfo.title || browseCtx.trail[browseCtx.trail.length - 1] || 'Browse';
+  var heading = listInfo.title || context.trail[context.trail.length - 1] || 'Browse';
+  if (hierarchy === 'search' && context.trail.length === 1) {
+    heading = 'Search Roon \u00B7 library + catalogue';
+  }
   var zone = currentZone();
   if (listInfo.hint === 'action_list' && zone !== null) heading += '  \u2192  ' + zone.name;
   var total = typeof listInfo.count === 'number' ? listInfo.count : 0;
   if (total > PAGE) heading += '   ' + total;
-  var list = browseShell(heading, browseCtx.trail.length > 1);
+  var list = browseShell(heading, context.trail.length > 1);
   var pick = function (item) { browseInto(item); };
   // Only where it helps: a long list, and one Roon sorts alphabetically.
   var alphabetical = total > 150 && listInfo.hint !== 'action_list';
@@ -2808,15 +4279,19 @@ function browseDraw(result) {
     browsePanel.className = 'browse has-alpha';
     var body = browsePanel.querySelector('.browse-body');
     body.appendChild(alphabetRail(hierarchy, total, function (letter) {
+      if (!browseIsCurrent(epoch, context, list)) return;
       list.replaceChildren(el('div', 'browse-empty', 'finding \u2026'));
-      findLetter(hierarchy, letter, total, function (offset) {
+      findLetter(hierarchy, letter, total, epoch, context, list, function (offset) {
+        if (!browseIsCurrent(epoch, context, list)) return;
         if (offset === null) { list.replaceChildren(el('div', 'browse-empty', 'nothing under ' + letter)); return; }
-        browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: offset, sessionKey: 'flightdeck-face' })
+        browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: offset, sessionKey: browseSessionKey })
           .then(function (data) {
+            if (!browseIsCurrent(epoch, context, list)) return;
             browseRows(list, data.items || [], pick);
             list.scrollTop = 0;
             if (total > offset + (data.items || []).length) {
-              browseAttachPaging(list, hierarchy, total, pick, offset + (data.items || []).length);
+              browseAttachPaging(list, hierarchy, total, pick,
+                offset + (data.items || []).length, epoch, context);
             }
           });
       });
@@ -2824,57 +4299,343 @@ function browseDraw(result) {
   } else {
     browsePanel.className = 'browse';
   }
-  browseCall({ hierarchy: hierarchy, load: true, count: PAGE, sessionKey: 'flightdeck-face' })
+  browseCall({ hierarchy: hierarchy, load: true, count: PAGE, sessionKey: browseSessionKey })
     .then(function (data) {
+      if (!browseIsCurrent(epoch, context, list)) return;
       browseRows(list, data.items || [], pick);
-      if (total > (data.items || []).length) browseAttachPaging(list, hierarchy, total, pick);
+      if (total > (data.items || []).length) {
+        browseAttachPaging(list, hierarchy, total, pick, undefined, epoch, context);
+      }
     })
-    .catch(function () { list.replaceChildren(el('div', 'browse-empty', 'could not load that')); });
+    .catch(function () {
+      if (browseIsCurrent(epoch, context, list)) {
+        list.replaceChildren(el('div', 'browse-empty', 'could not load that'));
+      }
+    });
 }
 
 function openHierarchy(hierarchy, title) {
-  browseCtx = { hierarchy: hierarchy, trail: [title] };
+  var context = { hierarchy: hierarchy, trail: [title] };
+  var epoch = beginBrowse(context);
   browseShell(title, false);
-  browseCall({ hierarchy: hierarchy, popAll: true, sessionKey: 'flightdeck-face' })
-    .then(function (result) { browseDraw(result); })
-    .catch(function () { closeBrowse(); flash('browse unavailable'); });
+  browsePending = true;
+  browseCall({ hierarchy: hierarchy, popAll: true, sessionKey: browseSessionKey })
+    .then(function (result) {
+      if (!browseIsCurrent(epoch, context)) return;
+      browsePending = false;
+      browseDraw(result, epoch, context);
+    })
+    .catch(function () {
+      if (!browseIsCurrent(epoch, context)) return;
+      browsePending = false;
+      closeBrowse();
+      flash('browse unavailable');
+    });
+}
+
+function searchQuery(value) {
+  return String(value || '').replace(/^\s+|\s+$/g, '');
+}
+
+/**
+ * One honest Search entry point for both free discovery and remembered tracks.
+ * It only draws Roon's result tree; playback still requires choosing an explicit
+ * result and then an action inside that tree.
+ */
+function runRoonSearch(value, label) {
+  var query = searchQuery(value);
+  if (query === '') { flash('type an artist, album or track'); return false; }
+  var shown = searchQuery(label) || query;
+  var context = { hierarchy: 'search', trail: ['Search: ' + shown] };
+  var epoch = beginBrowse(context);
+  browseShell('Searching Roon for ' + shown, false);
+  browsePending = true;
+  browseCall({
+    hierarchy: 'search',
+    popAll: true,
+    input: query,
+    sessionKey: browseSessionKey,
+  }).then(function (result) {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    browseDraw(result, epoch, context);
+  }).catch(function () {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    closeBrowse();
+    flash('search unavailable');
+  });
+  return true;
+}
+
+/** A real text field lets each platform supply its own keyboard, including Silk. */
+function openRoonSearch() {
+  beginBrowse(null);
+  var list = browseShell('Search Roon \u00B7 library + connected services', false);
+  browsePanel.className = 'browse has-search';
+  list.className = 'browse-list browse-search-list';
+  var search = el('div', 'browse-search');
+  search.appendChild(el('div', 'browse-search-copy',
+    'Find an artist, album or track across your library and connected services.'));
+  var form = document.createElement('form');
+  form.className = 'browse-search-form';
+  var input = document.createElement('input');
+  input.className = 'browse-search-input';
+  input.type = 'search';
+  input.maxLength = 400;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  input.setAttribute('enterkeyhint', 'search');
+  input.setAttribute('placeholder', 'artist, album or track');
+  input.setAttribute('aria-label', 'artist, album or track');
+  var go = el('span', 'browse-search-go');
+  go.appendChild(glyph('search'));
+  go.appendChild(document.createTextNode('search'));
+  var submitSearch = function () {
+    if (!runRoonSearch(input.value, input.value)) {
+      try { input.focus(); } catch (error) { /* the prompt remains visible */ }
+    }
+  };
+  pressable(go, submitSearch, 'roon-search-submit');
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    submitSearch();
+  });
+  form.appendChild(input);
+  form.appendChild(go);
+  search.appendChild(form);
+  list.replaceChildren(search);
+  setBrowseNavigation(null);
+  // This runs inside the press which opened Search, so Fire TV may raise its
+  // native keyboard while desktop and Samsung keyboards can type immediately.
+  try { input.focus(); } catch (error) { /* selecting the field still works */ }
+}
+
+/**
+ * A row carrying Roon's `action` hint is the leaf the listener deliberately
+ * chose: Play Now, Add Next, Queue, Start Radio, or a station. Some Core builds
+ * return a useful message and some return only `none`; the item hint is the
+ * stable part of the contract. A `list` row is navigation and must stay open.
+ */
+function browseSelectionComplete(item, result) {
+  if (result.isError === true) return false;
+  return item.hint === 'action'
+    || result.action === 'none'
+    || result.action === 'message';
 }
 
 function browseInto(item) {
-  if (browseCtx === null) return;
+  if (browseCtx === null || browsePending) return;
+  var context = browseCtx;
+  var epoch = browseEpoch;
+  browsePending = true;
   var zone = currentZone();
-  var call = { hierarchy: browseCtx.hierarchy, itemKey: item.itemKey, sessionKey: 'flightdeck-face' };
+  var call = { hierarchy: context.hierarchy, itemKey: item.itemKey, sessionKey: browseSessionKey };
   if (zone !== null) call.zoneId = zone.id;
   browseCall(call).then(function (result) {
-    // An `action` item has already done its thing — there is no list coming.
-    if (result.action === 'none' || result.action === 'message') {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    // A successful final choice puts the window away. The X is cancellation;
+    // hierarchy rows remain open because they still need another choice.
+    if (browseSelectionComplete(item, result)) {
       flash(result.message || (item.title + ' \u2713'));
       closeBrowse();
       return;
     }
-    browseCtx.trail.push(item.title || 'Browse');
-    browseDraw(result);
-  }).catch(function () { flash('could not open that'); });
+    if (result.isError === true) {
+      flash(result.message || 'could not select that');
+      return;
+    }
+    context.trail.push(item.title || 'Browse');
+    browseDraw(result, epoch, context);
+  }).catch(function () {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    flash('could not open that');
+  });
 }
 
 function browseBack() {
   if (browseCtx === null || browseCtx.trail.length <= 1) { closeBrowse(); return; }
-  browseCtx.trail.pop();
-  browseCall({ hierarchy: browseCtx.hierarchy, popLevels: 1, sessionKey: 'flightdeck-face' })
-    .then(function (result) { browseDraw(result); })
-    .catch(function () { closeBrowse(); });
+  if (browsePending) return;
+  var context = browseCtx;
+  var epoch = browseEpoch;
+  context.trail.pop();
+  browsePending = true;
+  browseCall({ hierarchy: context.hierarchy, popLevels: 1, sessionKey: browseSessionKey })
+    .then(function (result) {
+      if (!browseIsCurrent(epoch, context)) return;
+      browsePending = false;
+      browseDraw(result, epoch, context);
+    })
+    .catch(function () {
+      if (!browseIsCurrent(epoch, context)) return;
+      browsePending = false;
+      closeBrowse();
+    });
 }
 
-/** Recently played needs no Browse at all: FlightDeck keeps its own ledger. */
-function openRecent() {
-  browseCtx = null;
-  var list = browseShell('Recently played', false);
-  fetch('/api/v1/recent').then(function (r) { return r.json(); }).then(function (data) {
-    var tracks = (data.tracks || []).map(function (t) {
-      return { title: t.title, subtitle: t.zoneName + ' \u00B7 ' + new Date(t.at).toTimeString().slice(0, 5) };
+/** The ordinary Recent row: remembered words become a fresh, honest Search. */
+function recentTrackRow(t) {
+  var line2 = String(t.line2 || '');
+  var credit = line2.split(' / ')[0].replace(/^\s+|\s+$/g, '');
+  var query = String(t.title || '') + (credit === '' ? '' : ' ' + credit);
+  return {
+    title: String(t.title || ''),
+    line2: line2,
+    artKey: typeof t.artKey === 'string' ? t.artKey : null,
+    zoneName: String(t.zoneName || ''),
+    at: String(t.at || ''),
+    query: query,
+    subtitle: (credit === '' ? '' : credit + ' \u00B7 ')
+      + String(t.zoneName || '') + ' \u00B7 ' + new Date(t.at).toTimeString().slice(0, 5),
+    intent: 'search Roon for ' + query,
+  };
+}
+
+function searchRecentTrack(track) {
+  runRoonSearch(track.query, track.title);
+}
+
+/**
+ * A station item key is usable only in the fresh stack that produced it. Match
+ * the remembered station artwork AND title first. If the station changed its
+ * logo, an exact title is safe only when it names one current saved station.
+ * Two same-named stations are ambiguity, never permission to guess.
+ */
+function recentStationMatch(track, stations) {
+  var exactMatches = [];
+  var titleMatches = [];
+  for (var i = 0; i < stations.length; i += 1) {
+    var station = stations[i];
+    if (station === null || station.hint !== 'action'
+        || typeof station.itemKey !== 'string' || station.itemKey === ''
+        || String(station.title || '') !== track.title) continue;
+    titleMatches.push(station);
+    if (track.artKey !== null && station.imageKey === track.artKey) exactMatches.push(station);
+  }
+  // Multiple saved rows with the same title AND art are equivalent duplicates;
+  // the current stack's first action is sufficient. Different artwork falls to
+  // the unique-title rule and therefore remains ambiguous.
+  if (exactMatches.length > 0) return exactMatches[0];
+  // A station seed is the brief blank-credit card Roon publishes before live
+  // programme metadata. Without that shape, a song that merely shares a saved
+  // station's title must remain a track Search rather than becoming playback.
+  return track.line2 === '' && titleMatches.length === 1 ? titleMatches[0] : null;
+}
+
+/** Fresh root, then fresh load, on Recent's private Live Radio stack. */
+function loadRecentStations() {
+  return browseCall({
+    hierarchy: 'internet_radio',
+    popAll: true,
+    sessionKey: recentRadioSessionKey,
+  }).then(function (rootResult) {
+    if (rootResult.isError === true) throw new Error(rootResult.message || 'radio unavailable');
+    return browseCall({
+      hierarchy: 'internet_radio',
+      load: true,
+      count: 200,
+      sessionKey: recentRadioSessionKey,
     });
-    browseRows(list, tracks, function () { flash('recently played is a record, not a queue'); });
-  }).catch(function () { list.replaceChildren(el('div', 'browse-empty', 'no history yet')); });
+  }).then(function (loadResult) {
+    return loadResult.items || [];
+  });
+}
+
+/** Promote safely matched seed rows, once per station; every other row stays Search. */
+function recentRows(tracks, stations) {
+  var stationRows = [];
+  var trackRows = [];
+  var seenStations = {};
+  for (var i = 0; i < tracks.length; i += 1) {
+    var track = tracks[i];
+    var station = recentStationMatch(track, stations);
+    if (station === null) { trackRows.push(track); continue; }
+    // Recent is newest first, so a repeated tune-in keeps its newest time/room.
+    var stationName = String(station.title || '').replace(/^\s+|\s+$/g, '').toLowerCase();
+    if (seenStations[stationName] === true) continue;
+    seenStations[stationName] = true;
+    stationRows.push({
+      title: String(station.title || track.title),
+      subtitle: 'Rejoin live \u00B7 ' + track.zoneName + ' \u00B7 '
+        + new Date(track.at).toTimeString().slice(0, 5),
+      intent: 'rejoin ' + String(station.title || track.title) + ' live',
+      rejoinLive: true,
+      stationItem: station,
+      track: track,
+      art: station.art || null,
+    });
+  }
+  return stationRows.concat(trackRows);
+}
+
+function rejoinRecentStation(row) {
+  if (browsePending) return;
+  var context = browseCtx;
+  var epoch = browseEpoch;
+  var zone = currentZone();
+  var station = row.stationItem;
+  // A rebuilt or malformed row has no playback authority. Its remembered words
+  // still have the ordinary, non-guessing Search meaning.
+  if (station === null || typeof station.itemKey !== 'string') {
+    searchRecentTrack(row.track);
+    return;
+  }
+  if (zone === null) { flash('player unavailable'); return; }
+  browsePending = true;
+  browseCall({
+    hierarchy: 'internet_radio',
+    itemKey: station.itemKey,
+    zoneId: zone.id,
+    sessionKey: recentRadioSessionKey,
+  }).then(function (result) {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    if (result.isError === true) { flash(result.message || 'could not rejoin station'); return; }
+    flash(String(station.title || row.title) + ' live \u2713');
+    closeBrowse();
+  }).catch(function () {
+    if (!browseIsCurrent(epoch, context)) return;
+    browsePending = false;
+    flash('could not rejoin station');
+  });
+}
+
+function drawRecentRows(list, tracks, stations) {
+  browseRows(list, recentRows(tracks, stations), function (row) {
+    if (row.rejoinLive === true) rejoinRecentStation(row);
+    else searchRecentTrack(row);
+  });
+}
+
+/**
+ * The ledger remembers words, not a reusable Roon item key. Tracks search Roon
+ * afresh. Station seed rows are upgraded only by a CURRENT Live Radio catalogue
+ * match, whose current session key is then used to rejoin the live broadcast.
+ */
+function openRecent() {
+  var epoch = beginBrowse(null);
+  var context = browseCtx;
+  var list = browseShell('Recent \u00B7 stations rejoin live \u00B7 tracks find versions', false);
+  fetch('/api/v1/recent').then(function (r) { return r.json(); }).then(function (data) {
+    if (!browseIsCurrent(epoch, context, list)) return;
+    var tracks = (data.tracks || []).map(recentTrackRow);
+    // Never make Recent wait on Roon Browse. Until the catalogue answers, every
+    // row retains its safe existing meaning: search these remembered words.
+    drawRecentRows(list, tracks, []);
+    loadRecentStations().then(function (stations) {
+      // The listener may already have chosen a track and moved to its Search.
+      // Do not let a late station catalogue repaint that newer browse window.
+      if (browseIsCurrent(epoch, context, list)) drawRecentRows(list, tracks, stations);
+    }).catch(function () {
+      // The already-visible rows remain ordinary track Searches.
+    });
+  }).catch(function () {
+    if (browseIsCurrent(epoch, context, list)) {
+      list.replaceChildren(el('div', 'browse-empty', 'no history yet'));
+    }
+  });
 }
 
 /* ---------- transport ----------
@@ -2898,7 +4659,18 @@ var settlingUntil = 0;
 var REGROUP_GRACE_MS = 9000;
 
 function command(body) {
-  if (body.action === 'group' || body.action === 'ungroup' || body.action === 'regroup') {
+  var groupTransition = body.action === 'group' || body.action === 'ungroup' || body.action === 'regroup';
+  if (groupTransition) {
+    // An unbound `/now` face or a room chosen in this session may otherwise hold
+    // only a zone id. Roon destroys that id while forming/dissolving a group.
+    // Anchor to the present lead output BEFORE asking for the transition, so the
+    // first successor snapshot resolves directly to the new group/leader.
+    var anchor = currentZone();
+    if (boundOutputId === null && anchor !== null && anchor.outputs.length > 0) {
+      boundOutputId = anchor.outputs[0].id;
+    }
+  }
+  if (groupTransition || body.action === 'transfer' || body.action === 'pull') {
     settlingUntil = Date.now() + REGROUP_GRACE_MS;
   }
   return fetch('/api/v1/control', {
@@ -2908,10 +4680,15 @@ function command(body) {
   }).then(function (response) {
     if (!response.ok) return response.json().catch(function () { return {}; }).then(function (data) {
       flash(data.error || ('control failed (' + response.status + ')'));
+      return false;
     });
-    return null;
-  }).catch(function () { flash('could not reach FlightDeck'); });
+    return true;
+  }).catch(function () { flash('could not reach FlightDeck'); return false; });
 }
+
+// A sequence of progress presses is one changing seek intention. Do not let
+// Roon accept a later cursor while RHEOS is still rebuilding an earlier one.
+var seekIntent = createSeekIntentGate(function (body) { return command(body); });
 
 function flash(message) {
   artistName.textContent = message;
@@ -3084,7 +4861,7 @@ function roomsToggle(zone, outs) {
       var mn = v.min === null ? 0 : v.min;
       var sp = Math.max(1, v.max - mn);
       var lvl = Math.max(0, Math.min(1, (v.value - mn) / sp));
-      row.appendChild(volumeSpeaker(o, v.muted ? 0 : lvl));
+      row.appendChild(volumeSpeaker(o));
       row.appendChild(el('span', 'member-name', o.name));
       row.appendChild(volumeScale(o, lvl, mn, sp));
       // Muted is a state the number cannot show: 66 and silent is not 66.
@@ -3223,7 +5000,9 @@ function seekFromRing(clientX, clientY) {
   var angle = Math.atan2(clientY - cy, clientX - cx) + Math.PI / 2;
   if (angle < 0) angle += Math.PI * 2;
   var fraction = Math.max(0, Math.min(1, angle / (Math.PI * 2)));
-  command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * length) });
+  var seconds = seekTargetSecond(fraction, length);
+  if (seconds === null) return true;
+  seekIntent.seek({ zone: zone.id, seconds: seconds });
   return true;
 }
 
@@ -3236,7 +5015,9 @@ function seekFromPress(clientX) {
   var box = foot.getBoundingClientRect();
   if (box.width <= 0) return;
   var fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
-  command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * length) });
+  var seconds = seekTargetSecond(fraction, length);
+  if (seconds === null) return;
+  seekIntent.seek({ zone: zone.id, seconds: seconds });
 }
 
 /**
@@ -3251,32 +5032,47 @@ function seekFromPress(clientX) {
 var volUi = null;
 
 function paintVolume() {
-  if (volUi === null || picker.hidden) return;
-  var output = volumeOutput();
-  var vol = output === null ? null : output.volume;
-  if (vol === null || output.id !== volUi.outputId) return;
+  if (volUi === null) return;
+  paintMemberVolumes();
 
+  if (volUi.group === true) {
+    var group = zoneContainingOutput(volUi.outputId);
+    if (group === null) return;
+    var mutable = [];
+    var levels = [];
+    for (var gi = 0; gi < group.outputs.length; gi += 1) {
+      var member = group.outputs[gi];
+      if (member.volume !== null) mutable.push(member);
+      if (volUi.scaleOutputIds.indexOf(member.id) >= 0 && member.volume !== null
+          && member.volume.value !== null && member.volume.max !== null) {
+        var gmin = member.volume.min === null ? 0 : member.volume.min;
+        levels.push(Math.max(0, Math.min(1,
+          (member.volume.value - gmin) / Math.max(1, member.volume.max - gmin))));
+      }
+    }
+    var allMuted = mutable.length > 0;
+    for (var gm = 0; gm < mutable.length; gm += 1) {
+      if (!mutable[gm].volume.muted) allMuted = false;
+    }
+    paintMuteNode(volUi.speaker, allMuted, 'all rooms \u00B7 ' + group.name);
+    if (volUi.scale !== null && levels.length > 0) {
+      var mean = 0;
+      for (var gl = 0; gl < levels.length; gl += 1) mean += levels[gl];
+      mean = mean / levels.length;
+      paintScale(volUi.scale, mean, false);
+      volUi.scale.setAttribute('title', 'volume ' + Math.round(mean * 100) + '%  \u00B7  ' + group.name + ' (all rooms)');
+    }
+    return;
+  }
+
+  var output = outputById(volUi.outputId);
+  var vol = output === null ? null : output.volume;
+  if (vol === null) return;
   var muted = !!vol.muted;
   var min0 = vol.min === null ? 0 : vol.min;
   var span0 = Math.max(1, (vol.max === null ? 100 : vol.max) - min0);
   var level0 = vol.value === null ? 0.5 : Math.max(0, Math.min(1, (vol.value - min0) / span0));
-  if (volUi.speaker !== null) {
-    var want = muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker';
-    if (volUi.speaker.className !== want) volUi.speaker.className = want;
-    // Swap the SYMBOL, not just the colour: repainting only the class left a
-    // crossed speaker sitting there after unmuting (Peter, 08-26).
-    var shownMuted = volUi.speaker.getAttribute('data-muted') === '1';
-    var shownLevel = volUi.speaker.getAttribute('data-level');
-    var levelKey = String(Math.round(level0 * 3));
-    if (shownMuted !== muted || shownLevel !== levelKey) {
-      volUi.speaker.setAttribute('data-muted', muted ? '1' : '0');
-      volUi.speaker.setAttribute('data-level', levelKey);
-      volUi.speaker.replaceChildren(glyphSpeaker(level0, muted));
-      var label = (muted ? 'unmute \u00B7 ' : 'mute \u00B7 ') + output.name;
-      volUi.speaker.setAttribute('aria-label', label);
-      volUi.speaker.setAttribute('title', label);
-    }
-  }
+  paintMuteNode(volUi.speaker, muted, output.name);
   if (volUi.scale !== null && vol.value !== null && vol.max !== null) {
     paintScale(volUi.scale, level0, muted);
     volUi.scale.setAttribute('title', 'volume ' + Math.round(level0 * 100) + '%  \u00B7  ' + output.name);
@@ -3295,20 +5091,64 @@ function outputById(id) {
   return null;
 }
 
-/**
- * `governs` names every output this speaker speaks for. A room's own speaker
- * governs itself; a GROUP's master governs all of them, because muting a group
- * from its master and having one room keep playing is not muting the group.
- */
-function volumeSpeaker(output, level, governs) {
-  var muted = !!(output.volume && output.volume.muted);
-  var node = el('span', muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker');
-  // The glyph SAYS THE STATE: crossed when muted, sounding when not. What keeps it
-  // from reading as a third volume control is its own filled frame, not its shape —
-  // an always-crossed icon told you what the button does but never what it had done.
-  node.appendChild(glyphSpeaker(level, muted));
-  node.setAttribute('aria-label', muted ? 'unmute ' + output.name : 'mute ' + output.name);
-  node.setAttribute('title', node.getAttribute('aria-label'));
+/** The live zone containing an output — zone ids can change while regrouping. */
+function zoneContainingOutput(outputId) {
+  var snap = store.snapshot();
+  if (snap === null) return null;
+  for (var i = 0; i < snap.zones.length; i += 1) {
+    for (var j = 0; j < snap.zones[i].outputs.length; j += 1) {
+      if (snap.zones[i].outputs[j].id === outputId) return snap.zones[i];
+    }
+  }
+  return null;
+}
+
+/** One owner for the visual state and accessible action of every mute button. */
+function paintMuteNode(node, muted, scope) {
+  var want = muted ? 'ctl vol-speaker is-muted' : 'ctl vol-speaker';
+  if (node.className !== want) node.className = want;
+  node.setAttribute('data-muted', muted ? '1' : '0');
+  var label = (muted ? 'unmute \u00B7 ' : 'mute \u00B7 ') + scope;
+  node.setAttribute('aria-label', label);
+  node.setAttribute('title', label);
+}
+
+/** Repaint the room rows without waiting for their disclosure to be rebuilt. */
+function paintMemberVolumes() {
+  if (memberVols === null) return;
+  var speakers = memberVols.querySelectorAll('.vol-speaker[data-output-id]');
+  for (var i = 0; i < speakers.length; i += 1) {
+    var id = speakers[i].getAttribute('data-output-id');
+    var output = outputById(id);
+    if (output === null || output.volume === null) continue;
+    var vol = output.volume;
+    paintMuteNode(speakers[i], !!vol.muted, output.name);
+    var row = speakers[i].parentNode;
+    var read = row.querySelector('.member-read');
+    if (read !== null) {
+      read.className = vol.muted ? 'member-read is-muted' : 'member-read';
+      read.textContent = vol.value === null ? '' : String(vol.value);
+      if (vol.muted) read.setAttribute('title', output.name + ' is muted at ' + String(vol.value));
+      else read.removeAttribute('title');
+    }
+    var scale = row.querySelector('.vol-scale');
+    if (scale !== null && vol.value !== null && vol.max !== null) {
+      var min = vol.min === null ? 0 : vol.min;
+      var level = Math.max(0, Math.min(1, (vol.value - min) / Math.max(1, vol.max - min)));
+      paintScale(scale, level, !!vol.muted);
+      scale.setAttribute('title', 'volume ' + Math.round(level * 100) + '%  \u00B7  ' + output.name);
+    }
+  }
+}
+
+/** A room speaker toggles only that room, using its state at press time. */
+function volumeSpeaker(output) {
+  var node = el('span', 'ctl vol-speaker');
+  // A dedicated slash distinguishes this ACTION from the quiet/loud speakers
+  // around the scale. The filled accent frame says when mute is engaged.
+  node.appendChild(glyphMute());
+  node.setAttribute('data-output-id', output.id);
+  paintMuteNode(node, !!(output.volume && output.volume.muted), output.name);
   pressable(node, function () {
     /**
      * ⚖️ READ THE STATE OF THE OUTPUT THIS BUTTON IS FOR (Peter, 08-28: "unmute
@@ -3322,30 +5162,28 @@ function volumeSpeaker(output, level, governs) {
      * but read the WRONG OUTPUT, so the latch survived on grouped zones. That is
      * why it looked fixed on a solo room and never worked in the Study.
      */
-    var ids = [];
-    if (governs === undefined || governs.length === 0) ids.push(output.id);
-    else for (var g = 0; g < governs.length; g += 1) ids.push(governs[g].id);
-    // Muted only when they ALL are: one room still sounding means the group is
-    // not muted, and the press should silence it rather than un-silence the rest.
-    var allMuted = true;
-    for (var i = 0; i < ids.length; i += 1) {
-      var live = outputById(ids[i]);
-      if (!(live && live.volume && live.volume.muted)) allMuted = false;
-    }
-    /**
-     * ONE AT A TIME. Fired in the same tick, two mutes against the same zone
-     * lost one of them: measured 08-28 on the silent pair — the group's LEAD
-     * stayed sounding while the member muted, and each of them muted correctly
-     * when sent on its own. So they are chained.
-     */
-    var wanted = !allMuted;
-    var sendOne = function (at) {
-      if (at >= ids.length) return;
-      command({ action: 'mute', output: ids[at], muted: wanted })
-        .then(function () { sendOne(at + 1); });
-    };
-    sendOne(0);
-  });
+    var live = outputById(output.id);
+    if (live === null || live.volume === null) return;
+    command({ action: 'mute', output: output.id, muted: !live.volume.muted });
+  }, 'mute:' + output.id);
+  return node;
+}
+
+/**
+ * The group speaker is one intent and therefore one request. The server reads
+ * the same snapshot that owns the commands, decides mute-all versus unmute-all,
+ * and sends the member commands sequentially so none is lost at the Core.
+ */
+function groupVolumeSpeaker(zone, outputs, allMuted) {
+  var node = el('span', 'ctl vol-speaker');
+  node.appendChild(glyphMute());
+  paintMuteNode(node, allMuted, 'all rooms \u00B7 ' + zone.name);
+  var anchorId = outputs.length > 0 ? outputs[0].id : zone.outputs[0].id;
+  pressable(node, function () {
+    var live = zoneContainingOutput(anchorId);
+    if (live === null) { flash('this group is no longer available'); return; }
+    command({ action: 'group-mute', zone: live.id });
+  }, 'group-mute:' + outputs.map(function (o) { return o.id; }).join(','));
   return node;
 }
 
@@ -3356,7 +5194,8 @@ function volumeStep(output, direction) {
   var label = (direction === 'up' ? 'louder \u00B7 ' : 'quieter \u00B7 ') + output.name;
   node.setAttribute('aria-label', label);
   node.setAttribute('title', label);
-  pressable(node, function () { nudgeVolume(direction === 'up' ? 1 : -1); });
+  pressable(node, function () { nudgeVolume(direction === 'up' ? 1 : -1); },
+    'volume-' + direction + ':' + output.id);
   return node;
 }
 
@@ -3475,7 +5314,7 @@ function keyName(event) {
    * the page exists. A keyboard reaches it perfectly.
    *
    * So every control has a letter, chosen to be reachable one-handed and not to
-   * collide: there is no text input anywhere on a Face, so a letter is free.
+   * collide whenever the Search Roon field does not own keyboard focus.
    */
   var letter = String.fromCharCode(code).toLowerCase();
   if (letter === 'k') return 'playpause';
@@ -3490,7 +5329,26 @@ function keyName(event) {
   return '';
 }
 
+function isTextEntry(node) {
+  if (node === null || node === undefined) return false;
+  var tag = String(node.tagName || '').toUpperCase();
+  return tag === 'INPUT' || tag === 'TEXTAREA' || node.isContentEditable === true
+    || node.getAttribute && node.getAttribute('contenteditable') === 'true';
+}
+
 function onKey(event) {
+  // A real search field owns every one of its keys. Without this early return,
+  // typing "band" would trigger Previous, artwork, Next and volume behind it.
+  var target = event.target;
+  var active = document.activeElement;
+  if (isTextEntry(target) || isTextEntry(active)) {
+    // Keep native text entry completely native, but remember an Enter/Go press.
+    // If Search finishes before the key is released, the keyup must not activate
+    // the first newly focused result as a second, accidental command.
+    if (keyName(event) === 'ok') browseOkHeldUntil = Date.now() + PRESS_ECHO_MS;
+    browseAlive();
+    return;
+  }
   var name = keyName(event);
   if (debugKeys) {
     // In probe mode, REPORT rather than act: pressing play to find its code
@@ -3500,9 +5358,27 @@ function onKey(event) {
     event.stopPropagation();
     return;
   }
-  if (name === '') { revealChrome(); return; }
-  if (name === 'left') cycleFace(-1);
-  else if (name === 'right') cycleFace(1);
+  if (name === '') { revealChrome(true); return; }
+  revealChrome(true);
+  if (handleBrowseNavigation(name, event)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  // An open picker owns its vertical D-pad and centre button. Only when it is
+  // closed do those keys fall through to global volume and artwork shortcuts.
+  if (handlePickerNavigation(name)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  if (name === 'left') {
+    cycleFace(-1);
+    if (picker.hidden || picker.className.indexOf('mode-faces') < 0) showPicker('faces');
+  } else if (name === 'right') {
+    cycleFace(1);
+    if (picker.hidden || picker.className.indexOf('mode-faces') < 0) showPicker('faces');
+  }
   // UP/DOWN IS VOLUME, not room. A TV steals the hard volume keys before the
   // browser ever sees them (Peter, 08-25: "seem to control tv volume"), and this
   // screen is BOUND to its room — changing room is a setup-time act, while volume
@@ -3521,9 +5397,24 @@ function onKey(event) {
   event.stopPropagation();
 }
 
+/** Consume the keyup tail on whichever result was focused by the first press. */
+function releaseBrowseOk(event) {
+  if (browseOkHeldUntil === 0) return;
+  if (keyName(event) !== 'ok') return;
+  browseOkHeldUntil = 0;
+  // A Search field that still owns focus also owns its ordinary native keyup.
+  // Once the result repaint has moved focus away, consume the tail before the
+  // newly focused Browse row can interpret it as another centre press.
+  if (isTextEntry(document.activeElement)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
 // Capture on window AND document: some TV browsers deliver to only one of them.
 window.addEventListener('keydown', onKey, true);
 document.addEventListener('keydown', onKey, true);
+window.addEventListener('keyup', releaseBrowseOk, true);
+document.addEventListener('keyup', releaseBrowseOk, true);
 // A page with nothing focusable can be skipped by a TV's key routing entirely.
 root.setAttribute('tabindex', '0');
 try { root.focus(); } catch (error) { /* not focusable on this engine */ }
@@ -3539,10 +5430,12 @@ window.addEventListener('load', function () { try { root.focus(); } catch (error
 var CHROME_MS = 6000;
 var chromeTimer = null;
 var panelShownAt = 0;
+var lastPassiveX = null;
+var lastPassiveY = null;
 /** Set by closeSettings: no reveal until the dismissing gesture is fully over. */
 var chromeHeldUntil = 0;
 
-function revealChrome() {
+function revealChrome(extend) {
   if (Date.now() < chromeHeldUntil) return;
   paintFaceName();
   root.className = root.className.indexOf('show-chrome') >= 0 ? root.className : root.className + ' show-chrome';
@@ -3550,12 +5443,31 @@ function revealChrome() {
   // screen is showing its controls, the commonest ones should already be there.
   // Classic carries its transport and volume in its own layout, so raising the
   // chrome there must not also raise a strip saying the same thing.
-  if (picker.hidden && browsePanel === null && !hasShelf()) showPicker('transport');
+  if (picker.hidden && browsePanel === null
+      && (!hasShelf() || root.getAttribute('data-idle') === '1')) showPicker('transport');
+  // Passive pointer movement begins one bounded reveal; it does not keep moving
+  // the deadline. Fire TV/Silk can emit pointermove forever while the remote is
+  // idle. Deliberate presses and recognised keys do extend the interaction.
+  if (chromeTimer !== null && !extend) return;
   if (chromeTimer !== null) clearTimeout(chromeTimer);
   chromeTimer = setTimeout(function () {
     root.className = root.className.replace(' show-chrome', '');
     if (picker.className.indexOf('mode-transport') >= 0) picker.hidden = true;
+    chromeTimer = null;
   }, CHROME_MS);
+}
+
+function revealChromeFromMovement(event) {
+  var x = event && typeof event.clientX === 'number' ? event.clientX : null;
+  var y = event && typeof event.clientY === 'number' ? event.clientY : null;
+  if (x === null || y === null) return;
+  var first = lastPassiveX === null || lastPassiveY === null;
+  var meaningful = !first
+    && Math.abs(x - lastPassiveX) + Math.abs(y - lastPassiveY) >= 6;
+  lastPassiveX = x;
+  lastPassiveY = y;
+  // Same-position and sub-six-pixel Silk noise is not human activity.
+  if (first || meaningful) revealChrome(false);
 }
 
 /** True while a panel is too freshly raised to be pressed by the touch that raised it. */
@@ -3595,7 +5507,7 @@ function onFacePress(event) {
   // Read this BEFORE revealing: revealChrome raises the transport bar itself, so
   // afterwards every press would look like a press with the chrome already up.
   var wasUp = !picker.hidden || browsePanel !== null;
-  revealChrome();
+  revealChrome(true);
 
   var target = event ? event.target : null;
   /**
@@ -3623,7 +5535,7 @@ function onFacePress(event) {
       && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
       && !inNode(target, shelfBrowse)
       && (memberVols === null || !inNode(target, memberVols))
-      && !inNode(target, groupDoor)
+      && !inNode(target, queueDoor) && !inNode(target, groupDoor)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
     lastZonePress = now;
@@ -3639,9 +5551,11 @@ function onFacePress(event) {
   lastZonePress = now;
 
   if (target !== null && inNode(target, homeMark)) return;   // it has its own job
+  if (target !== null && inNode(target, queueDoor)) return;  // and owns Queue
   if (target !== null && inNode(target, groupDoor)) return;  // and so has this
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
-  if (target !== null && (inNode(target, zoneName) || inNode(target, chipHost))) { openPanel('rooms'); return; }
+  if (target !== null && inNode(target, zoneName)) { openPanel('rooms'); return; }
+  if (target !== null && inNode(target, chipHost)) { openPanel('rooms'); return; }
 
   /**
    * ⚖️ THE WORDS ARE A TARGET, NOT A BAND.
@@ -3756,10 +5670,12 @@ foot.setAttribute('title', 'press to seek');
   });
 });
 dialHit.setAttribute('title', 'press the ring to seek');
-// Movement reveals the affordances but opens nothing.
-['mousemove', 'pointermove', 'touchstart'].forEach(function (kind) {
-  document.addEventListener(kind, revealChrome, true);
+// A movement episode reveals once; continuous Fire TV pointer noise cannot hold
+// the page open. Touch is deliberate and receives the full interaction timeout.
+['mousemove', 'pointermove'].forEach(function (kind) {
+  document.addEventListener(kind, revealChromeFromMovement, true);
 });
+document.addEventListener('touchstart', function () { revealChrome(true); }, true);
 
 /* ---------- keep the screen awake ---------- */
 function keepAwake() {
@@ -3769,7 +5685,14 @@ function keepAwake() {
   var timeout = new Promise(function (resolve) { setTimeout(resolve, 5000); });
   Promise.race([request, timeout]).catch(function () { /* not available: the drill covers device setup */ });
 }
-document.addEventListener('visibilitychange', function () { if (!document.hidden) keepAwake(); });
+document.addEventListener('visibilitychange', function () {
+  if (document.hidden) return;
+  keepAwake();
+  // TV engines throttle background timers. Reconcile against Date.now() when the
+  // page becomes visible so a passed deadline lands immediately and honestly.
+  var snapshot = store === undefined ? null : store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
+});
 keepAwake();
 
 root.setAttribute('data-face', current);

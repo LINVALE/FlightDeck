@@ -62,12 +62,31 @@ vendor table.
 - [ ] **Side by side with `http://<core>:9330/display` on the same TV for one album.** Record what each does,
       honestly, including anything Roon's does better.
 - [ ] Track change → paint within 500 ms including artwork.
+- [ ] On a finite track change **between different covers**, the selected cover effect completes once while
+      Dial/Orbit/Rondo progress rings stay still. A same-album successor, live radio, reconnect and reduced-motion
+      client change directly with no theatrical transition.
+- [ ] Open **Face**, choose Dial + Flip and Canvas + Dissolve, switch between them, and confirm each face restores its
+      own choice. Reload the page and repeat: the two choices remain independent.
+- [ ] With **Tasteful Random**, record at least **8 eligible different-cover changes** and the actual sequence. Flip,
+      Slide, Dissolve and Lift may recur later, but the same effect never occurs twice in succession. Watch Fire TV
+      specifically for a seam, stale half-frame, shadow pulse or ring movement.
+- [ ] Choose **None** and witness **3 eligible different-cover changes**: each must swap directly. Then restore
+      Tasteful Random.
 - [ ] **Peter sees the artist backdrop with a real Roon banner** and rules on the gradient-map strength — in
       the mock the presence was faint enough that the no-artist fallback looked nearly identical.
 - [ ] Pick a face on the TV with the remote's arrow keys, pull the power → it returns as chosen.
 - [ ] Internet radio (no artist image) falls back to the blurred cover without a flash of empty.
 - [ ] 2 h unattended with the screensaver enabled. **Expect this to FAIL on LG in the bare browser** — record
       it as a failure, not a caveat.
+
+### Header and Queue
+
+- [ ] Reveal chrome on every face: read **Face | Queue · current room · Group** in that order; changing Face
+      leaves Queue/Room/Group in place.
+- [ ] Open each of the four doors by touch/mouse and remote. Its panel begins below that exact trigger, remains
+      inside the 5% safe area, and stays anchored after resize/orientation change.
+- [ ] Queue shows the current item as a non-selectable `now` row. Selecting one later row starts exactly that
+      item once; changing the room or queue first must refuse with “reopen Queue”, not act on the stale row.
 
 ### Per-device setup (this is device setup, not code — say so)
 
@@ -84,7 +103,7 @@ vendor table.
 - [ ] 48 h on the TV, then a **7-day soak with heap and RSS numbers recorded** — flat, not "looked fine".
 - [ ] 6 screens live at once.
 
-## Browse (library, genres, search) — blocked on one click
+## Browse (library, genres, search)
 
 Browse is **built into the extension but off by default** (`FLIGHTDECK_BROWSE=1`).
 
@@ -98,6 +117,7 @@ The sequence when you want it:
 1. `FLIGHTDECK_BROWSE=1 npm start`
 2. Roon → Settings → Extensions → **enable FlightDeck again** (it will be waiting).
 3. The log prints `browse service: granted`.
-4. `node scripts/capture-browse.ts` records the REAL shapes into `test/fixtures/browse-capture.json` —
-   the search hierarchy's live behaviour has never been captured anywhere, and two plausible ways to submit
-   a query are both still guesses. Build on the capture, not on the guess.
+4. The live shapes are recorded in `test/fixtures/browse/` and `docs/browse-shapes.md`.
+   Direct `input` on the `search` hierarchy is proven. A separate read-only receipt on 2026-08-31
+   also proved that Roon returned connected-catalogue albums for an artist with zero local-library albums.
+   FlightDeck always searches through Roon; it never connects to TIDAL or Qobuz directly.

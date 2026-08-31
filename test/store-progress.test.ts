@@ -13,7 +13,8 @@ function clock(ms: number): void { Date.now = () => T0 + ms; }
 function playing(revision = 3, seekAtMs = 0) {
   return {
     generation: 'g', revision, at: at(seekAtMs),
-    zones: [{ id: 'z', name: 'Study', state: 'playing', nowPlaying: { title: 'La mer', lengthSec: 200, seek: { positionSec: 40, at: at(seekAtMs) } } }],
+    zones: [{ id: 'z', name: 'Study', state: 'playing', allowed: { seek: true },
+      nowPlaying: { title: 'La mer', lengthSec: 200, seek: { positionSec: 40, at: at(seekAtMs) } } }],
   };
 }
 function frame(revision: number, ms: number, positionSec: number) {
@@ -55,4 +56,41 @@ test('frames from another revision or generation are ignored; the value is clamp
   store.acceptSeek(frame(2, 0, 99)); assert.equal(store.positionFor('z'), 40, 'stale revision');
   store.acceptSeek({ generation: 'other', revision: 3, at: at(0), zones: [{ id: 'z', positionSec: 99 }] }); assert.equal(store.positionFor('z'), 40, 'other generation');
   store.acceptSeek(frame(3, 0, 260)); assert.equal(store.positionFor('z'), 200, 'never past the end of the track');
+});
+
+test('radio and loading counters are never presented as finite progress', () => {
+  const store = createStore(); clock(0); store.accept(playing(), true);
+  store.acceptSeek(frame(3, 1000, 96));
+  assert.equal(store.positionFor('z'), 96);
+
+  const radio = {
+    ...playing(4, 2000),
+    zones: [{
+      ...playing(4, 2000).zones[0],
+      allowed: { seek: false },
+      nowPlaying: { title: 'BBC Radio 3', lengthSec: null, seek: { positionSec: 118, at: at(2000) } },
+    }],
+  };
+  store.accept(radio, true);
+  assert.equal(store.positionFor('z'), null, 'a live stream counter is not a timeline');
+  store.acceptSeek(frame(4, 3000, 119));
+  assert.equal(store.positionFor('z'), null, 'same-revision radio frames remain suppressed');
+
+  const loading = {
+    ...playing(5, 4000),
+    zones: [{ ...playing(5, 4000).zones[0], state: 'loading' }],
+  };
+  store.accept(loading, true);
+  assert.equal(store.positionFor('z'), null, 'loading never flashes stale finite metadata');
+});
+
+test('a late authoritative fetch cannot regress one process, but a new generation can', () => {
+  const store = createStore(); clock(0);
+  store.accept(playing(8), true);
+  store.accept({ ...playing(5), zones: [{ ...playing(5).zones[0], nowPlaying: { ...playing(5).zones[0].nowPlaying, title: 'stale' } }] }, true);
+  assert.equal(store.snapshot().revision, 8);
+  assert.equal(store.snapshot().zones[0].nowPlaying.title, 'La mer');
+
+  store.accept({ ...playing(2), generation: 'new-process' }, true);
+  assert.equal(store.snapshot().revision, 2, 'a process restart resets the revision domain');
 });

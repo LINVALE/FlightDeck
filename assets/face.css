@@ -38,6 +38,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 
 .head { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; }
+.headtools {
+  margin-left: auto;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-flex: 0 1 auto; flex: 0 1 auto;
+  min-width: 0;
+}
 .zone { font-size: 1.35vw; letter-spacing: 0.26em; text-transform: uppercase; color: var(--accent); }
 .chip {
   display: inline-block; margin-left: 0.7vw; padding: 0.15em 0.6em;
@@ -124,15 +131,15 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-view="artist"] .line3,
 .face:not([data-size])[data-view="artist"] .time { text-shadow: 0 .12em .5em rgba(0,0,0,.85); }
 .face:not([data-size])[data-view="artist"] .lamps b { box-shadow: 0 0 .35em rgba(0,0,0,.9); }
-.face:not([data-size])[data-view="artist"] .lamps b:not(.lit):not(.head) { background: rgba(242,238,230,.34); }
+.face:not([data-size])[data-view="artist"] .lamps b:not(.lit):not(.lamp-head) { background: rgba(242,238,230,.34); }
 /* The accent is lifted from the ALBUM, and a photograph is not the album: a red
    accent on a blue stage shot is unreadable. Over a photo the zone name goes
    neutral and lets the artist carry the colour. */
 .face:not([data-size])[data-view="artist"] .zone { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
 .face:not([data-size])[data-view="artist"] .status { color: var(--bone); text-shadow: 0 .12em .5em rgba(0,0,0,.9); }
-.face:not([data-size])[data-view="artist"] .cover { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
+.face:not([data-size])[data-view="artist"] .sleeveside { box-shadow: 0 .6vw 2.4vw rgba(0,0,0,.85), 0 0 0 1px rgba(242,238,230,.16); }
 .face:not([data-size])[data-view="artist"] .lamps b.lit { background: var(--bone); }
-.face:not([data-size])[data-view="artist"] .lamps b.head { background: #fff; }
+.face:not([data-size])[data-view="artist"] .lamps b.lamp-head { background: #fff; }
 .artistname { display: inline-block; }
 
 @media (max-width: 900px) {
@@ -158,12 +165,105 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   min-width: 0; width: 100%;
 }
 
-/* ---- THE COVER IS SACRED ----
-   It is only ever RESIZED. No opacity, no filter, no transform, no mask, no
-   overlay, and nothing is ever drawn on top of it. State lives in the copy. */
-.cover { width: 26vw; height: 26vw; background: #14161a; box-shadow: 0 2vw 5vw rgba(0,0,0,0.62);
-  cursor: pointer; -webkit-transition: width .45s ease, height .45s ease; transition: width .45s ease, height .45s ease; }
+/* ---- THE OUTER COVER IS SACRED ----
+   This geometry and its progress ring are only ever resized: never opacity,
+   filter, transform or mask. Only the two replaceable .sleeveside paint planes
+   inside it may perform one of the named cover transitions below. */
+.cover { width: 26vw; height: 26vw;
+  cursor: pointer; -webkit-transition: width .45s ease, height .45s ease; transition: width .45s ease, height .45s ease;
+  -webkit-perspective: 1200px; perspective: 1200px; }
 .cover img { display: block; width: 100%; height: 100%; }
+
+/* One physical sleeve card. The outer cover keeps every face's geometry and the
+   Dial/Orbit/Rondo ring; only these inner planes move. Both sides own the opaque
+   paper and shadow, so no stationary square remains when Flip is edge-on. */
+.sleeveflip {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
+  -webkit-transform-style: preserve-3d; transform-style: preserve-3d;
+  -webkit-transform: rotateY(0deg); transform: rotateY(0deg);
+  pointer-events: none;
+}
+.album-return {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 2;
+  display: block; pointer-events: none;
+}
+.face[data-view="artist"] .album-return { pointer-events: auto; cursor: pointer; }
+.sleeveside {
+  position: absolute; top: 0; right: 0; bottom: 0; left: 0;
+  overflow: hidden; background: #14161a;
+  box-shadow: 0 2vw 5vw rgba(0,0,0,.62);
+  -webkit-backface-visibility: hidden; backface-visibility: hidden;
+}
+.sleevefront { -webkit-transform: rotateY(0deg); transform: rotateY(0deg); }
+.sleeveback { -webkit-transform: rotateY(180deg); transform: rotateY(180deg); }
+
+/* Flip turns the one two-sided card. The explicit front baseline matters on the
+   old Fire TV compositor: without it the front sometimes survives edge-on. */
+.sleeveflip.effect-flip {
+  -webkit-transition: -webkit-transform .76s cubic-bezier(.42,0,.2,1);
+  transition: transform .76s cubic-bezier(.42,0,.2,1);
+}
+.sleeveflip.effect-flip.is-flipped {
+  -webkit-transform: rotateY(-180deg); transform: rotateY(-180deg);
+}
+
+/* Slide is clipped to the sleeve. The cover deliberately remains overflow:
+   visible because the progress ring circumscribes it and must never be clipped. */
+.sleeveflip.effect-slide { overflow: hidden; }
+.sleeveflip.effect-slide .sleeveside {
+  -webkit-transition: -webkit-transform .76s cubic-bezier(.42,0,.2,1);
+  transition: transform .76s cubic-bezier(.42,0,.2,1);
+}
+.sleeveflip.effect-slide .sleevefront {
+  -webkit-transform: translateX(0); transform: translateX(0);
+}
+.sleeveflip.effect-slide .sleeveback {
+  -webkit-transform: translateX(100%); transform: translateX(100%);
+}
+.sleeveflip.effect-slide.is-flipped .sleevefront {
+  -webkit-transform: translateX(-100%); transform: translateX(-100%);
+}
+.sleeveflip.effect-slide.is-flipped .sleeveback {
+  -webkit-transform: translateX(0); transform: translateX(0);
+}
+
+/* Dissolve and Lift are narrow exceptions to the sacred-cover rule: only the
+   two replaceable inner paint planes fade. The .cover and its ring never do. */
+.sleeveflip.effect-dissolve .sleeveside {
+  -webkit-transform: rotateY(0deg); transform: rotateY(0deg);
+}
+.sleeveflip.effect-dissolve .sleeveback {
+  opacity: 0; box-shadow: none;
+  -webkit-transition: opacity .68s ease; transition: opacity .68s ease;
+}
+.sleeveflip.effect-dissolve.is-flipped .sleeveback { opacity: 1; }
+
+.sleeveflip.effect-lift { overflow: hidden; }
+.sleeveflip.effect-lift .sleeveside {
+  -webkit-transform: rotateY(0deg); transform: rotateY(0deg);
+}
+.sleeveflip.effect-lift .sleeveback {
+  opacity: 0; -webkit-transform: translateY(18%) scale(.94); transform: translateY(18%) scale(.94);
+  -webkit-transition: opacity .68s ease, -webkit-transform .76s cubic-bezier(.2,.7,.2,1);
+  transition: opacity .68s ease, transform .76s cubic-bezier(.2,.7,.2,1);
+}
+.sleeveflip.effect-lift.is-flipped .sleeveback {
+  opacity: 1; -webkit-transform: translateY(0) scale(1); transform: translateY(0) scale(1);
+}
+
+.sleeveflip.is-resetting {
+  -webkit-transition: none; transition: none;
+  -webkit-transform: rotateY(0deg); transform: rotateY(0deg);
+}
+.sleeveflip.is-resetting .sleeveside {
+  -webkit-transition: none; transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sleeveflip.effect-flip { -webkit-transition: none; transition: none; }
+  .sleeveflip.effect-slide .sleeveside { -webkit-transition: none; transition: none; }
+  .sleeveflip.effect-dissolve .sleeveback { -webkit-transition: none; transition: none; }
+  .sleeveflip.effect-lift .sleeveback { -webkit-transition: none; transition: none; }
+}
 
 .copy { text-align: center; margin-top: 2.4vh; width: 100%; }
 .title {
@@ -185,20 +285,35 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .lamps b { display: block; width: 0.42vw; height: 100%; background: rgba(242,238,230,0.17); border-radius: 0.2vw; }
 .lamps b.lit { background: var(--accent); }
-.lamps b.head { background: #ffd98a; box-shadow: 0 0 1vw rgba(255,217,138,0.75); }
+.lamps b.lamp-head { background: #ffd98a; box-shadow: 0 0 1vw rgba(255,217,138,0.75); }
 
-.face:not([data-size])[data-state="paused"] .lamps b.head { -webkit-animation: none; animation: none; }
+.face:not([data-size])[data-state="paused"] .lamps b.lamp-head { -webkit-animation: none; animation: none; }
 .face:not([data-size])[data-state="paused"] .status { color: var(--accent); }
 .face:not([data-size])[data-state="loading"] .lamps b { -webkit-animation: sweep 1.4s linear infinite; animation: sweep 1.4s linear infinite; }
 @-webkit-keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
 @keyframes sweep { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
-.face:not([data-size])[data-state="stopped"] .copy, .face:not([data-size])[data-state="stopped"] .foot { display: none; }
 .face:not([data-size])[data-state="away"] .copy { opacity: 0.55; }   /* the COPY, never the cover */
 .face:not([data-size])[data-state="connecting"] .copy { opacity: 0.4; }
 
 .idle { text-align: center; }
 .idle .clock { font-family: Georgia, serif; font-size: 9vw; color: rgba(242,238,230,0.5); }
 .idle .note { font-size: 1.3vw; color: #5f5a53; letter-spacing: 0.2em; text-transform: uppercase; }
+
+/* Once the selected inactivity delay expires, the clock is a face of its own,
+   not a layer over the sleeve. Before that deadline paused/stopped music remains
+   visible; data-idle, not data-state, is the sole composition switch. */
+.face[data-idle="1"] .np,
+.face[data-idle="1"] .foot { display: none !important; }
+.face[data-idle="1"] .bg canvas,
+.face[data-idle="1"] .artistlayer { opacity: 0 !important; }
+.face[data-idle="1"] .idle {
+  width: 100%;
+  display: -webkit-flex !important; display: flex !important;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  -webkit-transition: -webkit-transform 1.2s ease; transition: transform 1.2s ease;
+}
 
 /* ---- the face picker: raised by any key/tap, auto-hides, never over the cover ---- */
 /* The strip sits ABOVE the progress row, never on it: at 3vh it landed on the
@@ -215,6 +330,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* Space between targets matters as much as their size: adjacent buttons with no
    gap are one stray pixel away from the wrong choice. */
 .picker > * { margin: 0.4vh 0.45vw; }
+/* Rows already fill the panel and its padding supplies the inset. Side margins
+   on a 100%-wide row create a small horizontal scrollbar on TV WebViews. */
+.picker > .row { margin-left: 0; margin-right: 0; }
 .picker[hidden] { display: none; }
 .picker span { font-size: 1.05vw; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ash); }
 .picker span.now { color: var(--accent); }
@@ -381,10 +499,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * RHEOS gets it from a conic-gradient, which Chromium 63 does not have; two SVG
  * strokes of equal width give the same reading and run everywhere.
  */
-.face:not([data-size])[data-ring] .dial-track { stroke: rgba(242,238,230,.12); stroke-width: 2.2; }
-/* Thicker than the track by a clear margin: at equal weight the played arc read as
-   part of the same circle and the progress could not be seen at a glance. */
-.face:not([data-size])[data-ring] .dial-arc { stroke: var(--accent-rich, var(--accent)); stroke-width: 2.2; }
+.face:not([data-size])[data-ring] .dial-track {
+  stroke: url(#dial-ring-track); stroke-width: 2.2; stroke-opacity: .2;
+}
+.face:not([data-size])[data-ring] .dial-arc {
+  stroke: url(#dial-ring-progress); stroke-width: 2.2;
+}
+.face:not([data-size])[data-ring] .dial-ring-depth { stop-color: #18191c; }
+.face:not([data-size])[data-ring] .dial-ring-tone { stop-color: var(--accent-rich, var(--accent)); }
+.face:not([data-size])[data-ring] .dial-ring-light { stop-color: #fffef8; }
+.face:not([data-size])[data-ring] .dial-track-depth { stop-color: #111317; }
+.face:not([data-size])[data-ring] .dial-track-tone { stop-color: #77736d; }
+.face:not([data-size])[data-ring] .dial-track-light { stop-color: #eee7dc; }
 .face:not([data-size])[data-ring] .dial-fill {
   fill: var(--disc, #14161a); opacity: .55;
 }
@@ -412,9 +538,13 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .face:not([data-size])[data-ringlayout] .dial-remain,
 .face:not([data-size])[data-ringlayout] .dial-ends { display: none; }
+.face:not([data-size])[data-ring] .dial-pearl-glint { stop-color: #fffef8; }
+.face:not([data-size])[data-ring] .dial-pearl-light { stop-color: #eee7dc; }
+.face:not([data-size])[data-ring] .dial-pearl-tone { stop-color: var(--accent-rich, var(--accent)); }
+.face:not([data-size])[data-ring] .dial-pearl-depth { stop-color: #18191c; }
 .face:not([data-size])[data-ring] .dial-bead {
-  fill: var(--accent-rich, var(--accent));
-  stroke: rgba(10,11,13,.75); stroke-width: 1;
+  fill: url(#dial-pearl);
+  stroke: none;
 }
 .face:not([data-size])[data-ringlayout] .dial-remain {
   font-size: 1.5vw; color: var(--accent); font-variant-numeric: tabular-nums;
@@ -494,8 +624,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 /* The ring overhangs the sleeve by ~10vh at this size and that overhang is out
    of flow, so the inset from each edge is paid here or the circle runs off. */
-.face:not([data-size])[data-ringlayout][data-view="artist"] .np,
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .np {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .np {
   position: relative;
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-align-items: center; align-items: center;
@@ -506,12 +635,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   padding: 0;
   margin-left: 13vh; margin-bottom: 14vh;
 }
-.face:not([data-size])[data-ringlayout][data-view="artist"] .cover,
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .cover {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .cover {
   width: 26vh; height: 26vh; margin: 0;
 }
-.face:not([data-size])[data-ringlayout][data-view="artist"] .copy,
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .copy {
+.face:not([data-size])[data-ringlayout][data-view="artist"] .copy {
   position: absolute; top: 100%; left: -12%; right: -12%;
   width: auto; max-width: none; margin: 0; padding-top: 1.1vh; text-align: center;
 }
@@ -525,18 +652,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-ringlayout][data-view="artist"] .line3 { font-size: .95vw; margin-top: .3vh; max-width: 72%; }
 /* the photograph already names the artist */
 .face:not([data-size])[data-ringlayout][data-view="artist"] .line2 { display: none; }
-/* With the chrome up the bar is centred on the foot of the frame and lands
-   exactly where the ring's bottom segment — the title — otherwise sits. Lifting
-   the ring at full size cleared the bar but carried it up near the badges
-   (Peter, 08-26: "too close to the top — reduce size if needed"). So it SHRINKS
-   as it lifts, and sits just above the bar with the frame open above it. */
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .np { margin-bottom: 31vh; }
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .cover { width: 18vh; height: 18vh; }
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .title { font-size: 1.25vw; }
-/* Two lines will not fit a 47px lens at this size — the album spilled past the
-   arc — and the title is the half that has to survive. */
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .line3 { display: none; }
-.face:not([data-size]).show-chrome[data-ringlayout][data-view="artist"] .copy { padding-top: .7vh; }
+/* Revealing chrome must not create a second artist-view composition. The ring,
+   sleeve and return target remain at this one low-left geometry while the
+   viewport-owned controls appear around them. */
 
 
 @media (max-width: 900px) {
@@ -729,7 +847,12 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* The strip is two rows by structure, not by whatever happens to fit: row one is
    what the screen IS (its face), row two is what it DOES. Row two is where browse,
    grouping, genre and recently-played will live. */
-.picker { -webkit-flex-direction: column; flex-direction: column; }
+.picker {
+  -webkit-flex-direction: column; flex-direction: column;
+  /* Rows may wrap internally; the panel itself must remain one column. If this
+     wraps, the final group-action row is laid out just outside the picker. */
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+}
 .picker .row {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
@@ -738,7 +861,32 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   width: 100%;
 }
 .picker .row-faces { margin-bottom: .5vh; }
+.picker .move-guide {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 100%; box-sizing: border-box; margin: 0 0 .8vh 0;
+  color: var(--ash); font-size: .9vw; line-height: 1.45;
+  letter-spacing: .06em; text-align: center;
+}
 .picker .row-actions { border-top: 1px solid rgba(242,238,230,.12); padding-top: 1vh; margin-top: .4vh; }
+/* The grouping verbs occupy their own final row. Explicit flex sizing keeps the
+   row from collapsing behind a scrollable membership column on narrow TV faces. */
+.picker.mode-group > .group-actions {
+  display: -webkit-flex; display: flex;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  min-height: 4.2vw; width: 100%;
+}
+.picker.mode-group > .group-actions > .opt.act {
+  -webkit-flex: 1 1 0; flex: 1 1 0;
+  min-width: 0; margin: 0 .25vw; padding-left: .7vw; padding-right: .7vw; color: var(--bone);
+  -webkit-justify-content: center; justify-content: center;
+  font-size: .92vw; letter-spacing: .08em;
+}
+.picker.mode-group > .group-actions > .opt.act .glyph {
+  width: .95vw; height: .95vw; margin-right: .35vw;
+}
+.picker.mode-group > .group-actions > .opt.act.off { color: var(--smoke); }
 /* the faces must fit one line at 1080p: five buttons plus their gaps */
 .picker .row-faces span.opt { min-width: 6.2vw; padding: 1.05vh 1.1vw; }
 
@@ -763,21 +911,93 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   font-size: 1.5vw; letter-spacing: .16em; text-transform: uppercase; color: var(--accent);
 }
 .browse-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: .6vh 0; }
+/* Silk/Fire OS supplies an Android overlay scrollbar: a fading hairline whose
+   native drag behaviour is good but whose target is not. An explicit legacy
+   WebKit width makes it a persistent classic rail while retaining native drag
+   capture even when the pointer wanders beyond the panel. Scoped to Silk so the
+   Samsung and desktop Chrome renderings the house already likes do not move. */
+.face[data-silk] .browse-list::-webkit-scrollbar { width: 16px; }
+.face[data-silk] .browse-list::-webkit-scrollbar-track {
+  background: rgba(242,238,230,.07); border-radius: 8px;
+}
+.face[data-silk] .browse-list::-webkit-scrollbar-thumb {
+  min-height: 48px; border: 3px solid #0a0b0d; border-radius: 8px;
+  background: rgba(242,238,230,.52); background-clip: padding-box;
+}
 .browse-row {
   display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
   padding: 1.3vh 1.4vw; min-height: 3.2vw; cursor: pointer;
   border-bottom: 1px solid rgba(242,238,230,.07);
 }
 .browse-row:hover { background: rgba(242,238,230,.10); }
+.browse [role="button"]:focus,
+.browse [role="button"].browse-key-current {
+  outline: 2px solid var(--bone); outline-offset: -3px;
+  background: rgba(242,238,230,.12);
+}
 .browse-name { -webkit-flex: 1 1 auto; flex: 1 1 auto; font-size: 1.5vw; color: var(--bone); }
 .browse-sub { -webkit-flex: 0 0 auto; flex: 0 0 auto; font-size: 1.1vw; color: var(--ash); margin-left: 1vw; }
 .browse-empty { padding: 3vh 1.4vw; text-align: center; color: var(--ash); font-size: 1.3vw; }
 .picker .row-browse { border-top: 1px solid rgba(242,238,230,.12); padding-top: 1vh; margin-top: .4vh; }
 .picker span.browse-entry { min-width: 6vw; padding: 1.05vh 1.1vw; color: var(--bone); }
+
+/* Search is a doorway, not a ninth orphan chip. It occupies its own deliberate
+   first row; the eight browse destinations retain their balanced grid below. */
+.face:not([data-size]) .shelf-browse .row-browse > .browse-entry.browse-search-entry,
+.face[data-size] .shelf-browse .row-browse > .browse-entry.browse-search-entry,
+.picker .row-browse > .browse-entry.browse-search-entry {
+  -webkit-flex: 0 0 100%; flex: 0 0 100%;
+  width: 100%; max-width: 100%; margin-right: 0;
+}
+
+/* A native text field delegates letters and the on-screen keyboard to the
+   platform. Search results then return to the same large Browse-row grammar. */
+.browse-search-list {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+.browse-search { width: 100%; padding: 3vh 2vw; }
+.browse-search-copy {
+  margin-bottom: 1.6vh; color: var(--ash);
+  font-size: 1.15vw; line-height: 1.5; text-align: left;
+}
+.browse-search-form {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: stretch; align-items: stretch;
+  width: 100%;
+}
+.browse-search-input {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  min-width: 0; min-height: 3.8vw; padding: .8vh 1vw;
+  border: 1px solid rgba(242,238,230,.34); border-radius: 6px;
+  background: rgba(242,238,230,.08); color: var(--bone);
+  font: inherit; font-size: 1.35vw;
+}
+.browse-search-input:focus {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+  border-color: var(--accent); background: rgba(242,238,230,.12);
+}
+.browse-search-go {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  min-width: 9vw; min-height: 3.8vw; margin-left: .8vw; padding: 0 1vw;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,.34); border-radius: 6px;
+  color: var(--bone); font-size: 1.05vw; letter-spacing: .12em;
+  text-transform: uppercase; cursor: pointer;
+}
+.browse-search-go .glyph { width: 1.3vw; height: 1.3vw; margin-right: .55vw; }
 @media (max-width: 900px) {
   .browse { width: 92vw; }
   .browse-name { font-size: 4vw; } .browse-sub { font-size: 3vw; }
   .browse-row { min-height: 12vw; }
+  .browse-search { padding: 3vh 4vw; }
+  .browse-search-copy { font-size: 3vw; }
+  .browse-search-input { min-height: 12vw; padding: 1vh 2vw; font-size: 3.6vw; }
+  .browse-search-go { min-width: 24vw; min-height: 12vw; margin-left: 2vw; font-size: 2.8vw; }
+  .browse-search-go .glyph { width: 4vw; height: 4vw; margin-right: 1.2vw; }
 }
 
 /* Browse thumbnails. The box is always present, even when empty: names that shift
@@ -806,7 +1026,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    At rest the face is only the music. Movement fades in the two affordances that
    say "there is something here": the room, and a cog. Neither opens anything —
    opening is a press, and where you press decides what appears. */
-.zone, .status, .cog { -webkit-transition: opacity .35s ease; transition: opacity .35s ease; }
+.zone, .status, .cog, .queuedoor { -webkit-transition: opacity .35s ease; transition: opacity .35s ease; }
 .face .cog { opacity: 0; }
 .face:not([data-size]).show-chrome .cog { opacity: .85; }
 .cog {
@@ -842,14 +1062,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size]).show-chrome .artistname { opacity: .9; }
 
 /* Both indicators read as pressable, and are sized to be pressed. */
-.face .zone, .face .cog {
+.face .zone, .face .cog, .face .queuedoor {
   cursor: pointer; padding: .55vh .9vw; border-radius: 6px;
   border: 1px solid transparent; min-height: 2.6vw;
   display: -webkit-inline-flex; display: inline-flex;
   -webkit-align-items: center; align-items: center;
 }
-.face:not([data-size]).show-chrome .zone, .face:not([data-size]).show-chrome .cog { border-color: rgba(242,238,230,.22); }
-.face .zone:hover, .face .cog:hover { background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5); }
+.face:not([data-size]).show-chrome .zone,
+.face:not([data-size]).show-chrome .cog,
+.face:not([data-size]).show-chrome .queuedoor { border-color: rgba(242,238,230,.22); }
+.face .zone:hover, .face .cog:hover, .face .queuedoor:hover {
+  background: rgba(242,238,230,.12); border-color: rgba(242,238,230,.5);
+}
 .cog {
   margin-left: 1.2vw; font-size: 1.15vw; letter-spacing: .2em; text-transform: uppercase;
   color: var(--ash); min-width: 6vw; -webkit-justify-content: center; justify-content: center;
@@ -1002,11 +1226,17 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    `.status + .cog` beat a bare `.cog`, then `.status ~ .cog` beat both — and the
    status is an empty hidden sibling, so it matched anyway. There is now exactly
    ONE rule for it, and nothing to lose to. */
-.cog { margin-left: auto !important; }
-.face .zone, .face .cog {
+.headtools { margin-left: auto !important; }
+.headmark .cog { margin-left: 0 !important; }
+.face .zone, .face .cog, .face .queuedoor {
   font-size: 1.15vw; letter-spacing: .2em; text-transform: uppercase;
 }
 .face .cog { color: var(--ash); min-width: 0; }
+.face .queuedoor {
+  color: var(--ash); opacity: 0; min-width: 0;
+  -webkit-justify-content: center; justify-content: center;
+}
+.face:not([data-size]).show-chrome .queuedoor { opacity: .9; }
 
 /* Volume: [mute] [quiet] [======scale======] [loud]. The flanking speakers read as
    the ends of the scale they bracket. */
@@ -1034,9 +1264,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .picker.mode-transport .controls { -webkit-flex-wrap: wrap; flex-wrap: wrap; }
 }
 
-/* The mute button carries its own filled frame. That — not an always-crossed
-   glyph — is what keeps it from reading as a third volume control beside the two
-   steppers, and it leaves the symbol free to say the STATE instead. */
+/* The mute button carries its own filled frame and a dedicated slashed speaker:
+   the mark names the action, while the accent-filled frame says it is engaged. */
 .vol-speaker { background: rgba(242,238,230,.10); border-color: rgba(242,238,230,.34); }
 .vol-speaker:hover { background: rgba(242,238,230,.2); }
 .vol-speaker.is-muted {
@@ -1054,11 +1283,11 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 /* ARTIST VIEW: the sleeve is a reference, not the subject. At full size it masked
    the person it is meant to accompany — it now stands the same height as the three
    lines beside it. */
-.face:not([data-size])[data-view="artist"] .cover,
-.face:not([data-size]).show-chrome[data-view="artist"] .cover { width: 8.4vw; height: 8.4vw; }
+.face:not([data-size]):not([data-ringlayout])[data-view="artist"] .cover,
+.face:not([data-size]):not([data-ringlayout]).show-chrome[data-view="artist"] .cover { width: 8.4vw; height: 8.4vw; }
 @media (max-width: 900px) {
-  .face:not([data-size])[data-view="artist"] .cover,
-  .face:not([data-size]).show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
+  .face:not([data-size]):not([data-ringlayout])[data-view="artist"] .cover,
+  .face:not([data-size]):not([data-ringlayout]).show-chrome[data-view="artist"] .cover { width: 24vw; height: 24vw; }
   .picker.mode-transport .vol-scale { min-width: 44vw; }
 }
 
@@ -1228,17 +1457,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
  * #837e83 with --accent-rich DARKER still, so a thin arc in it vanished into the
  * track completely. Thickness had been hiding that.
  *
- * The album's colour stays on the bead, which is where it can be seen. The bead
- * shrinks too — it marks the position, it was never meant to be the loudest thing
- * on the face — which also keeps the ring's widest point clear of the words.
+ * The album's colour remains in the pearl's shaded middle, where it can be seen.
+ * The pearl shrinks too — it marks the position, it was never meant to be the
+ * loudest thing on the face — which also keeps the ring's widest point clear of
+ * the words.
  */
 /* ⚖️ The arc takes DIAL's colour (Peter, 08-28: "the progress circle shading
    should match the more subtle dial shading") — the warm accent at .78, not a
    bright cream line. Only the WEIGHT stays Orbit's: its circle is bigger, so the
    same stroke would read heavier. Retired rather than out-specified. */
 .face:not([data-size])[data-layout="orbit"] .dial-arc { stroke-width: 1.8; }
-.face:not([data-size])[data-layout="orbit"] .dial-track { stroke-width: 1.3; stroke: rgba(242,238,230,.09); }
-.face:not([data-size])[data-layout="orbit"] .dial-bead { r: 2.1; stroke-width: .7; }
+.face:not([data-size])[data-layout="orbit"] .dial-track { stroke-width: 1.3; }
+.face:not([data-size])[data-layout="orbit"] .dial-bead { r: 2.1; }
 
 @media (max-width: 900px) {
   .face:not([data-size])[data-layout="orbit"] .np { -webkit-flex-direction: column; flex-direction: column; padding-left: 0; }
@@ -1293,10 +1523,94 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 @media (max-width: 900px) { .np-mark { width: 1.9vw; height: 1.9vw; margin-right: .9vw; } }
 .picker span.opt.roomcard { padding: .55vh .8vw .55vh .55vw; }
 .picker span.opt.is-playing .roomcard-name { color: var(--bone); }
+.roomcard-action {
+  pointer-events: none;
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  margin-left: auto; padding-left: .8vw;
+  font-size: .66vw; letter-spacing: .08em; color: var(--accent);
+  white-space: nowrap;
+}
+.roomcard-action .glyph { width: .9vw; height: .9vw; margin-right: .3vw; }
+/* The chain is a HANDLE, not another hidden action. The card still owns click
+   and Enter; grabbing only this mark begins the optional drag shortcut. */
+.roomcard-drag {
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  margin-left: .65vw; padding: .45vh .45vw;
+  border-left: 1px solid rgba(242,238,230,.14);
+  color: var(--dim); cursor: move; touch-action: none;
+  -webkit-user-select: none; user-select: none;
+}
+.roomcard-drag:hover { color: var(--accent); }
+.roomcard-drag .glyph { width: 1vw; height: 1vw; }
+/* The short lesson is a popover on the picker edge, not a permanent row taking
+   space from the rooms. It also carries live drop guidance while dragging. */
+.picker.mode-group { overflow: visible; }
+.group-help {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  z-index: 12; margin: 0; pointer-events: none;
+}
+.picker span.group-help-tab {
+  position: absolute; right: 0; top: 0; pointer-events: auto;
+  -webkit-transform: translate(48%, -48%); transform: translate(48%, -48%);
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  width: 2.2vw; height: 2.2vw; min-width: 40px; min-height: 40px;
+  padding: 0; border: 1px solid rgba(242,238,230,.35); border-radius: 50%;
+  background: #0a0b0d; color: var(--bone);
+  font-size: 1vw; line-height: 1; letter-spacing: 0; cursor: help;
+  box-shadow: 0 .4vw 1.2vw rgba(0,0,0,.55);
+}
+.group-help .room-drag-guide {
+  position: absolute; right: 0; top: auto; bottom: 0;
+  width: 24vw; min-width: 260px; max-width: 80vw;
+  padding: .8vh .9vw; border: 1px solid rgba(242,238,230,.28); border-radius: 6px;
+  background: #0a0b0d; color: var(--ash);
+  font-size: .72vw; line-height: 1.45; letter-spacing: .07em;
+  text-transform: uppercase; text-align: left; white-space: normal;
+  box-shadow: 0 .8vw 2vw rgba(0,0,0,.72);
+  visibility: hidden; opacity: 0; pointer-events: none;
+  -webkit-transition: opacity .15s ease; transition: opacity .15s ease;
+}
+.group-help.is-open .room-drag-guide,
+.picker.is-room-dragging .group-help .room-drag-guide { visibility: visible; opacity: 1; }
+.picker.is-room-dragging .group-help-tab { color: var(--accent); border-color: var(--accent); }
+.picker.is-room-dragging .roomcard.drop-ok { border-color: rgba(216,162,74,.65); }
+.picker.is-room-dragging .roomcard.drop-hot {
+  border-color: var(--accent); background: rgba(216,162,74,.16);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.picker.is-room-dragging .roomcard.drop-no { opacity: .35; }
+.picker.is-room-dragging .roomcard.drag-source { border-style: dashed; opacity: .65; }
+.room-drag-ghost {
+  position: fixed; left: 0; top: 0; z-index: 90; pointer-events: none;
+  padding: .65vh 1vw; background: #0a0b0d;
+  border: 1px solid var(--accent); border-radius: 6px;
+  color: var(--bone); font-size: 1vw; letter-spacing: .08em;
+  text-transform: uppercase; white-space: nowrap;
+  box-shadow: 0 .6vw 1.8vw rgba(0,0,0,.65);
+}
+.picker [role="button"]:focus {
+  outline: 2px solid var(--bone); outline-offset: 2px;
+}
+.picker [role="button"].picker-key-current {
+  outline: 2px solid var(--bone); outline-offset: 2px;
+  box-shadow: inset 0 0 0 1px rgba(242,238,230,.28);
+}
 @media (max-width: 900px) {
   .roomcard-art { width: 8vw; height: 8vw; }
   .picker span.opt .roomcard-name { font-size: 2.6vw; }
   .picker span.opt .roomcard-np { font-size: 2.1vw; max-width: 30vw; }
+  .roomcard-action { font-size: 2.2vw; padding-left: 2vw; }
+  .roomcard-action .glyph, .roomcard-drag .glyph { width: 3vw; height: 3vw; }
+  .roomcard-drag { margin-left: 1.5vw; padding: 1vh 1.5vw; }
+  .picker .move-guide { font-size: 2.2vw; padding: 0 1.5vw; }
+  .group-help .room-drag-guide { width: 76vw; min-width: 0; padding: 1.2vh 1.5vw; font-size: 2vw; }
+  .picker span.group-help-tab { width: 5.5vw; height: 5.5vw; font-size: 2.5vw; }
+  .room-drag-ghost { font-size: 3vw; }
 }
 
 /* ══ GROUP VOLUME ═════════════════════════════════════════════════════════════
@@ -1329,20 +1643,16 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 
 /* ══ NOTHING IS PAINTED OVER THE ARTWORK ══════════════════════════════════════
-   The ring is a child of the sleeve so that it follows it everywhere — but it
-   comes AFTER the image in paint order, and its disc fill is a full circle at
-   0.55, so the sleeve was being viewed through it (Peter, 08-28: "the image in
-   orbit and dial appears to have a mask over it causing it to appear dim").
-   The cover is sacred: it is never dimmed, and now nothing sits on top of it
-   either. Only the stacking order changes — no opacity, filter or mask is
-   involved, on the sleeve or on any ancestor. */
-.face:not([data-size])[data-ring] .cover img { position: relative; z-index: 1; }
+   The ring and turning card are siblings. The card owns z-index 1 and the ring
+   stays behind it; its full-circle disc fill can therefore never dim the art.
+   Do not promote the nested images themselves: that extra stacking context can
+   make older Fire TV/WebKit compositors keep painting the old front while the
+   card turns. No opacity, filter or mask touches the sacred cover. */
 .face:not([data-size])[data-ring] .dialbox { z-index: 0; }
 
 /* And the ring itself is softened — full-strength accent at this weight read as
    harsh, especially on a sleeve that samples to a bright colour. */
 .face:not([data-size])[data-ring] .dial-arc { stroke-opacity: .78; }
-.face:not([data-size])[data-ring] .dial-track { stroke: rgba(242,238,230,.09); }
 
 /* The way back to the house: it appears with the rest of the chrome and is
    invisible at rest, like everything else the Face offers. */
@@ -1513,6 +1823,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .groupdoor:hover { background: rgba(242,238,230,.12); border-color: var(--bone); color: var(--bone); }
 .groupdoor .glyph { width: 1.1vw; height: 1.1vw; }
 .groupdoor[hidden] { display: none; }
+.face:not([data-size]).show-chrome .groupdoor.unavailable {
+  opacity: .35; cursor: default; color: var(--smoke); border-color: rgba(242,238,230,.14);
+}
+.groupdoor.unavailable:hover { background: none; color: var(--smoke); border-color: rgba(242,238,230,.14); }
 @media (max-width: 900px) {
   .groupdoor { font-size: 3vw; padding: 1vh 2.2vw; }
   .groupdoor .glyph { width: 3.4vw; height: 3.4vw; }
@@ -1527,28 +1841,34 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   /* the picker wraps by default, which turned the column into two columns */
   -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
   -webkit-align-items: stretch; align-items: stretch;
-  max-height: 60vh; overflow-y: auto;
+  /* A generic row centres its contents. In an overflowing column that put the
+     first cards above scrollTop=0, where they could never be reached. The active
+     group is deliberately first, so it was exactly the card that disappeared. */
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+  min-height: 0; max-height: 60vh; overflow-y: auto;
 }
 .picker .row-column > .opt { margin: .25vh 0; -webkit-justify-content: flex-start; justify-content: flex-start; }
 .picker .row-column > .opt.now { border-color: var(--accent); }
 
-/* THE LEAD: the anchor of the group, not a checkbox. Marked by a rule down its
-   own edge rather than by the accent every chosen room already wears, so it
-   reads as "this is the one it hangs off" and not as "one more selection". */
+/* Ordered selection: 1 is the lead whose queue Roon preserves. The room/group
+   currently on this display is identified without silently pre-selecting it. */
+.picker .row-column > .opt.is-current { box-shadow: inset 3px 0 0 rgba(242,238,230,.45); }
 .picker .row-column > .opt.is-lead {
   border-color: var(--accent);
   border-left-width: 3px;
   border-left-color: var(--accent);
 }
 .picker .row-column > .opt.is-lead .roomcard-name { color: var(--bone); font-weight: 600; }
-/* Alone in its zone there is nothing to release, so it is a label, not a button. */
-.picker .row-column > .opt.is-lead.solo { cursor: default; }
-
-/* A ROOM ON ITS WAY OUT: still listed where it has always been, so the eye can
-   find it again to change its mind, but struck through the name and dimmed —
-   the group it is leaving has not left yet. */
-.picker .row-column > .opt.leaving { opacity: .5; border-color: rgba(242,238,230,.10); }
-.picker .row-column > .opt.leaving .roomcard-name { text-decoration: line-through; }
+.group-pick-order {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  min-width: 1.8vw; min-height: 1.8vw; margin-left: auto;
+  border: 1px solid rgba(242,238,230,.22); border-radius: 50%;
+  color: var(--accent); font-size: .82vw; letter-spacing: 0;
+}
+.group-pick-order:empty { border-color: transparent; }
 
 .picker .row-column > .opt { -webkit-flex: 0 0 auto; flex: 0 0 auto; }
 
@@ -1576,27 +1896,6 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   margin: 0; min-height: 0;
   -webkit-justify-content: flex-start; justify-content: flex-start;
 }
-
-/* The settling line: it says what is about to happen and shows the pause
-   running out, so an action that fires on its own is never a surprise. */
-.picker .opt.settling {
-  position: relative; overflow: hidden;
-  color: var(--accent); border-color: rgba(216,162,74,.4); opacity: 1;
-}
-.picker .opt.settling::after {
-  content: ""; position: absolute; left: 0; bottom: 0; height: 2px;
-  background: var(--accent); width: 0;
-  -webkit-animation: settle 2.6s linear forwards; animation: settle 2.6s linear forwards;
-}
-@-webkit-keyframes settle { from { width: 0; } to { width: 100%; } }
-@keyframes settle { from { width: 0; } to { width: 100%; } }
-/* nothing is pending before a room is chosen, so nothing should be counting */
-.picker .opt.settling.off { color: var(--smoke); border-color: rgba(242,238,230,.12); }
-.picker .opt.settling.off::after { display: none; }
-@media (prefers-reduced-motion: reduce) {
-  .picker .opt.settling::after { -webkit-animation: none; animation: none; width: 100%; opacity: .35; }
-}
-
 
 /* ══ THE FADERS MARK ══════════════════════════════════════════════════════════
    The disclosure that opens a level for every room in the group. A square the
@@ -1631,12 +1930,14 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    wrapper's and the button sits 13px inside the transport's last control */
 .face:not([data-size])[data-shelf] .shelf-volume .rooms-toggle .ctl { margin: 0; }
 
-/* ⚖️ THE TWO CHROME ROWS ARE THE SAME WIDTH — the artwork's — so they read as one
-   block with two edges rather than two rows that happen to start together. The
-   transport spreads across it the way the wall card's does, ending exactly where
-   the volume ends. */
-.face:not([data-size])[data-layout="classic"] .shelf .controls { width: 34vw; }
-.face:not([data-size])[data-layout="classic"] .shelf-browse .row-browse { width: 34vw; }
+/* ⚖️ THE METADATA IS THE RAIL. Chrome and picker live inside `.copy`, so
+   their useful width is the whole words column rather than a second, shorter
+   34vw measurement. The right edge now ends exactly where the metadata ends. */
+.face:not([data-size])[data-layout="classic"] .shelf .controls { width: 100%; }
+.face:not([data-size])[data-layout="classic"] .shelf-browse .row-browse { width: 100%; }
+.face:not([data-size])[data-layout="classic"] .foot {
+  width: 52.6vw; margin-left: auto; margin-right: 0;
+}
 .face:not([data-size])[data-shelf] .shelf-transport .controls {
   -webkit-justify-content: space-between; justify-content: space-between;
 }
@@ -1655,17 +1956,20 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-shelf] .shelf .controls > *:first-child { margin-left: 0; }
 .face:not([data-size])[data-shelf] .shelf .controls > *:last-child { margin-right: 0; }
 
-/* PLAY, subtly emphasised: a touch wider and taller than its neighbours with a
-   little more light behind it, centres still on the one line. */
+/* THE THREE TRANSPORT MARKS HAVE ROOM TO BREATHE. Previous and next are wider
+   than the queue settings which bracket them; Play/Pause is wider again. This
+   consumes the empty gaps instead of leaving three small islands in the row. */
+.ctl.is-skip { min-width: 5.8vw; }
 .ctl.is-play {
-  min-width: 5.4vw; min-height: 3.9vw;
+  min-width: 6.8vw; min-height: 3.9vw;
   background: rgba(242,238,230,.09);
   border-color: rgba(242,238,230,.4);
 }
 .ctl.is-play .glyph { width: 1.7vw; height: 1.7vw; }
 .ctl.is-play:hover { background: rgba(242,238,230,.18); border-color: rgba(242,238,230,.62); }
 @media (orientation: portrait) {
-  .ctl.is-play { min-width: 15vw; min-height: 12vw; }
+  .ctl.is-skip { min-width: 15vw; }
+  .ctl.is-play { min-width: 17vw; min-height: 12vw; }
   .ctl.is-play .glyph { width: 5.4vw; height: 5.4vw; }
 }
 
@@ -1744,6 +2048,50 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   width: auto; max-height: none;
   -webkit-transform: none; transform: none;
   border-radius: 8px;
+}
+
+/* ══ RING-FACE BROWSE IS VIEWPORT-OWNED ═════════════════════════════════════
+   Dial and Orbit are built around the progress ring, so their artist/album
+   cascade belongs over that focal object rather than in a 21vw flank. It is a
+   generous rectangular window centred on the circle, not content squeezed into
+   the circle's narrowing chords. Rondo only borrows a small ring around a
+   Libretto sleeve and keeps the ordinary rail. */
+/* The window remains a generous central overlay without belonging to the ring.
+   `dialbox` lives inside the pressable cover and moves when artist view
+   comes forward; making it the DOM/positioning parent both flipped the artwork
+   on Search keyup and carried the panel off-screen. */
+body > .browse[data-over-ring="1"] {
+  position: fixed; left: 50%; top: 50%; width: 48vw; height: 72vh;
+  max-height: none;
+  -webkit-transform: translate(-50%, -50%); transform: translate(-50%, -50%);
+  border-radius: 10px; box-sizing: border-box;
+  background: #0a0b0d; overflow: hidden; z-index: 60;
+}
+body > .browse[data-over-ring="1"] .browse-head {
+  margin: 0; padding: 1.2vh 1.1vw;
+}
+body > .browse[data-over-ring="1"] .browse-body {
+  margin: 0; min-height: 0;
+}
+body > .browse[data-over-ring="1"] .browse-row {
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+  padding: 1vh 1vw; min-height: 0;
+}
+body > .browse[data-over-ring="1"] .browse-title { font-size: 1.35vw; }
+body > .browse[data-over-ring="1"] .browse-name {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; width: auto;
+  font-size: 1.25vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body > .browse[data-over-ring="1"] .browse-sub {
+  -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0; width: auto;
+  margin-left: .8vw; font-size: .9vw;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+body > .browse[data-over-ring="1"] .browse-thumb {
+  width: 2.8vw; height: 2.8vw; margin-right: .75vw;
+}
+@media (orientation: portrait) {
+  body > .browse[data-over-ring="1"] { width: 90vw; }
 }
 
 /* The rooms' own levels, in the same window rather than a popover over the
@@ -1842,11 +2190,10 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 
 
-/* ══ THE ROOM'S NAME, OVER WHAT IT NAMES ══════════════════════════════════════
-   ⚖️ Peter, 08-28. The mark is given the ARTWORK'S column: the way back on its
-   left edge, the name centred over the picture, the group door on its right.
-   Only on the faces that put the artwork in a column of its own — everywhere
-   else the head is a plain left-aligned line, as it was. */
+/* ══ THE FACE NAME, OVER WHAT IT CHANGES ══════════════════════════════════════
+   ⚖️ Peter, 08-31. Queue / room / group are one right-hand grammar. The face
+   chooser takes their former artwork mark, with the return arrow still on the
+   artwork's left edge. */
 .headmark {
   display: -webkit-flex; display: flex;
   -webkit-align-items: center; align-items: center;
@@ -1856,13 +2203,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
   -webkit-justify-content: center; justify-content: center;
 }
-/* The two flanks are PINNED to the artwork's edges and the name centres between
-   them — rather than the three sharing the space, which would slide the name
-   sideways by half the difference every time the group door appeared or the
-   count went from one digit to two. */
+/* The way back is pinned to the artwork edge; the face badge remains centred. */
 .face:not([data-size])[data-column] .headmark .homemark { position: absolute; left: 0; }
-.face:not([data-size])[data-column] .headmark .groupdoor { position: absolute; right: 0; }
-.face:not([data-size])[data-column] .headmark .zone {
+.face:not([data-size])[data-column] .headmark .cog {
   -webkit-flex: 0 1 auto; flex: 0 1 auto;
   text-align: center; min-width: 0; max-width: 62%;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1876,7 +2219,7 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-layout="orbit"] .headmark { width: 71.7vh; margin-left: 1.14vh; }
 @media (orientation: portrait) {
   .face:not([data-size])[data-column] .headmark { width: auto; }
-  .face:not([data-size])[data-column] .headmark .zone { text-align: left; }
+  .face:not([data-size])[data-column] .headmark .cog { text-align: left; }
 }
 
 /* ⚠️ The head is a full-width bar with content only at its two ends, and out of
@@ -1886,22 +2229,6 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-shelf] .head { pointer-events: none; }
 .face:not([data-size])[data-shelf] .head > * { pointer-events: auto; }
 
-/* ══ THE FACE NAME LINES UP WITH THE CONTROLS ═════════════════════════════════
-   ⚖️ Peter, 08-28: "move the face name to right justify in line with the control
-   chromes". It sat on the frame's own right edge, which is nothing the eye can
-   check it against; the chrome rows below it end on a real line, and now it ends
-   on the same one.
-
-   Derived rather than eyeballed, so it holds if the sleeve is ever resized:
-   Classic's rows are 34vw starting 37.4vw into the safe area (sleeve 34vw plus
-   its 3.4vw gap), so they end 18.6vw short of the safe area's 90vw. Orbit's fill
-   its column, which begins 86vh in and runs 44vw. */
-.face:not([data-size])[data-layout="classic"] .cog { margin-right: 18.6vw; }
-.face:not([data-size])[data-layout="orbit"] .cog { margin-right: calc(46vw - 86vh); }
-@media (orientation: portrait) {
-  .face:not([data-size])[data-shelf] .cog { margin-right: 0; }
-}
-
 /* The layout mark sits before the face's name, the same way the browse marks sit
    before theirs — one grammar for "this word is a thing you can press". */
 .cog .glyph { -webkit-flex: 0 0 auto; flex: 0 0 auto; width: 1.1vw; height: 1.1vw; margin-right: .5vw; }
@@ -1909,24 +2236,18 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .cog .glyph { width: 3.4vw; height: 3.4vw; }
 }
 
-/* ⚖️ EIGHT FACES SIT FOUR AND FOUR. The row was tuned for "five buttons plus
-   their gaps on one line at 1080p", and the sixth would have broken it wherever
-   it fell; two even lines of four is the same block the browse marks make, so
-   the picker reads as something from the same house rather than a list that
-   happened to wrap. */
-/* ⚠️ `space-between` throws a SHORT LAST ROW to the two edges — ten faces left
-   gallery and aurora at opposite ends of an empty line. Packed left with a real
-   gutter instead, so every row starts on the same column however many there are. */
+/* The face chooser is one right-hand vertical list on every face. Changing a
+   preview must not make the same choices turn into a different object. */
 .picker.mode-faces .row-faces {
   display: -webkit-flex; display: flex;
-  -webkit-flex-wrap: wrap; flex-wrap: wrap;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
   -webkit-justify-content: flex-start; justify-content: flex-start;
 }
 .picker.mode-faces .row-faces span.opt {
   -webkit-flex: 0 0 auto; flex: 0 0 auto;
-  width: 23.5%; min-width: 0; margin: 0 2% .6vh 0;
+  width: 100%; min-width: 0; margin: 0 0 .6vh 0;
 }
-.picker.mode-faces .row-faces span.opt:nth-child(4n) { margin-right: 0; }
 
 
 /* ══ EVERY PANEL IN ONE RECTANGLE ═════════════════════════════════════════════
@@ -1985,6 +2306,9 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
    faces has a different positioned ancestor to hang off — Dial's body is
    relative, Libretto's is not — so absolute placement landed them in three
    different places. The frame is the one thing they all share. */
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) {
+  --flightdeck-rail-width: 46vw;
+}
 .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf {
   position: fixed; left: 5vw; right: 5vw;
 }
@@ -1993,13 +2317,28 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-volume { bottom: 11.5vh; top: auto; }
 /* Centred, because the content they bracket is centred. */
 .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf { -webkit-justify-content: center; justify-content: center; }
-.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls { width: 46vw; }
-.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 46vw; margin: 0 auto; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls { width: var(--flightdeck-rail-width); }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse {
+  width: var(--flightdeck-rail-width); margin: 0 auto;
+}
 /* Libretto's words run the width of the frame, so its bands do too — a 46vw
    block under a 60vw title reads as a smaller, separate thing. */
-.face:not([data-size])[data-layout="libretto"] .shelf .controls { width: 62vw; }
-.face:not([data-size])[data-layout="libretto"] .shelf-browse .row-browse { width: 62vw; }
+.face:not([data-size])[data-layout="libretto"] { --flightdeck-rail-width: 62vw; }
+/* Linear progress and an open picker consume the same rail as the chrome. Ring
+   layouts keep their progress in the ring and never reach this foot rule. */
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .foot {
+  width: var(--flightdeck-rail-width); margin-left: auto; margin-right: auto;
+}
+/* The picker ends on the metadata safe edge rather than floating on the centre
+   line. In portrait the 90vw rail still fills the whole safe area. */
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .copy > .picker,
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .copy > .browse {
+  position: fixed; left: auto; right: 5vw; width: var(--flightdeck-rail-width);
+  top: 11vh; bottom: 9vh;
+  max-height: none; -webkit-transform: none; transform: none;
+}
 @media (orientation: portrait) {
+  .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) { --flightdeck-rail-width: 90vw; }
   .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf .controls,
   .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse { width: 100%; }
 }
@@ -2041,7 +2380,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-flank] .shelf-browse .row-browse { width: 100%; margin: 0; }
 /* Two to a line and four deep: the same block as everywhere else, stood up. */
 .face:not([data-size])[data-flank] .shelf-browse .browse-entry { width: 48.5%; margin: 0 3% .6vh 0; }
-.face:not([data-size])[data-flank] .shelf-browse .browse-entry:nth-child(2n) { margin-right: 0; }
+.face:not([data-size])[data-flank] .shelf-browse .browse-entry:nth-child(2n) { margin-right: 3%; }
+.face:not([data-size])[data-flank] .shelf-browse .browse-entry:nth-child(2n+1) { margin-right: 0; }
 @media (orientation: portrait) {
   .face:not([data-size])[data-flank] .shelf { position: fixed; width: auto; left: 5vw; right: 5vw; }
   .face:not([data-size])[data-flank] .shelf-browse { top: 11vh; bottom: auto; }
@@ -2111,6 +2451,65 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   width: 100%; margin: 0 0 .6vh 0;
 }
 
+/* ID ownership deliberately outranks every live layout selector above. The
+   selector remains this exact right-hand rail while applyFace() changes the
+   root's data-column/data-flank markers underneath it, in either direction. */
+#picker.picker.mode-faces.face-picker-vertical {
+  position: fixed; right: 5vw; left: auto; width: 21vw;
+  top: 11vh; bottom: 9vh; max-width: none;
+  -webkit-transform: none; transform: none;
+  -webkit-align-items: stretch; align-items: stretch;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+#picker.picker.mode-faces.face-picker-vertical .row-faces {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 100%;
+}
+
+/* Header menus are viewport-owned. They are positioned under their exact door
+   in JS because the room name is data and therefore has no fixed CSS width. */
+body > #picker.picker.header-menu {
+  z-index: 70;
+  padding: 1.2vh 1vw;
+  background: rgba(8,9,11,.985);
+  border-radius: 8px;
+  -webkit-align-items: stretch; align-items: stretch;
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+  -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+  overflow: hidden;
+}
+body > #picker.picker.header-menu > .row { width: 100%; }
+body > #picker.picker.header-menu.mode-group { overflow: visible; }
+body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; }
+
+/* A queue row uses the room-list grammar: sleeve, two lines, then one quiet
+   reading at the far edge. The current head is informative; later rows act. */
+.picker span.opt.queuecard {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  width: 100%; min-width: 0;
+  padding: .55vh .8vw .55vh .55vw;
+  text-align: left;
+}
+.picker span.opt.queuecard .roomcard-text { -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+.queue-duration, .queue-now {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-left: .8vw; color: var(--ash);
+  font-size: .72vw; letter-spacing: .08em;
+}
+.queue-now { color: var(--accent); }
+.picker span.opt.queue-message { width: 100%; cursor: default; }
+@media (max-width: 900px) {
+  .face .zone, .face .cog, .face .queuedoor { font-size: 2.8vw; }
+  .queue-duration, .queue-now { font-size: 2.2vw; margin-left: 1.5vw; }
+}
+@media (orientation: portrait) {
+  #picker.picker.mode-faces.face-picker-vertical {
+    left: 5vw; right: 5vw; width: auto;
+  }
+}
+
 /* ══ THE CASCADE IN A NARROW COLUMN ═══════════════════════════════════════════
    ⚖️ The list was drawn for a 62vw panel: title and artist side by side on one
    line. In a 21vw flank that put "(What's The Story) Morning Glory?" over five
@@ -2155,6 +2554,31 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 .face:not([data-size])[data-layout="presence"] .copy > .browse { width: 30vw; }
 .face:not([data-size])[data-layout="presence"] .member-vols { width: 30vw; }
 .face:not([data-size])[data-layout="presence"] .copy > .picker { width: 30vw; }
+/* Explicit room/group choices and three labelled verbs need more than Dial's
+   ordinary 21vw control flank. A group editor may overlap that empty margin. */
+.face:not([data-size])[data-flank] .copy > .picker.mode-group { width: 30vw; }
+/* The membership column owns scrolling in this mode. The outer window stays
+   visible so its help tab can genuinely straddle the edge instead of being
+   clipped by the earlier shelf-panel overflow rule. */
+.face:not([data-size])[data-shelf] .copy > .picker.mode-group { overflow: visible; }
+
+/* Some TV browsers expose 800, 960 or 1280 CSS pixels in landscape. This MUST
+   follow the flank rules above: otherwise their later width wins and squeezes
+   the explicit Group/Ungroup/Transfer row back into a 21vw column. */
+@media (max-width: 1400px) and (orientation: landscape) {
+  .face:not([data-size]) .copy > .picker.mode-group,
+  .face:not([data-size])[data-flank] .copy > .picker.mode-group {
+    position: fixed; left: 5vw; right: 5vw; top: 5vh; bottom: 5vh;
+    width: auto; max-width: none;
+    -webkit-transform: none; transform: none;
+  }
+  .face:not([data-size]) .picker.mode-group > .group-actions > .opt.act {
+    font-size: 2.2vw; letter-spacing: .08em;
+  }
+  .face:not([data-size]) .picker.mode-group > .group-actions > .opt.act .glyph {
+    width: 2.6vw; height: 2.6vw; margin-right: .8vw;
+  }
+}
 
 /* ══ THE ROOMS' LEVELS IN A FLANK ═════════════════════════════════════════════
    ⚖️ Peter, 08-29: "volume on the right, multi is a problem as it's too short —

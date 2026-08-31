@@ -1,5 +1,8 @@
+import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
+import { seekTargetSecond } from './seek-target.js';
+import { createSeekIntentGate } from './seek-intent.js';
 
 /**
  * The Phone. FlightDeck as a REMOTE rather than a display: the same snapshot,
@@ -368,6 +371,8 @@ function command(body) {
   }).catch(function () { flash('could not reach FlightDeck'); });
 }
 
+var seekIntent = createSeekIntentGate(function (body) { return command(body); });
+
 var toastTimer = null;
 function flash(message) {
   toast.textContent = message;
@@ -624,7 +629,8 @@ function endScrub(send) {
   root.removeAttribute('data-scrub');
   var zone = currentZone();
   if (send && zone !== null && zone.nowPlaying !== null && zone.nowPlaying.lengthSec) {
-    command({ action: 'seek', zone: zone.id, seconds: Math.round(fraction * zone.nowPlaying.lengthSec) });
+    var seconds = seekTargetSecond(fraction, zone.nowPlaying.lengthSec);
+    if (seconds !== null) seekIntent.seek({ zone: zone.id, seconds: seconds });
   }
   paint('seek');
 }

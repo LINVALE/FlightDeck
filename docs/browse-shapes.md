@@ -50,6 +50,40 @@ Works         (hint: list)
 Walking to a root Search item and using its `input_prompt` is **not** required.
 Calling `search` with no input returns a single item, `No Results`.
 
+## Search includes Roon's connected catalogue
+
+Captured read-only on Nucleus Titan on 2026-08-31, using a fresh private Browse
+session and no `zone_or_output_id`:
+
+```text
+Search: Chappell Roan
+  Chappell Roan     0 Albums
+  Albums            33 Results
+
+Albums
+  The Rise and Fall of a Midwest Princess
+    Play Album      action_list
+    1–14            action_list
+```
+
+The artist had zero local-library albums while Roon returned 33 album results and
+the complete 14-track action tree. That is the discriminating receipt that the
+generic `search` hierarchy includes the catalogue of the services connected in
+Roon. FlightDeck does not connect to TIDAL or Qobuz itself and there is no
+`include_services` flag: it gives the words to Roon and draws the tree Roon returns.
+The probe stopped before selecting any `action_list`, so it changed no playback.
+
+The Browse item contract has no provider/badge field. `title`, `subtitle`, art and
+the navigation hint are all Roon supplies here, so the honest UI label is the Roon
+catalogue rather than a guessed per-result service badge.
+
+The same distinction was reproduced with `Joe Jackson` on 2026-08-31: Roon's
+first shortcut said `1 Album`, while the separate Albums bucket contained 41
+results including *Night And Day*, *Body And Soul*, *Look Sharp!*, *Big World*,
+*I'm The Man* and the rest of the connected catalogue. FlightDeck therefore
+labels the shortcut `my library` and the result buckets `Roon catalogue`; neither
+the ordering nor the Roon item keys are changed.
+
 ## Hints seen in the wild
 
 - `list` — descend into it with `browse({ itemKey })`

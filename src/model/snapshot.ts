@@ -206,7 +206,7 @@ export interface SnapshotInput {
    * membership and unnamed.
    */
   readonly resolveIsland?: (members: readonly string[], membershipHash: string) => { id: string; label: string | null };
-  /** Every island ever seen, so a family that is entirely asleep still has a tab. */
+  /** Every island ever seen, so its stable identity and label survive every device sleeping. */
   readonly knownIslands?: readonly { id: string; label: string | null }[];
 }
 
@@ -243,10 +243,9 @@ function islandsFrom(
     seen.add(entry.id);
   }
   /**
-   * A family whose every device is asleep leaves Roon's zone list entirely, and
-   * with it the tab bar — which is how three families became one overnight and
-   * the Wall looked broken. A known island with nothing awake is still reported,
-   * with a count of zero, so the screen can say "asleep" rather than forget.
+   * A family whose every device is asleep leaves Roon's zone list entirely. It
+   * remains in the model with count zero so identity and its chosen label are not
+   * forgotten; display clients may omit it while it has no active destination.
    */
   for (const entry of known ?? []) {
     if (entry.id === '' || seen.has(entry.id)) continue;

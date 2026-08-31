@@ -126,7 +126,9 @@ Probed on a 2025 Samsung, 2026-08-25. The browser received keyCodes
 coloured buttons. The television's own navigation consumes them all before the
 page exists. A keyboard, however, reaches it perfectly.
 
-So the controls live on letters, which are free — a Face has no text input:
+So the controls live on letters whenever a text field does not have focus.
+**Search Roon** has a real search field; while it is selected, typing belongs
+only to that field and cannot trigger playback, artwork or volume shortcuts:
 
 | Key | Does |
 |-----|------|

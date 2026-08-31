@@ -1,3 +1,4 @@
+import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 
@@ -69,6 +70,11 @@ function islandsOf(snapshot) {
   var islands = snapshot.islands || [];
   for (var j = 0; j < islands.length; j += 1) {
     var names = (members[islands[j].id] || []).slice().sort();
+    // The registry deliberately remembers a device family after every member
+    // has gone to sleep. That history is useful to the server, but an empty Wall
+    // tab is not a destination. Stopped rooms still count; only families with no
+    // zone in the live snapshot are omitted.
+    if (names.length === 0) continue;
     serverIsland[islands[j].id] = islands[j].id;
     /**
      * An unnamed island is ROON N, not the first device in it. Roon does give us
@@ -614,12 +620,32 @@ function render(snapshot, kind) {
     }
 
     if (snapshot.zones.length === 0) {
+      activeIsland = '';
+      try { localStorage.removeItem('flightdeck.island'); } catch (e) { /* private window */ }
+      tabsKey = '';
+      drawTabs([], 0);
+      groupBtn.hidden = true;
+      root.style.setProperty('--accent', '#d8a24a');
       grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
       order = [];
       return;
     }
 
     var islands = islandsOf(snapshot);
+    // A saved tab can name a family whose last device is now asleep. Fall back
+    // to All before drawing so the selector never has an empty active choice.
+    if (activeIsland !== '') {
+      var activePresent = false;
+      for (var ii = 0; ii < islands.length; ii += 1) {
+        if (islands[ii].id === activeIsland) { activePresent = true; break; }
+      }
+      if (!activePresent) {
+        activeIsland = '';
+        try { localStorage.removeItem('flightdeck.island'); } catch (e) { /* private window */ }
+        tabsKey = '';
+        order = [];
+      }
+    }
     drawTabs(islands, snapshot.zones.length);
     // "group rooms" appears only when Roon would let SOMETHING be formed: an
     // island with two zones in it. One zone per island means nothing to join.

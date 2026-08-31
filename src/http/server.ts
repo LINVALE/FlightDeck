@@ -7,6 +7,8 @@ import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
 import { renderDocPage, renderFacePage, renderPhonePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { PullError, type PullOutcome, type PullRequest } from '../control/pull.ts';
+import { QUEUE_MAX_ITEMS, QueueError, type QueueSnapshot } from '../roon/queue.ts';
 
 export type TransportAction = 'play' | 'pause' | 'playpause' | 'next' | 'previous' | 'stop';
 
@@ -14,6 +16,15 @@ export interface BrowseAccess {
   available(): boolean;
   browse(call: Record<string, unknown>): Promise<unknown>;
   load(call: Record<string, unknown>): Promise<unknown>;
+}
+
+export interface PullAccess {
+  pull(request: PullRequest): Promise<PullOutcome>;
+}
+
+export interface QueueAccess {
+  snapshot(zoneId: string): QueueSnapshot | null;
+  playFromHere(zoneId: string, itemId: string, expectedRevision: number): Promise<void>;
 }
 
 export interface Commands {
@@ -24,7 +35,7 @@ export interface Commands {
   changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void>;
   groupOutputs(outputIds: readonly string[]): Promise<void>;
   ungroupOutputs(outputIds: readonly string[]): Promise<void>;
-  transferZone(fromZoneId: string, toZoneId: string): Promise<void>;
+  transferZone(fromZoneId: string, toZoneOrOutputId: string): Promise<void>;
   mute(outputId: string, muted: boolean): Promise<void>;
 }
 
@@ -69,7 +80,12 @@ export interface ServerDeps {
   readonly onIslandLabelled?: () => void;
   /** The screens on record, and what each is locked to. */
   readonly displays?: {
-    see(id: string, name: string, at: string): { id: string; name: string; outputId: string | null } | null;
+    see(id: string, name: string, at: string): {
+      id: string;
+      name: string;
+      outputId: string | null;
+      idleDelayMinutes: number;
+    } | null;
   };
   readonly hub: EventHub;
   readonly relay: ArtRelay;
@@ -81,6 +97,10 @@ export interface ServerDeps {
    * real Core — the route then answers 503 rather than pretending it worked.
    */
   readonly commands: Commands | null;
+  /** One shared transaction owner, passed to every HTTP listener. */
+  readonly pull?: PullAccess | null;
+  /** Bounded per-zone queue mirror. Optional so preview and older tests stay read-only. */
+  readonly queueAccess?: QueueAccess | null;
   /** Roon's Browse tree. Null when Browse was not requested at startup. */
   readonly browseAccess: BrowseAccess | null;
   readonly mdns: () => MdnsResponder | null;
@@ -100,6 +120,13 @@ const ASSET_TYPES = new Map<string, string>([
   ['.woff2', 'font/woff2'],
   ['.webmanifest', 'application/manifest+json'],
 ]);
+
+/** Greatest whole seek position strictly inside a finite Roon timeline. */
+function safeSeekSecond(seconds: number, length: number | null): number {
+  const rounded = Math.max(0, Math.round(seconds));
+  if (length === null) return rounded;
+  return Math.min(rounded, Math.max(0, Math.ceil(length) - 1));
+}
 
 /**
  * `default-src 'none'` with nonces — the discipline that kept the RHEOS console
@@ -158,6 +185,23 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     const url = new URL(request.url ?? '/', 'http://localhost');
     const path = url.pathname;
     const ip = request.socket.remoteAddress ?? 'unknown';
+
+    /**
+     * Queue selection is a Core write. Its queue revision is deliberately
+     * separate from the structural snapshot revision: queue deltas do not
+     * republish the whole House Wall.
+     */
+    if (request.method === 'POST' && path === '/api/v1/queue') {
+      const origin = request.headers.origin;
+      if (typeof origin === 'string' && origin !== '') {
+        const host = request.headers.host ?? '';
+        let ok = false;
+        try { ok = new URL(origin).host === host; } catch { ok = false; }
+        if (!ok) { json(response, 403, { error: 'cross-origin queue selection refused' }); return; }
+      }
+      void handleQueueSelection(request, response, deps, log);
+      return;
+    }
 
     /**
      * THE ONLY WRITE ROUTE. Everything else FlightDeck does is read-only.
@@ -219,7 +263,11 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         const name = typeof body?.name === 'string' ? body.name : '';
         const record = registry.see(id, name, new Date().toISOString());
         json(response, record === null ? 400 : 200,
-          record === null ? { error: 'display not accepted' } : { output: record.outputId, name: record.name });
+          record === null ? { error: 'display not accepted' } : {
+            output: record.outputId,
+            name: record.name,
+            idleDelayMinutes: record.idleDelayMinutes,
+          });
       });
       return;
     }
@@ -254,6 +302,10 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const snapshot = deps.hub.snapshot();
       if (snapshot === null) json(response, 503, { error: 'no snapshot yet' });
       else json(response, 200, snapshot);
+      return;
+    }
+    if (path === '/api/v1/queue') {
+      handleQueueSnapshot(response, deps, url.searchParams.get('zone'));
       return;
     }
     if (path === '/api/v1/keyprobe') {
@@ -429,6 +481,119 @@ export async function listenWithLadder(
     }
   }
   throw lastError instanceof Error ? lastError : new Error('no port available');
+}
+
+function queueItemId(value: unknown): string | null {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+  }
+  if (typeof value !== 'string' || !/^[1-9]\d{0,15}$/.test(value)) return null;
+  const numeric = Number(value);
+  return Number.isSafeInteger(numeric) && String(numeric) === value ? value : null;
+}
+
+function queueText(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 400);
+}
+
+function handleQueueSnapshot(
+  response: ServerResponse, deps: ServerDeps, requestedZone: string | null,
+): void {
+  const zoneId = requestedZone ?? '';
+  if (zoneId === '') { json(response, 400, { error: 'zone required' }); return; }
+  const live = deps.hub.snapshot();
+  if (live === null) { json(response, 503, { error: 'no snapshot yet' }); return; }
+  if (!live.zones.some((zone) => zone.id === zoneId)) {
+    json(response, 404, { error: 'unknown zone' });
+    return;
+  }
+  const access = deps.queueAccess;
+  if (access === undefined || access === null) {
+    json(response, 503, { error: 'queue unavailable' });
+    return;
+  }
+
+  try {
+    const cached = access.snapshot(zoneId);
+    if (cached === null) { json(response, 503, { error: 'queue unavailable' }); return; }
+    const items = cached.items.slice(0, QUEUE_MAX_ITEMS).flatMap((item) => {
+      const id = queueItemId(item.qid);
+      if (id === null) return [];
+      const art = deps.relay.pathFor(item.imageKey, 'thumb');
+      return [{
+        id,
+        title: queueText(item.title),
+        artist: queueText(item.artist),
+        album: queueText(item.album),
+        lengthSec: typeof item.length === 'number' && Number.isFinite(item.length) && item.length >= 0
+          ? item.length : null,
+        art: art?.path ?? null,
+      }];
+    });
+    json(response, 200, {
+      generation: live.generation,
+      ready: cached.ready === true,
+      revision: cached.revision,
+      currentIndex: cached.ready && items.length > 0 ? 0 : null,
+      atLimit: cached.atLimit === true,
+      items,
+    });
+  } catch (error) {
+    replyQueueError(response, error);
+  }
+}
+
+async function handleQueueSelection(
+  request: IncomingMessage, response: ServerResponse, deps: ServerDeps, log: (message: string) => void,
+): Promise<void> {
+  const access = deps.queueAccess;
+  if (access === undefined || access === null) {
+    json(response, 503, { error: 'queue unavailable' });
+    return;
+  }
+  const body = await readJson(request);
+  if (body === null) { json(response, 400, { error: 'malformed body' }); return; }
+  const zoneId = typeof body.zone === 'string' ? body.zone : '';
+  const itemId = typeof body.itemId === 'string' ? body.itemId : '';
+  const generation = typeof body.generation === 'string' ? body.generation : '';
+  const queueRevision = typeof body.queueRevision === 'number' && Number.isInteger(body.queueRevision)
+    && body.queueRevision >= 0 ? body.queueRevision : -1;
+  if (zoneId === '' || itemId === '' || generation === '' || queueRevision < 0) {
+    json(response, 400, { error: 'zone, itemId, generation and queueRevision required' });
+    return;
+  }
+
+  const live = deps.hub.snapshot();
+  if (live === null) { json(response, 503, { error: 'no snapshot yet' }); return; }
+  if (generation !== live.generation) {
+    json(response, 409, { error: 'screen snapshot is stale — reopen Queue', code: 'stale' });
+    return;
+  }
+  const zone = live.zones.find((candidate) => candidate.id === zoneId);
+  if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+
+  try {
+    await access.playFromHere(zoneId, itemId, queueRevision);
+    log('queue play from ' + itemId + ' -> ' + zone.name);
+    json(response, 200, { ok: true });
+  } catch (error) {
+    replyQueueError(response, error);
+  }
+}
+
+function replyQueueError(response: ServerResponse, error: unknown): void {
+  const message = String(error instanceof Error ? error.message : error);
+  if (!(error instanceof QueueError)) { json(response, 502, { error: message }); return; }
+  let status: number;
+  switch (error.code) {
+    case 'invalid': status = 400; break;
+    case 'stale':
+    case 'current': status = 409; break;
+    case 'unavailable': status = 503; break;
+    case 'core-rejected': status = 502; break;
+  }
+  json(response, status, { error: message, code: error.code });
 }
 
 /**
@@ -639,16 +804,63 @@ async function handleControl(
 
     if (action === 'transfer') {
       const fromId = typeof body.zone === 'string' ? body.zone : '';
-      const toId = typeof body.to === 'string' ? body.to : '';
+      let destinationOutputId = typeof body.output === 'string' ? body.output : '';
+      const legacyDestinationZoneId = typeof body.to === 'string' ? body.to : '';
+      if (fromId === '' || (destinationOutputId === '' && legacyDestinationZoneId === '')) {
+        json(response, 400, { error: 'zone and output required' });
+        return;
+      }
       const snapshot = deps.hub.snapshot();
       const from = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === fromId);
-      const to = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === toId);
-      if (from === undefined || to === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      // A TV page can remain open across a FlightDeck restart. Faces served by
+      // the previous build sent `to: zoneId`; resolve that once at the boundary
+      // so those screens keep working while every newly loaded page sends the
+      // durable `output` directly.
+      if (destinationOutputId === '' && snapshot !== null) {
+        const legacy = snapshot.zones.find((zone) => zone.id === legacyDestinationZoneId);
+        destinationOutputId = legacy?.outputs[0]?.id ?? '';
+      }
+      const owners = snapshot === null ? [] : snapshot.zones.filter(
+        (zone) => zone.outputs.some((output) => output.id === destinationOutputId));
+      if (from === undefined) { json(response, 404, { error: 'unknown source zone' }); return; }
+      if (owners.length === 0) { json(response, 404, { error: 'unknown destination output' }); return; }
+      if (owners.length !== 1) { json(response, 409, { error: 'destination output is ambiguous' }); return; }
+      const to = owners[0];
       if (from.id === to.id) { json(response, 409, { error: 'that is where it is already playing' }); return; }
       if (from.nowPlaying === null) { json(response, 409, { error: 'there is nothing playing in ' + from.name }); return; }
-      await commands.transferZone(fromId, toId);
+      // An output survives Roon replacing either zone during transfer; a zone id
+      // does not. Resolve it only for validation/copy and send the durable target.
+      await commands.transferZone(fromId, destinationOutputId);
       log('transfer ' + from.name + ' -> ' + to.name);
       json(response, 200, { ok: true });
+      return;
+    }
+
+    /**
+     * PULL FROM moves a playing source onto this display's durable OUTPUT. The
+     * browser's generation/revision fence is mandatory: without it, a gesture
+     * made on an old room list could move the wrong queue after grouping changed.
+     * The coordinator owns transfer, observation and any one-shot Play.
+     */
+    if (action === 'pull') {
+      const pull = deps.pull;
+      if (pull === undefined || pull === null) {
+        json(response, 503, { error: 'pull unavailable' });
+        return;
+      }
+      const sourceZoneId = typeof body.from === 'string' ? body.from : '';
+      const destinationOutputId = typeof body.output === 'string' ? body.output : '';
+      const generation = typeof body.generation === 'string' ? body.generation : '';
+      const revision = typeof body.revision === 'number' && Number.isInteger(body.revision)
+        ? body.revision : -1;
+      if (sourceZoneId === '' || destinationOutputId === '' || generation === '' || revision < 0) {
+        json(response, 400, { error: 'from, output, generation and revision required' });
+        return;
+      }
+      const outcome = await pull.pull({ sourceZoneId, destinationOutputId, generation, revision });
+      log('pull ' + sourceZoneId + ' -> ' + destinationOutputId
+        + (outcome.playIssued ? ' (Play confirmed)' : ''));
+      json(response, 200, { ok: true, ...outcome });
       return;
     }
 
@@ -742,6 +954,33 @@ async function handleControl(
       return;
     }
 
+    /**
+     * GROUP MUTE is one zone-owned decision, not a burst assembled by a browser.
+     * Every output for which Roon exposes a volume object participates, including
+     * incremental controls that cannot be placed on the absolute group scale.
+     * A partly muted group is still sounding, so the next press mutes every member;
+     * only a wholly muted group turns the same action into unmute.
+     */
+    if (action === 'group-mute') {
+      const zoneId = typeof body.zone === 'string' ? body.zone : '';
+      if (zoneId === '') { json(response, 400, { error: 'zone required' }); return; }
+      const snapshot = deps.hub.snapshot();
+      const zone = snapshot === null ? undefined : snapshot.zones.find((z) => z.id === zoneId);
+      if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
+      if (zone.outputs.length < 2) { json(response, 409, { error: 'this zone is not a group' }); return; }
+
+      const mutable = zone.outputs.filter((o) => o.volume !== null);
+      if (mutable.length === 0) { json(response, 409, { error: 'no room here has mute control' }); return; }
+      const wanted = !mutable.every((o) => o.volume!.muted);
+
+      // Roon can lose same-zone control changes fired together. Preserve the
+      // zone's own order and wait for each acknowledgement before sending the next.
+      for (const output of mutable) await commands.mute(output.id, wanted);
+      log('group mute ' + zone.name + ' -> ' + (wanted ? 'muted' : 'unmuted'));
+      json(response, 200, { ok: true, muted: wanted });
+      return;
+    }
+
     if (action === 'seek') {
       const zoneId = typeof body.zone === 'string' ? body.zone : '';
       const seconds = typeof body.seconds === 'number' ? body.seconds : -1;
@@ -753,8 +992,12 @@ async function handleControl(
       if (!zone.allowed.seek) { json(response, 409, { error: 'seeking is not available here' }); return; }
       const length = zone.nowPlaying === null ? null : zone.nowPlaying.lengthSec;
       if (length !== null && seconds > length) { json(response, 400, { error: 'past the end of the track' }); return; }
-      await commands.seek(zoneId, seconds);
-      json(response, 200, { ok: true });
+      // Equality is not a playable position. Sending 211 for a 211-second track
+      // parked Roon on its hand-off boundary for ~25 seconds in the live receipt.
+      const target = safeSeekSecond(seconds, length);
+      await commands.seek(zoneId, target);
+      log('seek ' + String(target) + 's -> ' + zone.name);
+      json(response, 200, { ok: true, seconds: target, adjusted: target !== seconds });
       return;
     }
 
@@ -768,7 +1011,8 @@ async function handleControl(
       if (output.volume === null) { json(response, 409, { error: 'this output has no volume control' }); return; }
 
       if (action === 'mute') {
-        await commands.mute(outputId, body.muted === true);
+        if (typeof body.muted !== 'boolean') { json(response, 400, { error: 'muted boolean required' }); return; }
+        await commands.mute(outputId, body.muted);
         json(response, 200, { ok: true });
         return;
       }
@@ -796,8 +1040,21 @@ async function handleControl(
 
     json(response, 400, { error: 'unknown action' });
   } catch (error) {
-    json(response, 502, { error: String(error instanceof Error ? error.message : error) });
+    const message = String(error instanceof Error ? error.message : error);
+    if (error instanceof PullError) {
+      json(response, pullErrorStatus(error), { error: message, code: error.code });
+      return;
+    }
+    json(response, 502, { error: message });
   }
+}
+
+function pullErrorStatus(error: PullError): number {
+  if (error.code === 'source-not-found' || error.code === 'destination-not-found') return 404;
+  if (error.code === 'snapshot-unavailable' || error.code === 'closed') return 503;
+  if (error.code === 'timeout') return 504;
+  if (error.code === 'transfer-failed' || error.code === 'play-failed') return 502;
+  return 409;
 }
 
 /**

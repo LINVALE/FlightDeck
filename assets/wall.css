@@ -315,12 +315,13 @@ body { min-height: 100vh; }
    you can DO with the room along the bottom. */
 .grid { padding: 0 .3vw .3vw; }
 .grid > .tile {
+  --tile-frame: var(--line);
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: column; flex-direction: column;
   margin: .32vw;
   padding: .9vh 1vw;
   background: #131519;
-  border: 1px solid var(--line);
+  border: 1px solid var(--tile-frame);
   border-radius: 10px;
   overflow: hidden;
   /* STRETCH, not flex-start: a column whose items hug their content gave the
@@ -328,11 +329,11 @@ body { min-height: 100vh; }
   -webkit-align-items: stretch; align-items: stretch;
 }
 .grid > .tile.is-hero,
-.grid > .tile.is-live { border-color: var(--live); }
-.grid > .tile.is-paused { border-color: var(--pause); }
-.grid > .tile.is-idle { border-color: var(--line); }
-.grid > .tile.send-target { border-color: var(--accent); }
-.grid > .tile.send-source { border-color: var(--accent); background: #191b20; }
+.grid > .tile.is-live { --tile-frame: var(--live); }
+.grid > .tile.is-paused { --tile-frame: var(--pause); }
+.grid > .tile.is-idle { --tile-frame: var(--line); }
+.grid > .tile.send-target { --tile-frame: var(--accent); }
+.grid > .tile.send-source { --tile-frame: var(--accent); background: #191b20; }
 
 .tile-head {
   display: -webkit-flex; display: flex;
@@ -554,20 +555,23 @@ body { min-height: 100vh; }
 .grid > .tile.is-idle .tile-zone { color: var(--ash); }
 .grid > .tile .tile-fam { width: .5vw; height: .5vw; }
 
-/* ══ THE ROOM WEARS A BAR ═════════════════════════════════════════════════════
-   Peter, 08-28: "put the room name in a bar, dark letters on light."
-   Reversed out of a solid bone bar, the room is the one thing on a wall of
-   twelve you can find without reading anything else — and it separates the room
-   (who) from the music (what) far harder than weight alone did.
-
-   A room that has never played wears a quiet bar instead of a bright one, so the
-   playing rooms still come forward. */
-.grid > .tile .tile-zone {
-  -webkit-align-self: flex-start; align-self: flex-start;
-  background: var(--bone, #e8e3d8);
-  color: #0a0b0d;
+/* ══ ROOM AND LAST-SEEN SHARE THE FRAME ═══════════════════════════════════════
+   The name was a small pale pill inside a coloured card, which made it look like
+   a detached button. One header strip now carries both room identity and time,
+   using the exact colour of the card outline so the two read as one frame. */
+.grid > .tile .tile-head {
+  margin: -.7vh -.8vw 0;
   padding: .28vh .55vw;
-  border-radius: 4px;
+  background: var(--tile-frame);
+  color: #0a0b0d;
+}
+.grid > .tile.is-idle .tile-head { color: var(--ash); }
+.grid > .tile .tile-zone {
+  -webkit-align-self: auto; align-self: auto;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
   font-weight: 700;
   letter-spacing: .08em;
   /* No max-width. It was 72%, and "Mog & Springer RHEOS" needed 291px of the
@@ -578,16 +582,14 @@ body { min-height: 100vh; }
   min-width: 0;
 }
 .grid > .tile.is-idle .tile-zone {
-  background: rgba(232,227,216,.16);
-  color: var(--ash);
+  background: transparent;
+  color: inherit;
 }
-/* the family dot sits inside the bar, so it needs the bar's ground behind it */
+/* The family dot sits inside the strip, so it needs the strip's ground behind it. */
 .grid > .tile .tile-fam { border: 1px solid rgba(10,11,13,.25); }
 
-/* ...and the other way round wherever the page is asked to be light. */
+/* The state colours remain the same in light mode; only the dot needs reversing. */
 @media (prefers-color-scheme: light) {
-  .grid > .tile .tile-zone { background: #1a1d22; color: #f2eee6; }
-  .grid > .tile.is-idle .tile-zone { background: rgba(26,29,34,.18); color: #4a4640; }
   .grid > .tile .tile-fam { border-color: rgba(242,238,230,.3); }
 }
 
@@ -596,6 +598,7 @@ body { min-height: 100vh; }
 .grid > .tile .tile-zone { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
 .grid > .tile .tile-stamp {
   -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0; padding-left: .4vw;
+  color: inherit; opacity: .72;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -609,7 +612,7 @@ body { min-height: 100vh; }
    every fixed row gives back a few pixels. The readings and the controls are the
    point of this view; the picture is the label on it. */
 .grid > .tile { padding: .7vh .8vw; }
-.grid > .tile .tile-zone { padding: .2vh .45vw; font-size: .82vw; }
+.grid > .tile .tile-zone { padding: 0; font-size: .82vw; }
 .grid > .tile .tile-art { width: 4vh; height: 4vh; margin-right: .55vw; }
 .tile-now { margin-top: .35vh; }
 .grid > .tile .tile-title { font-size: 1vw; }

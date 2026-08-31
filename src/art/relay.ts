@@ -10,7 +10,10 @@ import type { ArtRef } from '../model/types.ts';
 
 export const ART_PATH = '/api/v1/art/';
 export const ART_TOKEN = /^[A-Za-z0-9_-]{16,64}$/;
-const IMAGE_KEY = /^[A-Za-z0-9]{1,128}$/;
+// Captured Live Radio keys are currently 224 characters. Keep accepting only
+// Roon's opaque alphanumeric shape, but leave bounded room for larger keys so
+// browse artwork is not silently discarded before it reaches the relay.
+const IMAGE_KEY = /^[A-Za-z0-9]{1,512}$/;
 const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 /**

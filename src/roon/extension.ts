@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import type { SizeClass } from '../art/relay.ts';
 import { SIZES } from '../art/relay.ts';
+import { QueueGateway } from './queue.ts';
 
 const require = createRequire(import.meta.url);
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -64,6 +65,8 @@ export interface SettingsProvider {
  * Identity is Peter's ruling of 2026-08-25 and is not a knob.
  */
 export class FlightDeckExtension {
+  /** One Core-wide owner for the bounded forward queues of all current zones. */
+  readonly queue = new QueueGateway();
   private readonly options: ExtensionOptions;
   private readonly events: ExtensionEvents;
   private api: any = null;
@@ -110,7 +113,9 @@ export class FlightDeckExtension {
       set_persisted_state: (state: unknown): void => this.writeState(state),
 
       core_paired: (core: any): void => {
-        this.transport = core.services.RoonApiTransport;
+        const transport = core.services.RoonApiTransport;
+        this.transport = transport;
+        this.queue.reconcile(transport, []);
         this.browse = core.services.RoonApiBrowse ?? null;
         if (this.options.browse === true) log('browse service: ' + (this.browse === null ? 'NOT granted' : 'granted'));
         const rawHost = core.moo?.transport?.host ?? null;
@@ -122,17 +127,23 @@ export class FlightDeckExtension {
         log('core paired: ' + String(name) + ' @ ' + String(this.coreHost) + ':' + String(this.coreHttpPort));
         this.events.onCore(true, name);
 
-        this.transport.subscribe_zones((response: string, message: any): void => {
+        transport.subscribe_zones((response: string, message: any): void => {
+          // A late callback from an old Core must not rebuild its queues inside
+          // the replacement Core's epoch.
+          if (this.transport !== transport) return;
           if (response === 'Subscribed' && Array.isArray(message?.zones)) {
+            this.queue.reconcile(transport, message.zones as unknown[]);
             this.events.onZones(message.zones as unknown[]);
             return;
           }
           if (response === 'Changed') {
             // The library keeps its own merged map; read it back rather than
             // re-implementing the added/changed/removed/seek merge here.
-            const zones = this.transport._zones;
+            const zones = transport._zones;
             if (zones !== undefined && zones !== null) {
-              this.events.onZones(Object.values(zones) as unknown[]);
+              const current = Object.values(zones) as unknown[];
+              this.queue.reconcile(transport, current);
+              this.events.onZones(current);
             }
           }
         });
@@ -140,6 +151,7 @@ export class FlightDeckExtension {
 
       core_unpaired: (): void => {
         log('core unpaired');
+        this.queue.reconcile(null, []);
         this.transport = null;
         this.browse = null;
         this.coreHost = null;
@@ -260,9 +272,10 @@ export class FlightDeckExtension {
     return this.transportCall((transport, done) => transport.ungroup_outputs(outputIds.slice(), done));
   }
 
-  /** Move what is playing from one zone to another, queue and position intact. */
-  transferZone(fromZoneId: string, toZoneId: string): Promise<void> {
-    return this.transportCall((transport, done) => transport.transfer_zone(fromZoneId, toZoneId, done));
+  /** Ask Roon to move the source's current queue to a zone or durable output. */
+  transferZone(fromZoneId: string, toZoneOrOutputId: string): Promise<void> {
+    return this.transportCall(
+      (transport, done) => transport.transfer_zone(fromZoneId, toZoneOrOutputId, done));
   }
 
   private transportCall(run: (transport: any, done: (error: unknown) => void) => void): Promise<void> {
@@ -311,6 +324,7 @@ export class FlightDeckExtension {
   }
 
   stop(): void {
+    this.queue.dispose();
     try { this.api?.stop_discovery?.(); } catch { /* best effort */ }
   }
 

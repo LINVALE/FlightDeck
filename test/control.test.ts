@@ -7,7 +7,8 @@ import { EventHub } from '../src/http/events.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
 import { IslandRegistry } from '../src/labels/islands.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
-import { createFlightDeckServer, listenWithLadder, type Commands } from '../src/http/server.ts';
+import { createFlightDeckServer, listenWithLadder, type Commands, type PullAccess } from '../src/http/server.ts';
+import { PullError } from '../src/control/pull.ts';
 
 const ASSETS = resolve(fileURLToPath(import.meta.url), '..', '..', 'assets');
 const DOCS = resolve(fileURLToPath(import.meta.url), '..', '..', 'docs');
@@ -53,7 +54,11 @@ const ZONES: unknown[] = [
 
 interface Sent { kind: string; a: string; b: unknown; c?: unknown }
 
-async function serve(t: { after: (fn: () => void) => void }, zones: unknown[] = ZONES) {
+async function serve(
+  t: { after: (fn: () => void) => void },
+  zones: unknown[] = ZONES,
+  pull: PullAccess | null = null,
+) {
   const sent: Sent[] = [];
   const commands: Commands = {
     control: async (zone, action) => { sent.push({ kind: 'control', a: zone, b: action }); },
@@ -79,7 +84,7 @@ async function serve(t: { after: (fn: () => void) => void }, zones: unknown[] = 
   const relay = new ArtRelay({ artworkUrl: () => '' });
   const ledger = new RecentLedger(null);
   const server = createFlightDeckServer({
-    hub, relay, ledger, islands: registry, assetDir: ASSETS, docDir: DOCS, commands, browseAccess: null,
+    hub, relay, ledger, islands: registry, assetDir: ASSETS, docDir: DOCS, commands, pull, browseAccess: null,
     mdns: () => null, urls: () => [], port: () => 0,
   });
   const at = new Date().toISOString();
@@ -104,6 +109,80 @@ test('transport reaches Roon as a zone-level instruction', async (t) => {
   assert.equal(sent[1].b, 'next');
 });
 
+test('pull route forwards the exact browser fence and durable output to its sole owner', async (t) => {
+  const seen: unknown[] = [];
+  const pull: PullAccess = {
+    pull: async (request) => {
+      seen.push(request);
+      return { generation: request.generation, revision: 3, destinationZoneId: 'zNew', playIssued: true };
+    },
+  };
+  const { post, sent } = await serve(t, ZONES, pull);
+  const response = await post({ action: 'pull', from: 'zPlay', output: 'oPeer', generation: 'g', revision: 1 });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true, generation: 'g', revision: 3, destinationZoneId: 'zNew', playIssued: true,
+  });
+  assert.deepEqual(seen, [{
+    sourceZoneId: 'zPlay', destinationOutputId: 'oPeer', generation: 'g', revision: 1,
+  }]);
+  assert.equal(sent.length, 0, 'the route never assembles transfer or Play itself');
+});
+
+test('pull route requires its complete fence before invoking the coordinator', async (t) => {
+  let calls = 0;
+  const pull: PullAccess = {
+    pull: async () => {
+      calls += 1;
+      return { generation: 'g', revision: 2, destinationZoneId: 'z', playIssued: false };
+    },
+  };
+  const { post } = await serve(t, ZONES, pull);
+  const incomplete = [
+    { action: 'pull', output: 'oPeer', generation: 'g', revision: 1 },
+    { action: 'pull', from: 'zPlay', generation: 'g', revision: 1 },
+    { action: 'pull', from: 'zPlay', output: 'oPeer', revision: 1 },
+    { action: 'pull', from: 'zPlay', output: 'oPeer', generation: 'g', revision: '1' },
+  ];
+  for (const body of incomplete) assert.equal((await post(body)).status, 400);
+  assert.equal(calls, 0);
+});
+
+test('pull errors map stale, missing, unavailable, timeout and Core failures honestly', async (t) => {
+  const specimens = [
+    { code: 'stale-request', status: 409 },
+    { code: 'source-not-found', status: 404 },
+    { code: 'closed', status: 503 },
+    { code: 'timeout', status: 504 },
+    { code: 'transfer-failed', status: 502 },
+  ] as const;
+  for (const specimen of specimens) {
+    await t.test(specimen.code, async (inner) => {
+      const pull: PullAccess = {
+        pull: async () => { throw new PullError(specimen.code, 'deliberate ' + specimen.code); },
+      };
+      const { post } = await serve(inner, ZONES, pull);
+      const response = await post({
+        action: 'pull', from: 'zPlay', output: 'oPeer', generation: 'g', revision: 1,
+      });
+      assert.equal(response.status, specimen.status);
+      assert.deepEqual(await response.json(), {
+        error: 'deliberate ' + specimen.code,
+        code: specimen.code,
+      });
+    });
+  }
+});
+
+test('pull says unavailable when no shared coordinator was installed', async (t) => {
+  const { post, sent } = await serve(t);
+  const response = await post({
+    action: 'pull', from: 'zPlay', output: 'oPeer', generation: 'g', revision: 1,
+  });
+  assert.equal(response.status, 503);
+  assert.equal(sent.length, 0);
+});
+
 test("a control Roon says is not allowed is refused, not sent", async (t) => {
   const { post, sent } = await serve(t);
   // Roon reports next/previous unavailable on this zone; sending anyway would
@@ -126,6 +205,20 @@ test('an output with no volume control says so rather than failing quietly', asy
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'volume', output: 'oFixed', steps: 1 })).status, 409);
   assert.equal(sent.length, 0);
+});
+
+test('mute requires an explicit boolean and sends exactly the requested output state', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'mute', output: 'oStudy' })).status, 400);
+  assert.equal((await post({ action: 'mute', output: 'oStudy', muted: 'yes' })).status, 400);
+  assert.equal(sent.length, 0, 'an ambiguous mute request must never become unmute');
+
+  assert.equal((await post({ action: 'mute', output: 'oStudy', muted: true })).status, 200);
+  assert.equal((await post({ action: 'mute', output: 'oStudy', muted: false })).status, 200);
+  assert.deepEqual(sent, [
+    { kind: 'mute', a: 'oStudy', b: true },
+    { kind: 'mute', a: 'oStudy', b: false },
+  ]);
 });
 
 test('volume steps are bounded, so a stuck key cannot slam the room', async (t) => {
@@ -174,12 +267,17 @@ test('seek is refused where Roon says it is not allowed, and clamped to the trac
   const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'seek', zone: 'zPlay', seconds: 90 })).status, 200);
   assert.deepEqual(sent[0], { kind: 'seek', a: 'zPlay', b: 90 });
+  const terminal = await post({ action: 'seek', zone: 'zPlay', seconds: 200 });
+  assert.equal(terminal.status, 200);
+  assert.deepEqual(await terminal.json(), { ok: true, seconds: 199, adjusted: true });
+  assert.deepEqual(sent[1], { kind: 'seek', a: 'zPlay', b: 199 },
+    'the duration itself is a hand-off boundary, not a playable position');
   // zRadio reports is_seek_allowed false — a live stream cannot be scrubbed.
   assert.equal((await post({ action: 'seek', zone: 'zRadio', seconds: 10 })).status, 409);
   // past the end of a 200s track
   assert.equal((await post({ action: 'seek', zone: 'zPlay', seconds: 9999 })).status, 400);
   assert.equal((await post({ action: 'seek', zone: 'zPlay' })).status, 400);
-  assert.equal(sent.length, 1, 'only the valid seek reached the Core');
+  assert.equal(sent.length, 2, 'only the valid and safely adjusted seeks reached the Core');
 });
 
 test('an absolute volume is clamped to what the device accepts', async (t) => {
@@ -353,6 +451,12 @@ test('regroup drops and adds in one instruction: ungroup first, then the new gro
   assert.deepEqual(sent, [{ kind: 'ungroup', a: 'oDen', b: null }, { kind: 'group', a: 'oLounge+oHall', b: null }]);
 });
 
+test('regroup can add a solo room while preserving the target as leader', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'regroup', zone: 'zPlay', outputs: ['oStudy', 'oPeer'] })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'group', a: 'oStudy+oPeer', b: null }]);
+});
+
 test('regroup to the membership it already has sends nothing at all', async (t) => {
   const { post, sent } = await serve(t, GROUPED);
   const response = await post({ action: 'regroup', zone: 'zTrio', outputs: ['oLounge', 'oHall', 'oDen'] });
@@ -384,13 +488,20 @@ test('regroup refuses a room from another island, by name', async (t) => {
   assert.equal(sent.length, 0);
 });
 
-test('transfer refuses the room it is already in, and one with nothing playing', async (t) => {
+test('transfer resolves a durable destination output and refuses unsafe moves', async (t) => {
   const { post, sent } = await serve(t);
-  assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPlay' })).status, 409);
-  assert.equal((await post({ action: 'transfer', zone: 'zPeer', to: 'zPlay' })).status, 409);
+  assert.equal((await post({ action: 'transfer', zone: 'zPlay', output: 'oStudy' })).status, 409);
+  assert.equal((await post({ action: 'transfer', zone: 'zPeer', output: 'oStudy' })).status, 409);
+  assert.equal((await post({ action: 'transfer', zone: 'zPlay', output: 'missing' })).status, 404);
   assert.equal(sent.length, 0);
+  assert.equal((await post({ action: 'transfer', zone: 'zPlay', output: 'oPeer' })).status, 200);
+  assert.deepEqual(sent.at(-1), { kind: 'transfer', a: 'zPlay', b: 'oPeer' });
+});
+
+test('a face left open across restart has its legacy transfer zone resolved once to an output', async (t) => {
+  const { post, sent } = await serve(t);
   assert.equal((await post({ action: 'transfer', zone: 'zPlay', to: 'zPeer' })).status, 200);
-  assert.deepEqual(sent.at(-1), { kind: 'transfer', a: 'zPlay', b: 'zPeer' });
+  assert.deepEqual(sent, [{ kind: 'transfer', a: 'zPlay', b: 'oPeer' }]);
 });
 
 /**
@@ -491,5 +602,78 @@ test('group volume refuses a zone with nothing to move, and a level off the scal
   assert.equal((await post({ action: 'group-volume', zone: 'zRadio', level: 0.5 })).status, 409);
   assert.equal((await post({ action: 'group-volume', zone: 'zGroup', level: 2 })).status, 400);
   assert.equal((await post({ action: 'group-volume', zone: 'nope', level: 0.5 })).status, 404);
+  assert.equal(sent.length, 0);
+});
+
+const GROUP_MUTE_ZONES: unknown[] = [
+  {
+    zone_id: 'zMixedMute', display_name: 'Mixed mute group', state: 'playing',
+    outputs: [
+      { output_id: 'oNumber', display_name: 'Number',
+        volume: { type: 'number', min: 0, max: 100, value: 35, step: 1, is_muted: false } },
+      { output_id: 'oIncremental', display_name: 'Incremental',
+        volume: { type: 'incremental', is_muted: true } },
+      { output_id: 'oNoVolume', display_name: 'Fixed' },
+    ],
+    is_play_allowed: false, is_pause_allowed: true, is_next_allowed: false,
+    is_previous_allowed: false, is_seek_allowed: false,
+  },
+  {
+    zone_id: 'zAllMuted', display_name: 'Muted group', state: 'paused',
+    outputs: [
+      { output_id: 'oMutedOne', display_name: 'Muted one',
+        volume: { type: 'number', min: 0, max: 100, value: 20, step: 1, is_muted: true } },
+      { output_id: 'oMutedTwo', display_name: 'Muted two',
+        volume: { type: 'incremental', is_muted: true } },
+    ],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: false,
+    is_previous_allowed: false, is_seek_allowed: false,
+  },
+  {
+    zone_id: 'zNoMute', display_name: 'Fixed group', state: 'stopped',
+    outputs: [
+      { output_id: 'oFixedOne', display_name: 'Fixed one' },
+      { output_id: 'oFixedTwo', display_name: 'Fixed two' },
+    ],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: false,
+    is_previous_allowed: false, is_seek_allowed: false,
+  },
+  {
+    zone_id: 'zSoloMute', display_name: 'Solo', state: 'stopped',
+    outputs: [{ output_id: 'oSolo', display_name: 'Solo',
+      volume: { type: 'number', min: 0, max: 100, value: 35, step: 1, is_muted: false } }],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: false,
+    is_previous_allowed: false, is_seek_allowed: false,
+  },
+];
+
+test('group mute mutes every mutable member in zone order, including incremental outputs', async (t) => {
+  const { post, sent } = await serve(t, GROUP_MUTE_ZONES);
+  const response = await post({ action: 'group-mute', zone: 'zMixedMute' });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).muted, true);
+  assert.deepEqual(sent, [
+    { kind: 'mute', a: 'oNumber', b: true },
+    { kind: 'mute', a: 'oIncremental', b: true },
+  ]);
+});
+
+test('group mute unmutes only when every mutable member is already muted', async (t) => {
+  const { post, sent } = await serve(t, GROUP_MUTE_ZONES);
+  const response = await post({ action: 'group-mute', zone: 'zAllMuted' });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).muted, false);
+  assert.deepEqual(sent, [
+    { kind: 'mute', a: 'oMutedOne', b: false },
+    { kind: 'mute', a: 'oMutedTwo', b: false },
+  ]);
+});
+
+test('group mute validates its zone and refuses a zone with no mutable output', async (t) => {
+  const { post, sent } = await serve(t, GROUP_MUTE_ZONES);
+  assert.equal((await post({ action: 'group-mute' })).status, 400);
+  assert.equal((await post({ action: 'group-mute', zone: 'missing' })).status, 404);
+  assert.equal((await post({ action: 'group-mute', zone: 'zSoloMute' })).status, 409);
+  assert.equal((await post({ action: 'group-mute', zone: 'zNoMute' })).status, 409);
   assert.equal(sent.length, 0);
 });

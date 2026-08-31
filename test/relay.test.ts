@@ -63,6 +63,31 @@ test('cover and bg are separate tokens against separate size classes', () => {
   assert.equal(cover.key, bg.key);
 });
 
+test('captured Live Radio artwork keys are relayed without weakening key bounds', async () => {
+  // Real station keys captured from Roon are 224 opaque alphanumeric bytes.
+  // The former 128-byte cap dropped them before the browser could request art.
+  const stationKey = 'a'.repeat(224);
+  let requested = '';
+  const relay = new ArtRelay({
+    artworkUrl: (key, size) => {
+      requested = key + ':' + size;
+      return 'http://core/api/image/' + key;
+    },
+    fetchImpl: (async () => new Response(PNG, {
+      status: 200, headers: { 'Content-Type': 'image/png' },
+    })) as unknown as typeof fetch,
+  });
+
+  const ref = relay.pathFor(stationKey, 'thumb');
+  assert.ok(ref, 'a captured-shape station key must mint a same-origin token');
+  const resource = await relay.resolve(ArtRelay.tokenFromPath(ref.path)!);
+  assert.ok(resource, 'the station logo must resolve through the relay');
+  assert.equal(requested, stationKey + ':thumb', 'the complete key reaches Roon');
+
+  assert.equal(relay.pathFor('station-key', 'thumb'), null, 'punctuation remains forbidden');
+  assert.equal(relay.pathFor('a'.repeat(513), 'thumb'), null, 'keys remain length-bounded');
+});
+
 test('a non-image, an oversize body and a bad status are all just "no artwork"', async () => {
   const relay = new ArtRelay({
     artworkUrl: (key) => 'http://core/api/image/' + key,

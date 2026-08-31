@@ -12,6 +12,8 @@ import { IslandRegistry } from './labels/islands.ts';
 import { RecentLedger } from './ledger/recent.ts';
 import { buildSnapshot, structuralSignature } from './model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from './http/server.ts';
+import { PullCoordinator } from './control/pull.ts';
+import { buildSettingsLayout, saveSettingsValues } from './settings.ts';
 import type { SeekFrame, Snapshot } from './model/types.ts';
 import { networkInterfaces } from 'node:os';
 
@@ -83,6 +85,9 @@ const extension = new FlightDeckExtension(
 );
 
 const relay = new ArtRelay({ artworkUrl: extension.artworkUrl });
+// Both HTTP listeners share this one transport owner. Two coordinators would let
+// the same gesture race through :80 and :8440 as independent transactions.
+const pull = new PullCoordinator({ snapshots: hub, commands: extension });
 // Present only when Browse was requested at startup; the route answers 503 otherwise.
 const browseGateway = new BrowseGateway(() => extension.browseService());
 
@@ -133,11 +138,15 @@ function tickSeek(): void {
   for (const raw of rawZones) {
     if (raw === null || typeof raw !== 'object') continue;
     const zone = raw as Record<string, unknown>;
-    if (zone.state !== 'playing') continue;
+    if (zone.state !== 'playing' || zone.is_seek_allowed !== true) continue;
     const id = typeof zone.zone_id === 'string' ? zone.zone_id : null;
     const np = (zone.now_playing ?? null) as Record<string, unknown> | null;
     const position = typeof np?.seek_position === 'number' ? np.seek_position : null;
-    if (id === null || position === null) continue;
+    const length = typeof np?.length === 'number' && np.length > 0 ? np.length : null;
+    // Internet radio often carries an increasing seek_position even though it
+    // has no finite duration. Do not put that stream-age counter on the wire as
+    // if it were a seekable timeline.
+    if (id === null || position === null || length === null) continue;
     zones.push({ id, positionSec: position });
   }
   hub.publishSeek({ generation: GENERATION, revision: snapshot.revision, at, zones } as SeekFrame);
@@ -170,102 +179,26 @@ function urls(): string[] {
   return list;
 }
 
-/**
- * THE SETTINGS PAGE inside Roon: one field per grouping island.
- *
- * Roon partitions grouping by protocol and names it nowhere, so the only place
- * the names can come from is a person — and this is where a Roon user looks for
- * an extension's settings, with a real keyboard rather than a TV remote.
- *
- * Each field is titled with the rooms in that island, because "roon 2" means
- * nothing until you can see it is the three AirPlay ones.
- */
 function settingsLayout(values?: Record<string, unknown>): {
   values: Record<string, unknown>; layout: unknown[]; has_error: boolean;
 } {
-  const snapshot = hub.snapshot();
-  const present = snapshot === null ? [] : snapshot.islands;
-  const rooms = new Map<string, string[]>();
-  for (const zone of snapshot?.zones ?? []) {
-    if (zone.outputs.length === 0) continue;
-    const island = islands.resolve(zone.outputs[0].groupableWith).id;
-    if (island === '') continue;
-    rooms.set(island, [...(rooms.get(island) ?? []), zone.name]);
-  }
-
-  const out: Record<string, unknown> = {};
-  const layout: unknown[] = [{
-    type: 'label',
-    title: 'Roon groups rooms by how they connect, but never says what those groups are.'
-      + ' Name them here and every FlightDeck screen in the house will use the name.',
-  }];
-  present.forEach((island, index) => {
-    const proposed = values === undefined ? undefined : values[island.id];
-    out[island.id] = typeof proposed === 'string' ? proposed : (island.label ?? '');
-    const members = (rooms.get(island.id) ?? []).sort();
-    layout.push({
-      type: 'string',
-      title: 'roon ' + String(index + 1) + '  ·  ' + String(island.count) + ' rooms',
-      subtitle: members.join(' · '),
-      setting: island.id,
-    });
-  });
-  if (present.length === 0) {
-    layout.push({ type: 'label', title: 'No groups to name yet — waiting for the Core.' });
-  }
-
-  /**
-   * ONE SCREEN, ONE ROOM.
-   *
-   * A screen is bound to an OUTPUT, not a zone: it belongs to the speaker beside
-   * it, and the zone is re-derived every snapshot, so when that room is grouped
-   * the screen follows the group it joined rather than stranding on a zone that
-   * no longer exists. "Any room" leaves it free to be pointed anywhere, which is
-   * what an unbound screen has always done.
-   */
-  const seen = displays.active(Date.parse(new Date().toISOString()) || 0);
-  const outputs: { title: string; value: string }[] = [{ title: 'Any room', value: '' }];
-  for (const zone of snapshot?.zones ?? []) {
-    for (const output of zone.outputs) outputs.push({ title: output.name, value: output.id });
-  }
-  outputs.sort((a, b) => (a.value === '' ? -1 : b.value === '' ? 1 : a.title.localeCompare(b.title)));
-
-  if (seen.length > 0) {
-    layout.push({
-      type: 'label',
-      title: 'Screens that have checked in. Lock one to a room and it will only ever show'
-        + ' that room — or the group that room joins.',
-    });
-    for (const display of seen) {
-      const key = 'display:' + display.id;
-      const proposed = values === undefined ? undefined : values[key];
-      out[key] = typeof proposed === 'string' ? proposed : (display.outputId ?? '');
-      layout.push({
-        type: 'dropdown', title: display.name, values: outputs, setting: key,
-        subtitle: 'last seen ' + display.lastSeenAt.slice(11, 16),
-      });
-    }
-  }
-  return { values: out, layout, has_error: false };
+  return buildSettingsLayout(hub.snapshot(), islands, displays, values);
 }
 
 function saveSettings(values: Record<string, unknown>): void {
-  for (const [key, value] of Object.entries(values)) {
-    if (typeof value !== 'string') continue;
-    if (key.startsWith('display:')) displays.bind(key.slice('display:'.length), value === '' ? null : value);
-    else islands.setLabel(key, value);
-  }
+  saveSettingsValues(values, islands, displays);
   republish();
   log('settings saved from Roon');
 }
 
 const deps = {
-  hub, relay, ledger, islands, displays,
+  hub, relay, ledger, islands, displays, pull,
   onIslandLabelled: (): void => { republish(); extension.refreshSettings(); },
   assetDir: ASSET_DIR,
   docDir: DOC_DIR,
   commands: extension,
   browseAccess: browseGateway,
+  queueAccess: extension.queue,
   mdns: () => mdns,
   urls,
   port: () => boundPort,
@@ -311,6 +244,7 @@ async function main(): Promise<void> {
     clearInterval(heartbeat); clearInterval(seek); clearInterval(flush);
     ledger.flush();
     mdns?.stop();
+    pull.close();
     hub.closeAll();
     extension.stop();
     altServer?.close();
