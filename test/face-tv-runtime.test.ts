@@ -80,6 +80,52 @@ test('header keeps Face | Queue Room Group order and each menu belongs to its ow
     'every header door retains its action on document-only television presses');
 });
 
+test('Pause all appears only for live zones and sends one strict Pause per zone', () => {
+  const headerStart = FACE.indexOf('var pauseAllDoor =');
+  const headerEnd = FACE.indexOf("var body = el('div', 'body')", headerStart);
+  const header = FACE.slice(headerStart, headerEnd);
+  assert.match(header, /pauseAllDoor\.hidden = true/);
+  assert.match(header, /pressable\(pauseAllDoor, pauseAll, ['"]header-pause-all['"]\)/,
+    'the global action owns a stable semantic press identity');
+  assert.match(header,
+    /head\.appendChild\(headMark\);\s*head\.appendChild\(pauseAllDoor\);\s*head\.appendChild\(status\);/,
+    'Pause all occupies the independent top-centre slot');
+
+  const playing = /function playingZones\(snapshot\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
+  assert.match(playing, /snapshot\.zones\[i\]\.state === ['"]playing['"]/);
+  assert.doesNotMatch(playing, /loading|paused|stopped/,
+    'only authoritative playing state can offer a house-wide pause');
+
+  const pauseStart = FACE.indexOf('function pauseAll()');
+  const pauseEnd = FACE.indexOf('\nfunction render(', pauseStart);
+  const pause = FACE.slice(pauseStart, pauseEnd);
+  assert.match(pause, /var snapshot = store === undefined \? null : store\.snapshot\(\)/,
+    'one immutable target snapshot is captured before the first command');
+  assert.match(pause, /requests\.push\(command\(\{ action: ['"]pause['"], zone: zones\[i\]\.id \}\)\)/);
+  assert.doesNotMatch(pause, /playpause|outputs/,
+    'the action cannot start a late-changing room or duplicate commands per output');
+  assert.match(pause, /Promise\.all\(requests\)/);
+  assert.match(FACE, /function paintPauseAll\(snapshot\)[\s\S]{0,160}pauseAllDoor\.hidden = count === 0/);
+  assert.match(FACE, /function render\(snapshot, kind\) \{\s*if \(snapshot === null\) return;\s*paintPauseAll\(snapshot\);/);
+
+  const pressStart = FACE.indexOf('function onFacePress(event)');
+  const pressEnd = FACE.indexOf("['click', 'pointerup'", pressStart);
+  const press = FACE.slice(pressStart, pressEnd);
+  assert.match(press, /!inNode\(target, pauseAllDoor\)/,
+    'an already-visible chrome cannot consume Pause all as an outside dismissal');
+  assert.match(press, /inNode\(target, pauseAllDoor\)[^\n]*pauseAll\(\); return/,
+    'document-only television presses retain the action');
+
+  assert.match(CSS, /\.pauseall \{[\s\S]{0,100}left: 50%/);
+  assert.match(CSS, /\.pauseall \{[\s\S]{0,220}translateX\(-50%\)/,
+    'the button is geometrically centred rather than balanced against variable side chrome');
+  assert.match(CSS, /\.pauseall \{[\s\S]{0,500}background: rgba\(10,11,13,\.78\)/,
+    'the active action remains legible over unpredictable artist photography');
+  assert.match(CSS, /\.pauseall\[hidden\] \{ display: none; \}/);
+  assert.match(CSS, /data-size=['"]phone['"]\] \.pauseall \{[\s\S]{0,120}font-size: 2\.6vw/,
+    'the same action remains readable on the phone composition');
+});
+
 test('Queue reads a fenced forward window and only future rows can select', () => {
   const optionStart = FACE.indexOf('function queueOption(');
   const optionEnd = FACE.indexOf('function selectQueueItem(', optionStart);

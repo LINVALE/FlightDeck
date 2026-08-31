@@ -485,6 +485,18 @@ pressable(groupDoor, startGroupPick, 'header-group');
 var cog = el('span', 'cog');
 cog.setAttribute('aria-label', 'change face');
 pressable(cog, function () { openPanel('faces'); }, 'header-faces');
+/**
+ * ONE HOUSE-WIDE STOP, only when there is something to stop.
+ *
+ * This stays outside the room-action groups because its scope is every playing
+ * zone, not the room this face happens to show. It uses Pause rather than
+ * Play/Pause so a late snapshot can never turn a room on by mistake.
+ */
+var pauseAllDoor = el('span', 'pauseall', 'pause all');
+pauseAllDoor.setAttribute('title', 'pause every playing room');
+pauseAllDoor.setAttribute('aria-label', 'pause every playing room');
+pauseAllDoor.hidden = true;
+pressable(pauseAllDoor, pauseAll, 'header-pause-all');
 var chipHost = el('span');
 var status = el('div', 'status');
 /**
@@ -505,7 +517,7 @@ headTools.appendChild(queueDoor);
 headTools.appendChild(zoneName);
 headTools.appendChild(groupDoor);
 headTools.appendChild(chipHost);
-head.appendChild(headMark); head.appendChild(status); head.appendChild(headTools);
+head.appendChild(headMark); head.appendChild(pauseAllDoor); head.appendChild(status); head.appendChild(headTools);
 
 var body = el('div', 'body');
 var cover = el('div', 'cover');
@@ -1076,8 +1088,48 @@ function setBackdrop(zone) {
   });
 }
 
+function playingZones(snapshot) {
+  var zones = [];
+  if (snapshot === null) return zones;
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    if (snapshot.zones[i].state === 'playing') zones.push(snapshot.zones[i]);
+  }
+  return zones;
+}
+
+function paintPauseAll(snapshot) {
+  var count = playingZones(snapshot).length;
+  pauseAllDoor.hidden = count === 0;
+  var description = count === 1 ? 'pause the playing room' : 'pause all ' + count + ' playing rooms';
+  pauseAllDoor.setAttribute('title', description);
+  pauseAllDoor.setAttribute('aria-label', description);
+}
+
+var pauseAllInFlight = false;
+function pauseAll() {
+  if (pauseAllInFlight) return;
+  var snapshot = store === undefined ? null : store.snapshot();
+  var zones = playingZones(snapshot);
+  if (zones.length === 0) return;
+
+  // Capture one snapshot before sending anything. A grouped zone is therefore
+  // paused exactly once even if it contains several physical speakers.
+  pauseAllInFlight = true;
+  var requests = [];
+  for (var i = 0; i < zones.length; i += 1) {
+    requests.push(command({ action: 'pause', zone: zones[i].id }));
+  }
+  Promise.all(requests).then(function (results) {
+    pauseAllInFlight = false;
+    var paused = 0;
+    for (var r = 0; r < results.length; r += 1) if (results[r]) paused += 1;
+    if (paused > 0) flash(paused === 1 ? 'pausing one room' : 'pausing ' + paused + ' rooms');
+  }).catch(function () { pauseAllInFlight = false; });
+}
+
 function render(snapshot, kind) {
   if (snapshot === null) return;
+  paintPauseAll(snapshot);
   var was = shownZoneId;
   if (following) {
     var followed = pickFollowed(snapshot);
@@ -5589,7 +5641,7 @@ function onFacePress(event) {
       && !inNode(target, copy) && !inNode(target, homeMark) && !inNode(target, shelfVolume)
       && !inNode(target, shelfBrowse)
       && (memberVols === null || !inNode(target, memberVols))
-      && !inNode(target, queueDoor) && !inNode(target, groupDoor)
+      && !inNode(target, pauseAllDoor) && !inNode(target, queueDoor) && !inNode(target, groupDoor)
       && !inNode(target, cog) && !inNode(target, zoneName) && !inNode(target, chipHost)
       && (browsePanel === null || !inNode(target, browsePanel))) {
     lastZonePress = now;
@@ -5608,6 +5660,7 @@ function onFacePress(event) {
   // fallback for a television engine that reports the gesture only at document
   // level; every visible header door must still perform its own named action.
   if (target !== null && inNode(target, homeMark)) { goToWall(); return; }
+  if (target !== null && inNode(target, pauseAllDoor)) { pauseAll(); return; }
   if (target !== null && inNode(target, queueDoor)) { openQueuePanel(); return; }
   if (target !== null && inNode(target, groupDoor)) { startGroupPick(); return; }
   if (target !== null && inNode(target, cog)) { openPanel('faces'); return; }
