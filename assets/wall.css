@@ -12,7 +12,7 @@ html, body { margin: 0; padding: 0; background: var(--ink); color: var(--bone);
 body { min-height: 100vh; }
 
 .wall { padding: 2.2vh 2.4vw; min-height: 100vh; display: flex; flex-direction: column; }
-.wall-head { display: flex; align-items: baseline; margin-bottom: 1.6vh; }
+.wall-head { position: relative; display: flex; align-items: baseline; margin-bottom: 1.6vh; }
 .brand { font-size: 1.5vw; letter-spacing: 0.34em; font-weight: 700; color: var(--dim); }
 .brand span { color: var(--accent); }
 .wall-summary { margin-left: 1.6vw; font-size: 1.15vw; color: var(--ash); }
@@ -199,6 +199,18 @@ body { min-height: 100vh; }
 }
 .wall-act:hover { color: var(--bone); border-color: rgba(232,227,216,.42); }
 .wall-act[hidden] { display: none; }
+.wall-pause-all {
+  position: absolute; top: -.35vh; left: 50%; z-index: 2;
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  padding: .48vh .9vw;
+  border: 1px solid rgba(242,238,230,.34); border-radius: 8px;
+  background: rgba(10,11,13,.78);
+  box-shadow: 0 .5vw 1.5vw rgba(0,0,0,.58);
+  color: var(--bone); cursor: pointer; white-space: nowrap;
+  font-size: 1.02vw; letter-spacing: .16em; text-transform: uppercase;
+}
+.wall-pause-all:hover { color: var(--accent); border-color: var(--accent); }
+.wall-pause-all[hidden] { display: none; }
 
 /* The bar: fixed over the footer so appearing never shifts a tile mid-gesture. */
 .wall-bar {
@@ -252,6 +264,7 @@ body { min-height: 100vh; }
 
 @media (max-width: 900px) {
   .wall-act { font-size: 3vw; }
+  .wall-pause-all { font-size: 2.6vw; padding: .5vh 2vw; }
   .wall-bar-hint { font-size: 3vw; }
   .wall-do { font-size: 3vw; padding: .8vh 3vw; }
   .wall.is-selecting .tile-check { width: 5vw; height: 5vw; line-height: 5vw; font-size: 3vw; margin-right: 2.4vw; }
@@ -465,6 +478,7 @@ body { min-height: 100vh; }
   border-top: 1px solid rgba(242,238,230,.07);
 }
 .tile-actions .ta-left { display: -webkit-flex; display: flex; }
+.tile-actions .ta[hidden] { display: none; }
 .grid > .tile .tile-state { margin-left: 0; font-size: .64vw; }
 .tile-detail {
   font-size: .62vw; color: var(--dim); margin-top: .4vh;
@@ -639,7 +653,7 @@ body { min-height: 100vh; }
    be cut: the block clips, so the last line simply is not drawn if it will not fit. */
 .grid > .tile .tile-line2 { line-height: 1.15; }
 
-/* ══ THE SLACK GOES TO THE BOTTOM, NOT THE MIDDLE ════════════════════════════
+/* ══ THE SLACK GOES BELOW THE CONTROLS, NOT BETWEEN THEM ═════════════════════
    The music block was `flex: 1 1 auto`, so on a card with little to say — a
    stopped room, a one-line title, no artist — it swallowed every spare pixel and
    opened a void between the transport and the bars (Peter, 08-28: "controls look
@@ -647,19 +661,32 @@ body { min-height: 100vh; }
    much space at top").
 
    The block hugs its content now; it may still SHRINK if a title is long, but it
-   never grows. The spare space collects below the bars instead, where the foot
-   is pinned to the bottom of the card, so every card's pills line up across a
-   row whatever the room is doing. */
+   never grows. The two bars and their action buttons now stay together; any
+   spare height collects below the complete control cluster rather than opening
+   a dead pointing area between the volume rail and the buttons. */
 .tile-now { -webkit-flex: 0 1 auto; flex: 0 1 auto; }
-.tile-actions { margin-top: auto; }
+.tile-actions { margin-top: .65vh; padding-top: .45vh; }
 
 /* Three pixels between a round button's border and a bar's rounded end is
    geometrically clear and visually touching — Peter read it as the bars covering
    the controls, and he is right that it looks that way. Since the foot is pinned
    to the bottom, the spare space was collecting there doing nothing; it is spent
    here instead, separating the two things that were reading as one. */
-.tile-bar-line { margin-top: .95vh; }
+.tile-bar-line { margin-top: .72vh; }
 .tile-bar-line + .tile-bar-line { margin-top: .35vh; }
+
+/* Volume is aimed at directly, so its hit rail is taller than its visual line. */
+.grid > .tile .tile-rule.vol {
+  height: 1.6vh; background: transparent; overflow: visible;
+}
+.grid > .tile .tile-rule.vol:before {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 6px; margin-top: -3px; border-radius: 3px;
+  background: rgba(242,238,230,.18);
+}
+.grid > .tile .tile-rule.vol i {
+  top: 50%; bottom: auto; height: 6px; margin-top: -3px; z-index: 1;
+}
 
 /* With fewer rows each card has real height, so the sleeve and the type grow
    back into it. Four rows is the crowded case the small sizes were tuned for. */
@@ -669,12 +696,14 @@ body { min-height: 100vh; }
 .wall[data-rows="3"] .grid > .tile .tile-title { font-size: 1.1vw; }
 .wall[data-rows="2"] .grid > .tile .tile-title { font-size: 1.35vw; }
 .wall[data-rows="1"] .grid > .tile .tile-title { font-size: 1.7vw; }
-.wall[data-rows="3"] .tt, .wall[data-rows="3"] .ta { width: 1.7vw; height: 1.7vw; }
-.wall[data-rows="2"] .tt, .wall[data-rows="2"] .ta { width: 2.1vw; height: 2.1vw; }
-.wall[data-rows="1"] .tt, .wall[data-rows="1"] .ta { width: 2.6vw; height: 2.6vw; }
-.wall[data-rows="3"] .tt-glyph { width: .78vw; height: .78vw; }
-.wall[data-rows="2"] .tt-glyph { width: .95vw; height: .95vw; }
-.wall[data-rows="1"] .tt-glyph { width: 1.2vw; height: 1.2vw; }
+.tt, .ta { width: 1.75vw; height: 1.75vw; }
+.tt-glyph, .ta .tt-glyph { width: .8vw; height: .8vw; }
+.wall[data-rows="3"] .tt, .wall[data-rows="3"] .ta { width: 1.95vw; height: 1.95vw; }
+.wall[data-rows="2"] .tt, .wall[data-rows="2"] .ta { width: 2.3vw; height: 2.3vw; }
+.wall[data-rows="1"] .tt, .wall[data-rows="1"] .ta { width: 2.85vw; height: 2.85vw; }
+.wall[data-rows="3"] .tt-glyph, .wall[data-rows="3"] .ta .tt-glyph { width: .9vw; height: .9vw; }
+.wall[data-rows="2"] .tt-glyph, .wall[data-rows="2"] .ta .tt-glyph { width: 1.05vw; height: 1.05vw; }
+.wall[data-rows="1"] .tt-glyph, .wall[data-rows="1"] .ta .tt-glyph { width: 1.3vw; height: 1.3vw; }
 
 /* With three rows the card has 240px, not 177, so the sleeve takes the height
    back rather than leaving it pooled above the foot as a void. The music block
@@ -733,11 +762,11 @@ body { min-height: 100vh; }
    The row aligns on CENTRES, not bottoms, so the larger circle grows evenly
    above and below a single line the five marks share. */
 .tile-transport { -webkit-align-items: center; align-items: center; }
-.tt.play { width: 1.7vw; height: 1.7vw; }
-.tt.play .tt-glyph { width: .8vw; height: .8vw; }
-.wall[data-rows="3"] .tt.play { width: 2.1vw; height: 2.1vw; }
-.wall[data-rows="3"] .tt.play .tt-glyph { width: .98vw; height: .98vw; }
-.wall[data-rows="2"] .tt.play { width: 2.6vw; height: 2.6vw; }
-.wall[data-rows="2"] .tt.play .tt-glyph { width: 1.2vw; height: 1.2vw; }
-.wall[data-rows="1"] .tt.play { width: 3.2vw; height: 3.2vw; }
-.wall[data-rows="1"] .tt.play .tt-glyph { width: 1.5vw; height: 1.5vw; }
+.tt.play { width: 2.05vw; height: 2.05vw; }
+.tt.play .tt-glyph { width: .96vw; height: .96vw; }
+.wall[data-rows="3"] .tt.play { width: 2.3vw; height: 2.3vw; }
+.wall[data-rows="3"] .tt.play .tt-glyph { width: 1.08vw; height: 1.08vw; }
+.wall[data-rows="2"] .tt.play { width: 2.75vw; height: 2.75vw; }
+.wall[data-rows="2"] .tt.play .tt-glyph { width: 1.28vw; height: 1.28vw; }
+.wall[data-rows="1"] .tt.play { width: 3.35vw; height: 3.35vw; }
+.wall[data-rows="1"] .tt.play .tt-glyph { width: 1.58vw; height: 1.58vw; }

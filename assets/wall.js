@@ -1,6 +1,7 @@
 import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
+import { inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
 
 /**
  * The House Wall. Ordered by MOST RECENTLY PLAYED (Peter's ruling 08-25): the
@@ -16,7 +17,16 @@ var summaryEl = document.getElementById('summary');
 var coreEl = document.getElementById('core');
 var tiles = {};
 var order = [];
+var orderSlots = [];
+var previousOutputOwners = {};
 var tabsEl = document.getElementById('tabs');
+
+function resetWallOrder() {
+  order = [];
+  orderSlots = [];
+  previousOutputOwners = {};
+  lastLive = null;
+}
 
 /**
  * ISLAND TABS.
@@ -143,7 +153,7 @@ function drawTabs(islands, total) {
       activeIsland = id;
       try { localStorage.setItem('flightdeck.island', id); } catch (e) { /* private window */ }
       tabsKey = '';
-      order = [];                        // a deliberate switch may reorder freely
+      resetWallOrder();                  // a deliberate switch may reorder freely
       var snap = store.snapshot();
       if (snap !== null) render(snap, 'snapshot');
     });
@@ -189,17 +199,12 @@ function holdOrder(zones) {
   }
   var signature = live.sort().join(',');
   var resort = lastLive === null || signature !== lastLive || order.length === 0;
+  var joined = joinedPreviousZones(zones, previousOutputOwners);
   lastLive = signature;
-  if (resort) return zones;
-
-  var held = [];
-  for (var k = 0; k < order.length; k += 1) {
-    for (var z = 0; z < zones.length; z += 1) if (zones[z].id === order[k]) { held.push(zones[z]); break; }
-  }
-  for (var n = 0; n < zones.length; n += 1) {
-    if (order.indexOf(zones[n].id) === -1) held.push(zones[n]);
-  }
-  return held;
+  // Starting or stopping is news and follows the server's recency order. A
+  // topology successor is not a new room: it inherits the leader's old slot.
+  if (resort && !joined) return zones;
+  return inheritWallOrder(zones, order, orderSlots);
 }
 
 /**
@@ -257,6 +262,9 @@ function glyph(name) {
             'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
     send: ['M12.6 5.5H6.4A1.9 1.9 0 0 0 4.5 7.4v9.2a1.9 1.9 0 0 0 1.9 1.9h6.2',
            'M10.8 12h9.1', 'M16.8 8.7 20.3 12l-3.5 3.3'],
+    ungroup: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
+              'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4',
+              'M5 5l14 14'],
     shuffle: ['M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
               'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
               'M18.2 5.6 20.6 7.5 18.2 9.4', 'M18.2 14.6 20.6 16.5 18.2 18.4'],
@@ -395,10 +403,17 @@ function buildTile(zone) {
   var groupB = quiet(el('span', 'ta'), function () { beginGroupFrom(zoneId); });
   groupB.appendChild(glyph('group'));
   groupB.setAttribute('title', 'group ' + zone.name + ' with another room');
+  var ungroupB = quiet(el('span', 'ta ungroup'), function () {
+    post({ action: 'ungroup', zone: zoneId });
+  });
+  ungroupB.appendChild(glyph('ungroup'));
+  ungroupB.setAttribute('title', 'ungroup ' + zone.name);
+  ungroupB.setAttribute('aria-label', 'ungroup ' + zone.name);
+  ungroupB.hidden = true;
   var sendB = quiet(el('span', 'ta'), function () { beginSendFrom(zoneId); });
   sendB.appendChild(glyph('send'));
   sendB.setAttribute('title', 'send what is playing here to another room');
-  left.appendChild(groupB); left.appendChild(sendB);
+  left.appendChild(groupB); left.appendChild(ungroupB); left.appendChild(sendB);
 
   /** The room's own details — what it actually is, which Roon never says aloud. */
   var detail = el('div', 'tile-detail');
@@ -420,6 +435,7 @@ function buildTile(zone) {
     line2: line2, fill: fill, stamp: stamp, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
     volFill: volFill, volNum: volNum, volMark: volMark, sendB: sendB, groupB: groupB,
+    ungroupB: ungroupB,
     shufB: shufB, repB: repB,
     detail: detail,
     artKey: null, chips: []
@@ -607,6 +623,7 @@ function render(snapshot, kind) {
       if (snapshot.zones[c].state === 'playing') playing += 1;
       if (snapshot.zones[c].state === 'loading') loading += 1;
     }
+    pauseAllBtn.hidden = playing === 0;
     var core = snapshot.core;
     summaryEl.textContent = (core.name ? core.name + ' · ' : '')
       + snapshot.zones.length + ' zones · ' + playing + ' playing'
@@ -627,7 +644,7 @@ function render(snapshot, kind) {
       groupBtn.hidden = true;
       root.style.setProperty('--accent', '#d8a24a');
       grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
-      order = [];
+      resetWallOrder();
       return;
     }
 
@@ -643,7 +660,7 @@ function render(snapshot, kind) {
         activeIsland = '';
         try { localStorage.removeItem('flightdeck.island'); } catch (e) { /* private window */ }
         tabsKey = '';
-        order = [];
+        resetWallOrder();
       }
     }
     drawTabs(islands, snapshot.zones.length);
@@ -735,6 +752,9 @@ function render(snapshot, kind) {
       tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
       tile.volMark.className = vl !== null && vl.muted ? 'tile-vol-mark muted' : 'tile-vol-mark';
       tile.sendB.className = zone.nowPlaying === null ? 'ta off' : 'ta';
+      var grouped = zone.outputs.length > 1;
+      tile.groupB.hidden = grouped;
+      tile.ungroupB.hidden = !grouped;
       var rooms = [];
       for (var oi = 0; oi < zone.outputs.length; oi += 1) rooms.push(zone.outputs[oi].name);
       var fam = zone.outputs.length > 0 ? islandName(zone.outputs[0].island) : '';
@@ -756,12 +776,16 @@ function render(snapshot, kind) {
       setArt(tile, zone);
       nextOrder.push(zone.id);
     }
-    if (nextOrder.join(',') !== order.join(',')) {
+    var nextSlots = [];
+    for (var si = 0; si < shown.length; si += 1) nextSlots.push(wallSlot(shown[si]));
+    if (nextOrder.join(',') !== order.join(',') || nextSlots.join(',') !== orderSlots.join(',')) {
       order = nextOrder;
+      orderSlots = nextSlots;
       var nodes = [];
       for (var k = 0; k < order.length; k += 1) nodes.push(tiles[order[k]].node);
       grid.replaceChildren.apply(grid, nodes);
     }
+    previousOutputOwners = wallOutputOwners(inTab);
     setOverflow(overflow);
   }
 
@@ -901,9 +925,34 @@ function doBtn(label, onPress) {
 var groupBtn = el('span', 'wall-act', 'group rooms');
 groupBtn.hidden = true;
 tap(groupBtn, function () { if (!selectMode) enterSelect(); });
+var pauseAllBtn = el('span', 'wall-pause-all', 'pause all');
+pauseAllBtn.hidden = true;
+pauseAllBtn.setAttribute('title', 'pause every playing room');
+pauseAllBtn.setAttribute('aria-label', 'pause every playing room');
+var wallPauseInFlight = false;
+function pauseAllOnWall() {
+  if (wallPauseInFlight) return;
+  var snapshot = store === undefined ? null : store.snapshot();
+  if (snapshot === null) return;
+  var requests = [];
+  for (var i = 0; i < snapshot.zones.length; i += 1) {
+    if (snapshot.zones[i].state === 'playing') {
+      requests.push(post({ action: 'pause', zone: snapshot.zones[i].id }));
+    }
+  }
+  if (requests.length === 0) return;
+  wallPauseInFlight = true;
+  Promise.all(requests).then(function (results) {
+    wallPauseInFlight = false;
+    var paused = 0;
+    for (var r = 0; r < results.length; r += 1) if (results[r]) paused += 1;
+    if (paused > 0) say(paused === 1 ? 'pausing one room' : 'pausing ' + paused + ' rooms');
+  }).catch(function () { wallPauseInFlight = false; });
+}
+tap(pauseAllBtn, pauseAllOnWall);
 (function () {
   var head = document.querySelector('.wall-head');
-  if (head !== null) head.appendChild(groupBtn);
+  if (head !== null) { head.appendChild(pauseAllBtn); head.appendChild(groupBtn); }
 })();
 
 /* ---- choosing rooms (the checkbox path) ---- */
