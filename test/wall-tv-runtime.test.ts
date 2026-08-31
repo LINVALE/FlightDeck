@@ -11,7 +11,10 @@ test('Wall card header is one state-coloured strip containing room and last seen
   assert.match(WALL, /tile\.stamp\.textContent = stampFor\(zone, now\)/);
   assert.match(CSS, /--tile-frame: var\(--line\)/);
   assert.match(CSS, /border: 1px solid var\(--tile-frame\)/);
-  assert.match(CSS, /\.tile-head[\s\S]{0,180}background: var\(--tile-frame\)/);
+  assert.match(CSS, /--tile-head: rgba\(35,39,46,\.42\)/);
+  assert.match(CSS, /\.tile-head[\s\S]{0,180}background: var\(--tile-head\)/);
+  assert.match(CSS, /\.tile\.is-live[\s\S]{0,120}--tile-head: rgba\(111,191,143,\.42\)/,
+    'live state lightly tints the header while the frame retains the solid state colour');
   assert.match(CSS, /\.tile-zone[\s\S]{0,180}background: transparent/);
   assert.match(CSS, /\.tile-stamp[\s\S]{0,180}color: inherit/);
 });
@@ -54,7 +57,8 @@ test('Wall 2 preserves a topology successor by stable leader output', () => {
 });
 
 test('Wall 2 owns the conditional top-centre Pause All action', () => {
-  assert.match(WALL, /var pauseAllBtn = el\(['"]span['"], ['"]wall-pause-all['"], ['"]pause all['"]\)/);
+  assert.match(WALL, /var pauseAllBtn = el\(['"]span['"], ['"]wall-act wall-pause-all['"]\)/);
+  assert.match(WALL, /pauseAllBtn\.appendChild\(glyph\(['"]pause['"]\)\)/);
   assert.match(WALL, /pauseAllBtn\.hidden = playing === 0/);
   const pauseStart = WALL.indexOf('function pauseAllOnWall()');
   const pauseEnd = WALL.indexOf('\ntap(pauseAllBtn', pauseStart);
@@ -67,6 +71,20 @@ test('Wall 2 owns the conditional top-centre Pause All action', () => {
   assert.match(CSS, /\.wall-pause-all \{[\s\S]{0,100}left: 50%/);
   assert.match(CSS, /\.wall-pause-all \{[\s\S]{0,180}translateX\(-50%\)/);
   assert.match(CSS, /\.wall-pause-all\[hidden\] \{ display: none; \}/);
+});
+
+test('top-row commands share one restrained geometry and type treatment', () => {
+  assert.match(WALL, /groupBtn\.appendChild\(glyph\(['"]group['"]\)\)/);
+  assert.match(WALL, /groupBtn\.appendChild\(el\(['"]span['"], ['"]wall-act-label['"], ['"]group rooms['"]\)\)/);
+  assert.match(WALL, /pauseAllBtn\.appendChild\(el\(['"]span['"], ['"]wall-act-label['"], ['"]pause all['"]\)\)/);
+  assert.match(CSS, /\.wall-act \{[\s\S]{0,520}width: 10\.5vw; height: 2\.65vw/,
+    'Pause All and Group Rooms inherit the exact same box');
+  assert.match(CSS, /\.wall-act \{[\s\S]{0,900}font-size: \.94vw; font-weight: 500; letter-spacing: \.14em/,
+    'neither command receives a louder typographic voice');
+  assert.match(CSS, /box-shadow: inset 0 1px 0 rgba\(255,255,255,\.06\), 0 \.35vw 1vw rgba\(0,0,0,\.38\)/,
+    'the shared surface uses a quiet inset edge and restrained depth');
+  assert.doesNotMatch(CSS, /\.wall-pause-all \{[^}]*font-size/,
+    'Pause All cannot silently override the common type treatment');
 });
 
 test('Wall omits the healthy paired plumbing state but keeps an outage visible', () => {
@@ -104,7 +122,7 @@ test('Wall 2 Pull From chooses a durable destination then a source with content'
   assert.doesNotMatch(WALL, /source\.state !== ['"]playing['"]/);
   assert.match(WALL, /action: ['"]pull['"][\s\S]{0,160}from: source\.id[\s\S]{0,160}output: destination\.outputId[\s\S]{0,160}generation: snapshot\.generation[\s\S]{0,160}revision: snapshot\.revision/,
     'the browser sends the exact coordinator fence and performs no imitation transfer');
-  assert.match(CSS, /\.grid > \.tile\.pull-source \{ --tile-frame: var\(--accent\); \}/);
+  assert.match(CSS, /\.grid > \.tile\.pull-source \{ --tile-frame: var\(--accent\); --tile-head: rgba\(216,162,74,\.38\); \}/);
   assert.match(CSS, /\.grid > \.tile\.pull-destination[\s\S]{0,100}background: #191b20/);
   assert.match(CSS, /\.ta\.now[\s\S]{0,130}border-color: var\(--accent\)/);
 });

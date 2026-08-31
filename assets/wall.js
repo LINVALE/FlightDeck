@@ -1078,10 +1078,16 @@ function doBtn(label, onPress) {
   return b;
 }
 
-var groupBtn = el('span', 'wall-act', 'group rooms');
+var groupBtn = el('span', 'wall-act');
+groupBtn.appendChild(glyph('group'));
+groupBtn.appendChild(el('span', 'wall-act-label', 'group rooms'));
 groupBtn.hidden = true;
+groupBtn.setAttribute('title', 'choose rooms to group');
+groupBtn.setAttribute('aria-label', 'choose rooms to group');
 tap(groupBtn, function () { if (!selectMode) enterSelect(); });
-var pauseAllBtn = el('span', 'wall-pause-all', 'pause all');
+var pauseAllBtn = el('span', 'wall-act wall-pause-all');
+pauseAllBtn.appendChild(glyph('pause'));
+pauseAllBtn.appendChild(el('span', 'wall-act-label', 'pause all'));
 pauseAllBtn.hidden = true;
 pauseAllBtn.setAttribute('title', 'pause every playing room');
 pauseAllBtn.setAttribute('aria-label', 'pause every playing room');
