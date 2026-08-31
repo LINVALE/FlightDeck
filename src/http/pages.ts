@@ -55,6 +55,7 @@ function head(nonce: string, title: string, styleHref: string): string {
 export function renderWallPage(nonce: string, urls: readonly string[]): string {
   const numeric = urls.find((url) => /^https?:\/\/\d+\.\d+\.\d+\.\d+(\/|:|$)/.test(url));
   const reach = numeric ?? urls[0] ?? '';
+  const now = reach === '' ? '' : reach.replace(/\/$/, '') + '/now';
   return head(nonce, 'FlightDeck', '/assets/wall.css')
     + '<body><main class="wall" id="wall" data-state="connecting">'
     + '<div class="wall-startup" id="wall-startup" role="status" aria-live="polite">'
@@ -75,7 +76,7 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
     + '</div>'
     + '<div class="reach">'
     + (reach === '' ? '' : '<span class="url primary">' + reach + '</span>')
-    + '<span class="reach-note">add <code>/now</code> for a screen that follows the music</span>'
+    + (now === '' ? '' : '<span class="reach-note">Now Playing: <code>' + now + '</code></span>')
     + '</div>'
     + '</footer></main></body></html>';
 }

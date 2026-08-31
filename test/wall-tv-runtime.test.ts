@@ -149,6 +149,9 @@ test('Wall 2 spends card slack on larger, easier control targets', () => {
   assert.match(CSS, /\.tt\.play \{ width: 2\.05vw; height: 2\.05vw; \}/);
   assert.match(CSS, /\.tile-rule\.vol \{[\s\S]{0,80}height: 1\.6vh/,
     'volume receives a forgiving hit rail while retaining a thin visual line');
+  assert.match(CSS,
+    /\.wall\[data-rows="1"\] \.grid > \.tile,[\s\S]{0,120}\.wall\[data-rows="3"\] \.grid > \.tile \{[\s\S]{0,100}justify-content: center/,
+    'taller cards centre the complete room display instead of crowding it against the top');
 });
 
 test('Wall 2 Pull From chooses a durable destination then a source with content', () => {

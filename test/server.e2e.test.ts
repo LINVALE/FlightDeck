@@ -68,6 +68,8 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   // Show or Android <= 11, so the address a TV shows has to be typeable there.
   assert.match(wallHtml, /192\.168\.1\.114/, 'the IP URL must be printed for TVs that cannot resolve .local');
   assert.equal((wallHtml.match(/class="url/g) ?? []).length, 1, 'one address, not three');
+  assert.match(wallHtml, new RegExp('Now Playing: <code>http://192\\.168\\.1\\.114:' + String(port) + '/now</code>'),
+    'the follow-screen note must print a complete typeable URL, not a path fragment');
   // The QR was never once scanned successfully, so it does not take a corner of
   // the wall. qrSvg itself stays, for a click-to-show once a phone has read one.
   assert.doesNotMatch(wallHtml, /aria-label="QR code"/, 'no QR on the wall');
