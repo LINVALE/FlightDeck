@@ -1,0 +1,148 @@
+/**
+ * THE PUCK — a model of the ESP32-S3 knob.
+ *
+ * Sized off the viewport's SHORT side, never in `vw`. The Face is `vw` for a
+ * 16:9 television and that is exactly why this is a separate stylesheet: a
+ * circle inside those rules would have to out-specify them, and the recurring
+ * fault in this codebase is a rule stacked on a rule instead of retiring it.
+ *
+ * Chromium 63 floor: no clamp(), no min(), no aspect-ratio, no conic-gradient,
+ * no backdrop-filter, no flex gap. Every size is calc() over a custom property
+ * the client sets: --glass (the screen), --bezel-w (the wheel), --u (--glass/100).
+ *
+ * ⚖️ THE COVER IS SACRED. `.ground` and `.veil` are SIBLINGS of `.cover`, never
+ * ancestors, and the cover is centred on negative margins rather than a
+ * transform — translate(-50%) on the artwork would break the rule outright.
+ */
+
+:root {
+  --ground: #0a0b0d;
+  --bezel-face: #202329;
+  --bezel-lip: #34383f;
+  --ink: #f2eee6;
+  --ink-dim: rgba(242, 238, 230, .60);
+  --accent: rgb(204, 98, 102);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+.puck {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  width: 100%; height: 100%;
+}
+
+/**
+ * THE BEZEL is the wheel. It exists on screen only: on the device it is a
+ * machined ring you turn with your fingers, and drawing it is what keeps the
+ * turn gesture physically separate from the touch gestures inside the glass.
+ */
+.rig {
+  position: relative;
+  width: calc(var(--glass) + var(--bezel-w) * 2);
+  height: calc(var(--glass) + var(--bezel-w) * 2);
+  border-radius: 50%;
+  background-image: -webkit-radial-gradient(circle at 34% 26%, var(--bezel-lip) 0%, var(--bezel-face) 62%, #14161a 100%);
+  background-image: radial-gradient(circle at 34% 26%, var(--bezel-lip) 0%, var(--bezel-face) 62%, #14161a 100%);
+  box-shadow: 0 calc(var(--u) * 1.4) calc(var(--u) * 4) rgba(0, 0, 0, .55);
+}
+
+.glass {
+  position: absolute;
+  top: var(--bezel-w); left: var(--bezel-w);
+  width: var(--glass); height: var(--glass);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #000;
+}
+
+/* The derived field: the cover drawn tiny and scaled up, which is this project's
+   blur (backdrop-filter is below the floor). A SIBLING of the cover. */
+.ground {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+}
+
+.veil {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background-image: -webkit-radial-gradient(circle at 50% 42%, rgba(0,0,0,.28) 0%, rgba(0,0,0,.74) 76%);
+  background-image: radial-gradient(circle at 50% 42%, rgba(0,0,0,.28) 0%, rgba(0,0,0,.74) 76%);
+}
+
+/**
+ * The cover, INSCRIBED. At 0.54 of the glass its corners sit ~21px inside the
+ * ring at 360, so the arc never crosses the artwork and the circular clip on
+ * `.glass` never reaches it. Nothing here crops, tints or transforms it.
+ */
+.cover {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: var(--cover); height: var(--cover);
+  margin-top: calc(var(--cover) / -2);
+  margin-left: calc(var(--cover) / -2);
+  box-shadow: 0 calc(var(--u) * .8) calc(var(--u) * 3) rgba(0, 0, 0, .6);
+}
+
+.cover img { display: block; width: 100%; height: 100%; }
+
+.ring {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.ring-track { fill: none; stroke: rgba(242, 238, 230, .16); stroke-width: 2.2; }
+
+.ring-arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-opacity: .78;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.room {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(var(--u) * 12);
+  text-align: center;
+  font-size: calc(var(--u) * 5.6);
+  letter-spacing: calc(var(--u) * .22);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.remain {
+  position: absolute;
+  left: 0; right: 0;
+  bottom: calc(var(--u) * 11);
+  text-align: center;
+  font-size: calc(var(--u) * 9);
+  font-variant-numeric: tabular-nums;
+}
+
+.note {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  margin-top: calc(var(--u) * -3);
+  text-align: center;
+  font-size: calc(var(--u) * 5);
+  color: var(--ink-dim);
+}
+
+.puck[data-state="live"] .note { display: none; }

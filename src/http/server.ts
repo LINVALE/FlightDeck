@@ -6,7 +6,7 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderPhonePage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { renderDocPage, renderFacePage, renderPhonePage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 import { PullError, type PullOutcome, type PullRequest } from '../control/pull.ts';
 import { QUEUE_MAX_ITEMS, QueueError, type QueueSnapshot } from '../roon/queue.ts';
 
@@ -412,6 +412,16 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const snapshot = deps.hub.snapshot();
       const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
       html(response, 200, renderPhonePage(nonce, resolved ?? '', token), nonce);
+      return;
+    }
+    // The PUCK: a model of the knob, driven by the same plane as every other
+    // page. /puck follows whatever is playing; /puck/study pins it to a room by
+    // name, resolved exactly as /phone resolves one.
+    if (path === '/puck' || path === '/puck/' || path.startsWith('/puck/')) {
+      const token = path.startsWith('/puck/') ? decodeURIComponent(path.slice('/puck/'.length)) : '';
+      const snapshot = deps.hub.snapshot();
+      const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
+      html(response, 200, renderPuckPage(nonce, resolved ?? '', token, url.searchParams.get('px')), nonce);
       return;
     }
     // The address worth bookmarking on a TV: no zone, always whatever is playing.
