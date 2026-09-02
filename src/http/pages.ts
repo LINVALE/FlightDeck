@@ -17,7 +17,7 @@ export function normalizeFace(raw: string | null): FaceName | null {
   return (FACES as readonly string[]).includes(lower) ? (lower as FaceName) : null;
 }
 
-function head(nonce: string, title: string, styleHref: string): string {
+function head(nonce: string, title: string, styleHref: string, script: string): string {
   return '<!doctype html><html lang="en"><head>'
     + '<meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -34,7 +34,10 @@ function head(nonce: string, title: string, styleHref: string): string {
     + '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">'
     + '<meta name="theme-color" content="#0a0b0d">'
     + '<link rel="stylesheet" href="' + styleHref + '">'
-    + '<script type="module" nonce="' + nonce + '" src="/assets/' + (styleHref.includes('wall') ? 'wall' : (styleHref.includes('phone') ? 'phone' : 'face')) + '.js"></script>'
+    // The page NAMES its own client. This was inferred from the stylesheet href,
+    // which silently served face.js to any page whose name it did not know — a
+    // fourth page would have rendered as a blank Face rather than as an error.
+    + '<script type="module" nonce="' + nonce + '" src="/assets/' + script + '.js"></script>'
     + '</head>';
 }
 
@@ -56,7 +59,7 @@ export function renderWallPage(nonce: string, urls: readonly string[]): string {
   const numeric = urls.find((url) => /^https?:\/\/\d+\.\d+\.\d+\.\d+(\/|:|$)/.test(url));
   const reach = numeric ?? urls[0] ?? '';
   const now = reach === '' ? '' : reach.replace(/\/$/, '') + '/now';
-  return head(nonce, 'FlightDeck', '/assets/wall.css')
+  return head(nonce, 'FlightDeck', '/assets/wall.css', 'wall')
     + '<body><main class="wall" id="wall" data-state="connecting">'
     + '<div class="wall-startup" id="wall-startup" role="status" aria-live="polite">'
     + '<div class="wall-startup-brand">FLIGHT<span>DECK</span></div>'
@@ -186,7 +189,7 @@ export function renderFacePage(
   // Roon zone ids do not survive every Core change, and a bookmark that dies
   // silently is worse than one that re-finds its room by name.
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
-  return head(nonce, 'FlightDeck', '/assets/face.css')
+  return head(nonce, 'FlightDeck', '/assets/face.css', 'face')
     + '<body><main class="face" id="face"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
@@ -213,10 +216,48 @@ export function renderFacePage(
 export function renderPhonePage(nonce: string, zoneId: string, zoneToken: string | null = null): string {
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
-  return head(nonce, 'FlightDeck', '/assets/phone.css')
+  return head(nonce, 'FlightDeck', '/assets/phone.css', 'phone')
     + '<body><main class="phone" id="phone"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
+    + ' data-state="connecting"></main>'
+    + '</body></html>';
+}
+
+/**
+ * PUCK PIXELS. `?px=360` pins the GLASS to the hardware's own resolution so the
+ * page can be held beside the device; with none, the client sizes the stage off
+ * the viewport's SHORT side. Bounded, because it is a pixel count from a URL.
+ */
+export function normalizePuckPx(raw: string | null): number | null {
+  if (raw === null) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  const rounded = Math.round(value);
+  return rounded >= 120 && rounded <= 1200 ? rounded : null;
+}
+
+/**
+ * The PUCK: a model of the ESP32-S3 knob, and a fourth page for the same reason
+ * the Phone is a third one. The Face's geometry is `vw` for a 16:9 television,
+ * and a circle sized off the SHORT side has no business inside those rules —
+ * dropping one in would mean out-specifying them rather than retiring them.
+ *
+ * It draws the DEVICE, not only its screen. The hardware separates the wheel
+ * from the touch panel physically; the simulation has to separate them somehow,
+ * so turning is a drag on the BEZEL and everything inside the glass is touch.
+ */
+export function renderPuckPage(
+  nonce: string, zoneId: string, zoneToken: string | null = null, pxParam: string | null = null,
+): string {
+  const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
+  const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
+  const px = normalizePuckPx(pxParam);
+  return head(nonce, 'FlightDeck', '/assets/puck.css', 'puck')
+    + '<body><main class="puck" id="puck"'
+    + ' data-zone="' + safeZone + '"'
+    + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
+    + (px === null ? '' : ' data-px="' + String(px) + '"')
     + ' data-state="connecting"></main>'
     + '</body></html>';
 }
