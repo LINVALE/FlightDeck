@@ -1081,9 +1081,36 @@ function render(snapshot, kind) {
      */
     var cols = Math.max(1, Math.min(4, count));
     var rows = Math.max(1, Math.min(4, Math.ceil(count / cols)));
-    grid.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
-    grid.style.gridAutoRows = (100 / rows).toFixed(4) + '%';
-    root.setAttribute('data-rows', String(rows));
+    /**
+     * ⚖️ NO CARD IS EVER BIGGER THAN A QUARTER OF THE SCREEN (Peter, 09-03:
+     * "when we are down to less than 4 cards the layout for each gets too big
+     * and controls spread out").
+     *
+     * One room filled the whole television, two took half the width and all of
+     * the height — and every reading inside them scaled with the row count, so
+     * a single room put a 30vh sleeve and a metre of transport row on screen.
+     * The cap is half the height and a THIRD of the width — a quarter of the
+     * screen at the very most, and never the widest card the wall has ever
+     * drawn. Half the width would have satisfied the area on its own, but two
+     * rooms would still have been 900px each and the transport row still spread
+     * across a metre; a third leaves margin on both sides, so a short wall is a
+     * centred cluster rather than a stretched row.
+     *
+     * `data-rows` is the SIZE class, not the row count — a capped card is a
+     * half-height card, so it takes the two-row scale and every vw reading
+     * inside it stays the size it is on a full wall.
+     */
+    var capped = count < 4;
+    var colPct = capped ? Math.min(100 / cols, 100 / 3) : 100 / cols;
+    grid.style.gridTemplateColumns = capped
+      ? 'repeat(' + cols + ', ' + colPct.toFixed(4) + '%)'
+      : 'repeat(' + cols + ', 1fr)';
+    grid.style.gridAutoRows = (capped ? 50 : 100 / rows).toFixed(4) + '%';
+    // Centred only while the cards are capped: the full wall fills its tracks,
+    // and centring a grid that SCROLLS can put its first row out of reach.
+    grid.style.justifyContent = capped ? 'center' : '';
+    grid.style.alignContent = capped ? 'center' : '';
+    root.setAttribute('data-rows', String(capped ? 2 : rows));
     // Density follows what is ON THE PAGE, which is now a family rather than the
     // house: three rooms in a tab should look like three rooms, not like a corner
     // of twenty-two.
@@ -1095,7 +1122,7 @@ function render(snapshot, kind) {
       var tile = tiles[zone.id];
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
-      tile.node.className = classFor(zone, isHero) + (count <= 3 ? ' solo' : '');
+      tile.node.className = classFor(zone, isHero);
       var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zone.id;
       tile.node.href = '/face/' + encodeURIComponent(faceId);
       tile.node.setAttribute('data-zone', zone.id);

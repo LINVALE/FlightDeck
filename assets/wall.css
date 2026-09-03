@@ -105,19 +105,13 @@ body { min-height: 100vh; }
 
 .tile { display: flex; align-items: center; width: 50%; padding: 0.7vh 1.1vw 0.7vh 0;
   border-bottom: 1px solid var(--line); text-decoration: none; color: inherit; }
-/* Three rooms or fewer get the room they have. Solo used to mean "this is the
-   whole house", which was rare; now it also means "this family has three rooms",
-   which is common — and three rooms crowded into the top sixth of a TV looks
-   broken rather than spacious. */
-.tile.solo { width: 100%; padding-top: 2.2vh; padding-bottom: 2.2vh; }
-.tile.solo .tile-art,
-.tile.solo.is-paused .tile-art,
-.tile.solo.is-idle .tile-art { width: 9vw; height: 9vw; }
-.tile.solo.is-live .tile-art,
-.tile.solo.is-hero .tile-art { width: 11vw; height: 11vw; }
-.tile.solo .tile-title { font-size: 2.1vw; }
-.tile.solo .tile-zone { font-size: 0.95vw; }
-.tile.solo .tile-line2 { font-size: 1vw; }
+/* ══ `.tile.solo` IS GONE ════════════════════════════════════════════════════
+   It grew a card for three rooms or fewer, from the old wrapped-flex wall. Every
+   one of its declarations was already out-specified by `.grid > .tile` and the
+   `[data-rows]` scale, so it had done nothing for weeks while reading as the
+   rule that governed a short wall — and a short wall is now capped at a quarter
+   of the screen in wall.js instead (Peter, 09-03). Removed rather than
+   out-specified again, so it cannot come back. */
 
 /* THE COVER IS SACRED: only ever RESIZED. Never opacity, filter, transform or mask —
    state is expressed by the copy around it and by the size of its box. */

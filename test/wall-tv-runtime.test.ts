@@ -297,3 +297,30 @@ test('Wall action instructions occupy the top control line', () => {
   assert.match(CSS, /\.wall-bar \{\s*position: absolute; left: 0; right: 0; top: -\.55vh; bottom: auto/);
   assert.doesNotMatch(CSS, /\.wall-bar \{[\s\S]{0,100}position: fixed/);
 });
+
+/**
+ * ⚖️ NO CARD IS EVER BIGGER THAN A QUARTER OF THE SCREEN (Peter, 09-03: "when we
+ * are down to less than 4 cards the layout for each gets too big and controls
+ * spread out").
+ *
+ * One room filled a whole television and two took half the width and all of the
+ * height — and because every reading inside a card scales with `data-rows`, a
+ * single room also got a 30vh sleeve and a transport row a metre wide. The cap
+ * is the footprint a card has in a full 2x2, the leftover becomes margin, and
+ * `data-rows` carries the SIZE class so the readings stay the size they are on a
+ * full wall.
+ */
+test('a wall of fewer than four rooms is capped at a quarter each and centred', () => {
+  assert.match(WALL, /var capped = count < 4;/);
+  assert.match(WALL, /colPct = capped \? Math\.min\(100 \/ cols, 100 \/ 3\) : 100 \/ cols/,
+    'a third of the width, so two rooms leave margin instead of spreading the transport row');
+  assert.match(WALL, /gridAutoRows = \(capped \? 50 : 100 \/ rows\)/);
+  assert.match(WALL, /justifyContent = capped \? 'center' : ''/);
+  assert.match(WALL, /alignContent = capped \? 'center' : ''/,
+    'centring a grid that SCROLLS can put its first row out of reach, so it is capped-only');
+  assert.match(WALL, /setAttribute\('data-rows', String\(capped \? 2 : rows\)\)/,
+    'a capped card is a half-height card and takes the two-row type scale');
+  // Removed rather than out-specified, exactly as the density tiers were.
+  assert.doesNotMatch(WALL, /' solo'/);
+  assert.doesNotMatch(CSS, /\.tile\.solo \{/);
+});
