@@ -180,3 +180,114 @@ body {
 }
 
 .puck[data-state="live"] .note { display: none; }
+
+/* ---------- browse: choices distributed around the clock face ---------- */
+
+/**
+ * ⚖️ Labels ring the face, upright, and the SELECTED one is read large in the
+ * centre. Rotating the labels with the dial would be truer to a combination
+ * lock and unreadable at the bottom; keeping them upright and putting the
+ * choice in the middle is what makes one layout work at 360px AND across a room
+ * — you navigate by the ring and read by the centre.
+ *
+ * No transform anywhere here: `.glass` is an ancestor of the cover, and the
+ * cover-sacred lint checks ancestors. Everything is placed with calc() offsets.
+ */
+
+.browse { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.puck:not([data-browse]) .browse { display: none; }
+
+/* When browsing, the art recedes so the menu owns the face. A scrim over it —
+   never opacity on the cover itself. */
+.browse-veil {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(6, 7, 10, .72);
+}
+
+.level {
+  position: absolute; left: 0; right: 0;
+  top: calc(var(--u) * 6);
+  text-align: center;
+  font-size: calc(var(--u) * 4.2);
+  letter-spacing: calc(var(--u) * .3);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.opt {
+  position: absolute;
+  width: calc(var(--u) * 22);
+  margin-left: calc(var(--u) * -11);
+  margin-top: calc(var(--u) * -2.4);
+  text-align: center;
+  font-size: calc(var(--u) * 3.4);
+  line-height: 1.2;
+  color: rgba(242, 238, 230, .46);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.opt-on {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: calc(var(--u) * 3.9);
+}
+
+/* The alphabet ring: 26 single characters is what a circle is for. */
+.puck[data-tier="alpha"] .opt {
+  width: calc(var(--u) * 7);
+  margin-left: calc(var(--u) * -3.5);
+  font-size: calc(var(--u) * 4.2);
+}
+
+.puck[data-tier="alpha"] .opt-on { font-size: calc(var(--u) * 5.6); }
+
+.chosen {
+  position: absolute;
+  left: calc(var(--u) * 17); right: calc(var(--u) * 17);
+  top: 50%;
+  margin-top: calc(var(--u) * -9);
+  text-align: center;
+}
+
+.chosen-title {
+  font-size: calc(var(--u) * 8);
+  line-height: 1.14;
+  font-weight: 600;
+  max-height: calc(var(--u) * 18.5);
+  overflow: hidden;
+}
+
+.chosen-sub {
+  margin-top: calc(var(--u) * 1.4);
+  font-size: calc(var(--u) * 3.6);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.count {
+  position: absolute; left: 0; right: 0;
+  bottom: calc(var(--u) * 7);
+  text-align: center;
+  font-size: calc(var(--u) * 3.6);
+  letter-spacing: calc(var(--u) * .12);
+  color: var(--ink-dim);
+}
+
+/* The cascade, drawn as concentric breadcrumb arcs inside the rim. */
+.crumb { fill: none; stroke: rgba(242, 238, 230, .34); stroke-width: 1.1; stroke-linecap: round; }
+
+/**
+ * Browsing hides the now-playing copy rather than dimming it. A 72% veil left
+ * the title and times legible THROUGH the menu, colliding with the options —
+ * two readings of the same face at once. The progress ring stays: the music is
+ * still going, and that is worth knowing while you look for the next thing.
+ */
+.puck[data-browse] .room,
+.puck[data-browse] .words,
+.puck[data-browse] .times,
+.puck[data-browse] .scrim-top,
+.puck[data-browse] .scrim-foot { display: none; }

@@ -249,6 +249,7 @@ export function normalizePuckPx(raw: string | null): number | null {
  */
 export function renderPuckPage(
   nonce: string, zoneId: string, zoneToken: string | null = null, pxParam: string | null = null,
+  browseParam: string | null = null,
 ): string {
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
@@ -258,6 +259,10 @@ export function renderPuckPage(
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
     + (px === null ? '' : ' data-px="' + String(px) + '"')
+    // A development affordance: open straight into a browse level, so a
+    // screenshot can catch a menu that a gesture would otherwise be needed for.
+    + (browseParam === null ? ''
+      : ' data-browse-param="' + browseParam.replace(/[^a-z_]/g, '').slice(0, 24) + '"')
     + ' data-state="connecting"></main>'
     + '</body></html>';
 }

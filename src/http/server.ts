@@ -421,7 +421,8 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const token = path.startsWith('/puck/') ? decodeURIComponent(path.slice('/puck/'.length)) : '';
       const snapshot = deps.hub.snapshot();
       const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
-      html(response, 200, renderPuckPage(nonce, resolved ?? '', token, url.searchParams.get('px')), nonce);
+      html(response, 200, renderPuckPage(nonce, resolved ?? '', token,
+        url.searchParams.get('px'), url.searchParams.get('browse')), nonce);
       return;
     }
     // The address worth bookmarking on a TV: no zone, always whatever is playing.

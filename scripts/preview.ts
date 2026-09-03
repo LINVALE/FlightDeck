@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -149,8 +150,35 @@ async function main(): Promise<void> {
     transferZone: async (from: string, to: string) => say('transfer ' + from + ' -> ' + to),
   };
 
-  const server = createFlightDeckServer({
-    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands, browseAccess: null,
+  
+/**
+ * Browse, replayed from the 2026-08-25 capture in test/fixtures/browse/.
+ *
+ * A development stand-in, not a product path: it answers `browse` and `load`
+ * per hierarchy from what a real Core actually returned, so the radial menu can
+ * be built and measured against genuine list sizes — Explore 7, Genres 56,
+ * Albums 2295 — without a Core, a pairing, or FLIGHTDECK_BROWSE=1.
+ */
+const CAPTURE: Record<string, { result: { body: unknown } }> = JSON.parse(
+  readFileSync(resolve(fileURLToPath(import.meta.url), '..', '..', 'test', 'fixtures', 'browse', 'hierarchies.json'), 'utf8'),
+);
+
+const fixtureBrowse = {
+  available: (): boolean => true,
+  browse: async (call: { hierarchy?: string }): Promise<unknown> => {
+    const entry = CAPTURE['root:' + String(call.hierarchy ?? 'browse')];
+    if (entry === undefined) return { action: 'none', list: null, message: 'no capture', isError: true, items: [], offset: 0 };
+    return entry.result.body;
+  },
+  load: async (call: { hierarchy?: string }): Promise<unknown> => {
+    const entry = CAPTURE['load:' + String(call.hierarchy ?? 'browse')];
+    if (entry === undefined) return { action: 'list', list: null, message: null, isError: false, items: [], offset: 0 };
+    return entry.result.body;
+  },
+};
+
+const server = createFlightDeckServer({
+    hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands, browseAccess: fixtureBrowse,
     urls: () => ['http://flightdeck.local/', 'http://192.168.1.114/'],
     port: () => bound,
   });

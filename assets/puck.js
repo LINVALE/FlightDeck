@@ -86,6 +86,28 @@ words.appendChild(line2);
 var times = el('div', 'times');
 var note = el('div', 'note', 'connecting');
 
+/* ---------- browse: the clock face ---------- */
+
+var browse = el('div', 'browse');
+var browseVeil = el('div', 'browse-veil');
+var level = el('div', 'level');
+var optWrap = el('div', 'opt-wrap');
+var chosen = el('div', 'chosen');
+var chosenTitle = el('div', 'chosen-title');
+var chosenSub = el('div', 'chosen-sub');
+chosen.appendChild(chosenTitle);
+chosen.appendChild(chosenSub);
+var count = el('div', 'count');
+var crumbs = document.createElementNS(SVG_NS, 'svg');
+crumbs.setAttribute('class', 'ring');
+crumbs.setAttribute('viewBox', '0 0 100 100');
+browse.appendChild(browseVeil);
+browse.appendChild(crumbs);
+browse.appendChild(level);
+browse.appendChild(optWrap);
+browse.appendChild(chosen);
+browse.appendChild(count);
+
 glass.appendChild(cover);
 glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
@@ -93,6 +115,7 @@ glass.appendChild(ring);
 glass.appendChild(room);
 glass.appendChild(words);
 glass.appendChild(times);
+glass.appendChild(browse);
 glass.appendChild(note);
 rig.appendChild(glass);
 root.appendChild(rig);
@@ -253,6 +276,137 @@ function render() {
   times.appendChild(document.createTextNode(' ENDS ' + endsAt(remaining)));
   setArc(position / length);
 }
+
+
+/* ---------- the radial menu ---------- */
+
+/**
+ * ⚖️ THE TIER IS CHOSEN BEFORE THE ITEMS ARE LOADED.
+ *
+ * Roon reports `list.count` with the level, so the dial knows how to present it
+ * without fetching first. Measured on a real library: Explore 7, Genres 56,
+ * Albums 2295 — which is exactly why all three tiers have to exist.
+ */
+var RADIAL_MAX = 12;
+var ALPHA_MAX = 200;
+var OPT_R = 35;          // where the labels ring the face
+var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+function tierFor(n) {
+  if (n <= RADIAL_MAX) return 'radial';
+  if (n <= ALPHA_MAX) return 'alpha';
+  return 'linear';
+}
+
+var view = { open: false, tier: 'radial', title: '', options: [], sel: 0, depth: 0, busy: false };
+
+/** Our OWN session: Roon keeps one browse stack per multi_session_key, so a
+ *  puck sharing the default would drag every other screen's level around. */
+var SESSION = 'puck-' + String(Math.floor(Math.random() * 1e6));
+
+function ask(body) {
+  return fetch('/api/v1/browse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+}
+
+function openLevel(hierarchy) {
+  if (view.busy) return;
+  view.busy = true;
+  ask({ hierarchy: hierarchy, sessionKey: SESSION, popAll: true }).then(function (head) {
+    if (head === null || head.list === null) { view.busy = false; return; }
+    var total = head.list.count;
+    var tier = tierFor(total);
+    return ask({ hierarchy: hierarchy, sessionKey: SESSION, load: true, count: RADIAL_MAX })
+      .then(function (page) {
+        view.open = true;
+        view.tier = tier;
+        view.title = head.list.title;
+        view.total = total;
+        view.sel = 0;
+        view.options = tier === 'alpha'
+          ? ALPHABET.map(function (c) { return { title: c, subtitle: null }; })
+          : ((page && page.items) ? page.items : []).slice(0, RADIAL_MAX);
+        view.busy = false;
+        drawBrowse();
+      });
+  }).catch(function () { view.busy = false; });
+}
+
+function closeBrowse() {
+  view.open = false;
+  root.removeAttribute('data-browse');
+  root.removeAttribute('data-tier');
+  render();
+}
+
+function move(step) {
+  if (!view.open || view.options.length === 0) return;
+  var n = view.options.length;
+  view.sel = ((view.sel + step) % n + n) % n;
+  drawBrowse();
+}
+
+function drawBrowse() {
+  if (!view.open) return;
+  root.setAttribute('data-browse', view.tier);
+  root.setAttribute('data-tier', view.tier);
+  level.textContent = view.title;
+
+  while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
+  var n = view.options.length;
+  for (var i = 0; i < n; i += 1) {
+    var angle = (i / n) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise
+    var node = el('div', i === view.sel ? 'opt opt-on' : 'opt', view.options[i].title);
+    node.style.left = String(50 + OPT_R * Math.cos(angle)) + '%';
+    node.style.top = String(50 + OPT_R * Math.sin(angle)) + '%';
+    (function (index) {
+      node.addEventListener('click', function () { view.sel = index; drawBrowse(); });
+    }(i));
+    optWrap.appendChild(node);
+  }
+
+  var pick = view.options[view.sel];
+  chosenTitle.textContent = pick ? pick.title : '';
+  chosenSub.textContent = pick && pick.subtitle ? pick.subtitle : '';
+  count.textContent = String(view.sel + 1) + ' / ' + String(view.tier === 'alpha' ? 26 : n)
+    + (view.total > n && view.tier !== 'alpha' ? '  of ' + String(view.total) : '');
+
+  // the cascade: one thin arc per level already descended
+  while (crumbs.firstChild) crumbs.removeChild(crumbs.firstChild);
+  for (var d = 0; d < view.depth; d += 1) {
+    var c = document.createElementNS(SVG_NS, 'circle');
+    c.setAttribute('class', 'crumb');
+    c.setAttribute('cx', '50'); c.setAttribute('cy', '50');
+    c.setAttribute('r', String(43 - d * 3));
+    crumbs.appendChild(c);
+  }
+}
+
+/* Wheel and arrows both move the selection: the wheel is the eyes-free path,
+   touch is the accelerator. On the device these are the same two inputs. */
+window.addEventListener('wheel', function (event) {
+  if (!view.open) return;
+  move(event.deltaY > 0 ? 1 : -1);
+}, { passive: true });
+
+window.addEventListener('keydown', function (event) {
+  var k = event.key;
+  if (!view.open) {
+    if (k === 'ArrowDown') openLevel('browse');
+    return;
+  }
+  if (k === 'ArrowRight' || k === 'ArrowDown') move(1);
+  else if (k === 'ArrowLeft' || k === 'ArrowUp') move(-1);
+  else if (k === 'Escape') closeBrowse();
+});
+
+// The rig affordance: ?browse=<hierarchy> opens straight into a level, so a
+// screenshot can be taken of a menu that a gesture would otherwise be needed for.
+var wantBrowse = root.getAttribute('data-browse-param');
+if (wantBrowse) openLevel(wantBrowse);
 
 var store = createStore(render);
 store.hydrate();
