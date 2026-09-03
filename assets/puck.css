@@ -416,7 +416,7 @@ body {
 
 .level {
   position: absolute; left: 0; right: 0;
-  top: calc(var(--u) * 6);
+  top: calc(var(--u) * 3.2);
   text-align: center;
   font-size: calc(var(--u) * 4.2);
   letter-spacing: calc(var(--u) * .3);
@@ -424,51 +424,96 @@ body {
   color: var(--ink-dim);
 }
 
+/**
+ * ⚖️ A CHOICE IS A TOKEN IN A CIRCLE (Peter, 09-03), matching the transport
+ * cluster: the same disc, the same line-work, the same accent when chosen. The
+ * circle carries an icon where one is obvious, the row's sleeve where it has
+ * one, and its initial otherwise — and the name is read large in the middle.
+ *
+ * `.opt` is a zero-size ANCHOR at the point on the ring; everything hangs off it
+ * on negative margins, which is also why the token is sized in `--u` rather than
+ * in percent — a percentage against a zero box is zero.
+ */
 .opt {
   position: absolute;
-  width: calc(var(--u) * 22);
-  margin-left: calc(var(--u) * -11);
-  margin-top: calc(var(--u) * -2.4);
-  text-align: center;
-  font-size: calc(var(--u) * 3.4);
-  line-height: 1.2;
-  color: rgba(242, 238, 230, .46);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  width: 0; height: 0;
   cursor: pointer;
+  color: rgba(242, 238, 230, .55);
 }
 
-.opt-on {
+.opt-on { color: var(--ink); }
+
+.tok {
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(10, 11, 14, .62);
+  border: 1px solid rgba(242, 238, 230, .20);
+  line-height: 1;
+}
+
+.opt-on .tok {
+  background: rgba(10, 11, 14, .78);
+  border-color: var(--accent);
+  border-width: 2px;
   color: var(--ink);
-  font-weight: 700;
-  font-size: calc(var(--u) * 3.9);
 }
 
-/* The alphabet ring: 26 single characters is what a circle is for. */
-.puck[data-tier="alpha"] .opt {
-  width: calc(var(--u) * 7);
-  margin-left: calc(var(--u) * -3.5);
-  font-size: calc(var(--u) * 4.2);
+.tok .glyph { width: 54%; height: 54%; display: block; }
+.tok-art { width: 100%; height: 100%; display: block; }
+.tok-text { font-weight: 600; }
+
+/* The name under the circle, when the ring is loose enough to carry one. */
+.opt-name {
+  position: absolute;
+  left: 0; top: 0;
+  width: calc(var(--u) * 24);
+  margin-left: calc(var(--u) * -12);
+  text-align: center;
+  font-size: calc(var(--u) * 3.2);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.puck[data-tier="alpha"] .opt-on { font-size: calc(var(--u) * 5.6); }
+.opt-on .opt-name { font-weight: 700; }
 
 /**
- * THE THIRD TIER. Two thousand albums cannot ring a face, so they run as a
- * column under the thumb: the choice in the middle, its neighbours fading above
- * and below. It is what a knob-driven list looks like on every round device,
- * and it is the tier the alphabet ring hands off to once a letter is picked.
+ * THE THIRD TIER. Two thousand three hundred albums cannot ring a face, so they
+ * run as a column under the thumb: the choice in the middle, its neighbours
+ * fading above and below, each behind its own disc. It is what a knob-driven
+ * list looks like on every round device.
  */
-.puck[data-tier="linear"] .opt {
-  width: calc(var(--u) * 66);
-  margin-left: calc(var(--u) * -33);
+.puck[data-tier="linear"] .tok {
+  position: absolute;
+  left: calc(var(--u) * -31); top: 0;
+  width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+  margin-left: 0; margin-top: calc(var(--u) * -4);
+  font-size: calc(var(--u) * 3.6);
+}
+
+.puck[data-tier="linear"] .opt-on .tok {
+  left: calc(var(--u) * -33);
+  width: calc(var(--u) * 11); height: calc(var(--u) * 11);
+  margin-top: calc(var(--u) * -5.5);
+  font-size: calc(var(--u) * 4.8);
+}
+
+.puck[data-tier="linear"] .opt-name {
+  left: calc(var(--u) * -19);
+  width: calc(var(--u) * 52);
+  margin-left: 0;
+  margin-top: calc(var(--u) * -2.2);
+  text-align: left;
   font-size: calc(var(--u) * 3.8);
 }
 
-.puck[data-tier="linear"] .opt-on {
-  font-size: calc(var(--u) * 5.4);
-  margin-top: calc(var(--u) * -3.4);
+.puck[data-tier="linear"] .opt-on .opt-name {
+  font-size: calc(var(--u) * 5);
+  margin-top: calc(var(--u) * -2.9);
 }
 
 .chosen {
@@ -489,7 +534,7 @@ body {
 .chosen-art {
   width: calc(var(--u) * 18);
   height: calc(var(--u) * 18);
-  border-radius: calc(var(--u) * 1.6);
+  border-radius: 50%;
   margin: 0 auto calc(var(--u) * 1.6);
   display: block;
 }
@@ -526,6 +571,11 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* A ring of seven says how many by BEING seven; the count belongs to the tiers
+   you cannot see the end of, and at the foot of a circle it collided with the
+   six o'clock choice. */
+.puck[data-tier="radial"] .count { display: none; }
 
 .count {
   position: absolute; left: 0; right: 0;

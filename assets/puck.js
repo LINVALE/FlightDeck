@@ -4,6 +4,7 @@ import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
+import { glyph } from './puck-icons.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -70,60 +71,6 @@ function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-}
-
-/* ---------- glyphs: the face's own line-work, unchanged ---------- */
-
-function glyph(name) {
-  var svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('class', 'glyph');
-  svg.setAttribute('aria-hidden', 'true');
-  var filled = {
-    prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
-    next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
-    play: 'M8 5.5v13l11-6.5z',
-    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
-  }[name];
-  if (filled !== undefined) {
-    var path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', filled);
-    path.setAttribute('fill', 'currentColor');
-    svg.appendChild(path);
-    return svg;
-  }
-  var strokes = {
-    shuffle: [
-      'M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
-      'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
-      'M18.2 5.6 20.6 7.5 18.2 9.4',
-      'M18.2 14.6 20.6 16.5 18.2 18.4',
-    ],
-    repeat: [
-      'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
-      'M16 13.8 18 16 20 13.8',
-      'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
-      'M4 10.2 6 8 8 10.2',
-    ],
-    'repeat-one': [
-      'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
-      'M16 13.8 18 16 20 13.8',
-      'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
-      'M4 10.2 6 8 8 10.2',
-      'M11 11.2 12.6 10.2V14',
-    ],
-  }[name] || [];
-  for (var i = 0; i < strokes.length; i += 1) {
-    var line = document.createElementNS(SVG_NS, 'path');
-    line.setAttribute('d', strokes[i]);
-    line.setAttribute('fill', 'none');
-    line.setAttribute('stroke', 'currentColor');
-    line.setAttribute('stroke-width', '1.7');
-    line.setAttribute('stroke-linecap', 'round');
-    line.setAttribute('stroke-linejoin', 'round');
-    svg.appendChild(line);
-  }
-  return svg;
 }
 
 /* ---------- the device ---------- */
