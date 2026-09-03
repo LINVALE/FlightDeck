@@ -15,10 +15,11 @@
  * never dimmed, tinted or squashed — only its corners fall outside the circle.
  * Legibility comes from scrims painted OVER the art, never from muting it.
  *
- * ⚖️ TWO RINGS, ADJACENT (Peter, 2026-09-03). The OUTER one is volume — it is
- * the wheel's own readout, and the wheel is the rim, so the reading sits where
- * the hand is. The INNER one is progress. They share the twelve o'clock start
- * and differ in colour, because they are read at a glance and never together.
+ * ⚖️ ONE RING AT REST (Peter, 2026-09-03, second look: "too many rings"). The
+ * first cut drew volume and progress as two rings with tracks and a dark
+ * gutter beneath — five concentric lines, and the sleeve visibly stopped short
+ * of the glass. Now progress holds the rim alone; the volume arc appears just
+ * inside it only while the controls are up, beside a number you can read.
  */
 
 :root {
@@ -94,7 +95,10 @@ body {
   overflow: hidden;
 }
 
-.cover img { display: block; width: 100%; height: 100%; }
+/* Roon's relay fits a sleeve inside 640x640 and a non-square one comes back
+   non-square; stretched to the glass it lied, boxed it left a gap. Cropped to
+   the circle its overflow was falling outside the disc anyway. */
+.cover img { display: block; width: 100%; height: 100%; -o-object-fit: cover; object-fit: cover; }
 
 /**
  * Legibility is painted ON TOP of the art, never taken out of it. Two scrims:
@@ -113,9 +117,9 @@ body {
 }
 
 .scrim-foot {
-  bottom: 0; height: 56%;
-  background-image: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 44%, rgba(0,0,0,.90) 100%);
-  background-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 44%, rgba(0,0,0,.90) 100%);
+  bottom: 0; height: 48%;
+  background-image: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.52) 46%, rgba(0,0,0,.86) 100%);
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.52) 46%, rgba(0,0,0,.86) 100%);
 }
 
 .ring {
@@ -125,44 +129,36 @@ body {
   pointer-events: none;
 }
 
-/* A dark gutter under both rings: legibility painted OVER the art, as every
-   other scrim on this face is. Without it a white arc vanishes into a white sky. */
-.ring-gutter { fill: none; stroke: rgba(0, 0, 0, .38); stroke-width: 9; }
+/* ---- the rim: PROGRESS, Roon's own reported second ---- */
 
-/* ---- the outer ring: VOLUME, the wheel's own readout ---- */
-
-.vol-track { fill: none; stroke: rgba(242, 238, 230, .16); stroke-width: 2.2; }
-
-.vol-arc {
-  fill: none;
-  stroke: rgba(242, 238, 230, .88);
-  stroke-width: 2.2;
-  stroke-linecap: round;
-}
-
-/* Muted is a BROKEN ring, not a dimmer one: at arm's length a dashed arc reads
-   as "interrupted" where a faint one reads as "nearly off". */
-.vol-arc.is-muted { stroke: rgba(242, 238, 230, .40); stroke-dasharray: 1.6 2.4; }
-
-/* An incremental output reports no level at all — only that it takes + and −.
-   The track alone says "the wheel works here"; an invented arc would lie. */
-.puck[data-vol="none"] .vol-track,
-.puck[data-vol="none"] .vol-arc { display: none; }
-.puck[data-vol="blind"] .vol-arc { display: none; }
-
-/* ---- the inner ring: PROGRESS, Roon's own reported second ---- */
-
-.prog-track { fill: none; stroke: rgba(242, 238, 230, .20); stroke-width: 2.6; }
+.prog-track { fill: none; stroke: rgba(242, 238, 230, .20); stroke-width: 2.4; }
 
 .prog-arc {
   fill: none;
   stroke: var(--accent);
   stroke-opacity: .94;
-  stroke-width: 2.6;
+  stroke-width: 2.4;
   stroke-linecap: round;
 }
 
 .prog-bead { fill: #fffef8; }
+
+/* ---- inside it: VOLUME, only while the controls are up ---- */
+
+.vol-arc {
+  fill: none;
+  stroke: rgba(242, 238, 230, .90);
+  stroke-width: 2;
+  stroke-linecap: round;
+  display: none;
+}
+
+.puck[data-chrome="1"][data-vol="level"] .vol-arc { display: block; }
+.puck[data-browse] .vol-arc { display: none; }
+
+/* Muted is a BROKEN ring, not a dimmer one: at arm's length a dashed arc reads
+   as "interrupted" where a faint one reads as "nearly off". */
+.vol-arc.is-muted { stroke: rgba(242, 238, 230, .40); stroke-dasharray: 1.6 2.4; }
 
 /* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 
@@ -176,37 +172,6 @@ body {
   text-transform: uppercase;
   color: var(--ink-dim);
   pointer-events: none;
-}
-
-/**
- * THE VOLUME READING, shown only while the wheel is moving. A knob that answers
- * a turn with a number is the whole reason the wheel feels connected; a number
- * standing there permanently is clutter on a face whose subject is the music.
- */
-.vol-read {
-  position: absolute;
-  left: 0; right: 0;
-  top: calc(var(--u) * 13.5);
-  text-align: center;
-  font-size: calc(var(--u) * 9);
-  font-weight: 600;
-  letter-spacing: calc(var(--u) * .1);
-  color: var(--ink);
-  text-shadow: 0 calc(var(--u) * .3) calc(var(--u) * 1.2) rgba(0,0,0,.75);
-  display: none;
-  pointer-events: none;
-}
-
-.puck[data-turning="1"] .vol-read { display: block; }
-.puck[data-browse] .vol-read { display: none; }
-
-.vol-read span {
-  display: block;
-  font-size: calc(var(--u) * 3.2);
-  font-weight: 400;
-  letter-spacing: calc(var(--u) * .3);
-  text-transform: uppercase;
-  color: var(--ink-dim);
 }
 
 /* ---- the words: title, artist, album, at the foot ---- */
@@ -247,23 +212,23 @@ body {
 }
 
 /**
- * ⚖️ THE OVERLAY CONDENSES THE WORDS RATHER THAN SITTING ON THEM. A circle has
- * one middle; the transport cluster and three lines of copy cannot both have it.
- * While the controls are up the face is a transport face — title only, at the
- * rim — and the full credit returns the moment they go back to sleep.
+ * ⚖️ THE OVERLAY MAKES ROOM; IT DOES NOT TAKE THE WORDS AWAY (Peter, 09-03:
+ * "metadata partly obscured"). The cluster sits in the upper two thirds and
+ * the credit keeps all three lines at the foot — the title folds to one line
+ * so the artist and album beneath it are never the cost of a control.
  */
-.puck[data-chrome="1"] .artist,
-.puck[data-chrome="1"] .album { display: none; }
-
-.puck[data-chrome="1"] .words { bottom: calc(var(--u) * 11); }
+.puck[data-chrome="1"] .words { bottom: calc(var(--u) * 12); }
 
 .puck[data-chrome="1"] .title {
-  font-size: calc(var(--u) * 5.2);
-  max-height: calc(var(--u) * 6.1);
+  font-size: calc(var(--u) * 5.4);
+  max-height: calc(var(--u) * 6.3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.puck[data-chrome="1"] .artist { font-size: calc(var(--u) * 4.2); margin-top: calc(var(--u) * .9); }
+.puck[data-chrome="1"] .album { font-size: calc(var(--u) * 3.7); }
 
 .times {
   position: absolute;
@@ -348,46 +313,81 @@ body {
 
 .btn .glyph { width: 60%; height: 60%; display: block; }
 
-/* The cluster: play at the middle of the free band, previous and next beside it,
-   repeat and shuffle on the shoulder above. Placed with calc() offsets — never a
-   transform, because `.glass` is an ancestor of the cover. */
+/**
+ * The cluster, in rows (Peter, 09-03: "not cleanly laid out"): the volume pill
+ * under the room name, previous · play · next across the middle, repeat and
+ * shuffle on the shoulder beneath, and the credit keeps the foot. Placed with
+ * calc() offsets — never a transform, because `.glass` is an ancestor of the
+ * cover.
+ */
 .btn-play {
-  left: 50%; top: calc(var(--u) * 40);
-  width: calc(var(--u) * 19); height: calc(var(--u) * 19);
-  margin-left: calc(var(--u) * -9.5); margin-top: calc(var(--u) * -9.5);
+  left: 50%; top: calc(var(--u) * 39);
+  width: calc(var(--u) * 17); height: calc(var(--u) * 17);
+  margin-left: calc(var(--u) * -8.5); margin-top: calc(var(--u) * -8.5);
   background: rgba(10, 11, 14, .74);
 }
 
 .btn-prev, .btn-next {
-  top: calc(var(--u) * 40);
-  width: calc(var(--u) * 14); height: calc(var(--u) * 14);
-  margin-top: calc(var(--u) * -7);
+  top: calc(var(--u) * 39);
+  width: calc(var(--u) * 12.5); height: calc(var(--u) * 12.5);
+  margin-top: calc(var(--u) * -6.25);
 }
 
-.btn-prev { left: calc(var(--u) * 24.5); margin-left: calc(var(--u) * -7); }
-.btn-next { left: calc(var(--u) * 75.5); margin-left: calc(var(--u) * -7); }
+.btn-prev { left: calc(var(--u) * 26); margin-left: calc(var(--u) * -6.25); }
+.btn-next { left: calc(var(--u) * 74); margin-left: calc(var(--u) * -6.25); }
 
 .btn-repeat, .btn-shuffle {
-  top: calc(var(--u) * 20);
-  width: calc(var(--u) * 11); height: calc(var(--u) * 11);
-  margin-top: calc(var(--u) * -5.5);
+  top: calc(var(--u) * 56);
+  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
+  margin-top: calc(var(--u) * -5);
 }
 
-.btn-repeat { left: calc(var(--u) * 30); margin-left: calc(var(--u) * -5.5); }
-.btn-shuffle { left: calc(var(--u) * 70); margin-left: calc(var(--u) * -5.5); }
+.btn-repeat { left: calc(var(--u) * 35); margin-left: calc(var(--u) * -5); }
+.btn-shuffle { left: calc(var(--u) * 65); margin-left: calc(var(--u) * -5); }
 
-/* The hint under the cluster, once, while a person is still learning the verbs. */
-.hint {
+/**
+ * ⚖️ THE VOLUME CONTROL YOU CAN SEE: a speaker, the level, − and + either side.
+ * One press, one step — the tap-only rule the Wall lives by — and the speaker
+ * itself is mute. The wheel drives the same number; this is where it is read.
+ */
+.vol-pill {
   position: absolute;
-  left: 0; right: 0;
-  top: calc(var(--u) * 53);
-  text-align: center;
-  font-size: calc(var(--u) * 3.2);
-  letter-spacing: calc(var(--u) * .2);
-  text-transform: uppercase;
-  color: rgba(242, 238, 230, .44);
-  pointer-events: none;
+  left: 50%; top: calc(var(--u) * 20.5);
+  width: calc(var(--u) * 44); height: calc(var(--u) * 10);
+  margin-left: calc(var(--u) * -22); margin-top: calc(var(--u) * -5);
+  border-radius: calc(var(--u) * 5);
+  background: rgba(10, 11, 14, .66);
+  border: 1px solid rgba(242, 238, 230, .18);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: space-between; justify-content: space-between;
 }
+
+.vol-step, .vol-mute {
+  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.vol-step .glyph { width: 52%; height: 52%; display: block; }
+.vol-mute .glyph { width: 58%; height: 58%; display: block; }
+
+.vol-num {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto;
+  text-align: center;
+  font-size: calc(var(--u) * 4.6);
+  font-weight: 600;
+  letter-spacing: calc(var(--u) * .1);
+  color: var(--ink);
+}
+
+/* No control at all on this output: say nothing rather than draw a dead one. */
+.puck[data-vol="none"] .vol-pill { display: none; }
+/* Steps only, no level to read: the number gives way to the speaker alone. */
+.puck[data-vol="blind"] .vol-num { color: var(--ink-dim); font-size: calc(var(--u) * 3.4); }
 
 /* ---------- browse: choices distributed around the clock face ---------- */
 

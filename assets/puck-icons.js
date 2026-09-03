@@ -20,10 +20,31 @@ var SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Solid shapes: transport, where a filled mark reads faster than an outline. */
 var FILLED = {
+  minus: 'M5.5 10.9h13v2.2h-13z',
+  plus: 'M10.9 5.5h2.2v13h-2.2zM5.5 10.9h13v2.2h-13z',
   prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
   next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
   play: 'M8 5.5v13l11-6.5z',
   pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
+};
+
+/**
+ * A filled cone with stroked waves: the one glyph that is both. The speaker is
+ * the volume control's own face, and a level of nothing is the cone alone.
+ */
+var MIXED = {
+  speaker: {
+    fill: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
+    strokes: ['M15 9.4a3.7 3.7 0 0 1 0 5.2', 'M17.8 6.8a7.4 7.4 0 0 1 0 10.4'],
+  },
+  'speaker-muted': {
+    fill: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
+    strokes: ['M15.2 9.2l5.6 5.6', 'M20.8 9.2l-5.6 5.6'],
+  },
+  'speaker-quiet': {
+    fill: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
+    strokes: [],
+  },
 };
 
 var STROKED = {
@@ -76,15 +97,16 @@ export function glyph(name) {
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('class', 'glyph');
   svg.setAttribute('aria-hidden', 'true');
-  var filled = FILLED[name];
+  var mixed = MIXED[name];
+  var filled = mixed !== undefined ? mixed.fill : FILLED[name];
   if (filled !== undefined) {
     var path = document.createElementNS(SVG_NS, 'path');
     path.setAttribute('d', filled);
     path.setAttribute('fill', 'currentColor');
     svg.appendChild(path);
-    return svg;
+    if (mixed === undefined) return svg;
   }
-  var strokes = STROKED[name] || [];
+  var strokes = mixed !== undefined ? mixed.strokes : (STROKED[name] || []);
   for (var i = 0; i < strokes.length; i += 1) {
     var line = document.createElementNS(SVG_NS, 'path');
     line.setAttribute('d', strokes[i]);
@@ -99,7 +121,7 @@ export function glyph(name) {
 }
 
 export function hasGlyph(name) {
-  return name !== null && (FILLED[name] !== undefined || STROKED[name] !== undefined);
+  return name !== null && (FILLED[name] !== undefined || STROKED[name] !== undefined || MIXED[name] !== undefined);
 }
 
 /**

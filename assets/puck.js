@@ -5,6 +5,7 @@ import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
 import { glyph } from './puck-icons.js';
+import { createVolumeGate } from './volume-gate.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -17,8 +18,10 @@ import { glyph } from './puck-icons.js';
  * ⚖️ The art FILLS the dial (Peter, 09-02). Legibility is painted over it in
  * scrims; the cover itself is never dimmed, tinted or transformed.
  *
- * ⚖️ TWO RINGS (Peter, 09-03): the OUTER one is volume — the wheel's own readout,
- * drawn where the hand is — and the INNER one is progress. Both start at twelve.
+ * ⚖️ ONE RING AT REST (Peter, 09-03, second look: "too many rings"). Progress
+ * holds the rim. Volume is drawn only while the controls are up — as an arc
+ * just inside it and as a number you can read — because at rest the face's
+ * subject is the music, not the machine. Both start at twelve.
  *
  * ⚖️ Progress is Roon's reported second, VERBATIM (Peter, 08-28) — the store
  * holds that rule and nothing here may add a browser clock on top.
@@ -48,8 +51,8 @@ var root = document.getElementById('puck');
 var SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Close to the rim: the art runs under it, so the rings read as the edge. */
-var VOL_R = 47;
-var PROG_R = 42;
+var PROG_R = 47;
+var VOL_R = 42.5;
 var VOL_C = 2 * Math.PI * VOL_R;
 var PROG_C = 2 * Math.PI * PROG_R;
 var BEZEL_RATIO = 0.085;
@@ -124,34 +127,25 @@ function arcOf(className, radius, circumference) {
 }
 
 /**
- * The rings sit on the sleeve itself, and a bright sky swallowed both. A dark
- * gutter under them is a scrim like every other on this face — painted OVER the
- * art, never taken out of it — and it is what makes a white arc legible on a
- * white photograph.
+ * Progress at the rim; the volume arc just inside it, and only while the
+ * controls are up. A first cut drew both rings with tracks and a dark gutter
+ * under them, and the face read as five concentric lines with the sleeve
+ * stopping short of the glass (Peter, 09-03: "too many rings", "art doesn't
+ * fill circle"). One ring, no gutter: the sleeve runs to the edge.
  */
-var gutter = circle('ring-gutter', (VOL_R + PROG_R) / 2);
-
-var volTrack = circle('vol-track', VOL_R);
-var volArc = arcOf('vol-arc', VOL_R, VOL_C);
 var progTrack = circle('prog-track', PROG_R);
 var progArc = arcOf('prog-arc', PROG_R, PROG_C);
+var volArc = arcOf('vol-arc', VOL_R, VOL_C);
 var progBead = document.createElementNS(SVG_NS, 'circle');
 progBead.setAttribute('class', 'prog-bead');
 progBead.setAttribute('r', '1.8');
 progBead.style.display = 'none';
-ring.appendChild(gutter);
-ring.appendChild(volTrack);
-ring.appendChild(volArc);
 ring.appendChild(progTrack);
 ring.appendChild(progArc);
 ring.appendChild(progBead);
+ring.appendChild(volArc);
 
 var room = el('div', 'room');
-var volRead = el('div', 'vol-read');
-var volReadValue = el('b', 'vol-read-value');
-var volReadLabel = el('span', null, 'volume');
-volRead.appendChild(volReadValue);
-volRead.appendChild(volReadLabel);
 
 var words = el('div', 'words');
 var title = el('div', 'title');
@@ -182,19 +176,38 @@ var btnPrev = button('prev', 'btn-prev');
 var btnPlay = button('play', 'btn-play');
 var btnNext = button('next', 'btn-next');
 var btnShuffle = button('shuffle', 'btn-shuffle');
+
+/**
+ * ⚖️ THE VOLUME CONTROL IS A CONTROL YOU CAN SEE (Peter, 09-03: "no clear volume
+ * control"). A speaker, the level, and − / + either side — one press, one step,
+ * the tap-only rule the Wall already lives by. The speaker itself is mute. The
+ * wheel drives the same number; this is where it is read.
+ */
+var volPill = el('div', 'vol-pill');
+var volMinus = el('div', 'vol-step vol-minus');
+volMinus.appendChild(glyph('minus'));
+var volMute = el('div', 'vol-mute');
+volMute.appendChild(glyph('speaker'));
+var volNum = el('div', 'vol-num');
+var volPlus = el('div', 'vol-step vol-plus');
+volPlus.appendChild(glyph('plus'));
+volPill.appendChild(volMinus);
+volPill.appendChild(volMute);
+volPill.appendChild(volNum);
+volPill.appendChild(volPlus);
+
+pad.appendChild(volPill);
 pad.appendChild(btnRepeat);
 pad.appendChild(btnPrev);
 pad.appendChild(btnPlay);
 pad.appendChild(btnNext);
 pad.appendChild(btnShuffle);
-pad.appendChild(el('div', 'hint', 'swipe down to browse'));
 
 glass.appendChild(cover);
 glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
 glass.appendChild(ring);
 glass.appendChild(room);
-glass.appendChild(volRead);
 glass.appendChild(words);
 glass.appendChild(times);
 glass.appendChild(pad);
@@ -364,18 +377,24 @@ function transport(action) {
 /* ---------- the wheel ---------- */
 
 /**
- * ⚖️ ONE DETENT, ONE STEP. The bezel has physical detents, so each is a discrete
- * step and the tap-only volume ruling survives on the device untouched; only the
- * browser needs a drag, and that is the SIMULATION being a poorer model, not a
- * change of design.
+ * ⚠️⚠️ 09-03, 22:14 — A RUNAWAY. 119 volume commands reached Study ROON in
+ * three bursts, +104 steps net, at up to six steps a second: a scroll wheel
+ * with inertia fires dozens of events a second, every one was counted as a
+ * detent, and every 140 ms window sent another batch. The room climbed from 11
+ * toward its maximum with nobody's hand on anything.
  *
- * Steps are accumulated and flushed together: a fast spin is one intention, and
- * sixty separate requests would arrive after the hand had already stopped.
+ * ⚖️ EVERYTHING between the hand and the wire now lives in volume-gate.js, where
+ * it is proven offline: distance is quantised into detents, one request is in
+ * flight at a time, five steps a second is the budget, twelve is the most a
+ * spin may move a room before the wheel rests, and the reading under the hand
+ * never runs more than four ahead of what Roon has confirmed. The replayed flood
+ * sends twelve steps, not a hundred and four (test/volume-gate.test.ts).
+ *
+ * ⚖️ ONE DETENT, ONE STEP. The bezel has physical detents, so each is a discrete
+ * step and the tap-only volume ruling survives on the device untouched.
  */
-var volPending = 0;
-var volFlushTimer = null;
-var volLocal = null;      // { outputId, value } — the reading under the hand
 var turningTimer = null;
+var confirmedVolume = null;   // { outputId, value } — the last level Roon reported
 
 function volumeBounds(output) {
   var volume = output.volume;
@@ -393,34 +412,24 @@ function showTurning() {
   }, 1400);
 }
 
-function flushVolume() {
-  volFlushTimer = null;
+var volumeGate = createVolumeGate(function (steps) {
   var output = currentOutput();
-  var steps = volPending;
-  volPending = 0;
-  if (output === null || output.volume === null || steps === 0) return;
-  // Bounded hard by the server too: a stuck key must never send a room to
-  // maximum. Sending more than it will honour is asking for a lie in return.
-  command({ action: 'volume', output: output.id, steps: Math.max(-4, Math.min(4, steps)) });
-}
+  if (output === null || output.volume === null) return null;
+  return command({ action: 'volume', output: output.id, steps: steps });
+});
 
-function turn(steps) {
+function turn(step) {
   var output = currentOutput();
   if (output === null) return;
   if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
-  haptic(6);
+  // The same rule as every other touch: a sleeping face is only woken. A scroll
+  // that lands on an idle page must not change a room before anyone has looked.
+  if (wake()) { showTurning(); return; }
+  var verdict = volumeGate.step(step);
   showTurning();
-  var bounds = volumeBounds(output);
-  if (output.volume.value !== null) {
-    var from = volLocal !== null && volLocal.outputId === output.id
-      ? volLocal.value : output.volume.value;
-    volLocal = {
-      outputId: output.id,
-      value: Math.max(bounds.min, Math.min(bounds.max, from + steps * bounds.step)),
-    };
-  }
-  volPending += steps;
-  if (volFlushTimer === null) volFlushTimer = setTimeout(flushVolume, 140);
+  if (verdict === 'rest') { flash('rest the wheel'); return; }
+  if (verdict !== 'sent') return;
+  haptic(6);
   render();
 }
 
@@ -510,30 +519,41 @@ function paintVolume() {
   var output = currentOutput();
   if (output === null || output.volume === null) {
     root.setAttribute('data-vol', 'none');
-    volLocal = null;
+    confirmedVolume = null;
+    volumeGate.reset();
     return;
   }
   var volume = output.volume;
   volArc.setAttribute('class', volume.muted ? 'vol-arc is-muted' : 'vol-arc');
+  var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
+  if (volMute.getAttribute('data-shows') !== muteShows) {
+    volMute.setAttribute('data-shows', muteShows);
+    volMute.replaceChildren(glyph(muteShows));
+  }
   if (volume.value === null || volume.max === null) {
-    // An incremental output says only that it takes + and −. The track alone
-    // reads as "the wheel works here"; an invented arc would be a lie.
+    // An incremental output says only that it takes + and −: no level to read,
+    // no arc to draw, and inventing either would be a lie.
     root.setAttribute('data-vol', 'blind');
-    volReadValue.textContent = volume.muted ? 'MUTED' : '···';
+    volNum.textContent = volume.muted ? 'muted' : '';
     return;
   }
   root.setAttribute('data-vol', 'level');
-  // The optimistic reading is dropped the moment Roon agrees with it, so a turn
-  // made anywhere else in the house is never hidden behind our own guess.
-  if (volLocal !== null && (volLocal.outputId !== output.id || volLocal.value === volume.value)) {
-    volLocal = null;
+  // Roon reported a level. Whatever it answered is no longer owed to the hand,
+  // and a wheel that moved to ANOTHER room owes nothing at all.
+  if (confirmedVolume === null || confirmedVolume.outputId !== output.id) {
+    volumeGate.reset();
+  } else if (confirmedVolume.value !== volume.value) {
+    volumeGate.confirm();
   }
-  var shown = volLocal !== null ? volLocal.value : volume.value;
+  confirmedVolume = { outputId: output.id, value: volume.value };
   var bounds = volumeBounds(output);
+  // The reading under the hand: Roon's number plus at most four unconfirmed
+  // steps. A face may run a little ahead of the room; it may never run away.
+  var shown = Math.max(bounds.min, Math.min(bounds.max,
+    volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
   setArc(volArc, VOL_C, (shown - bounds.min) / span);
-  volReadValue.textContent = volume.muted ? 'MUTED' : String(Math.round(shown));
-  volReadLabel.textContent = output.name;
+  volNum.textContent = volume.muted ? 'muted' : String(Math.round(shown));
 }
 
 function paintControls(zone) {
@@ -762,6 +782,14 @@ press(btnShuffle, function () {
   haptic(12);
   command({ action: 'shuffle', zone: zone.id });
 });
+press(volMinus, function () { turn(-1); });
+press(volPlus, function () { turn(1); });
+press(volMute, function () {
+  var output = currentOutput();
+  if (output === null || output.volume === null) return;
+  haptic(12);
+  command({ action: 'mute', output: output.id, muted: !output.volume.muted });
+});
 press(btnRepeat, function () {
   var zone = currentZone();
   if (zone === null) return;
@@ -829,9 +857,16 @@ rig.addEventListener('pointercancel', endTurn);
  * wheel without the hardware in hand.
  */
 window.addEventListener('wheel', function (event) {
-  var step = event.deltaY > 0 ? 1 : -1;
-  if (browse.isOpen()) browse.move(step);
-  else { wake(); turn(-step); }
+  // A wheel event is DISTANCE. A mouse notch is about a hundred units; a
+  // trackpad sends the same distance as dozens of small ones, and inertia keeps
+  // sending after the fingers have left. The gate turns distance into detents.
+  var delta = event.deltaY;
+  if (event.deltaMode === 1) delta *= 33;
+  else if (event.deltaMode === 2) delta *= 100;
+  volumeGate.scroll(delta, function (dir) {
+    if (browse.isOpen()) browse.move(dir);
+    else turn(-dir);
+  });
 }, { passive: true });
 
 /* ---------- the keyboard: the same three verbs, for a desk ---------- */
@@ -854,9 +889,9 @@ window.addEventListener('keydown', function (event) {
   } else if (key === 'Escape') {
     if (open) browse.close();
   } else if (key === '+' || key === '=') {
-    wake(); turn(1);
+    turn(1);
   } else if (key === '-' || key === '_') {
-    wake(); turn(-1);
+    turn(-1);
   } else {
     return;
   }

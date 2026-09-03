@@ -187,18 +187,15 @@ test('a browse row earns an icon from the Core\'s own words, or none at all', ()
 });
 
 /**
- * ⚖️ TWO RINGS, ADJACENT (Peter, 09-03): volume OUTSIDE — the wheel's own
- * readout, drawn where the hand is — and progress inside it. Both sweep from
- * twelve o'clock, which is the convention every FlightDeck ring already shares.
+ * Both arcs sweep from twelve o'clock, which is the convention every FlightDeck
+ * ring shares; progress in the accent at the rim, volume in ink just inside it.
  */
-test('the outer ring is volume, the inner ring is progress, and both start at twelve', () => {
-  assert.match(JS, /var VOL_R = 47;/);
-  assert.match(JS, /var PROG_R = 42;/);
+test('both arcs start at twelve, progress in the accent and volume in ink', () => {
   assert.match(JS, /rotate\(-90 50 50\)/);
-  assert.match(JS, /var volArc = arcOf\('vol-arc', VOL_R, VOL_C\)/);
   assert.match(JS, /var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/);
-  assert.match(CSS, /\.vol-arc \{[\s\S]{0,160}stroke: rgba\(242, 238, 230, \.88\)/);
+  assert.match(JS, /var volArc = arcOf\('vol-arc', VOL_R, VOL_C\)/);
   assert.match(CSS, /\.prog-arc \{[\s\S]{0,160}stroke: var\(--accent\)/);
+  assert.match(CSS, /\.vol-arc \{[\s\S]{0,160}stroke: rgba\(242, 238, 230, \.90\)/);
 });
 
 /**
@@ -224,15 +221,46 @@ test('volume acts on the bound output and transport on the zone', () => {
 });
 
 /**
- * ⚖️ ONE DETENT, ONE STEP, and a fast spin is ONE intention. Sixty separate
- * requests would arrive after the hand had already stopped.
+ * ⚠️⚠️ 09-03, 22:14 — A RUNAWAY: 119 volume commands reached Study ROON in three
+ * bursts, +104 steps net, at up to six a second. Everything between the hand
+ * and the wire now lives in volume-gate.js, where test/volume-gate.test.ts
+ * replays the flood and gets twelve. This holds the face to USING it.
  */
-test('the wheel is quantised to its detents and its steps are flushed together', () => {
-  assert.match(JS, /var DETENT_DEG = 12;/);
-  assert.match(JS, /while \(Math\.abs\(turning\.carried\) >= DETENT_DEG\)/);
-  assert.match(JS, /volPending \+= steps;[\s\S]{0,140}setTimeout\(flushVolume, 140\)/);
-  assert.match(JS, /Math\.max\(-4, Math\.min\(4, steps\)\)/,
-    'the server clamps a step run to four; asking for more invites a lie in return');
+test('every path to a volume request goes through the gate', () => {
+  assert.match(JS, /import \{ createVolumeGate \} from '\.\/volume-gate\.js';/);
+  assert.match(JS, /var volumeGate = createVolumeGate\(function \(steps\) \{[\s\S]{0,240}command\(\{ action: 'volume', output: output\.id, steps: steps \}\)/,
+    'the gate is the only thing that ever sends a volume step');
+  assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 1, 'one place, not two');
+  assert.match(JS, /var verdict = volumeGate\.step\(step\);/);
+  // A wheel event is DISTANCE: the gate turns it into detents, and a page that
+  // is asleep is only woken by the first of them.
+  assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\)/);
+  assert.match(JS, /if \(event\.deltaMode === 1\) delta \*= 33;/);
+  assert.match(JS, /function turn\(step\)[\s\S]{0,400}if \(wake\(\)\) \{ showTurning\(\); return; \}/,
+    'a scroll that lands on an idle page must not change a room before anyone has looked');
+  // The reading under the hand is Roon's number plus a BOUNDED remainder.
+  assert.match(JS, /volume\.value \+ volumeGate\.ahead\(\) \* bounds\.step/);
+  assert.match(JS, /confirmedVolume\.value !== volume\.value[\s\S]{0,60}volumeGate\.confirm\(\)/);
+  assert.doesNotMatch(JS, /volPending|flushVolume|volLocal/, 'the old accumulator is gone, not bypassed');
+  assert.match(JS, /var DETENT_DEG = 12;/, 'the drawn bezel still turns in detents');
+});
+
+/**
+ * ⚖️ ONE RING AT REST (Peter, 09-03: "too many rings"). Progress holds the rim;
+ * the volume arc appears inside it only while the controls are up, beside a
+ * number and a control you can see.
+ */
+test('one ring at rest; the volume arc and pill only with the controls', () => {
+  assert.match(JS, /var PROG_R = 47;\s*var VOL_R = 42\.5;/, 'progress at the rim, volume inside it');
+  assert.doesNotMatch(JS, /ring-gutter|vol-track/, 'no gutter, no second track');
+  assert.match(CSS, /\.vol-arc \{[\s\S]{0,200}display: none;/);
+  assert.match(CSS, /\.puck\[data-chrome="1"\]\[data-vol="level"\] \.vol-arc \{ display: block; \}/);
+  assert.match(CSS, /\.cover img \{[\s\S]{0,120}object-fit: cover/, 'the sleeve fills the circle: cropped, never stretched or boxed');
+  // The control you can see: − speaker level +, and the speaker is mute.
+  assert.match(JS, /press\(volMinus, function \(\) \{ turn\(-1\); \}\);/);
+  assert.match(JS, /press\(volPlus, function \(\) \{ turn\(1\); \}\);/);
+  assert.match(JS, /press\(volMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
+  assert.match(CSS, /\.puck\[data-vol="none"\] \.vol-pill \{ display: none; \}/, 'no dead control on a fixed-volume output');
 });
 
 /**
@@ -277,9 +305,11 @@ test('the cluster is repeat · previous · play/pause · next · shuffle', () =>
  * ⚖️ THE OVERLAY CONDENSES THE WORDS RATHER THAN SITTING ON THEM. A circle has
  * one middle, and the cluster and three lines of credit cannot both have it.
  */
-test('the words are title, artist and album, and the overlay condenses them', () => {
+test('the words are title, artist and album, and the overlay keeps all three', () => {
   assert.match(JS, /title\.textContent = np\.title;\s*artist\.textContent = np\.line2;\s*album\.textContent = np\.line3;/);
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.artist,\s*\.puck\[data-chrome="1"\] \.album \{ display: none; \}/);
+  assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist,\s*\.puck\[data-chrome="1"\] \.album \{ display: none; \}/,
+    'the overlay makes room for the credit; it no longer takes two lines of it away');
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.title \{[\s\S]{0,160}white-space: nowrap;/, 'the title folds to one line instead');
 });
 
 /**
