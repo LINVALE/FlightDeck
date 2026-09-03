@@ -18,10 +18,11 @@ import { createVolumeGate } from './volume-gate.js';
  * ⚖️ The art FILLS the dial (Peter, 09-02). Legibility is painted over it in
  * scrims; the cover itself is never dimmed, tinted or transformed.
  *
- * ⚖️ ONE RING AT REST (Peter, 09-03, second look: "too many rings"). Progress
- * holds the rim. Volume is drawn only while the controls are up — as an arc
- * just inside it and as a number you can read — because at rest the face's
- * subject is the music, not the machine. Both start at twelve.
+ * ⚖️ THE DOTS ARE THE VOLUME; THE RING IS THE POSITION (Peter, 09-03, third
+ * look). The bezel is the wheel, and its ring of detent dots lights up to the
+ * level — the reading sits ON the thing you turn, outside the glass. The glass
+ * keeps one ring, progress, at its rim. Nothing else is drawn on the sleeve,
+ * which is cropped to the circle and fills it to the edge. Both start at twelve.
  *
  * ⚖️ Progress is Roon's reported second, VERBATIM (Peter, 08-28) — the store
  * holds that rule and nothing here may add a browser clock on top.
@@ -52,8 +53,6 @@ var SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Close to the rim: the art runs under it, so the rings read as the edge. */
 var PROG_R = 47;
-var VOL_R = 42.5;
-var VOL_C = 2 * Math.PI * VOL_R;
 var PROG_C = 2 * Math.PI * PROG_R;
 var BEZEL_RATIO = 0.085;
 
@@ -81,18 +80,24 @@ function el(tag, className, text) {
 var rig = el('div', 'rig');
 var glass = el('div', 'glass');
 
-/** The knurl, drawn: a turn needs something to be measured against. */
+/**
+ * The knurl, drawn — and it IS the volume readout. One dot per detent from
+ * twelve o'clock clockwise; the dots up to the level are lit. A turn has
+ * something to be measured against, and the reading sits on the wheel itself.
+ */
 var detents = document.createElementNS(SVG_NS, 'svg');
 detents.setAttribute('class', 'detents');
 detents.setAttribute('viewBox', '0 0 100 100');
+var detentMarks = [];
 for (var tick = 0; tick < 360 / DETENT_DEG; tick += 1) {
   var mark = document.createElementNS(SVG_NS, 'circle');
-  var markAngle = (tick * DETENT_DEG) * Math.PI / 180;
+  var markAngle = ((tick * DETENT_DEG) - 90) * Math.PI / 180;   // twelve o'clock, clockwise
   mark.setAttribute('class', 'detent');
-  mark.setAttribute('r', '0.7');
+  mark.setAttribute('r', '0.8');
   mark.setAttribute('cx', String(50 + 48.4 * Math.cos(markAngle)));
   mark.setAttribute('cy', String(50 + 48.4 * Math.sin(markAngle)));
   detents.appendChild(mark);
+  detentMarks.push(mark);
 }
 rig.appendChild(detents);
 
@@ -127,15 +132,13 @@ function arcOf(className, radius, circumference) {
 }
 
 /**
- * Progress at the rim; the volume arc just inside it, and only while the
- * controls are up. A first cut drew both rings with tracks and a dark gutter
- * under them, and the face read as five concentric lines with the sleeve
- * stopping short of the glass (Peter, 09-03: "too many rings", "art doesn't
- * fill circle"). One ring, no gutter: the sleeve runs to the edge.
+ * ONE ring on the glass: progress at the rim. A first cut drew volume beside it
+ * with tracks and a dark gutter under both, and the face read as five
+ * concentric lines with the sleeve stopping short (Peter, 09-03: "too many
+ * rings", "art doesn't fill circle"). Volume lives on the bezel's dots now.
  */
 var progTrack = circle('prog-track', PROG_R);
 var progArc = arcOf('prog-arc', PROG_R, PROG_C);
-var volArc = arcOf('vol-arc', VOL_R, VOL_C);
 var progBead = document.createElementNS(SVG_NS, 'circle');
 progBead.setAttribute('class', 'prog-bead');
 progBead.setAttribute('r', '1.8');
@@ -143,7 +146,6 @@ progBead.style.display = 'none';
 ring.appendChild(progTrack);
 ring.appendChild(progArc);
 ring.appendChild(progBead);
-ring.appendChild(volArc);
 
 var room = el('div', 'room');
 
@@ -521,10 +523,12 @@ function paintVolume() {
     root.setAttribute('data-vol', 'none');
     confirmedVolume = null;
     volumeGate.reset();
+    lightDetents(null);
+    rig.removeAttribute('data-muted');
     return;
   }
   var volume = output.volume;
-  volArc.setAttribute('class', volume.muted ? 'vol-arc is-muted' : 'vol-arc');
+  if (volume.muted) rig.setAttribute('data-muted', '1'); else rig.removeAttribute('data-muted');
   var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
   if (volMute.getAttribute('data-shows') !== muteShows) {
     volMute.setAttribute('data-shows', muteShows);
@@ -535,6 +539,7 @@ function paintVolume() {
     // no arc to draw, and inventing either would be a lie.
     root.setAttribute('data-vol', 'blind');
     volNum.textContent = volume.muted ? 'muted' : '';
+    lightDetents(null);
     return;
   }
   root.setAttribute('data-vol', 'level');
@@ -552,8 +557,16 @@ function paintVolume() {
   var shown = Math.max(bounds.min, Math.min(bounds.max,
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
-  setArc(volArc, VOL_C, (shown - bounds.min) / span);
+  lightDetents((shown - bounds.min) / span);
   volNum.textContent = volume.muted ? 'muted' : String(Math.round(shown));
+}
+
+/** The dots up to the level are lit, from twelve o'clock clockwise. */
+function lightDetents(fraction) {
+  var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * detentMarks.length);
+  for (var i = 0; i < detentMarks.length; i += 1) {
+    detentMarks[i].setAttribute('class', i < lit ? 'detent is-lit' : 'detent');
+  }
 }
 
 function paintControls(zone) {

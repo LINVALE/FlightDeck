@@ -187,15 +187,20 @@ test('a browse row earns an icon from the Core\'s own words, or none at all', ()
 });
 
 /**
- * Both arcs sweep from twelve o'clock, which is the convention every FlightDeck
- * ring shares; progress in the accent at the rim, volume in ink just inside it.
+ * ⚖️ THE DOTS ARE THE VOLUME; THE RING IS THE POSITION (Peter, 09-03). The
+ * bezel's detent dots light to the level, from twelve o'clock; the glass keeps
+ * one ring, progress, in the accent at its rim. Both start at twelve.
  */
-test('both arcs start at twelve, progress in the accent and volume in ink', () => {
+test('the bezel dots read the volume; the glass ring is progress alone', () => {
+  assert.match(JS, /var markAngle = \(\(tick \* DETENT_DEG\) - 90\) \* Math\.PI \/ 180;/, 'dots from twelve o\'clock');
+  assert.match(JS, /function lightDetents\(fraction\)[\s\S]{0,300}'detent is-lit' : 'detent'/);
+  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span\)/);
   assert.match(JS, /rotate\(-90 50 50\)/);
   assert.match(JS, /var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/);
-  assert.match(JS, /var volArc = arcOf\('vol-arc', VOL_R, VOL_C\)/);
+  assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
+  assert.match(CSS, /\.detent\.is-lit \{ fill: rgba\(242, 238, 230, \.92\); \}/);
+  assert.match(CSS, /\.rig\[data-muted="1"\] \.detent\.is-lit/, 'muted dims the lit run rather than emptying it');
   assert.match(CSS, /\.prog-arc \{[\s\S]{0,160}stroke: var\(--accent\)/);
-  assert.match(CSS, /\.vol-arc \{[\s\S]{0,160}stroke: rgba\(242, 238, 230, \.90\)/);
 });
 
 /**
@@ -250,11 +255,8 @@ test('every path to a volume request goes through the gate', () => {
  * the volume arc appears inside it only while the controls are up, beside a
  * number and a control you can see.
  */
-test('one ring at rest; the volume arc and pill only with the controls', () => {
-  assert.match(JS, /var PROG_R = 47;\s*var VOL_R = 42\.5;/, 'progress at the rim, volume inside it');
-  assert.doesNotMatch(JS, /ring-gutter|vol-track/, 'no gutter, no second track');
-  assert.match(CSS, /\.vol-arc \{[\s\S]{0,200}display: none;/);
-  assert.match(CSS, /\.puck\[data-chrome="1"\]\[data-vol="level"\] \.vol-arc \{ display: block; \}/);
+test('one ring on the glass; the pill only with the controls', () => {
+  assert.match(JS, /var PROG_R = 47;/, 'progress at the rim');
   assert.match(CSS, /\.cover img \{[\s\S]{0,120}object-fit: cover/, 'the sleeve fills the circle: cropped, never stretched or boxed');
   // The control you can see: − speaker level +, and the speaker is mute.
   assert.match(JS, /press\(volMinus, function \(\) \{ turn\(-1\); \}\);/);

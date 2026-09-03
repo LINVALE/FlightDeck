@@ -15,11 +15,11 @@
  * never dimmed, tinted or squashed — only its corners fall outside the circle.
  * Legibility comes from scrims painted OVER the art, never from muting it.
  *
- * ⚖️ ONE RING AT REST (Peter, 2026-09-03, second look: "too many rings"). The
+ * ⚖️ THE DOTS ARE THE VOLUME; THE RING IS THE POSITION (Peter, 2026-09-03). The
  * first cut drew volume and progress as two rings with tracks and a dark
  * gutter beneath — five concentric lines, and the sleeve visibly stopped short
- * of the glass. Now progress holds the rim alone; the volume arc appears just
- * inside it only while the controls are up, beside a number you can read.
+ * of the glass. Now the glass carries ONE ring, progress, and the volume is
+ * read on the bezel's detent dots — the wheel itself — outside the glass.
  */
 
 :root {
@@ -71,9 +71,16 @@ body {
 
 .rig.is-turning { cursor: -webkit-grabbing; cursor: grabbing; }
 
-/** The detents, drawn. A turn has somewhere to be measured against. */
+/**
+ * ⚖️ THE DOTS ARE THE VOLUME (Peter, 09-03): one per detent from twelve o'clock,
+ * lit up to the level, on the wheel you turn to change it. Muted is a dimmed
+ * run rather than an empty one — the level is still set, just not heard.
+ */
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .detent { fill: rgba(242, 238, 230, .16); }
+.detent.is-lit { fill: rgba(242, 238, 230, .92); }
+.rig.is-turning .detent.is-lit { fill: #ffffff; }
+.rig[data-muted="1"] .detent.is-lit { fill: rgba(242, 238, 230, .38); }
 
 .glass {
   position: absolute;
@@ -142,23 +149,6 @@ body {
 }
 
 .prog-bead { fill: #fffef8; }
-
-/* ---- inside it: VOLUME, only while the controls are up ---- */
-
-.vol-arc {
-  fill: none;
-  stroke: rgba(242, 238, 230, .90);
-  stroke-width: 2;
-  stroke-linecap: round;
-  display: none;
-}
-
-.puck[data-chrome="1"][data-vol="level"] .vol-arc { display: block; }
-.puck[data-browse] .vol-arc { display: none; }
-
-/* Muted is a BROKEN ring, not a dimmer one: at arm's length a dashed arc reads
-   as "interrupted" where a faint one reads as "nearly off". */
-.vol-arc.is-muted { stroke: rgba(242, 238, 230, .40); stroke-dasharray: 1.6 2.4; }
 
 /* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 
