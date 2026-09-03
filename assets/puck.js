@@ -179,26 +179,6 @@ var btnPlay = button('play', 'btn-play');
 var btnNext = button('next', 'btn-next');
 var btnShuffle = button('shuffle', 'btn-shuffle');
 
-/**
- * ⚖️ THE VOLUME CONTROL IS A CONTROL YOU CAN SEE (Peter, 09-03: "no clear volume
- * control"). A speaker, the level, and − / + either side — one press, one step,
- * the tap-only rule the Wall already lives by. The speaker itself is mute. The
- * wheel drives the same number; this is where it is read.
- */
-var volPill = el('div', 'vol-pill');
-var volMinus = el('div', 'vol-step vol-minus');
-volMinus.appendChild(glyph('minus'));
-var volMute = el('div', 'vol-mute');
-volMute.appendChild(glyph('speaker'));
-var volNum = el('div', 'vol-num');
-var volPlus = el('div', 'vol-step vol-plus');
-volPlus.appendChild(glyph('plus'));
-volPill.appendChild(volMinus);
-volPill.appendChild(volMute);
-volPill.appendChild(volNum);
-volPill.appendChild(volPlus);
-
-pad.appendChild(volPill);
 pad.appendChild(btnRepeat);
 pad.appendChild(btnPrev);
 pad.appendChild(btnPlay);
@@ -529,16 +509,10 @@ function paintVolume() {
   }
   var volume = output.volume;
   if (volume.muted) rig.setAttribute('data-muted', '1'); else rig.removeAttribute('data-muted');
-  var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
-  if (volMute.getAttribute('data-shows') !== muteShows) {
-    volMute.setAttribute('data-shows', muteShows);
-    volMute.replaceChildren(glyph(muteShows));
-  }
   if (volume.value === null || volume.max === null) {
     // An incremental output says only that it takes + and −: no level to read,
-    // no arc to draw, and inventing either would be a lie.
+    // no dots to light, and inventing either would be a lie.
     root.setAttribute('data-vol', 'blind');
-    volNum.textContent = volume.muted ? 'muted' : '';
     lightDetents(null);
     return;
   }
@@ -558,7 +532,6 @@ function paintVolume() {
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
   lightDetents((shown - bounds.min) / span);
-  volNum.textContent = volume.muted ? 'muted' : String(Math.round(shown));
 }
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
@@ -795,14 +768,6 @@ press(btnShuffle, function () {
   haptic(12);
   command({ action: 'shuffle', zone: zone.id });
 });
-press(volMinus, function () { turn(-1); });
-press(volPlus, function () { turn(1); });
-press(volMute, function () {
-  var output = currentOutput();
-  if (output === null || output.volume === null) return;
-  haptic(12);
-  command({ action: 'mute', output: output.id, muted: !output.volume.muted });
-});
 press(btnRepeat, function () {
   var zone = currentZone();
   if (zone === null) return;
@@ -811,15 +776,21 @@ press(btnRepeat, function () {
 });
 
 /**
- * ⚖️ THE WORDS ARE THE WAY IN (Peter, 09-03). What is playing and what could be
- * playing are the same question asked twice, so the credit at the foot of the
- * dial is where browse opens from — on the device, the same place the thumb
- * already rests.
+ * ⚖️ THE WORDS ARE THE WAY IN, ON ONE TAP (Peter, 09-03: "doesn't click to the
+ * browse selector on clicking metadata"). A first cut made the credit obey the
+ * summon rule like everything else, so a tap on the title only raised the
+ * overlay and it took a second to browse — seven play/pauses in the log were
+ * a person tapping the middle to find out what had happened. A tap on the
+ * title is not a brush: it is the most deliberate thing on the face, and it
+ * goes straight to the library.
  */
-press(words, function () {
+words.addEventListener('click', function (event) {
+  event.stopPropagation();
   haptic(10);
   browse.open('browse');
 });
+words.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+words.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 
 /* ---------- the bezel: a turn, quantised to its detents ---------- */
 

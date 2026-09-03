@@ -335,49 +335,8 @@ body {
 .btn-repeat { left: calc(var(--u) * 35); margin-left: calc(var(--u) * -5); }
 .btn-shuffle { left: calc(var(--u) * 65); margin-left: calc(var(--u) * -5); }
 
-/**
- * ⚖️ THE VOLUME CONTROL YOU CAN SEE: a speaker, the level, − and + either side.
- * One press, one step — the tap-only rule the Wall lives by — and the speaker
- * itself is mute. The wheel drives the same number; this is where it is read.
- */
-.vol-pill {
-  position: absolute;
-  left: 50%; top: calc(var(--u) * 20.5);
-  width: calc(var(--u) * 44); height: calc(var(--u) * 10);
-  margin-left: calc(var(--u) * -22); margin-top: calc(var(--u) * -5);
-  border-radius: calc(var(--u) * 5);
-  background: rgba(10, 11, 14, .66);
-  border: 1px solid rgba(242, 238, 230, .18);
-  display: -webkit-flex; display: flex;
-  -webkit-align-items: center; align-items: center;
-  -webkit-justify-content: space-between; justify-content: space-between;
-}
-
-.vol-step, .vol-mute {
-  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
-  display: -webkit-flex; display: flex;
-  -webkit-align-items: center; align-items: center;
-  -webkit-justify-content: center; justify-content: center;
-  cursor: pointer;
-  color: var(--ink);
-}
-
-.vol-step .glyph { width: 52%; height: 52%; display: block; }
-.vol-mute .glyph { width: 58%; height: 58%; display: block; }
-
-.vol-num {
-  -webkit-flex: 1 1 auto; flex: 1 1 auto;
-  text-align: center;
-  font-size: calc(var(--u) * 4.6);
-  font-weight: 600;
-  letter-spacing: calc(var(--u) * .1);
-  color: var(--ink);
-}
-
-/* No control at all on this output: say nothing rather than draw a dead one. */
-.puck[data-vol="none"] .vol-pill { display: none; }
-/* Steps only, no level to read: the number gives way to the speaker alone. */
-.puck[data-vol="blind"] .vol-num { color: var(--ink-dim); font-size: calc(var(--u) * 3.4); }
+/* No volume control on the glass at all (Peter, 09-03): the wheel and its
+   dots are the volume. A fixed-volume output simply has no lit dots. */
 
 /* ---------- browse: choices distributed around the clock face ---------- */
 

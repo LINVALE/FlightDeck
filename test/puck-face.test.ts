@@ -255,14 +255,12 @@ test('every path to a volume request goes through the gate', () => {
  * the volume arc appears inside it only while the controls are up, beside a
  * number and a control you can see.
  */
-test('one ring on the glass; the pill only with the controls', () => {
+test('one ring on the glass, and no volume control drawn on it at all', () => {
   assert.match(JS, /var PROG_R = 47;/, 'progress at the rim');
   assert.match(CSS, /\.cover img \{[\s\S]{0,120}object-fit: cover/, 'the sleeve fills the circle: cropped, never stretched or boxed');
-  // The control you can see: − speaker level +, and the speaker is mute.
-  assert.match(JS, /press\(volMinus, function \(\) \{ turn\(-1\); \}\);/);
-  assert.match(JS, /press\(volPlus, function \(\) \{ turn\(1\); \}\);/);
-  assert.match(JS, /press\(volMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
-  assert.match(CSS, /\.puck\[data-vol="none"\] \.vol-pill \{ display: none; \}/, 'no dead control on a fixed-volume output');
+  // The wheel and its dots ARE the volume (Peter, 09-03): nothing on the glass.
+  assert.doesNotMatch(JS, /vol-pill|volMinus|volPlus|volMute|vol-num/);
+  assert.doesNotMatch(CSS, /vol-pill|vol-num|vol-step/);
 });
 
 /**
@@ -318,8 +316,13 @@ test('the words are title, artist and album, and the overlay keeps all three', (
  * ⚖️ THE WORDS ARE THE WAY IN (Peter, 09-03) — what is playing and what could be
  * playing are the same question asked twice.
  */
-test('the credit at the foot opens browse, as does a downward swipe', () => {
-  assert.match(JS, /press\(words, function \(\) \{[\s\S]{0,120}browse\.open\('browse'\)/);
+test('the credit at the foot opens browse on ONE tap, as does a downward swipe', () => {
+  // Not through press(): that gate makes the first touch summon, and a tap on the
+  // title is the most deliberate thing on the face.
+  assert.match(JS, /words\.addEventListener\('click', function \(event\) \{\s*event\.stopPropagation\(\);\s*haptic\(10\);\s*browse\.open\('browse'\);/);
+  assert.doesNotMatch(JS, /press\(words/);
+  assert.match(JS, /words\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/,
+    'and the tap must not ALSO reach the glass as a centre tap');
   assert.match(JS, /if \(dy > 0\) \{[\s\S]{0,120}browse\.open\('browse'\)/);
 });
 

@@ -59,6 +59,12 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
     { generation: 'test', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
     relay, ledger));
 
+  // ---- an asset is NEVER stored: a refreshed screen can never run old code ----
+  const asset = await fetch(base + '/assets/puck.js');
+  assert.equal(asset.status, 200);
+  assert.equal(asset.headers.get('cache-control'), 'no-store',
+    'no-cache let a plain refresh serve module imports from memory cache (2026-09-03)');
+
   // ---- the Wall renders, and carries the name fallback a TV needs ----
   const wall = await fetch(base + '/');
   assert.equal(wall.status, 200);

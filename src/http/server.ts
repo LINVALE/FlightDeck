@@ -358,20 +358,27 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       if (type === undefined) { json(response, 404, { error: 'not found' }); return; }
       try {
         const bytes = readFileSync(join(deps.assetDir, relative));
-        // Revalidate rather than cache blind. A kiosk screen runs for weeks; a
-        // long max-age means it keeps running last month's code after an update
-        // (which is exactly what fooled a test here on 2026-08-25). The ETag
-        // keeps repeat loads cheap without letting a screen go stale.
+        /**
+         * NEVER STORED. A kiosk screen runs for weeks, and 2026-08-25 showed
+         * what a long max-age does. `no-cache` with an ETag was the first
+         * answer — revalidate, keep repeat loads cheap — and on 2026-09-03 it
+         * failed in Peter's hand: a plain refresh revalidated the PAGE and then
+         * served every ES-module import from memory cache without asking, so
+         * the face he refreshed was the morning's. A television cannot
+         * hard-reload. The assets are small and the network is a LAN: fetch
+         * them every time, and a screen can never be running old code after a
+         * reload again. The ETag stays for the client that does ask.
+         */
         const etag = '"' + createHash('sha256').update(bytes).digest('base64url').slice(0, 24) + '"';
         if (request.headers['if-none-match'] === etag) {
-          response.writeHead(304, { ETag: etag, 'Cache-Control': 'no-cache' });
+          response.writeHead(304, { ETag: etag, 'Cache-Control': 'no-store' });
           response.end();
           return;
         }
         response.writeHead(200, {
           'Content-Type': type,
           'Content-Length': bytes.byteLength,
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-store',
           ETag: etag,
         });
         response.end(bytes);
