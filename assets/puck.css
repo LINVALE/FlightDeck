@@ -1,18 +1,19 @@
 /**
- * THE PUCK — a model of the ESP32-S3 knob.
+ * THE PUCK — one face, two sizes.
  *
- * Sized off the viewport's SHORT side, never in `vw`. The Face is `vw` for a
- * 16:9 television and that is exactly why this is a separate stylesheet: a
- * circle inside those rules would have to out-specify them, and the recurring
- * fault in this codebase is a rule stacked on a rule instead of retiring it.
+ * Every dimension is calc() over `--u` (the glass ÷ 100), so the SAME layout is
+ * a 360px controller in the hand and a metre-wide dial on a television. Nothing
+ * is in `vw`: that is the assumption that broke the phone on a 16:9 floor.
  *
- * Chromium 63 floor: no clamp(), no min(), no aspect-ratio, no conic-gradient,
- * no backdrop-filter, no flex gap. Every size is calc() over a custom property
- * the client sets: --glass (the screen), --bezel-w (the wheel), --u (--glass/100).
+ * Chromium 63: no clamp(), no min(), no aspect-ratio, no conic-gradient, no
+ * backdrop-filter, no flex gap.
  *
- * ⚖️ THE COVER IS SACRED. `.ground` and `.veil` are SIBLINGS of `.cover`, never
- * ancestors, and the cover is centred on negative margins rather than a
- * transform — translate(-50%) on the artwork would break the rule outright.
+ * ⚖️ THE ART FILLS THE DIAL (Peter, 2026-09-02) — a deliberate exception to
+ * cover-sacred for this face, and the reason it reads as a record rather than a
+ * picture in a frame. It is a CLIP, not a treatment: no opacity, filter,
+ * transform or mask touches the cover or any ancestor of it, so the artwork is
+ * never dimmed, tinted or squashed — only its corners fall outside the circle.
+ * Legibility comes from scrims painted OVER the art, never from muting it.
  */
 
 :root {
@@ -20,7 +21,7 @@
   --bezel-face: #202329;
   --bezel-lip: #34383f;
   --ink: #f2eee6;
-  --ink-dim: rgba(242, 238, 230, .60);
+  --ink-dim: rgba(242, 238, 230, .66);
   --accent: rgb(204, 98, 102);
 }
 
@@ -44,9 +45,9 @@ body {
 }
 
 /**
- * THE BEZEL is the wheel. It exists on screen only: on the device it is a
- * machined ring you turn with your fingers, and drawing it is what keeps the
- * turn gesture physically separate from the touch gestures inside the glass.
+ * The bezel is the wheel, and it exists on screen only. On the device it is a
+ * machined ring you turn; drawing it keeps a turn visibly separate from a swipe.
+ * On a television it reads as the rim of the instrument.
  */
 .rig {
   position: relative;
@@ -64,39 +65,40 @@ body {
   width: var(--glass); height: var(--glass);
   border-radius: 50%;
   overflow: hidden;
-  background: #000;
+  background: #05060a;
 }
 
-/* The derived field: the cover drawn tiny and scaled up, which is this project's
-   blur (backdrop-filter is below the floor). A SIBLING of the cover. */
-.ground {
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 100%;
-  display: block;
-}
-
-.veil {
-  position: absolute; top: 0; left: 0;
-  width: 100%; height: 100%;
-  background-image: -webkit-radial-gradient(circle at 50% 42%, rgba(0,0,0,.28) 0%, rgba(0,0,0,.74) 76%);
-  background-image: radial-gradient(circle at 50% 42%, rgba(0,0,0,.28) 0%, rgba(0,0,0,.74) 76%);
-}
-
-/**
- * The cover, INSCRIBED. At 0.54 of the glass its corners sit ~21px inside the
- * ring at 360, so the arc never crosses the artwork and the circular clip on
- * `.glass` never reaches it. Nothing here crops, tints or transforms it.
- */
+/* The art, filling the dial. A clip and nothing else. */
 .cover {
   position: absolute;
-  top: 50%; left: 50%;
-  width: var(--cover); height: var(--cover);
-  margin-top: calc(var(--cover) / -2);
-  margin-left: calc(var(--cover) / -2);
-  box-shadow: 0 calc(var(--u) * .8) calc(var(--u) * 3) rgba(0, 0, 0, .6);
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
 }
 
 .cover img { display: block; width: 100%; height: 100%; }
+
+/**
+ * Legibility is painted ON TOP of the art, never taken out of it. Two scrims:
+ * a light one under the room name, a deeper one carrying the words.
+ */
+.scrim-top, .scrim-foot {
+  position: absolute;
+  left: 0; right: 0;
+}
+
+.scrim-top {
+  top: 0; height: 30%;
+  background-image: -webkit-linear-gradient(top, rgba(0,0,0,.72) 0%, rgba(0,0,0,0) 100%);
+  background-image: linear-gradient(to bottom, rgba(0,0,0,.72) 0%, rgba(0,0,0,0) 100%);
+}
+
+.scrim-foot {
+  bottom: 0; height: 56%;
+  background-image: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 44%, rgba(0,0,0,.90) 100%);
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.60) 44%, rgba(0,0,0,.90) 100%);
+}
 
 .ring {
   position: absolute; top: 0; left: 0;
@@ -105,35 +107,67 @@ body {
   pointer-events: none;
 }
 
-.ring-track { fill: none; stroke: rgba(242, 238, 230, .16); stroke-width: 2.2; }
+.ring-track { fill: none; stroke: rgba(242, 238, 230, .22); stroke-width: 1.8; }
 
 .ring-arc {
   fill: none;
   stroke: var(--accent);
-  stroke-opacity: .78;
-  stroke-width: 2.2;
+  stroke-opacity: .92;
+  stroke-width: 2.6;
   stroke-linecap: round;
 }
+
+.ring-bead { fill: #fffef8; }
+
+/* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 
 .room {
   position: absolute;
   left: 0; right: 0;
-  top: calc(var(--u) * 12);
+  top: calc(var(--u) * 7);
   text-align: center;
-  font-size: calc(var(--u) * 5.6);
-  letter-spacing: calc(var(--u) * .22);
+  font-size: calc(var(--u) * 4.4);
+  letter-spacing: calc(var(--u) * .28);
   text-transform: uppercase;
   color: var(--ink-dim);
 }
 
-.remain {
+.words {
+  position: absolute;
+  left: calc(var(--u) * 15); right: calc(var(--u) * 15);
+  bottom: calc(var(--u) * 14);
+  text-align: center;
+}
+
+.title {
+  font-size: calc(var(--u) * 7.4);
+  line-height: 1.16;
+  font-weight: 600;
+  /* Two lines and no more: a long title must never push the times off the rim. */
+  max-height: calc(var(--u) * 17.2);
+  overflow: hidden;
+}
+
+.line2 {
+  margin-top: calc(var(--u) * 1.6);
+  font-size: calc(var(--u) * 4.8);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.times {
   position: absolute;
   left: 0; right: 0;
-  bottom: calc(var(--u) * 11);
+  bottom: calc(var(--u) * 6);
   text-align: center;
-  font-size: calc(var(--u) * 9);
-  font-variant-numeric: tabular-nums;
+  font-size: calc(var(--u) * 4.2);
+  letter-spacing: calc(var(--u) * .1);
+  color: var(--ink-dim);
 }
+
+.times b { color: var(--ink); font-weight: 600; }
 
 .note {
   position: absolute;
