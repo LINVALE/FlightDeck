@@ -889,3 +889,25 @@ body { min-height: 100vh; }
 .wall[data-rows="2"] .tt.play .tt-glyph { width: 1.28vw; height: 1.28vw; }
 .wall[data-rows="1"] .tt.play { width: 3.35vw; height: 3.35vw; }
 .wall[data-rows="1"] .tt.play .tt-glyph { width: 1.58vw; height: 1.58vw; }
+
+/* ══ OPEN AS ═════════════════════════════════════════════════════════════════
+   The other two clients have no entry point anywhere else: /phone shipped and
+   was never seen because nothing links to it. The Wall is where a phone sets up
+   the screen it is standing beside, so the three ways to open a room live here. */
+.oa-mark {
+  font-size: .6vw; letter-spacing: .02vw; padding: 0 .3vw;
+  white-space: nowrap; width: auto;
+}
+.tile-openas {
+  display: -webkit-flex; display: flex;
+  -webkit-justify-content: flex-end; justify-content: flex-end;
+  margin-top: .4vh;
+}
+.tile-openas[hidden] { display: none; }
+.oa {
+  font-size: .62vw; color: var(--dim);
+  padding: .25vh .6vw; margin-left: .3vw;
+  border: 1px solid rgba(242,238,230,.18); border-radius: .3vw;
+  cursor: pointer; white-space: nowrap;
+}
+.oa:hover { color: var(--ink); border-color: rgba(242,238,230,.42); }

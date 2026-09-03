@@ -556,12 +556,44 @@ function buildTile(zone) {
   });
   infoB.appendChild(glyph('info'));
   infoB.setAttribute('title', 'what this room is');
+  /**
+   * ⚖️ OPEN AS — the Wall is the only place that knows the other clients exist.
+   *
+   * /phone shipped and was never once seen, because nothing links to it; /puck
+   * would have gone the same way. The Wall is where a phone sets up the screen
+   * it is standing next to, so this is where the three of them belong.
+   *
+   * ⚠️ These are SPANS that navigate, not anchors: the card is itself an <a>,
+   * and a nested anchor is invalid HTML that browsers resolve however they like.
+   *
+   * Face and Puck take the durable OUTPUT — it survives the regrouping that
+   * disposes of a zone id. The phone route resolves zones, so it takes the id.
+   */
+  var openAs = el('div', 'tile-openas');
+  openAs.hidden = true;
+  var openWay = function (label, href) {
+    var node = quiet(el('span', 'oa', label), function () { window.location.href = href; });
+    node.setAttribute('title', 'open ' + zone.name + ' as ' + label);
+    return node;
+  };
+  openAs.appendChild(openWay('Face', '/face/' + encodeURIComponent(faceId)));
+  openAs.appendChild(openWay('Phone', '/phone/' + encodeURIComponent(zoneId)));
+  openAs.appendChild(openWay('Puck', '/puck/' + encodeURIComponent(faceId)));
+  // A word, not a glyph: "open as" has no evident picture, and the rule is that
+  // an icon only replaces a word when the meaning is obvious (Peter, 08-26).
+  var openB = quiet(el('span', 'ta oa-mark', 'open as'), function () {
+    openAs.hidden = !openAs.hidden;
+    openB.className = openAs.hidden ? 'ta oa-mark' : 'ta oa-mark now';
+  });
+  openB.setAttribute('title', 'open ' + zone.name + ' on this screen as a Face, Phone or Puck');
+
   var state = el('div', 'tile-state');
-  actions.appendChild(left); actions.appendChild(state); actions.appendChild(infoB);
+  actions.appendChild(left); actions.appendChild(state);
+  actions.appendChild(openB); actions.appendChild(infoB);
 
   var body = el('div', 'tile-body');
   body.appendChild(now); body.appendChild(progress); body.appendChild(volLine);
-  body.appendChild(actions); body.appendChild(detail);
+  body.appendChild(actions); body.appendChild(openAs); body.appendChild(detail);
   tile.appendChild(head); tile.appendChild(body);
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,

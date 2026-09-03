@@ -420,7 +420,12 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     if (path === '/puck' || path === '/puck/' || path.startsWith('/puck/')) {
       const token = path.startsWith('/puck/') ? decodeURIComponent(path.slice('/puck/'.length)) : '';
       const snapshot = deps.hub.snapshot();
-      const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
+      // Prefer the durable OUTPUT, as /face does: a puck belongs to the speaker
+      // in the room, so it follows that room through grouping instead of
+      // stranding on a zone id Roon has since replaced.
+      const bound = token === '' || snapshot === null ? null : resolveOutput(snapshot.zones, token);
+      const resolved = bound !== null ? bound.zoneId
+        : (token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token));
       html(response, 200, renderPuckPage(nonce, resolved ?? '', token,
         url.searchParams.get('px'), url.searchParams.get('browse')), nonce);
       return;
