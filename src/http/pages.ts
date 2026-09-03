@@ -249,7 +249,8 @@ export function normalizePuckPx(raw: string | null): number | null {
  */
 export function renderPuckPage(
   nonce: string, zoneId: string, zoneToken: string | null = null, pxParam: string | null = null,
-  browseParam: string | null = null,
+  browseParam: string | null = null, outputId: string | null = null,
+  chromeParam: string | null = null,
 ): string {
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
@@ -258,11 +259,17 @@ export function renderPuckPage(
     + '<body><main class="puck" id="puck"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
+    // The OUTPUT this puck belongs to, as the Face carries it. Volume acts on one
+    // speaker rather than a whole grouped house, and the zone is re-derived from
+    // the output on every snapshot so grouping never strands the device.
+    + (outputId === null ? '' : ' data-output="' + outputId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128) + '"')
     + (px === null ? '' : ' data-px="' + String(px) + '"')
-    // A development affordance: open straight into a browse level, so a
-    // screenshot can catch a menu that a gesture would otherwise be needed for.
+    // Development affordances: open straight into a browse level, or raise the
+    // summoned cluster, so a screenshot can catch a face that a gesture would
+    // otherwise be needed for.
     + (browseParam === null ? ''
       : ' data-browse-param="' + browseParam.replace(/[^a-z_]/g, '').slice(0, 24) + '"')
+    + (chromeParam === '1' ? ' data-chrome-param="1"' : '')
     + ' data-state="connecting"></main>'
     + '</body></html>';
 }

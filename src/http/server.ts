@@ -427,7 +427,8 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const resolved = bound !== null ? bound.zoneId
         : (token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token));
       html(response, 200, renderPuckPage(nonce, resolved ?? '', token,
-        url.searchParams.get('px'), url.searchParams.get('browse')), nonce);
+        url.searchParams.get('px'), url.searchParams.get('browse'),
+        bound === null ? null : bound.outputId, url.searchParams.get('chrome')), nonce);
       return;
     }
     // The address worth bookmarking on a TV: no zone, always whatever is playing.

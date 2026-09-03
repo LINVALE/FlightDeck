@@ -1,6 +1,9 @@
 import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
+import { seekTargetSecond } from './seek-target.js';
+import { createSeekIntentGate } from './seek-intent.js';
+import { createBrowse } from './puck-browse.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -13,12 +16,29 @@ import { createStream } from './stream.js';
  * ⚖️ The art FILLS the dial (Peter, 09-02). Legibility is painted over it in
  * scrims; the cover itself is never dimmed, tinted or transformed.
  *
+ * ⚖️ TWO RINGS (Peter, 09-03): the OUTER one is volume — the wheel's own readout,
+ * drawn where the hand is — and the INNER one is progress. Both start at twelve.
+ *
  * ⚖️ Progress is Roon's reported second, VERBATIM (Peter, 08-28) — the store
  * holds that rule and nothing here may add a browser clock on top.
  *
- * There are no transport buttons, deliberately: on the device the glass commits
- * (tap the centre, swipe for next and previous), so drawn buttons would
- * contradict the grammar and cost the room name its space at 360px.
+ * ⚖️ THE VERBS (09-02, settled against the hardware): the WHEEL adjusts, the
+ * GLASS commits, the HAPTIC confirms. There is no wheel press — Waveshare's copy
+ * claims one and the pinout is quadrature-only — so a tap that ticks IS the
+ * press. Turn · tap · swipe, and nothing else.
+ *
+ *     wheel turn      volume · move the selection
+ *     tap the centre  play/pause · select
+ *     swipe ← →       next · previous
+ *     tap the ring    seek
+ *     swipe ↑ ↓       climb · descend  (one axis, three stops)
+ *
+ * ⚖️ THE OVERLAY (Peter, 09-03). The first cut drew no transport buttons on the
+ * ground that the glass commits — true of the DEVICE, but a mock has to show
+ * what the firmware will draw. So the five controls are SUMMONED: invisible at
+ * rest, raised by a touch or a mouse move, asleep again after a quiet spell.
+ * The first touch only summons — it never acts — because a puck lives where a
+ * hand brushes past it, and a brush must not pause the room.
  *
  * ES2018 floor, like every other shipped asset.
  */
@@ -26,13 +46,24 @@ import { createStream } from './stream.js';
 var root = document.getElementById('puck');
 var SVG_NS = 'http://www.w3.org/2000/svg';
 
-/** Close to the rim: the art runs under it, so the ring reads as the edge. */
-var RING_R = 47;
-var RING_C = 2 * Math.PI * RING_R;
+/** Close to the rim: the art runs under it, so the rings read as the edge. */
+var VOL_R = 47;
+var PROG_R = 42;
+var VOL_C = 2 * Math.PI * VOL_R;
+var PROG_C = 2 * Math.PI * PROG_R;
 var BEZEL_RATIO = 0.085;
+
+/** Inside this radius the glass is the face; outside it, the band is the ring. */
+var RING_BAND = 38;
 
 /** The field behind a missing cover: the art drawn tiny and scaled up. */
 var GROUND_PX = 20;
+
+/** How long the summoned controls stand before the face goes back to the music. */
+var CHROME_MS = 5000;
+
+/** One detent of the bezel, in degrees. Measured per revolution on the board (I2). */
+var DETENT_DEG = 12;
 
 function el(tag, className, text) {
   var node = document.createElement(tag);
@@ -41,10 +72,79 @@ function el(tag, className, text) {
   return node;
 }
 
+/* ---------- glyphs: the face's own line-work, unchanged ---------- */
+
+function glyph(name) {
+  var svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('class', 'glyph');
+  svg.setAttribute('aria-hidden', 'true');
+  var filled = {
+    prev: 'M7 6h2.2v12H7zm10 0v12l-8-6z',
+    next: 'M17 6h-2.2v12H17zM7 6v12l8-6z',
+    play: 'M8 5.5v13l11-6.5z',
+    pause: 'M8 5.5h3.1v13H8zm5 0h3.1v13H13z',
+  }[name];
+  if (filled !== undefined) {
+    var path = document.createElementNS(SVG_NS, 'path');
+    path.setAttribute('d', filled);
+    path.setAttribute('fill', 'currentColor');
+    svg.appendChild(path);
+    return svg;
+  }
+  var strokes = {
+    shuffle: [
+      'M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
+      'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
+      'M18.2 5.6 20.6 7.5 18.2 9.4',
+      'M18.2 14.6 20.6 16.5 18.2 18.4',
+    ],
+    repeat: [
+      'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
+      'M16 13.8 18 16 20 13.8',
+      'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
+      'M4 10.2 6 8 8 10.2',
+    ],
+    'repeat-one': [
+      'M7.5 8h7a3.5 3.5 0 0 1 3.5 3.5V14',
+      'M16 13.8 18 16 20 13.8',
+      'M16.5 16h-7A3.5 3.5 0 0 1 6 12.5V10',
+      'M4 10.2 6 8 8 10.2',
+      'M11 11.2 12.6 10.2V14',
+    ],
+  }[name] || [];
+  for (var i = 0; i < strokes.length; i += 1) {
+    var line = document.createElementNS(SVG_NS, 'path');
+    line.setAttribute('d', strokes[i]);
+    line.setAttribute('fill', 'none');
+    line.setAttribute('stroke', 'currentColor');
+    line.setAttribute('stroke-width', '1.7');
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('stroke-linejoin', 'round');
+    svg.appendChild(line);
+  }
+  return svg;
+}
+
 /* ---------- the device ---------- */
 
 var rig = el('div', 'rig');
 var glass = el('div', 'glass');
+
+/** The knurl, drawn: a turn needs something to be measured against. */
+var detents = document.createElementNS(SVG_NS, 'svg');
+detents.setAttribute('class', 'detents');
+detents.setAttribute('viewBox', '0 0 100 100');
+for (var tick = 0; tick < 360 / DETENT_DEG; tick += 1) {
+  var mark = document.createElementNS(SVG_NS, 'circle');
+  var markAngle = (tick * DETENT_DEG) * Math.PI / 180;
+  mark.setAttribute('class', 'detent');
+  mark.setAttribute('r', '0.7');
+  mark.setAttribute('cx', String(50 + 48.4 * Math.cos(markAngle)));
+  mark.setAttribute('cy', String(50 + 48.4 * Math.sin(markAngle)));
+  detents.appendChild(mark);
+}
+rig.appendChild(detents);
 
 var cover = el('div', 'cover');
 var coverImg = document.createElement('img');
@@ -57,66 +157,102 @@ var scrimFoot = el('div', 'scrim-foot');
 var ring = document.createElementNS(SVG_NS, 'svg');
 ring.setAttribute('class', 'ring');
 ring.setAttribute('viewBox', '0 0 100 100');
-var ringTrack = document.createElementNS(SVG_NS, 'circle');
-var ringArc = document.createElementNS(SVG_NS, 'circle');
-[ringTrack, ringArc].forEach(function (c) {
-  c.setAttribute('cx', '50');
-  c.setAttribute('cy', '50');
-  c.setAttribute('r', String(RING_R));
-});
-ringTrack.setAttribute('class', 'ring-track');
-ringArc.setAttribute('class', 'ring-arc');
-ringArc.setAttribute('transform', 'rotate(-90 50 50)');   // twelve o'clock, clockwise
-ringArc.setAttribute('stroke-dasharray', String(RING_C));
-ringArc.setAttribute('stroke-dashoffset', String(RING_C));
-var ringBead = document.createElementNS(SVG_NS, 'circle');
-ringBead.setAttribute('class', 'ring-bead');
-ringBead.setAttribute('r', '1.9');
-ringBead.style.display = 'none';
-ring.appendChild(ringTrack);
-ring.appendChild(ringArc);
-ring.appendChild(ringBead);
+
+function circle(className, radius) {
+  var node = document.createElementNS(SVG_NS, 'circle');
+  node.setAttribute('class', className);
+  node.setAttribute('cx', '50');
+  node.setAttribute('cy', '50');
+  node.setAttribute('r', String(radius));
+  return node;
+}
+
+function arcOf(className, radius, circumference) {
+  var node = circle(className, radius);
+  // Twelve o'clock, clockwise — the convention every FlightDeck ring shares.
+  node.setAttribute('transform', 'rotate(-90 50 50)');
+  node.setAttribute('stroke-dasharray', String(circumference));
+  node.setAttribute('stroke-dashoffset', String(circumference));
+  return node;
+}
+
+/**
+ * The rings sit on the sleeve itself, and a bright sky swallowed both. A dark
+ * gutter under them is a scrim like every other on this face — painted OVER the
+ * art, never taken out of it — and it is what makes a white arc legible on a
+ * white photograph.
+ */
+var gutter = circle('ring-gutter', (VOL_R + PROG_R) / 2);
+
+var volTrack = circle('vol-track', VOL_R);
+var volArc = arcOf('vol-arc', VOL_R, VOL_C);
+var progTrack = circle('prog-track', PROG_R);
+var progArc = arcOf('prog-arc', PROG_R, PROG_C);
+var progBead = document.createElementNS(SVG_NS, 'circle');
+progBead.setAttribute('class', 'prog-bead');
+progBead.setAttribute('r', '1.8');
+progBead.style.display = 'none';
+ring.appendChild(gutter);
+ring.appendChild(volTrack);
+ring.appendChild(volArc);
+ring.appendChild(progTrack);
+ring.appendChild(progArc);
+ring.appendChild(progBead);
 
 var room = el('div', 'room');
+var volRead = el('div', 'vol-read');
+var volReadValue = el('b', 'vol-read-value');
+var volReadLabel = el('span', null, 'volume');
+volRead.appendChild(volReadValue);
+volRead.appendChild(volReadLabel);
+
 var words = el('div', 'words');
 var title = el('div', 'title');
-var line2 = el('div', 'line2');
+var artist = el('div', 'artist');
+var album = el('div', 'album');
 words.appendChild(title);
-words.appendChild(line2);
+words.appendChild(artist);
+words.appendChild(album);
 var times = el('div', 'times');
 var note = el('div', 'note', 'connecting');
+var toast = el('div', 'toast');
 
-/* ---------- browse: the clock face ---------- */
+/* ---------- the summoned cluster ---------- */
 
-var browse = el('div', 'browse');
-var browseVeil = el('div', 'browse-veil');
-var level = el('div', 'level');
-var optWrap = el('div', 'opt-wrap');
-var chosen = el('div', 'chosen');
-var chosenTitle = el('div', 'chosen-title');
-var chosenSub = el('div', 'chosen-sub');
-chosen.appendChild(chosenTitle);
-chosen.appendChild(chosenSub);
-var count = el('div', 'count');
-var crumbs = document.createElementNS(SVG_NS, 'svg');
-crumbs.setAttribute('class', 'ring');
-crumbs.setAttribute('viewBox', '0 0 100 100');
-browse.appendChild(browseVeil);
-browse.appendChild(crumbs);
-browse.appendChild(level);
-browse.appendChild(optWrap);
-browse.appendChild(chosen);
-browse.appendChild(count);
+var pad = el('div', 'pad');
+var padVeil = el('div', 'pad-veil');
+pad.appendChild(padVeil);
+
+function button(name, className) {
+  var node = el('div', 'btn ' + className);
+  node.setAttribute('data-shows', name);
+  node.appendChild(glyph(name));
+  return node;
+}
+
+var btnRepeat = button('repeat', 'btn-repeat');
+var btnPrev = button('prev', 'btn-prev');
+var btnPlay = button('play', 'btn-play');
+var btnNext = button('next', 'btn-next');
+var btnShuffle = button('shuffle', 'btn-shuffle');
+pad.appendChild(btnRepeat);
+pad.appendChild(btnPrev);
+pad.appendChild(btnPlay);
+pad.appendChild(btnNext);
+pad.appendChild(btnShuffle);
+pad.appendChild(el('div', 'hint', 'swipe down to browse'));
 
 glass.appendChild(cover);
 glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
 glass.appendChild(ring);
 glass.appendChild(room);
+glass.appendChild(volRead);
 glass.appendChild(words);
 glass.appendChild(times);
-glass.appendChild(browse);
+glass.appendChild(pad);
 glass.appendChild(note);
+glass.appendChild(toast);
 rig.appendChild(glass);
 root.appendChild(rig);
 
@@ -152,17 +288,58 @@ layout();
 
 /* ---------- what this puck is looking at ---------- */
 
+/**
+ * The durable OUTPUT first, exactly as the Face binds. A puck belongs to the
+ * speaker in the room: grouping disposes of zone ids, and a hand device that
+ * loses its room the moment the house is grouped is worse than one that follows.
+ */
+var boundOutputId = root.getAttribute('data-output') || null;
+var wantedZoneId = root.getAttribute('data-zone') || '';
+var wantedSlug = root.getAttribute('data-zone-slug') || '';
+
+function slugOf(name) {
+  return String(name === undefined || name === null ? '' : name).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function stampOf(zone) {
   return Date.parse(zone.lastPlayedAt === null ? '' : zone.lastPlayedAt) || 0;
+}
+
+function namesOf(zone) {
+  var all = [slugOf(zone.name)];
+  for (var i = 0; i < zone.outputs.length; i += 1) all.push(slugOf(zone.outputs[i].name));
+  return all;
 }
 
 function pickZone(snapshot) {
   if (snapshot === null || !Array.isArray(snapshot.zones) || snapshot.zones.length === 0) return null;
   var zones = snapshot.zones;
-  var wanted = root.getAttribute('data-zone');
   var i;
-  if (wanted) {
-    for (i = 0; i < zones.length; i += 1) if (zones[i].id === wanted) return zones[i];
+  var j;
+  if (boundOutputId !== null) {
+    for (i = 0; i < zones.length; i += 1) {
+      for (j = 0; j < zones[i].outputs.length; j += 1) {
+        if (zones[i].outputs[j].id === boundOutputId) return zones[i];
+      }
+    }
+  }
+  if (wantedZoneId !== '') {
+    for (i = 0; i < zones.length; i += 1) if (zones[i].id === wantedZoneId) return zones[i];
+  }
+  /**
+   * The NAME is the fallback, not a nicety: a zone id does not survive every
+   * Core change, and a puck bolted to a wall must re-find its room by name
+   * rather than going dark until somebody reloads it.
+   */
+  if (wantedSlug !== '') {
+    var named = [];
+    for (i = 0; i < zones.length; i += 1) {
+      if (namesOf(zones[i]).indexOf(wantedSlug) !== -1) named.push(zones[i]);
+    }
+    if (named.length > 0) {
+      for (i = 0; i < named.length; i += 1) if (named[i].state === 'playing') return named[i];
+      return named[0];
+    }
   }
   var best = null;
   for (i = 0; i < zones.length; i += 1) {
@@ -170,6 +347,157 @@ function pickZone(snapshot) {
     if (best === null || stampOf(zones[i]) > stampOf(best)) best = zones[i];
   }
   return best !== null ? best : zones[0];
+}
+
+function currentZone() { return pickZone(store.snapshot()); }
+
+/**
+ * ⚖️ VOLUME ACTS ON ONE OUTPUT — the speaker in this room — never on a whole
+ * grouped house. The bound output when there is one; otherwise the zone's head,
+ * which is the room whose queue the group is playing.
+ */
+function currentOutput() {
+  var zone = currentZone();
+  if (zone === null || zone.outputs.length === 0) return null;
+  if (boundOutputId !== null) {
+    for (var i = 0; i < zone.outputs.length; i += 1) {
+      if (zone.outputs[i].id === boundOutputId) return zone.outputs[i];
+    }
+  }
+  return zone.outputs[0];
+}
+
+/* ---------- talking to the deck ---------- */
+
+function command(body) {
+  return fetch('/api/v1/control', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (response) {
+    if (!response.ok) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        flash(data.error || ('control failed (' + String(response.status) + ')'));
+      });
+    }
+    return null;
+  }).catch(function () { flash('could not reach FlightDeck'); });
+}
+
+var toastTimer = null;
+function flash(message) {
+  toast.textContent = message;
+  toast.className = 'toast is-lit';
+  if (toastTimer !== null) clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { toast.className = 'toast'; }, 2600);
+}
+
+/**
+ * ⚖️ THE HAPTIC CONFIRMS (09-02). On the board that is a DRV2605 click; in the
+ * browser it is whatever the device has, which on a phone is the same gesture
+ * answered the same way. Absent on a desktop, and that is fine — it is
+ * confirmation, never the channel.
+ */
+function haptic(ms) {
+  if (typeof navigator.vibrate !== 'function') return;
+  try { navigator.vibrate(ms); } catch (error) { /* a browser that lies about it */ }
+}
+
+var seekIntent = createSeekIntentGate(function (body) { return command(body); });
+
+function transport(action) {
+  var zone = currentZone();
+  if (zone === null) return;
+  if (action === 'next' && !zone.allowed.next) { flash('next is not available here'); return; }
+  if (action === 'previous' && !zone.allowed.previous) { flash('previous is not available here'); return; }
+  haptic(12);
+  command({ action: action, zone: zone.id });
+}
+
+/* ---------- the wheel ---------- */
+
+/**
+ * ⚖️ ONE DETENT, ONE STEP. The bezel has physical detents, so each is a discrete
+ * step and the tap-only volume ruling survives on the device untouched; only the
+ * browser needs a drag, and that is the SIMULATION being a poorer model, not a
+ * change of design.
+ *
+ * Steps are accumulated and flushed together: a fast spin is one intention, and
+ * sixty separate requests would arrive after the hand had already stopped.
+ */
+var volPending = 0;
+var volFlushTimer = null;
+var volLocal = null;      // { outputId, value } — the reading under the hand
+var turningTimer = null;
+
+function volumeBounds(output) {
+  var volume = output.volume;
+  var min = volume.min === null ? 0 : volume.min;
+  var max = volume.max === null ? 100 : volume.max;
+  return { min: min, max: max, step: volume.step === null || volume.step === 0 ? 1 : volume.step };
+}
+
+function showTurning() {
+  root.setAttribute('data-turning', '1');
+  if (turningTimer !== null) clearTimeout(turningTimer);
+  turningTimer = setTimeout(function () {
+    root.removeAttribute('data-turning');
+    turningTimer = null;
+  }, 1400);
+}
+
+function flushVolume() {
+  volFlushTimer = null;
+  var output = currentOutput();
+  var steps = volPending;
+  volPending = 0;
+  if (output === null || output.volume === null || steps === 0) return;
+  // Bounded hard by the server too: a stuck key must never send a room to
+  // maximum. Sending more than it will honour is asking for a lie in return.
+  command({ action: 'volume', output: output.id, steps: Math.max(-4, Math.min(4, steps)) });
+}
+
+function turn(steps) {
+  var output = currentOutput();
+  if (output === null) return;
+  if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
+  haptic(6);
+  showTurning();
+  var bounds = volumeBounds(output);
+  if (output.volume.value !== null) {
+    var from = volLocal !== null && volLocal.outputId === output.id
+      ? volLocal.value : output.volume.value;
+    volLocal = {
+      outputId: output.id,
+      value: Math.max(bounds.min, Math.min(bounds.max, from + steps * bounds.step)),
+    };
+  }
+  volPending += steps;
+  if (volFlushTimer === null) volFlushTimer = setTimeout(flushVolume, 140);
+  render();
+}
+
+/* ---------- the summoned chrome ---------- */
+
+var chromeTimer = null;
+var chromeUp = false;
+
+function wake() {
+  if (browse.isOpen()) return false;
+  var first = !chromeUp;
+  chromeUp = true;
+  root.setAttribute('data-chrome', '1');
+  if (chromeTimer !== null) clearTimeout(chromeTimer);
+  chromeTimer = setTimeout(sleep, CHROME_MS);
+  if (first) render();
+  return first;
+}
+
+function sleep() {
+  if (chromeTimer !== null) { clearTimeout(chromeTimer); chromeTimer = null; }
+  chromeUp = false;
+  root.removeAttribute('data-chrome');
+  render();
 }
 
 /* ---------- painting ---------- */
@@ -207,19 +535,20 @@ function paintCover(art) {
   coverImg.src = art.path;
 }
 
-function setArc(fraction) {
-  if (fraction === null) {
-    ringArc.setAttribute('stroke-dashoffset', String(RING_C));
-    ringBead.style.display = 'none';
-    return;
-  }
+function setArc(arc, circumference, fraction) {
+  if (fraction === null) { arc.setAttribute('stroke-dashoffset', String(circumference)); return; }
   var clamped = Math.max(0, Math.min(1, fraction));
-  ringArc.setAttribute('stroke-dashoffset', String(RING_C * (1 - clamped)));
-  // Twelve o'clock, clockwise — the same convention the Dial's ring uses.
+  arc.setAttribute('stroke-dashoffset', String(circumference * (1 - clamped)));
+}
+
+function setProgress(fraction) {
+  setArc(progArc, PROG_C, fraction);
+  if (fraction === null) { progBead.style.display = 'none'; return; }
+  var clamped = Math.max(0, Math.min(1, fraction));
   var angle = (clamped * 2 * Math.PI) - (Math.PI / 2);
-  ringBead.setAttribute('cx', String(50 + RING_R * Math.cos(angle)));
-  ringBead.setAttribute('cy', String(50 + RING_R * Math.sin(angle)));
-  ringBead.style.display = '';
+  progBead.setAttribute('cx', String(50 + PROG_R * Math.cos(angle)));
+  progBead.setAttribute('cy', String(50 + PROG_R * Math.sin(angle)));
+  progBead.style.display = '';
 }
 
 /** When it ends, on the wall clock — the Dial's signature reading. */
@@ -230,16 +559,79 @@ function endsAt(remainingSec) {
   return String(h) + ':' + (m < 10 ? '0' + String(m) : String(m));
 }
 
+function paintVolume() {
+  var output = currentOutput();
+  if (output === null || output.volume === null) {
+    root.setAttribute('data-vol', 'none');
+    volLocal = null;
+    return;
+  }
+  var volume = output.volume;
+  volArc.setAttribute('class', volume.muted ? 'vol-arc is-muted' : 'vol-arc');
+  if (volume.value === null || volume.max === null) {
+    // An incremental output says only that it takes + and −. The track alone
+    // reads as "the wheel works here"; an invented arc would be a lie.
+    root.setAttribute('data-vol', 'blind');
+    volReadValue.textContent = volume.muted ? 'MUTED' : '···';
+    return;
+  }
+  root.setAttribute('data-vol', 'level');
+  // The optimistic reading is dropped the moment Roon agrees with it, so a turn
+  // made anywhere else in the house is never hidden behind our own guess.
+  if (volLocal !== null && (volLocal.outputId !== output.id || volLocal.value === volume.value)) {
+    volLocal = null;
+  }
+  var shown = volLocal !== null ? volLocal.value : volume.value;
+  var bounds = volumeBounds(output);
+  var span = Math.max(1, bounds.max - bounds.min);
+  setArc(volArc, VOL_C, (shown - bounds.min) / span);
+  volReadValue.textContent = volume.muted ? 'MUTED' : String(Math.round(shown));
+  volReadLabel.textContent = output.name;
+}
+
+function paintControls(zone) {
+  var playing = zone !== null && (zone.state === 'playing' || zone.state === 'loading');
+  var shows = playing ? 'pause' : 'play';
+  if (btnPlay.getAttribute('data-shows') !== shows) {
+    btnPlay.setAttribute('data-shows', shows);
+    btnPlay.replaceChildren(glyph(shows));
+  }
+  var able = function (node, allowed) {
+    if (allowed) node.removeAttribute('data-off');
+    else node.setAttribute('data-off', '1');
+  };
+  able(btnPrev, zone !== null && zone.allowed.previous);
+  able(btnNext, zone !== null && zone.allowed.next);
+
+  var settings = zone === null ? null : zone.settings;
+  able(btnShuffle, settings !== null);
+  if (settings !== null && settings.shuffle) btnShuffle.setAttribute('data-on', '1');
+  else btnShuffle.removeAttribute('data-on');
+
+  // Repeat asks the CORE to cycle, so off/all/one is Roon's order, not ours.
+  var loop = settings === null ? 'disabled' : settings.loop;
+  var wants = loop === 'loop_one' ? 'repeat-one' : 'repeat';
+  if (btnRepeat.getAttribute('data-shows') !== wants) {
+    btnRepeat.setAttribute('data-shows', wants);
+    btnRepeat.replaceChildren(glyph(wants));
+  }
+  able(btnRepeat, settings !== null);
+  if (loop === 'loop' || loop === 'loop_one') btnRepeat.setAttribute('data-on', '1');
+  else btnRepeat.removeAttribute('data-on');
+}
+
 function render() {
-  var snapshot = store.snapshot();
-  var zone = pickZone(snapshot);
+  var zone = currentZone();
+  paintVolume();
+  paintControls(zone);
   if (zone === null) {
     room.textContent = '';
     title.textContent = '';
-    line2.textContent = '';
+    artist.textContent = '';
+    album.textContent = '';
     times.textContent = '';
     paintCover(null);
-    setArc(null);
+    setProgress(null);
     return;
   }
 
@@ -248,15 +640,17 @@ function render() {
   var np = zone.nowPlaying;
   if (np === null) {
     title.textContent = zone.state === 'stopped' ? 'Nothing playing' : '';
-    line2.textContent = '';
+    artist.textContent = '';
+    album.textContent = '';
     times.textContent = '';
     paintCover(null);
-    setArc(null);
+    setProgress(null);
     return;
   }
 
   title.textContent = np.title;
-  line2.textContent = np.line2;
+  artist.textContent = np.line2;
+  album.textContent = np.line3;
   paintCover(np.art);
 
   // The store returns null for a live stream: an ever-rising seek_position with
@@ -265,7 +659,7 @@ function render() {
   var length = np.lengthSec;
   if (position === null || typeof length !== 'number' || length <= 0) {
     times.textContent = '';
-    setArc(null);
+    setProgress(null);
     return;
   }
   var remaining = Math.max(0, length - position);
@@ -273,142 +667,268 @@ function render() {
   var strong = document.createElement('b');
   strong.textContent = '−' + formatTime(remaining);
   times.appendChild(strong);
-  times.appendChild(document.createTextNode(' ENDS ' + endsAt(remaining)));
-  setArc(position / length);
+  times.appendChild(document.createTextNode(' ENDS ' + endsAt(remaining)));
+  setProgress(position / length);
 }
 
+/* ---------- the browse face ---------- */
 
-/* ---------- the radial menu ---------- */
-
-/**
- * ⚖️ THE TIER IS CHOSEN BEFORE THE ITEMS ARE LOADED.
- *
- * Roon reports `list.count` with the level, so the dial knows how to present it
- * without fetching first. Measured on a real library: Explore 7, Genres 56,
- * Albums 2295 — which is exactly why all three tiers have to exist.
- */
-var RADIAL_MAX = 12;
-var ALPHA_MAX = 200;
-var OPT_R = 35;          // where the labels ring the face
-var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-
-function tierFor(n) {
-  if (n <= RADIAL_MAX) return 'radial';
-  if (n <= ALPHA_MAX) return 'alpha';
-  return 'linear';
-}
-
-var view = { open: false, tier: 'radial', title: '', options: [], sel: 0, depth: 0, busy: false };
-
-/** Our OWN session: Roon keeps one browse stack per multi_session_key, so a
- *  puck sharing the default would drag every other screen's level around. */
-var SESSION = 'puck-' + String(Math.floor(Math.random() * 1e6));
-
-function ask(body) {
-  return fetch('/api/v1/browse', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-}
-
-function openLevel(hierarchy) {
-  if (view.busy) return;
-  view.busy = true;
-  ask({ hierarchy: hierarchy, sessionKey: SESSION, popAll: true }).then(function (head) {
-    if (head === null || head.list === null) { view.busy = false; return; }
-    var total = head.list.count;
-    var tier = tierFor(total);
-    return ask({ hierarchy: hierarchy, sessionKey: SESSION, load: true, count: RADIAL_MAX })
-      .then(function (page) {
-        view.open = true;
-        view.tier = tier;
-        view.title = head.list.title;
-        view.total = total;
-        view.sel = 0;
-        view.options = tier === 'alpha'
-          ? ALPHABET.map(function (c) { return { title: c, subtitle: null }; })
-          : ((page && page.items) ? page.items : []).slice(0, RADIAL_MAX);
-        view.busy = false;
-        drawBrowse();
-      });
-  }).catch(function () { view.busy = false; });
-}
-
-function closeBrowse() {
-  view.open = false;
-  root.removeAttribute('data-browse');
-  root.removeAttribute('data-tier');
-  render();
-}
-
-function move(step) {
-  if (!view.open || view.options.length === 0) return;
-  var n = view.options.length;
-  view.sel = ((view.sel + step) % n + n) % n;
-  drawBrowse();
-}
-
-function drawBrowse() {
-  if (!view.open) return;
-  root.setAttribute('data-browse', view.tier);
-  root.setAttribute('data-tier', view.tier);
-  level.textContent = view.title;
-
-  while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
-  var n = view.options.length;
-  for (var i = 0; i < n; i += 1) {
-    var angle = (i / n) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise
-    var node = el('div', i === view.sel ? 'opt opt-on' : 'opt', view.options[i].title);
-    node.style.left = String(50 + OPT_R * Math.cos(angle)) + '%';
-    node.style.top = String(50 + OPT_R * Math.sin(angle)) + '%';
-    (function (index) {
-      node.addEventListener('click', function () { view.sel = index; drawBrowse(); });
-    }(i));
-    optWrap.appendChild(node);
-  }
-
-  var pick = view.options[view.sel];
-  chosenTitle.textContent = pick ? pick.title : '';
-  chosenSub.textContent = pick && pick.subtitle ? pick.subtitle : '';
-  count.textContent = String(view.sel + 1) + ' / ' + String(view.tier === 'alpha' ? 26 : n)
-    + (view.total > n && view.tier !== 'alpha' ? '  of ' + String(view.total) : '');
-
-  // the cascade: one thin arc per level already descended
-  while (crumbs.firstChild) crumbs.removeChild(crumbs.firstChild);
-  for (var d = 0; d < view.depth; d += 1) {
-    var c = document.createElementNS(SVG_NS, 'circle');
-    c.setAttribute('class', 'crumb');
-    c.setAttribute('cx', '50'); c.setAttribute('cy', '50');
-    c.setAttribute('r', String(43 - d * 3));
-    crumbs.appendChild(c);
-  }
-}
-
-/* Wheel and arrows both move the selection: the wheel is the eyes-free path,
-   touch is the accelerator. On the device these are the same two inputs. */
-window.addEventListener('wheel', function (event) {
-  if (!view.open) return;
-  move(event.deltaY > 0 ? 1 : -1);
-}, { passive: true });
-
-window.addEventListener('keydown', function (event) {
-  var k = event.key;
-  if (!view.open) {
-    if (k === 'ArrowDown') openLevel('browse');
-    return;
-  }
-  if (k === 'ArrowRight' || k === 'ArrowDown') move(1);
-  else if (k === 'ArrowLeft' || k === 'ArrowUp') move(-1);
-  else if (k === 'Escape') closeBrowse();
+var browse = createBrowse({
+  host: glass,
+  root: root,
+  el: el,
+  zoneId: function () { var zone = currentZone(); return zone === null ? null : zone.id; },
+  flash: flash,
+  tick: function () { haptic(6); },
+  onChange: function (open) {
+    if (open) sleep();
+    render();
+  },
 });
 
-// The rig affordance: ?browse=<hierarchy> opens straight into a level, so a
-// screenshot can be taken of a menu that a gesture would otherwise be needed for.
-var wantBrowse = root.getAttribute('data-browse-param');
-if (wantBrowse) openLevel(wantBrowse);
+// The browse layer was appended last and would otherwise paint over the toast —
+// which is the only place a refusal is legible on a device with no error surface.
+glass.appendChild(toast);
+
+/* ---------- the glass: tap, swipe, and the ring ---------- */
+
+var SWIPE_MIN = 0.10;     // of the glass, so the gesture scales with the device
+var TAP_SLOP = 0.04;
+
+var touch = null;
+
+function glassMetrics() {
+  var box = glass.getBoundingClientRect();
+  return { x: box.left + box.width / 2, y: box.top + box.height / 2, r: box.width / 2, size: box.width };
+}
+
+/** Where a point sits on the face, in the same 0–100 units the rings are drawn in. */
+function radiusOf(metrics, clientX, clientY) {
+  var dx = clientX - metrics.x;
+  var dy = clientY - metrics.y;
+  return metrics.r === 0 ? 0 : (Math.sqrt(dx * dx + dy * dy) / metrics.r) * 50;
+}
+
+function seekTo(clientX, clientY) {
+  var zone = currentZone();
+  if (zone === null || zone.nowPlaying === null) return;
+  if (!zone.allowed.seek) { flash('seeking is not available here'); return; }
+  var length = zone.nowPlaying.lengthSec;
+  if (typeof length !== 'number' || length <= 0) { flash('seeking is not available here'); return; }
+  var metrics = glassMetrics();
+  // Twelve o'clock, clockwise: the same convention the ring is drawn with, so
+  // the place you touch is the place the bead lands.
+  var angle = Math.atan2(clientY - metrics.y, clientX - metrics.x) + Math.PI / 2;
+  var fraction = ((angle / (2 * Math.PI)) % 1 + 1) % 1;
+  var seconds = seekTargetSecond(fraction, length);
+  if (seconds === null) return;
+  haptic(12);
+  flash('seek to ' + formatTime(seconds));
+  seekIntent.seek({ zone: zone.id, seconds: seconds });
+}
+
+function tapped(clientX, clientY) {
+  var metrics = glassMetrics();
+  // ⚖️ THE FIRST TOUCH SUMMONS. A puck lives where a hand brushes past it, so a
+  // brush must never pause the room — it may only raise the controls.
+  if (wake()) return;
+  var band = radiusOf(metrics, clientX, clientY) >= RING_BAND;
+  // While a menu is up the rim belongs to nothing: seeking mid-browse would act
+  // on music the person has already stopped looking at.
+  if (browse.isOpen()) { if (!band) browse.commit(); return; }
+  if (band) { seekTo(clientX, clientY); return; }
+  // Everything the cluster owns is a real button; the field around it is the
+  // centre tap, which on the device IS the press the wheel does not have.
+  transport('playpause');
+}
+
+function swiped(dx, dy, size) {
+  var far = Math.max(Math.abs(dx), Math.abs(dy));
+  if (far < size * SWIPE_MIN) return false;
+  wake();
+  if (Math.abs(dx) > Math.abs(dy)) {
+    if (browse.isOpen()) { browse.move(dx < 0 ? 1 : -1); return true; }
+    transport(dx < 0 ? 'next' : 'previous');
+    return true;
+  }
+  /**
+   * ⚖️ ONE AXIS WITH THREE STOPS: ↑ always climbs and ↓ always descends, at every
+   * depth, so a repeated ↑ walks home from anywhere. Rooms sit one stop above
+   * PLAY and are not built yet (I4) — an ↑ from the top is deliberately silent
+   * rather than a promise the device cannot keep.
+   */
+  if (dy > 0) {
+    if (browse.isOpen()) browse.commit();
+    else browse.open('browse');
+  } else {
+    if (browse.isOpen()) browse.back();
+  }
+  return true;
+}
+
+glass.addEventListener('pointerdown', function (event) {
+  if (event.button !== undefined && event.button !== 0) return;
+  touch = { x: event.clientX, y: event.clientY, at: Date.now() };
+});
+
+glass.addEventListener('pointerup', function (event) {
+  if (touch === null) return;
+  var start = touch;
+  touch = null;
+  var dx = event.clientX - start.x;
+  var dy = event.clientY - start.y;
+  var metrics = glassMetrics();
+  if (swiped(dx, dy, metrics.size)) return;
+  if (Math.abs(dx) > metrics.size * TAP_SLOP || Math.abs(dy) > metrics.size * TAP_SLOP) return;
+  tapped(event.clientX, event.clientY);
+});
+
+glass.addEventListener('pointercancel', function () { touch = null; });
+
+/** A mouse crossing the glass is the desk equivalent of a hand approaching it. */
+glass.addEventListener('pointermove', function (event) {
+  if (event.pointerType === 'touch') return;
+  wake();
+});
+
+/* ---------- the cluster's own presses ---------- */
+
+function press(node, act) {
+  node.addEventListener('click', function (event) {
+    event.stopPropagation();
+    if (node.getAttribute('data-off') === '1') return;
+    // The same rule the glass obeys: a touch on a sleeping face only summons.
+    if (wake()) return;
+    act();
+  });
+  // The glass gesture handler must not also read a button press as a tap.
+  node.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+  node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+}
+
+press(btnPlay, function () { transport('playpause'); });
+press(btnPrev, function () { transport('previous'); });
+press(btnNext, function () { transport('next'); });
+press(btnShuffle, function () {
+  var zone = currentZone();
+  if (zone === null) return;
+  haptic(12);
+  command({ action: 'shuffle', zone: zone.id });
+});
+press(btnRepeat, function () {
+  var zone = currentZone();
+  if (zone === null) return;
+  haptic(12);
+  command({ action: 'repeat', zone: zone.id });
+});
+
+/**
+ * ⚖️ THE WORDS ARE THE WAY IN (Peter, 09-03). What is playing and what could be
+ * playing are the same question asked twice, so the credit at the foot of the
+ * dial is where browse opens from — on the device, the same place the thumb
+ * already rests.
+ */
+press(words, function () {
+  haptic(10);
+  browse.open('browse');
+});
+
+/* ---------- the bezel: a turn, quantised to its detents ---------- */
+
+var turning = null;
+
+function angleAt(event) {
+  var box = rig.getBoundingClientRect();
+  var dx = event.clientX - (box.left + box.width / 2);
+  var dy = event.clientY - (box.top + box.height / 2);
+  return Math.atan2(dy, dx) * 180 / Math.PI;
+}
+
+rig.addEventListener('pointerdown', function (event) {
+  if (event.target !== rig && event.target !== detents && event.target.parentNode !== detents) return;
+  turning = { angle: angleAt(event), carried: 0 };
+  rig.className = 'rig is-turning';
+  try { rig.setPointerCapture(event.pointerId); } catch (error) { /* mouse without capture */ }
+});
+
+rig.addEventListener('pointermove', function (event) {
+  if (turning === null) return;
+  var now = angleAt(event);
+  var delta = now - turning.angle;
+  // Crossing twelve o'clock is a small turn, not a full revolution backwards.
+  while (delta > 180) delta -= 360;
+  while (delta < -180) delta += 360;
+  turning.angle = now;
+  turning.carried += delta;
+  while (Math.abs(turning.carried) >= DETENT_DEG) {
+    var step = turning.carried > 0 ? 1 : -1;
+    turning.carried -= step * DETENT_DEG;
+    if (browse.isOpen()) browse.move(step);
+    else turn(step);
+  }
+});
+
+function endTurn() {
+  if (turning === null) return;
+  turning = null;
+  rig.className = 'rig';
+}
+
+rig.addEventListener('pointerup', endTurn);
+rig.addEventListener('pointercancel', endTurn);
+
+/**
+ * A scroll wheel IS the bezel on a desk, and the only way to demonstrate the
+ * wheel without the hardware in hand.
+ */
+window.addEventListener('wheel', function (event) {
+  var step = event.deltaY > 0 ? 1 : -1;
+  if (browse.isOpen()) browse.move(step);
+  else { wake(); turn(-step); }
+}, { passive: true });
+
+/* ---------- the keyboard: the same three verbs, for a desk ---------- */
+
+window.addEventListener('keydown', function (event) {
+  var key = event.key;
+  var open = browse.isOpen();
+  if (key === 'ArrowDown') {
+    if (open) browse.commit();
+    else { wake(); browse.open('browse'); }
+  } else if (key === 'ArrowUp') {
+    if (open) browse.back();
+    else wake();
+  } else if (key === 'ArrowRight') {
+    if (open) browse.move(1); else { wake(); transport('next'); }
+  } else if (key === 'ArrowLeft') {
+    if (open) browse.move(-1); else { wake(); transport('previous'); }
+  } else if (key === 'Enter' || key === ' ') {
+    if (open) browse.commit(); else { wake(); transport('playpause'); }
+  } else if (key === 'Escape') {
+    if (open) browse.close();
+  } else if (key === '+' || key === '=') {
+    wake(); turn(1);
+  } else if (key === '-' || key === '_') {
+    wake(); turn(-1);
+  } else {
+    return;
+  }
+  event.preventDefault();
+});
+
+/* ---------- boot ---------- */
 
 var store = createStore(render);
 store.hydrate();
 createStream(store, function (state) { root.setAttribute('data-state', state); });
 render();
+
+/**
+ * The rig affordances. `?browse=<hierarchy>` opens straight into a level and
+ * `?chrome=1` raises the cluster, so a screenshot can catch a face that a
+ * gesture would otherwise be needed for — and so a mock can be looked at
+ * without a hand on it.
+ */
+if (root.getAttribute('data-chrome-param') === '1') wake();
+var wantBrowse = root.getAttribute('data-browse-param');
+if (wantBrowse) browse.open(wantBrowse);

@@ -7,7 +7,7 @@ const asset = (name: string): string =>
   readFileSync(resolve(import.meta.dirname, '..', 'assets', name), 'utf8');
 
 test('every interactive client loads the Chromium 63 DOM compatibility rail', () => {
-  for (const name of ['face.js', 'wall.js', 'phone.js']) {
+  for (const name of ['face.js', 'wall.js', 'phone.js', 'puck.js']) {
     assert.match(asset(name), /^import ['"]\.\/compat\.js['"];\n/, name);
   }
   const compat = asset('compat.js');

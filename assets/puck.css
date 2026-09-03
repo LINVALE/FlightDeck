@@ -14,6 +14,11 @@
  * transform or mask touches the cover or any ancestor of it, so the artwork is
  * never dimmed, tinted or squashed — only its corners fall outside the circle.
  * Legibility comes from scrims painted OVER the art, never from muting it.
+ *
+ * ⚖️ TWO RINGS, ADJACENT (Peter, 2026-09-03). The OUTER one is volume — it is
+ * the wheel's own readout, and the wheel is the rim, so the reading sits where
+ * the hand is. The INNER one is progress. They share the twelve o'clock start
+ * and differ in colour, because they are read at a glance and never together.
  */
 
 :root {
@@ -35,6 +40,8 @@ body {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .puck {
@@ -57,7 +64,15 @@ body {
   background-image: -webkit-radial-gradient(circle at 34% 26%, var(--bezel-lip) 0%, var(--bezel-face) 62%, #14161a 100%);
   background-image: radial-gradient(circle at 34% 26%, var(--bezel-lip) 0%, var(--bezel-face) 62%, #14161a 100%);
   box-shadow: 0 calc(var(--u) * 1.4) calc(var(--u) * 4) rgba(0, 0, 0, .55);
+  cursor: -webkit-grab; cursor: grab;
+  -ms-touch-action: none; touch-action: none;
 }
+
+.rig.is-turning { cursor: -webkit-grabbing; cursor: grabbing; }
+
+/** The detents, drawn. A turn has somewhere to be measured against. */
+.detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.detent { fill: rgba(242, 238, 230, .16); }
 
 .glass {
   position: absolute;
@@ -66,6 +81,8 @@ body {
   border-radius: 50%;
   overflow: hidden;
   background: #05060a;
+  cursor: default;
+  -ms-touch-action: none; touch-action: none;
 }
 
 /* The art, filling the dial. A clip and nothing else. */
@@ -86,6 +103,7 @@ body {
 .scrim-top, .scrim-foot {
   position: absolute;
   left: 0; right: 0;
+  pointer-events: none;
 }
 
 .scrim-top {
@@ -107,17 +125,44 @@ body {
   pointer-events: none;
 }
 
-.ring-track { fill: none; stroke: rgba(242, 238, 230, .22); stroke-width: 1.8; }
+/* A dark gutter under both rings: legibility painted OVER the art, as every
+   other scrim on this face is. Without it a white arc vanishes into a white sky. */
+.ring-gutter { fill: none; stroke: rgba(0, 0, 0, .38); stroke-width: 9; }
 
-.ring-arc {
+/* ---- the outer ring: VOLUME, the wheel's own readout ---- */
+
+.vol-track { fill: none; stroke: rgba(242, 238, 230, .16); stroke-width: 2.2; }
+
+.vol-arc {
+  fill: none;
+  stroke: rgba(242, 238, 230, .88);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+/* Muted is a BROKEN ring, not a dimmer one: at arm's length a dashed arc reads
+   as "interrupted" where a faint one reads as "nearly off". */
+.vol-arc.is-muted { stroke: rgba(242, 238, 230, .40); stroke-dasharray: 1.6 2.4; }
+
+/* An incremental output reports no level at all — only that it takes + and −.
+   The track alone says "the wheel works here"; an invented arc would lie. */
+.puck[data-vol="none"] .vol-track,
+.puck[data-vol="none"] .vol-arc { display: none; }
+.puck[data-vol="blind"] .vol-arc { display: none; }
+
+/* ---- the inner ring: PROGRESS, Roon's own reported second ---- */
+
+.prog-track { fill: none; stroke: rgba(242, 238, 230, .20); stroke-width: 2.6; }
+
+.prog-arc {
   fill: none;
   stroke: var(--accent);
-  stroke-opacity: .92;
+  stroke-opacity: .94;
   stroke-width: 2.6;
   stroke-linecap: round;
 }
 
-.ring-bead { fill: #fffef8; }
+.prog-bead { fill: #fffef8; }
 
 /* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 
@@ -130,28 +175,91 @@ body {
   letter-spacing: calc(var(--u) * .28);
   text-transform: uppercase;
   color: var(--ink-dim);
+  pointer-events: none;
 }
+
+/**
+ * THE VOLUME READING, shown only while the wheel is moving. A knob that answers
+ * a turn with a number is the whole reason the wheel feels connected; a number
+ * standing there permanently is clutter on a face whose subject is the music.
+ */
+.vol-read {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(var(--u) * 13.5);
+  text-align: center;
+  font-size: calc(var(--u) * 9);
+  font-weight: 600;
+  letter-spacing: calc(var(--u) * .1);
+  color: var(--ink);
+  text-shadow: 0 calc(var(--u) * .3) calc(var(--u) * 1.2) rgba(0,0,0,.75);
+  display: none;
+  pointer-events: none;
+}
+
+.puck[data-turning="1"] .vol-read { display: block; }
+.puck[data-browse] .vol-read { display: none; }
+
+.vol-read span {
+  display: block;
+  font-size: calc(var(--u) * 3.2);
+  font-weight: 400;
+  letter-spacing: calc(var(--u) * .3);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+/* ---- the words: title, artist, album, at the foot ---- */
 
 .words {
   position: absolute;
   left: calc(var(--u) * 15); right: calc(var(--u) * 15);
-  bottom: calc(var(--u) * 14);
+  bottom: calc(var(--u) * 13);
   text-align: center;
+  cursor: pointer;
 }
 
 .title {
-  font-size: calc(var(--u) * 7.4);
+  font-size: calc(var(--u) * 7);
   line-height: 1.16;
   font-weight: 600;
   /* Two lines and no more: a long title must never push the times off the rim. */
-  max-height: calc(var(--u) * 17.2);
+  max-height: calc(var(--u) * 16.3);
   overflow: hidden;
 }
 
-.line2 {
-  margin-top: calc(var(--u) * 1.6);
-  font-size: calc(var(--u) * 4.8);
+.artist {
+  margin-top: calc(var(--u) * 1.3);
+  font-size: calc(var(--u) * 4.6);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.album {
+  margin-top: calc(var(--u) * .5);
+  font-size: calc(var(--u) * 4);
   color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/**
+ * ⚖️ THE OVERLAY CONDENSES THE WORDS RATHER THAN SITTING ON THEM. A circle has
+ * one middle; the transport cluster and three lines of copy cannot both have it.
+ * While the controls are up the face is a transport face — title only, at the
+ * rim — and the full credit returns the moment they go back to sleep.
+ */
+.puck[data-chrome="1"] .artist,
+.puck[data-chrome="1"] .album { display: none; }
+
+.puck[data-chrome="1"] .words { bottom: calc(var(--u) * 11); }
+
+.puck[data-chrome="1"] .title {
+  font-size: calc(var(--u) * 5.2);
+  max-height: calc(var(--u) * 6.1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,11 +268,12 @@ body {
 .times {
   position: absolute;
   left: 0; right: 0;
-  bottom: calc(var(--u) * 6);
+  bottom: calc(var(--u) * 5.5);
   text-align: center;
-  font-size: calc(var(--u) * 4.2);
+  font-size: calc(var(--u) * 4);
   letter-spacing: calc(var(--u) * .1);
   color: var(--ink-dim);
+  pointer-events: none;
 }
 
 .times b { color: var(--ink); font-weight: 600; }
@@ -177,9 +286,108 @@ body {
   text-align: center;
   font-size: calc(var(--u) * 5);
   color: var(--ink-dim);
+  pointer-events: none;
 }
 
 .puck[data-state="live"] .note { display: none; }
+
+/**
+ * What the deck said back. On a device with no error surface, a refusal has to
+ * be legible on the glass itself — "next is not available here" is the whole
+ * explanation for a swipe that did nothing.
+ */
+.toast {
+  position: absolute;
+  left: calc(var(--u) * 12); right: calc(var(--u) * 12);
+  bottom: calc(var(--u) * 30);
+  padding: calc(var(--u) * 1.6) calc(var(--u) * 2);
+  border-radius: calc(var(--u) * 6);
+  background: rgba(8, 9, 12, .88);
+  text-align: center;
+  font-size: calc(var(--u) * 3.8);
+  color: var(--ink);
+  display: none;
+  pointer-events: none;
+}
+
+.toast.is-lit { display: block; }
+
+/* ---------- the transport overlay: summoned, never standing ---------- */
+
+/**
+ * ⚖️ THE FIRST TOUCH SUMMONS; THE SECOND ACTS (the Face's grammar, and the only
+ * safe one for a puck that lives where a hand brushes past it). Drawn buttons
+ * were left off the first cut deliberately, because the device commits on the
+ * glass — but a mock has to SHOW what the firmware will draw, and a summoned
+ * cluster is exactly that: invisible at rest, unmistakable once woken.
+ */
+.pad { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.puck:not([data-chrome="1"]) .pad { display: none; }
+.puck[data-browse] .pad { display: none; }
+
+/* Over the art, never in it: the cover keeps every one of its own pixels. */
+.pad-veil {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(6, 7, 10, .34);
+}
+
+.btn {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(10, 11, 14, .62);
+  border: 1px solid rgba(242, 238, 230, .18);
+  color: var(--ink);
+  cursor: pointer;
+  display: -webkit-flex; display: flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+}
+
+.btn[data-off="1"] { color: rgba(242, 238, 230, .28); border-color: rgba(242, 238, 230, .08); cursor: default; }
+.btn[data-on="1"] { color: var(--accent); border-color: rgba(204, 98, 102, .55); }
+
+.btn .glyph { width: 60%; height: 60%; display: block; }
+
+/* The cluster: play at the middle of the free band, previous and next beside it,
+   repeat and shuffle on the shoulder above. Placed with calc() offsets — never a
+   transform, because `.glass` is an ancestor of the cover. */
+.btn-play {
+  left: 50%; top: calc(var(--u) * 40);
+  width: calc(var(--u) * 19); height: calc(var(--u) * 19);
+  margin-left: calc(var(--u) * -9.5); margin-top: calc(var(--u) * -9.5);
+  background: rgba(10, 11, 14, .74);
+}
+
+.btn-prev, .btn-next {
+  top: calc(var(--u) * 40);
+  width: calc(var(--u) * 14); height: calc(var(--u) * 14);
+  margin-top: calc(var(--u) * -7);
+}
+
+.btn-prev { left: calc(var(--u) * 24.5); margin-left: calc(var(--u) * -7); }
+.btn-next { left: calc(var(--u) * 75.5); margin-left: calc(var(--u) * -7); }
+
+.btn-repeat, .btn-shuffle {
+  top: calc(var(--u) * 20);
+  width: calc(var(--u) * 11); height: calc(var(--u) * 11);
+  margin-top: calc(var(--u) * -5.5);
+}
+
+.btn-repeat { left: calc(var(--u) * 30); margin-left: calc(var(--u) * -5.5); }
+.btn-shuffle { left: calc(var(--u) * 70); margin-left: calc(var(--u) * -5.5); }
+
+/* The hint under the cluster, once, while a person is still learning the verbs. */
+.hint {
+  position: absolute;
+  left: 0; right: 0;
+  top: calc(var(--u) * 53);
+  text-align: center;
+  font-size: calc(var(--u) * 3.2);
+  letter-spacing: calc(var(--u) * .2);
+  text-transform: uppercase;
+  color: rgba(242, 238, 230, .44);
+  pointer-events: none;
+}
 
 /* ---------- browse: choices distributed around the clock face ---------- */
 
@@ -197,11 +405,13 @@ body {
 .browse { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .puck:not([data-browse]) .browse { display: none; }
 
-/* When browsing, the art recedes so the menu owns the face. A scrim over it —
-   never opacity on the cover itself. */
+/* When browsing, the art recedes so the menu OWNS the face. A scrim over it —
+   never opacity on the cover itself. Measured on a bright sleeve at 360px, .72
+   left the photograph competing with the words for every letter; the art is
+   still legibly there at .86, and the list is readable at arm's length. */
 .browse-veil {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(6, 7, 10, .72);
+  background: rgba(6, 7, 10, .86);
 }
 
 .level {
@@ -226,6 +436,7 @@ body {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  cursor: pointer;
 }
 
 .opt-on {
@@ -243,6 +454,23 @@ body {
 
 .puck[data-tier="alpha"] .opt-on { font-size: calc(var(--u) * 5.6); }
 
+/**
+ * THE THIRD TIER. Two thousand albums cannot ring a face, so they run as a
+ * column under the thumb: the choice in the middle, its neighbours fading above
+ * and below. It is what a knob-driven list looks like on every round device,
+ * and it is the tier the alphabet ring hands off to once a letter is picked.
+ */
+.puck[data-tier="linear"] .opt {
+  width: calc(var(--u) * 66);
+  margin-left: calc(var(--u) * -33);
+  font-size: calc(var(--u) * 3.8);
+}
+
+.puck[data-tier="linear"] .opt-on {
+  font-size: calc(var(--u) * 5.4);
+  margin-top: calc(var(--u) * -3.4);
+}
+
 .chosen {
   position: absolute;
   left: calc(var(--u) * 17); right: calc(var(--u) * 17);
@@ -250,6 +478,23 @@ body {
   margin-top: calc(var(--u) * -9);
   text-align: center;
 }
+
+.puck[data-tier="linear"] .chosen { display: none; }
+
+/**
+ * The chosen row's own sleeve, when it has one. An album ring with the record
+ * in the middle is the whole argument for a round menu; a hierarchy row has no
+ * art and the block simply closes up again.
+ */
+.chosen-art {
+  width: calc(var(--u) * 18);
+  height: calc(var(--u) * 18);
+  border-radius: calc(var(--u) * 1.6);
+  margin: 0 auto calc(var(--u) * 1.6);
+  display: block;
+}
+
+.chosen.has-art { margin-top: calc(var(--u) * -19); }
 
 .chosen-title {
   font-size: calc(var(--u) * 8);
@@ -262,6 +507,20 @@ body {
 .chosen-sub {
   margin-top: calc(var(--u) * 1.4);
   font-size: calc(var(--u) * 3.6);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The third tier reads its subtitle at the foot: the column already owns the
+   middle, and a line under the chosen row would sit on its neighbour. */
+.linsub {
+  position: absolute;
+  left: calc(var(--u) * 12); right: calc(var(--u) * 12);
+  bottom: calc(var(--u) * 12);
+  text-align: center;
+  font-size: calc(var(--u) * 3.4);
   color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
