@@ -402,9 +402,7 @@ function turn(step) {
   var output = currentOutput();
   if (output === null) return;
   if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
-  // The same rule as every other touch: a sleeping face is only woken. A scroll
-  // that lands on an idle page must not change a room before anyone has looked.
-  if (wake()) { showTurning(); return; }
+  wake();   // the bezel has a place; a hand on it means it
   var verdict = volumeGate.step(step);
   showTurning();
   if (verdict === 'rest') { flash('rest the wheel'); return; }
@@ -665,14 +663,19 @@ function seekTo(clientX, clientY) {
 
 function tapped(clientX, clientY) {
   var metrics = glassMetrics();
-  // ⚖️ THE FIRST TOUCH SUMMONS. A puck lives where a hand brushes past it, so a
-  // brush must never pause the room — it may only raise the controls.
-  if (wake()) return;
   var band = radiusOf(metrics, clientX, clientY) >= RING_BAND;
   // While a menu is up the rim belongs to nothing: seeking mid-browse would act
   // on music the person has already stopped looking at.
   if (browse.isOpen()) { if (!band) browse.commit(); return; }
-  if (band) { seekTo(clientX, clientY); return; }
+  /**
+   * ⚖️ A CONTROL WITH A PLACE ACTS ON THE FIRST TOUCH (Peter, 09-03: "volume and
+   * seek are seemingly timed"). The ring, a dot, the title — each names what it
+   * does by where it is, so a tap there is never a brush. Only the CENTRE
+   * summons first: it is the one target a passing hand can land on, and what
+   * it does is pause the room.
+   */
+  if (band) { wake(); seekTo(clientX, clientY); return; }
+  if (wake()) return;
   // Everything the cluster owns is a real button; the field around it is the
   // centre tap, which on the device IS the press the wheel does not have.
   transport('playpause');
@@ -819,8 +822,8 @@ rig.addEventListener('pointerdown', function (event) {
  * level, the tap-only rule the Wall's volume bar lives by — while a drag still
  * turns it a detent at a time. One tap is one intention and cannot repeat
  * itself, so it goes straight to Roon as an absolute value, bounded by the
- * device's own range; the only guard it needs is the one every touch obeys: a
- * sleeping face is first woken.
+ * device's own range. It acts on the first touch: a dot has a place, and a tap
+ * on it is never a brush (Peter, 09-03: "volume and seek are seemingly timed").
  */
 var lastBezelTap = 0;
 function tapBezel(degrees) {
@@ -828,7 +831,7 @@ function tapBezel(degrees) {
   var output = currentOutput();
   if (output === null) return;
   if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
-  if (wake()) { showTurning(); return; }
+  wake();   // raise the readout; a dot has a place, so the tap itself acts
   var now = Date.now();
   if (now - lastBezelTap < 300) return;
   lastBezelTap = now;
@@ -884,8 +887,12 @@ window.addEventListener('wheel', function (event) {
   if (event.deltaMode === 1) delta *= 33;
   else if (event.deltaMode === 2) delta *= 100;
   volumeGate.scroll(delta, function (dir) {
-    if (browse.isOpen()) browse.move(dir);
-    else turn(-dir);
+    if (browse.isOpen()) { browse.move(dir); return; }
+    // The one input with NO place: a scroll can land on an idle page from a
+    // hand that meant another window. So a sleeping face is only woken by it,
+    // and the next detent acts — the bezel and its dots never wait.
+    if (wake()) { showTurning(); return; }
+    turn(-dir);
   });
 }, { passive: true });
 

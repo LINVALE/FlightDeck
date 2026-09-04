@@ -242,7 +242,8 @@ test('every path to a volume request goes through the gate', () => {
   // TAP on a bezel dot — one press, one absolute level, which cannot repeat
   // itself and is throttled and wake-gated like every other touch.
   assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 2, 'the gate, and the dot tap — nothing else');
-  assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}if \(wake\(\)\) \{ showTurning\(\); return; \}/, 'a tap on a sleeping bezel only wakes');
+  assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}wake\(\);   \/\/ raise the readout; a dot has a place/,
+    'a tap on a dot acts on the first touch');
   assert.match(JS, /if \(now - lastBezelTap < 300\) return;/, 'and never faster than one every 300 ms');
   assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, detentMarks\.length\);[\s\S]{0,200}command\(\{ action: 'volume', output: output\.id, value: value \}\)/,
     'the dot under the finger, on the device\'s own range, as one absolute value');
@@ -251,8 +252,10 @@ test('every path to a volume request goes through the gate', () => {
   // is asleep is only woken by the first of them.
   assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\)/);
   assert.match(JS, /if \(event\.deltaMode === 1\) delta \*= 33;/);
-  assert.match(JS, /function turn\(step\)[\s\S]{0,400}if \(wake\(\)\) \{ showTurning\(\); return; \}/,
-    'a scroll that lands on an idle page must not change a room before anyone has looked');
+  assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\) \{[\s\S]{0,420}if \(wake\(\)\) \{ showTurning\(\); return; \}/,
+    'a SCROLL that lands on an idle page only wakes it — the one input with no place');
+  assert.match(JS, /function turn\(step\)[\s\S]{0,300}wake\(\);   \/\/ the bezel has a place/,
+    'the bezel itself never waits');
   // The reading under the hand is Roon's number plus a BOUNDED remainder.
   assert.match(JS, /volume\.value \+ volumeGate\.ahead\(\) \* bounds\.step/);
   assert.match(JS, /confirmedVolume\.value !== volume\.value[\s\S]{0,60}volumeGate\.confirm\(\)/);
@@ -280,8 +283,9 @@ test('one ring on the glass, and no volume control drawn on it at all', () => {
  * ⚖️ THE FIRST TOUCH SUMMONS; THE SECOND ACTS. A puck lives where a hand brushes
  * past it, so a brush may raise the controls and must never pause the room.
  */
-test('the first touch only summons the controls', () => {
-  assert.match(JS, /function tapped\([\s\S]{0,400}if \(wake\(\)\) return;/);
+test('only the centre summons first; the ring seeks on the first touch', () => {
+  assert.match(JS, /if \(band\) \{ wake\(\); seekTo\(clientX, clientY\); return; \}\s*if \(wake\(\)\) return;/,
+    'the ring has a place and acts at once; the centre, which pauses the room, summons first');
   assert.match(JS, /function wake\(\)[\s\S]{0,260}var first = !chromeUp;[\s\S]{0,240}return first;/);
   assert.match(CSS, /\.puck:not\(\[data-chrome="1"\]\) \.pad \{ display: none; \}/);
   assert.match(JS, /setTimeout\(sleep, CHROME_MS\)/, 'the cluster puts itself away again');
