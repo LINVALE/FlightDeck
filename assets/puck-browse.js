@@ -6,7 +6,7 @@
  * first. Measured on a real library: Explore 7, Genres 56, Albums 2295 — which
  * is exactly why all three tiers have to exist.
  *
- *   ≤ 12    RADIAL    the choices ring the face, all of them at once
+ *   ≤ 7     RADIAL    the choices ring the face, all of them at once, named
  *   ≤ 200   PAGES     the whole level in hand, twelve circles at a time; the
  *                     wheel walks the highlight round them and a full circle
  *                     turns the page (Peter, 09-03: "the menus become vertical,
@@ -48,7 +48,9 @@ import { createCollages } from './collage.js';
 
 var SVG_NS = 'http://www.w3.org/2000/svg';
 
-var RADIAL_MAX = 12;
+/* Seven ring the face at once; more than seven are pages of seven, so every
+   circle keeps its name beneath (Peter, 09-04: "collage with name under"). */
+var RADIAL_MAX = 7;
 /** Roon's own load cap, and therefore the largest level we can read whole. */
 var WHOLE_MAX = 200;
 var OPT_R = 33;           // where the choices ring the face
@@ -344,7 +346,9 @@ export function createBrowse(options) {
         node.appendChild(art);
         return node;
       }
-      collages.request(view.hierarchy, item.title, function (url) {
+      // Always Roon's own `playlists` hierarchy, whichever way this level was
+      // reached: via Explore it lives in `browse`, whose root has no playlists.
+      collages.request('playlists', item.title, function (url) {
         if (url === null || node.parentNode === null) return;
         var late = document.createElement('img');
         late.className = 'tok-art';

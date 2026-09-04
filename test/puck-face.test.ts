@@ -30,7 +30,8 @@ const CSS = asset('puck.css');
  */
 test('the count allows a tier; only the big band may reach for the ring', () => {
   assert.equal(tierFor(7), 'radial');
-  assert.equal(tierFor(12), 'radial');
+  assert.equal(tierFor(8), 'linear', 'eight or more are pages of seven, so every circle keeps its name (Peter, 09-04)');
+  assert.equal(tierFor(12), 'linear');
   assert.equal(tierFor(13), 'linear', 'thirteen rows is a spin, not an index');
   assert.equal(tierFor(56), 'linear');
   assert.equal(tierFor(200), 'linear', 'Roon loads 200 at once, so 200 can be read whole');
@@ -333,7 +334,7 @@ test('the menu and the cluster share one circle and one set of line-work', () =>
   assert.match(BROWSE, /import \{ glyph, iconNameFor \} from '\.\/puck-icons\.js';/);
   assert.match(JS, /import \{ glyph \} from '\.\/puck-icons\.js';/,
     'the transport cluster and the menu draw from the same set, not two copies of it');
-  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,1600}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
+  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,2200}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
     'icon, then the row\'s own sleeve, then its initial');
   assert.match(CSS, /\.tok \{[\s\S]{0,300}border-radius: 50%/);
   assert.match(CSS, /\.opt-on \.tok \{[\s\S]{0,160}border-color: var\(--accent\)/,
@@ -699,5 +700,7 @@ test('a playlist circle asks for a collage and the initial stands in meanwhile',
   assert.match(BROWSE, /var collages = createCollages\(ask, \{ size: 96, want: 4 \}\);/);
   assert.match(BROWSE, /function ask\(body, sessionKey\) \{\s*body\.sessionKey = sessionKey \|\| session;/, 'the builder may use its own stack');
   assert.match(BROWSE, /onPlaylistsLevel\(\) && item\.hint !== 'action'/, 'only a playlist row, never an action');
+  assert.match(BROWSE, /collages\.request\('playlists', item\.title,/, "always Roon's own playlists hierarchy: via Explore the level is in `browse`, whose root has no playlists");
+  assert.match(BROWSE, /var RADIAL_MAX = 7;/, 'more than seven are pages, named');
   assert.match(BROWSE, /if \(url === null \|\| node\.parentNode === null\) return;/, 'a late collage for a circle no longer on the face is dropped');
 });
