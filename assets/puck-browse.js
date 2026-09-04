@@ -419,13 +419,25 @@ export function createBrowse(options) {
     node.addEventListener('click', function (event) {
       event.stopPropagation();
       if (view === null) return;
-      // The ring is navigation AND selection: landing on a choice that is already
-      // under the thumb commits it, so a menu never needs two taps in two places.
-      if (view.sel === index) { commit(); return; }
-      view.sel = index;
-      tick();
-      draw();
+      /**
+       * ⚖️ ONE TAP ON A CIRCLE GOES (Peter, 09-03: "clicking on a selection
+       * should bring up the next browse for that — Genres, then Jazz,
+       * Classical…"). A first cut made the first tap only highlight and the
+       * second commit; that is the wheel's job now — turn to highlight, then
+       * the centre or the highlighted circle commits — and a finger on a
+       * circle means that circle.
+       */
+      if (view.sel !== index) { view.sel = index; draw(); }
+      commit();
     });
+    /**
+     * ⚠️ And the tap must not ALSO reach the glass. A circle stopped its click
+     * from bubbling but not its pointerup, so the glass read every tap on a
+     * circle as a centre tap and committed the HIGHLIGHTED item first — a tap
+     * on Genres opened Library. Found by a probe that clicked a circle for real.
+     */
+    node.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+    node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
   }
 
   /* ---------- moving ---------- */

@@ -404,7 +404,9 @@ test('a tap on the ring seeks, through the one-intent gate', () => {
   // handed to the wheel before the face ever sees it, so a finger on the dots
   // can never be read as a seek.
   assert.match(JS, /var SEEK_BAND = 34;\s*var WHEEL_BAND = 45;/);
-  assert.match(JS, /glass\.addEventListener\('pointerdown',[\s\S]{0,300}>= WHEEL_BAND\) \{\s*beginTurn\(event\);\s*return;/);
+  assert.match(JS, /glass\.addEventListener\('pointerdown',[\s\S]{0,420}if \(radiusOf\(glassMetrics\(\), event\.clientX, event\.clientY\) >= WHEEL_BAND\) \{\s*beginTurn\(event\);\s*return;/,
+    'the edge is the wheel in every state — in browse a turn carries the highlight');
+  assert.doesNotMatch(JS, /!browse\.isOpen\(\) && radiusOf/);
 });
 
 /**
@@ -513,4 +515,15 @@ test('the overlay lets a tap through to the title, the ring and the field', () =
   // The wheel follows the sleeve: the lit run wears the accent the ring wears.
   assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: var\(--accent\);/);
   assert.match(CSS, /\.tick\.major \{ stroke: var\(--accent\); stroke-opacity: \.34; \}/);
+});
+
+/**
+ * ⚖️ ONE TAP ON A CIRCLE GOES (Peter, 09-03). Turn to highlight; the centre or
+ * the highlighted circle commits; a finger on any circle means that circle.
+ */
+test('one tap on a circle selects it and goes; the centre commits the highlight', () => {
+  assert.match(BROWSE, /if \(view\.sel !== index\) \{ view\.sel = index; draw\(\); \}\s*commit\(\);/);
+  // and the tap must not ALSO reach the glass as a centre tap on the highlight
+  assert.match(BROWSE, /function bindPick\(node, index\)[\s\S]{0,1200}node\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/);
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band\) browse\.commit\(\); return; \}/, 'a tap inside the ring band commits the highlight');
 });

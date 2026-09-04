@@ -764,8 +764,10 @@ function swiped(dx, dy, size) {
 
 glass.addEventListener('pointerdown', function (event) {
   if (event.button !== undefined && event.button !== 0) return;
-  // The glass's outer edge IS the wheel: hand it to the bezel, not the face.
-  if (!browse.isOpen() && radiusOf(glassMetrics(), event.clientX, event.clientY) >= WHEEL_BAND) {
+  // The glass's outer edge IS the wheel — in browse too, where a turn carries
+  // the highlight round the ring (Peter, 09-03: "the outer wheel now control
+  // selection on browse"). Hand it to the bezel, not the face.
+  if (radiusOf(glassMetrics(), event.clientX, event.clientY) >= WHEEL_BAND) {
     beginTurn(event);
     return;
   }
