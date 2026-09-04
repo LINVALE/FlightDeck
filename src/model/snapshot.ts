@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { Allowed, ArtRef, Island, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState } from './types.ts';
+import type { Allowed, ArtRef, Island, NowPlaying, OutputVolume, Snapshot, Zone, ZoneOutput, ZoneSettings, ZoneState, OutputPower } from './types.ts';
 
 /** Mints opaque same-origin art paths. The projection never sees a Core URL or image key. */
 export interface ArtMinter {
@@ -101,6 +101,26 @@ export function islandOf(peers: readonly string[]): string {
   return createHash('sha1').update([...peers].sort().join(',')).digest('hex').slice(0, 8);
 }
 
+/**
+ * Roon lists a device's power under `source_controls`; the one that matters is
+ * the first that supports standby. `status` is one of selected | deselected |
+ * standby | indeterminate — only `standby` is "asleep" for certain.
+ */
+function projectPower(raw: unknown): OutputPower | null {
+  if (!Array.isArray(raw)) return null;
+  for (const candidate of raw) {
+    if (candidate === null || typeof candidate !== 'object') continue;
+    const control = candidate as Record<string, unknown>;
+    if (control.supports_standby !== true) continue;
+    return {
+      wakeable: true,
+      asleep: control.status === 'standby',
+      controlKey: typeof control.control_key === 'string' ? control.control_key : null,
+    };
+  }
+  return null;
+}
+
 function projectOutputs(raw: unknown): ZoneOutput[] {
   if (!Array.isArray(raw)) return [];
   const outputs: ZoneOutput[] = [];
@@ -114,6 +134,7 @@ function projectOutputs(raw: unknown): ZoneOutput[] {
       : [];
     outputs.push({
       id, name: str(output.display_name, id), volume: projectVolume(output.volume),
+      power: projectPower(output.source_controls),
       groupableWith: peers, island: islandOf(peers),
     });
   }

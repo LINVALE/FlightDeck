@@ -250,3 +250,18 @@ test('the island reaches the screen on every output', () => {
   assert.notEqual(zone.outputs[0].island, '');
   assert.equal(zone.outputs[2].island, '', 'no peers, no island');
 });
+
+/** A Roon Ready amp's power rides the wire as the honest word for "asleep". */
+test('an output that supports standby carries its power; one that does not carries null', async () => {
+  const { buildSnapshot } = await import('../src/model/snapshot.ts');
+  const { ArtRelay } = await import('../src/art/relay.ts');
+  const { RecentLedger } = await import('../src/ledger/recent.ts');
+  const { ZONES } = await import('./fixtures/zones.ts');
+  const snapshot = buildSnapshot(
+    { generation: 'g', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: '2026-09-03T00:00:00Z', revision: 1, at: '2026-09-03T00:00:00Z' },
+    new ArtRelay({ artworkUrl: () => '' }), new RecentLedger(null));
+  const study = snapshot.zones.find((z) => z.id === '1601abc');
+  assert.ok(study);
+  assert.deepEqual(study.outputs[0].power, { wakeable: true, asleep: false, controlKey: '1' });
+  assert.equal(study.outputs[1].power, null);
+});

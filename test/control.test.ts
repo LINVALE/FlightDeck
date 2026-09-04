@@ -70,6 +70,7 @@ async function serve(
     groupOutputs: async (ids) => { sent.push({ kind: 'group', a: ids.join('+'), b: null }); },
     ungroupOutputs: async (ids) => { sent.push({ kind: 'ungroup', a: ids.join('+'), b: null }); },
     transferZone: async (from, to) => { sent.push({ kind: 'transfer', a: from, b: to }); },
+    wake: async (output) => { sent.push({ kind: 'wake', a: output, b: null }); },
   };
   // the real registry: identity by overlap is the point of it, and a fake that
   // just held a map would have passed while the real one lost every name
@@ -690,4 +691,38 @@ test('group mute validates its zone and refuses a zone with no mutable output', 
   assert.equal((await post({ action: 'group-mute', zone: 'zSoloMute' })).status, 409);
   assert.equal((await post({ action: 'group-mute', zone: 'zNoMute' })).status, 409);
   assert.equal(sent.length, 0);
+});
+
+/**
+ * ⚖️ START ON PLAY, AS IN ROON (Peter, 09-03). A Marantz LINK 10n went to
+ * standby at the top of a volume runaway and its zone answered Play with
+ * nothing audible — seven presses in the log. Roon's own app sends the
+ * convenience switch before Play on a zone whose device can sleep; here the
+ * study's amp carries exactly that control, and the kitchen's speaker does not.
+ */
+test('Play wakes every output that can sleep, then plays — and only those', async (t) => {
+  const zones: unknown[] = [{
+    zone_id: 'zAmp', display_name: 'Study', state: 'paused',
+    outputs: [
+      { output_id: 'oAmp', display_name: 'Study', can_group_with_output_ids: ['oAmp', 'oShelf'],
+        source_controls: [{ control_key: '1', display_name: 'Marantz LINK 10n', supports_standby: true, status: 'standby' }] },
+      { output_id: 'oShelf', display_name: 'Kitchen', can_group_with_output_ids: ['oAmp', 'oShelf'] },
+    ],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
+    now_playing: { seek_position: 5, length: 100, image_key: 'k9', three_line: { line1: 'T', line2: 'A', line3: 'B' } },
+  }];
+  const { post, sent } = await serve(t, zones);
+  for (const action of ['play', 'playpause']) {
+    sent.length = 0;
+    assert.equal((await post({ action, zone: 'zAmp' })).status, 200, action);
+    assert.deepEqual(sent.map((s) => s.kind + ':' + s.a), ['wake:oAmp', 'control:zAmp'],
+      action + ' wakes the amp that can sleep — not the kitchen — and only then plays');
+    assert.equal(sent[1].b, action);
+  }
+  // Pause and next leave the power alone: a sleeping amp stays asleep.
+  for (const action of ['pause', 'next']) {
+    sent.length = 0;
+    await post({ action, zone: 'zAmp' });
+    assert.deepEqual(sent.map((s) => s.kind), ['control'], action);
+  }
 });

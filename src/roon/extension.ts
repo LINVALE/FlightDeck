@@ -216,6 +216,23 @@ export class FlightDeckExtension {
   }
 
   /**
+   * ⚖️ START ON PLAY, AS IN ROON (Peter, 09-03). Roon's own Play on a zone whose
+   * device is in standby sends a convenience switch first — "taking it out of
+   * standby if needed", in the API's words — and that is what this is. It is a
+   * no-op on a device that is awake, so it is safe to send ahead of every play.
+   */
+  wake(outputId: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const transport = this.transport;
+      if (transport === null) { reject(new Error('core not paired')); return; }
+      transport.convenience_switch(outputId, {}, (error: unknown) => {
+        if (error === false || error === undefined || error === null) resolve();
+        else reject(new Error(String(error)));
+      });
+    });
+  }
+
+  /**
    * Volume acts on ONE OUTPUT — the speaker in that room (Peter's ruling 08-25) —
    * never on the zone, so a screen in the study cannot turn up a whole grouped
    * house.

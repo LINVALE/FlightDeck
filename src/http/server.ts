@@ -32,6 +32,8 @@ export interface Commands {
   seek(zoneId: string, seconds: number): Promise<void>;
   setVolume(outputId: string, value: number): Promise<void>;
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
+  /** Roon's convenience switch: brings a standby-capable output out of standby. Optional for older deps. */
+  wake?(outputId: string): Promise<void>;
   changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void>;
   groupOutputs(outputIds: readonly string[]): Promise<void>;
   ungroupOutputs(outputIds: readonly string[]): Promise<void>;
@@ -646,6 +648,21 @@ async function handleControl(
       if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
       if (action === 'next' && !zone.allowed.next) { json(response, 409, { error: 'next not allowed here' }); return; }
       if (action === 'previous' && !zone.allowed.previous) { json(response, 409, { error: 'previous not allowed here' }); return; }
+      /**
+       * ⚖️ START ON PLAY, AS IN ROON (Peter, 09-03). On 09-03 a Marantz LINK 10n
+       * went to standby and its zone kept answering Play with nothing audible —
+       * seven presses in the log. Roon's own app sends the convenience switch
+       * before Play on a zone whose device can sleep; so does this, for every
+       * output in the zone that supports standby. It is a no-op when awake.
+       */
+      if ((action === 'play' || action === 'playpause') && commands.wake !== undefined) {
+        const sleepers = zone.outputs.filter((o) => o.power !== null && o.power.wakeable);
+        for (const output of sleepers) {
+          try { await commands.wake(output.id); }
+          catch (error) { log('wake ' + output.name + ' failed: ' + String(error instanceof Error ? error.message : error)); }
+        }
+        if (sleepers.length > 0) log('wake ' + sleepers.map((o) => o.name).join(' + ') + ' before ' + action);
+      }
       await commands.control(zoneId, action as TransportAction);
       log('control ' + action + ' -> ' + zone.name);
       json(response, 200, { ok: true });

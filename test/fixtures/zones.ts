@@ -7,7 +7,12 @@
 export const ZONES: unknown[] = [
   {
     zone_id: '1601abc', display_name: 'Study', state: 'playing',
-    outputs: [{ output_id: '1701a', display_name: 'Study' }, { output_id: '1701b', display_name: 'Kitchen' }],
+    outputs: [
+      // A Roon Ready amp: it can sleep, and Play must wake it first (09-03, the Marantz).
+      { output_id: '1701a', display_name: 'Study',
+        source_controls: [{ control_key: '1', display_name: 'Marantz LINK 10n', supports_standby: true, status: 'selected' }] },
+      { output_id: '1701b', display_name: 'Kitchen' },
+    ],
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true,
     is_previous_allowed: true, is_seek_allowed: true,
     now_playing: {

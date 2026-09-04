@@ -57,10 +57,24 @@ export interface OutputVolume {
   readonly muted: boolean;
 }
 
+/**
+ * The device's own power, as Roon sees it. A Roon Ready amp that has gone to
+ * standby keeps its output on the wire but loses its volume object (measured
+ * 09-03, a Marantz LINK 10n at 80/80); this is the honest word for that state.
+ * `asleep` is Roon's `standby` status; `wakeable` is whether Roon can bring it
+ * back, which is what Play does on a sleeping zone in Roon's own app.
+ */
+export interface OutputPower {
+  readonly wakeable: boolean;
+  readonly asleep: boolean;
+  readonly controlKey: string | null;
+}
+
 export interface ZoneOutput {
   readonly id: string;
   readonly name: string;
   readonly volume: OutputVolume | null;
+  readonly power: OutputPower | null;
   /**
    * The outputs Roon will let this one join, ITSELF INCLUDED. Roon partitions
    * grouping by protocol — measured on a live Core, 08-26: RAAT with RAAT,
