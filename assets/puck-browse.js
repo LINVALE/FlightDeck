@@ -51,6 +51,16 @@ var OPT_R = 33;           // where the choices ring the face
 var PAGE = 40;            // one linear page; Roon caps a load at 200
 var WINDOW = 2;           // rows drawn either side of the chosen one
 var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+/**
+ * ⚖️ THE ALPHABET IS THE KEYBOARD (Peter, 09-03: "use an alphabet selector from
+ * the puck"). Search wants typing and the device has a wheel, so the same ring
+ * of letters that jumps into a big list spells a query: turn to a letter, tap
+ * to add it, and three more stops — space, delete, search.
+ */
+var SPACE = '\u2423';
+var DELETE = '\u232b';
+var GO = '\u23ce';
+var SPELL = ALPHABET.concat([SPACE, DELETE, GO]);
 
 /**
  * The tier a count ALLOWS. Over the whole-load band the ring is only a
@@ -190,6 +200,7 @@ export function createBrowse(options) {
   var view = null;   // null when closed
   var epoch = 0;
   var busy = false;
+  var spellReturn = null;   // { speller, depth } while search results are up
 
   function current(mine) { return mine === epoch && view !== null; }
 
@@ -275,6 +286,8 @@ export function createBrowse(options) {
     return node;
   }
 
+  /** Symbol stops are drawn as the plain word their symbol stands for. */
+
   /** How wide a token may be before its neighbours touch it, in glass units. */
   function tokenSize(n) {
     var gap = (2 * Math.PI * OPT_R) / Math.max(1, n);
@@ -295,12 +308,14 @@ export function createBrowse(options) {
     node.style.fontSize = 'calc(var(--u) * ' + String(units * 0.5) + ')';
   }
 
+  var named = false;   // whether the ring on the face carries labels
+
   function drawRing() {
     var n = view.tier === 'alpha' ? view.letters.length : view.items.length;
     var size = tokenSize(n);
     // Under nine choices there is room to name each one under its circle; past
     // that the labels collide, and the centre is where the name is read anyway.
-    var named = n <= 8;
+    named = n <= 8;
     for (var i = 0; i < n; i += 1) {
       var angle = (i / n) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise
       var node = el('div', i === view.sel ? 'opt opt-on' : 'opt');
@@ -330,22 +345,25 @@ export function createBrowse(options) {
       optWrap.appendChild(node);
     }
     var pick = view.tier === 'alpha' ? null : itemAt(view.sel);
-    chosenTitle.textContent = view.tier === 'alpha' ? view.letters[view.sel] : (pick === null ? '' : pick.title);
-    chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
-    if (pick !== null && pick.art) {
-      chosenArt.src = pick.art;
-      chosenArt.style.display = '';
-      chosen.className = 'chosen has-art';
+    if (view.spell) {
+      // The middle is the query so far; the ring is the keyboard.
+      chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;
+      chosenSub.textContent = view.spell.query === '' ? 'turn to a letter, tap to add it' : stopName(view.letters[view.sel]);
     } else {
-      chosenArt.removeAttribute('src');
-      chosenArt.style.display = 'none';
-      chosen.className = 'chosen';
+      chosenTitle.textContent = view.tier === 'alpha' ? view.letters[view.sel] : (pick === null ? '' : pick.title);
+      chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
     }
+    // The chosen row's sleeve is already on the ring, in its own circle; drawing
+    // it again in the middle put Eric Clapton on the face twice and his second
+    // portrait across the name. The centre reads the NAME; the ring shows the art.
+    chosenArt.removeAttribute('src');
+    chosenArt.style.display = 'none';
+    chosen.className = 'chosen';
+    root.setAttribute('data-named', named && view.tier !== 'alpha' ? '1' : '0');
     linsub.textContent = '';
-    count.textContent = view.tier === 'alpha'
-      ? String(view.total) + ' — pick a letter'
-      : String(view.sel + 1) + ' / ' + String(view.total);
-    if (view.tier === 'alpha') linsub.textContent = '';
+    if (view.spell) count.textContent = view.spell.query === '' ? '' : '\u23ce to search';
+    else if (view.tier === 'alpha') count.textContent = String(view.total) + ' — pick a letter';
+    else count.textContent = String(view.sel + 1) + ' / ' + String(view.total);
   }
 
   function drawColumn() {
@@ -366,6 +384,13 @@ export function createBrowse(options) {
     linsub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
     count.textContent = String(view.sel + 1) + ' / ' + String(view.total)
       + (view.letter === null ? '' : '  ·  ' + view.letter);
+  }
+
+  function stopName(stop) {
+    if (stop === SPACE) return 'space';
+    if (stop === DELETE) return 'delete';
+    if (stop === GO) return 'search';
+    return stop;
   }
 
   function bindPick(node, index) {
@@ -518,6 +543,7 @@ export function createBrowse(options) {
   function close() {
     epoch += 1;
     view = null;
+    spellReturn = null;
     busy = false;
     root.removeAttribute('data-browse');
     root.removeAttribute('data-tier');
@@ -530,14 +556,11 @@ export function createBrowse(options) {
     if (view === null || busy) return;
     // The ring's stops, not the bare alphabet: `#` is prepended when the library
     // has titles that sort ahead of A, and every index after it shifts with it.
+    if (view.spell) { spellStop(view.letters[view.sel]); return; }
     if (view.tier === 'alpha') { jump(view.letters[view.sel]); return; }
     var item = itemAt(view.sel);
     if (item === null) return;
-    if (item.input !== null && item.input !== undefined) {
-      // Search wants typing, and this device has no keyboard yet (I3).
-      flash(item.title + ' needs a keyboard');
-      return;
-    }
+    if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;
     var hierarchy = view.hierarchy;
     var depth = view.depth;
@@ -566,6 +589,16 @@ export function createBrowse(options) {
 
   function back() {
     if (view === null || busy) return;
+    // ↑ from the speller is the row it came from; ↑ from the first page of
+    // results is the speller again, with the query still there to be edited.
+    if (view.spell) { view = view.spell.parent; tick(); draw(); return; }
+    if (spellReturn !== null && view.hierarchy === 'search' && view.depth === spellReturn.depth) {
+      view = spellReturn.speller;
+      spellReturn = null;
+      tick();
+      draw();
+      return;
+    }
     // A letter jump is not a Roon level: climb back to the alphabet without
     // popping the Core's stack, or the list under the letter would be lost too.
     if (view.letter !== null) {
@@ -588,6 +621,58 @@ export function createBrowse(options) {
         return present(result, depth - 1, mine, hierarchy);
       })
       .catch(function () { busy = false; if (current(mine)) close(); });
+  }
+
+  /* ---------- the speller: Search, spelt on the ring ---------- */
+
+  function spell(item) {
+    var parent = view;
+    view = {
+      hierarchy: parent.hierarchy, tier: 'alpha', title: item.title || 'Search', total: 0,
+      items: [], base: 0, sel: 0, depth: parent.depth, letter: null, paging: false,
+      letters: SPELL, probes: {},
+      spell: { query: '', prompt: (item.input && item.input.prompt) || 'Search', parent: parent },
+    };
+    tick();
+    draw();
+  }
+
+  function spellStop(stop) {
+    var q = view.spell.query;
+    if (stop === GO) { search(); return; }
+    if (stop === DELETE) { if (q === '') return; view.spell.query = q.slice(0, -1); }
+    else if (stop === SPACE) { if (q !== '' && q.charAt(q.length - 1) !== ' ') view.spell.query = q + ' '; }
+    else view.spell.query = q + stop;
+    tick();
+    draw();
+  }
+
+  /**
+   * Roon's Search is its own hierarchy with its own stack, exactly as the Face
+   * asks it (face.js searchQuery): pop it, hand it the words, present the
+   * categories it answers with. The speller is kept so ↑ returns to the query.
+   */
+  function search() {
+    var query = view.spell.query.replace(/^\s+|\s+$/g, '');
+    if (query === '') { flash('spell something first'); return; }
+    var speller = view;
+    var mine = epoch;
+    busy = true;
+    level.textContent = 'searching\u2026';
+    ask({ hierarchy: 'search', popAll: true, input: query })
+      .then(function (result) {
+        busy = false;
+        if (!current(mine)) return;
+        if (result.isError === true) { flash(result.message || 'nothing found'); draw(); return; }
+        spellReturn = { speller: speller, depth: speller.depth + 1 };
+        return present(result, speller.depth + 1, mine, 'search');
+      })
+      .catch(function (error) {
+        busy = false;
+        if (!current(mine)) return;
+        draw();
+        flash(String(error.message || error).slice(0, 80));
+      });
   }
 
   /* ---------- the alphabet jump ---------- */

@@ -176,7 +176,7 @@ body {
   letter-spacing: calc(var(--u) * .28);
   text-transform: uppercase;
   color: var(--ink-dim);
-  pointer-events: none;
+  cursor: pointer;   /* the way back to the faces list */
 }
 
 /* ---- the words: title, artist, album, at the foot ---- */
@@ -489,6 +489,11 @@ body {
 }
 
 .puck[data-tier="linear"] .chosen { display: none; }
+
+/* A labelled ring has names at three and nine o'clock; the centre pulls in so a
+   long one wraps rather than running under them. */
+.puck[data-named="1"] .chosen { left: calc(var(--u) * 25); right: calc(var(--u) * 25); }
+.puck[data-named="1"] .chosen-title { font-size: calc(var(--u) * 7); max-height: calc(var(--u) * 16.2); }
 
 /**
  * The chosen row's own sleeve, when it has one. An album ring with the record
