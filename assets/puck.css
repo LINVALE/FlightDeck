@@ -86,9 +86,14 @@ body {
  * the lit scale join the ring; in BROWSE the circles are the menu and the seek
  * wheel goes. So the scale lights only while the controls are up.
  */
-.puck[data-chrome="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .92); }
-.puck[data-chrome="1"] .rig.is-turning .tick.is-lit { stroke: #ffffff; }
-.puck[data-chrome="1"] .rig[data-muted="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .38); }
+/* ⚖️ THE WHEEL FOLLOWS THE SLEEVE (Peter, 09-03: "cog wheel doesn't follow a
+   colour scheme"): the lit run is the accent the ring wears, the bezel face is
+   tinted toward the sleeve's deep tone, and the majors carry a trace of the
+   accent even unlit — one scheme, from the sleeve, on everything active. */
+.tick.major { stroke: var(--accent); stroke-opacity: .34; }
+.puck[data-chrome="1"] .tick.is-lit { stroke: var(--accent); stroke-opacity: .95; }
+.puck[data-chrome="1"] .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
+.puck[data-chrome="1"] .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
 
 .glass {
   position: absolute;
@@ -303,7 +308,15 @@ body {
  * glass — but a mock has to SHOW what the firmware will draw, and a summoned
  * cluster is exactly that: invisible at rest, unmistakable once woken.
  */
-.pad { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+/**
+ * ⚠️ THE OVERLAY IS NOT A LID (Peter, 09-03: "browse is never called"). The pad
+ * and its veil span the glass and sat ABOVE the words, so once any touch had
+ * raised the controls, a tap on the title landed on the veil — a centre tap,
+ * play/pause — and browse never opened. My live check clicked a SLEEPING face
+ * and passed. Neither takes pointer events now: only the buttons do, and a tap
+ * anywhere else reaches what is under it — the title, the ring, the field.
+ */
+.pad { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .puck:not([data-chrome="1"]) .pad { display: none; }
 .puck[data-browse] .pad { display: none; }
 
@@ -311,10 +324,12 @@ body {
 .pad-veil {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(6, 7, 10, .34);
+  pointer-events: none;
 }
 
 .btn {
   position: absolute;
+  pointer-events: auto;
   border-radius: 50%;
   background: rgba(10, 11, 14, .62);
   border: 1px solid rgba(242, 238, 230, .18);

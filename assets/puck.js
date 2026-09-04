@@ -841,21 +841,23 @@ words.addEventListener('pointerdown', function (event) { event.stopPropagation()
 words.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 
 /**
- * ⚖️ THE PUCK IS A NORMAL FACE OPTION (Peter, 09-03), which cuts both ways: a
- * screen that chose it from the faces list must be able to choose another. The
- * room name is the way back — it lands on the face the screen had before, which
- * the Face kept beside its memory, and forgets "puck" so the Face does not turn
- * straight round.
+ * ⚖️ THE ROOM NAME GOES HOME TO THE WALL (Peter, 09-03: "we need to be able to
+ * return to wall etc."). The Wall is where every room and every way of opening
+ * one lives — Face, Phone, Puck — so it is the one place a way back should
+ * land. On the way it forgets "puck" as this screen's face and restores the one
+ * kept beside that memory, so a Face opened from the Wall afterwards does not
+ * turn straight round.
  */
 room.addEventListener('click', function (event) {
   event.stopPropagation();
-  var before = 'presence';
   try {
-    before = localStorage.getItem('flightdeck.face.before.' + wantedZoneId) || 'presence';
-    localStorage.setItem('flightdeck.face.' + wantedZoneId, before);
-  } catch (error) { /* private mode: the Face falls back to presence */ }
+    var before = localStorage.getItem('flightdeck.face.before.' + wantedZoneId) || 'presence';
+    if (localStorage.getItem('flightdeck.face.' + wantedZoneId) === 'puck') {
+      localStorage.setItem('flightdeck.face.' + wantedZoneId, before);
+    }
+  } catch (error) { /* private mode */ }
   haptic(10);
-  window.location.href = '/face/' + encodeURIComponent(boundOutputId || wantedZoneId || '') + '?face=' + before;
+  window.location.href = '/';
 });
 room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
 room.addEventListener('pointerup', function (event) { event.stopPropagation(); });

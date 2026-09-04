@@ -207,9 +207,10 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
   // ⚖️ THREE STATES: the scale lights only while the controls are up; at rest
   // the face is the art, the ring and the words.
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: rgba\(242, 238, 230, \.92\); \}/);
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.95; \}/,
+    'lit in the accent the ring wears: the wheel follows the sleeve');
   assert.doesNotMatch(CSS, /^\.tick\.is-lit \{/m, 'never lit at rest');
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.rig\[data-muted="1"\] \.tick\.is-lit/, 'muted dims the lit run rather than emptying it');
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
   // In browse the circles are the menu and the seek wheel goes; the cascade stays.
   assert.match(CSS, /\.puck\[data-browse\] \.ring \{ display: none; \}/);
   assert.match(BROWSE, /crumbs\.setAttribute\('class', 'crumbs'\)/, 'the cascade has its own class so it is not hidden with the ring');
@@ -469,8 +470,10 @@ test('the puck is offered beside the faces, remembered, and has a way back', () 
     'the face being left is kept ONLY when the puck is chosen from the list, never on the remembered redirect');
   assert.doesNotMatch(FACE, /var FACES = \[[^\]]*'puck'/, 'never a face LAYOUT: face.css is a television\'s');
   assert.match(PAGES, /'aurora', 'puck'\] as const/, '?face=puck pins it like any face');
-  assert.match(JS, /room\.addEventListener\('click',[\s\S]{0,400}'\/face\/' \+ encodeURIComponent\(boundOutputId \|\| wantedZoneId \|\| ''\) \+ '\?face=' \+ before/,
-    'the room name is the way back, onto the face the screen had before');
+  assert.match(JS, /room\.addEventListener\('click',[\s\S]{0,600}window\.location\.href = '\/';/,
+    'the room name goes home to the Wall, where every way of opening a room lives');
+  assert.match(JS, /=== 'puck'\) \{\s*localStorage\.setItem\('flightdeck\.face\.' \+ wantedZoneId, before\);/,
+    'and forgets puck as this screen\'s face on the way, restoring the one kept beside it');
 });
 
 /**
@@ -487,4 +490,19 @@ test('the face takes its colour from the sleeve, measured, and keyed to it', () 
   assert.match(JS, /root\.setAttribute\('data-foot', tones !== null && tones\.foot > 0\.35 \? 'bright' : 'dark'\)/);
   assert.match(CSS, /\.puck\[data-foot="bright"\] \.scrim-foot \{/, 'a bright foot gets a stronger floor');
   assert.match(JS, /paintFromSleeve\(null\)/, 'no sleeve, no borrowed colour: the defaults stand');
+});
+
+/**
+ * ⚠️ THE OVERLAY IS NOT A LID (Peter, 09-03: "browse is never called"). The pad
+ * and its veil spanned the glass above the words, so after any touch a tap on
+ * the title landed on the veil — play/pause — and browse never opened. The
+ * live check had clicked a sleeping face. Only the buttons take pointer events.
+ */
+test('the overlay lets a tap through to the title, the ring and the field', () => {
+  assert.match(CSS, /\.pad \{ position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; \}/);
+  assert.match(CSS, /\.pad-veil \{[\s\S]{0,200}pointer-events: none;/);
+  assert.match(CSS, /\.btn \{\s*position: absolute;\s*pointer-events: auto;/);
+  // The wheel follows the sleeve: the lit run wears the accent the ring wears.
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: var\(--accent\);/);
+  assert.match(CSS, /\.tick\.major \{ stroke: var\(--accent\); stroke-opacity: \.34; \}/);
 });
