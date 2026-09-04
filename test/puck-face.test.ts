@@ -200,9 +200,9 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.match(JS, /var SCALE = 100;/);
   assert.match(JS, /var tickAngle = \(\(tick \/ SCALE\) \* 360 - 90\) \* Math\.PI \/ 180;/, 'ticks from twelve o\'clock');
   assert.match(JS, /createElementNS\(SVG_NS, 'line'\)/, 'radials, not dots');
-  assert.match(JS, /function lightDetents\(fraction\)[\s\S]{0,400}\(i < lit \? ' is-lit' : ''\)/);
+  assert.match(JS, /function lightDetents\(fraction, label\)[\s\S]{0,400}\(i < lit \? ' is-lit' : ''\)/);
   assert.match(JS, /var DETENT_DEG = 12;/, 'the DRAG keeps the board\'s own detent, which the gate was budgeted for');
-  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span\)/);
+  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\)\)/);
   assert.match(JS, /rotate\(-90 50 50\)/);
   assert.match(JS, /var progHalo = arcOf\('prog-halo', PROG_R, PROG_C\);\s*var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/,
     'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
@@ -645,4 +645,23 @@ test('on a letter\'s page the wheel skips letters and the arrows step artists', 
   assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
   assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.turn\(step\);/, 'the bezel asks the menu what a turn means');
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.turn\(dir\); return; \}/, 'so does the scroll wheel');
+});
+
+/**
+ * ⚖️ THE TIMES ARE ON THE DIAL, THE ROOM INSIDE THE RING, THE WHEEL SAYS ITS
+ * NUMBER (Peter, 09-04). Elapsed / length rides the bead as a small tag; the
+ * room name drops inside the ring, off the arc's start; the level is written at
+ * the end of the lit run on the bezel.
+ */
+test('the times ride the bead, the room name sits inside the ring, the wheel says its number', () => {
+  assert.match(JS, /var progRead = el\('div', 'prog-read'\);/);
+  assert.match(JS, /progRead\.textContent = formatTime\(positionSec\) \+ ' \/ ' \+ formatTime\(lengthSec\);/);
+  assert.match(JS, /var READ_R = 42;/, 'on the arc, inside the glass at three and nine');
+  assert.match(JS, /setProgress\(position \/ length, position, length\);/);
+  assert.match(CSS, /\.prog-read \{[\s\S]{0,700}white-space: nowrap;[\s\S]{0,200}pointer-events: none;/);
+  assert.match(CSS, /\.room \{[\s\S]{0,300}top: calc\(var\(--u\) \* 13\);/, 'off the arc at twelve');
+  assert.match(JS, /var tickRead = document\.createElementNS\(SVG_NS, 'text'\);/);
+  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\)\);/);
+  assert.match(JS, /var TICK_READ_R = 44\.6;/);
+  assert.match(CSS, /\.tick-read \{ fill: var\(--accent\);/);
 });

@@ -123,6 +123,18 @@ for (var tick = 0; tick < SCALE; tick += 1) {
   detents.appendChild(mark);
   ticks.push(mark);
 }
+/**
+ * ⚖️ THE WHEEL SAYS ITS NUMBER (Peter, 09-04: "show on the volume dial what the
+ * volume is numerically"). At the end of the lit run, just inside the ticks,
+ * in the accent — the reading sits where the scale stops, as on any dial. The
+ * large fading readout in the centre stays for the moment of a turn.
+ */
+var tickRead = document.createElementNS(SVG_NS, 'text');
+tickRead.setAttribute('class', 'tick-read');
+tickRead.setAttribute('text-anchor', 'middle');
+tickRead.setAttribute('dominant-baseline', 'central');
+tickRead.style.display = 'none';
+detents.appendChild(tickRead);
 rig.appendChild(detents);
 
 var cover = el('div', 'cover');
@@ -169,6 +181,14 @@ var progTrack = circle('prog-track', PROG_R);
  */
 var progHalo = arcOf('prog-halo', PROG_R, PROG_C);
 var progArc = arcOf('prog-arc', PROG_R, PROG_C);
+/**
+ * ⚖️ THE TIMES ARE ON THE DIAL (Peter, 09-04: "show progress/track length on
+ * the dial"). Not a line under the credit — that was removed for good reason —
+ * but a small tag that rides the bead round the ring: elapsed / length, where
+ * the hand of a clock would be read. It sits just outside the arc, over it,
+ * and takes no touch.
+ */
+var progRead = el('div', 'prog-read');
 var progBead = document.createElementNS(SVG_NS, 'circle');
 progBead.setAttribute('class', 'prog-bead');
 progBead.setAttribute('r', '1.8');
@@ -240,6 +260,7 @@ glass.appendChild(ring);
 glass.appendChild(room);
 glass.appendChild(words);
 glass.appendChild(pad);
+glass.appendChild(progRead);
 glass.appendChild(volRead);
 glass.appendChild(note);
 glass.appendChild(toast);
@@ -549,15 +570,22 @@ function setArc(arc, circumference, fraction) {
   arc.setAttribute('stroke-dashoffset', String(circumference * (1 - clamped)));
 }
 
-function setProgress(fraction) {
+/** Where the tag rides: just outside the arc, still inside the glass at three and nine. */
+var READ_R = 42;
+
+function setProgress(fraction, positionSec, lengthSec) {
   setArc(progHalo, PROG_C, fraction);
   setArc(progArc, PROG_C, fraction);
-  if (fraction === null) { progBead.style.display = 'none'; return; }
+  if (fraction === null) { progBead.style.display = 'none'; progRead.style.display = 'none'; return; }
   var clamped = Math.max(0, Math.min(1, fraction));
   var angle = (clamped * 2 * Math.PI) - (Math.PI / 2);
   progBead.setAttribute('cx', String(50 + PROG_R * Math.cos(angle)));
   progBead.setAttribute('cy', String(50 + PROG_R * Math.sin(angle)));
   progBead.style.display = '';
+  progRead.textContent = formatTime(positionSec) + ' / ' + formatTime(lengthSec);
+  progRead.style.left = String(50 + READ_R * Math.cos(angle)) + '%';
+  progRead.style.top = String(50 + READ_R * Math.sin(angle)) + '%';
+  progRead.style.display = 'block';   // the stylesheet hides it; '' would only defer to that
 }
 
 function paintVolume() {
@@ -596,7 +624,7 @@ function paintVolume() {
   var shown = Math.max(bounds.min, Math.min(bounds.max,
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
-  lightDetents((shown - bounds.min) / span);
+  lightDetents((shown - bounds.min) / span, String(Math.round(shown)));
   // The number always; "muted" is said beneath it, not instead of it.
   volReadValue.textContent = String(Math.round(shown));
   volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : 'volume \u00b7 ') + output.name;
@@ -609,12 +637,20 @@ function paintVolume() {
 }
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
-function lightDetents(fraction) {
+var TICK_READ_R = 44.6;   // rig units: inside the ticks (46.4), on the bezel's inner band
+
+function lightDetents(fraction, label) {
   var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * ticks.length);
   for (var i = 0; i < ticks.length; i += 1) {
     var major = i % 10 === 0;
     ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : ''));
   }
+  if (fraction === null || label === undefined || label === null) { tickRead.style.display = 'none'; return; }
+  var angle = ((lit / ticks.length) * 360 - 90) * Math.PI / 180;
+  tickRead.setAttribute('x', String(50 + TICK_READ_R * Math.cos(angle)));
+  tickRead.setAttribute('y', String(50 + TICK_READ_R * Math.sin(angle)));
+  tickRead.textContent = label;
+  tickRead.style.display = '';
 }
 
 function paintControls(zone) {
@@ -689,7 +725,7 @@ function render() {
   var position = store.positionSec(zone);
   var length = np.lengthSec;
   if (position === null || typeof length !== 'number' || length <= 0) { setProgress(null); return; }
-  setProgress(position / length);
+  setProgress(position / length, position, length);
 }
 
 /* ---------- the browse face ---------- */

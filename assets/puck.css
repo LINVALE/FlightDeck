@@ -195,12 +195,36 @@ body {
 .prog-halo { fill: none; stroke: rgba(0, 0, 0, .40); stroke-width: 4.2; stroke-linecap: round; }
 .prog-bead { fill: #fffef8; stroke: rgba(0, 0, 0, .45); stroke-width: .6; }
 
+/* The times, riding the bead: elapsed / length, over the arc, taking no touch. */
+.prog-read {
+  position: absolute;
+  width: calc(var(--u) * 15); height: calc(var(--u) * 4);
+  margin-left: calc(var(--u) * -7.5); margin-top: calc(var(--u) * -2);
+  border-radius: calc(var(--u) * 2);
+  background: rgba(6, 7, 10, .84);
+  border: 1px solid rgba(242, 238, 230, .16);
+  color: var(--ink);
+  font-size: calc(var(--u) * 2.4);
+  line-height: calc(var(--u) * 3.8);
+  white-space: nowrap;
+  text-align: center;
+  letter-spacing: calc(var(--u) * .06);
+  pointer-events: none;
+  display: none;
+}
+.puck[data-browse] .prog-read { display: none !important; }
+
+/* The wheel's own number, at the end of the lit run. */
+.tick-read { fill: var(--accent); font-size: 2.7px; font-weight: 700; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
 /* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 
 .room {
   position: absolute;
-  left: 0; right: 0;
-  top: calc(var(--u) * 7);
+  left: calc(var(--u) * 25); right: calc(var(--u) * 25);
+  /* inside the ring (Peter, 09-04): at 7 it sat on the arc's start at twelve */
+  top: calc(var(--u) * 13);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: center;
   font-size: calc(var(--u) * 4.4);
   letter-spacing: calc(var(--u) * .28);
