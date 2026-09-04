@@ -744,38 +744,31 @@ body {
 }
 .puck[data-browse] .chosen-art { display: none !important; }
 
-/* ---------- the queue: titles as spokes on a wheel, play at the hub ---------- */
+/* ---------- the queue: a ring of circles, the title in each, play at the hub ---------- */
 
 /**
- * ⚖️ SPOKES (Peter, 09-04). Every track is a spoke from the hub to the glass's
- * edge with its title laid along it; the playing one is white, the chosen one
- * the accent, and the hub — the disc — is the one place that plays: ▶ over the
- * chosen title, and where in the queue it is. ‹ › leave the hub's rim here so
- * the spokes can start close in; the choice moves by a tap on a spoke, a swipe,
- * or the arrow keys. SVG throughout: a rotated title is an SVG attribute, not a
- * CSS transform inside the glass.
+ * ⚖️ CIRCLES, THE TITLE IN EACH (Peter, 09-04). The queue's circles carry
+ * their title, small, up to three lines; the playing row's rim is white, the
+ * chosen one's the accent. The hub is ▶ over two lines of the chosen title and
+ * its place in the queue — 15.7 units — so its ↑ ↓ shrink a little and sit on
+ * the rim (38.8 / 61.2), 17 apart. The place in the queue is read in the hub,
+ * so the foot's count line is not drawn: with an even ring a circle sits at
+ * six o'clock, right where the count would be.
  */
-.spokes { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; overflow: visible; }
-.spoke line { stroke: rgba(242, 238, 230, .16); stroke-width: .3; stroke-linecap: round; }
-.spoke-now line { stroke: rgba(242, 238, 230, .5); stroke-width: .45; }
-.spoke-on line { stroke: var(--accent); stroke-width: .6; }
-.spoke .spoke-hit { stroke: rgba(0, 0, 0, .002); stroke-width: 7; pointer-events: stroke; cursor: pointer; }
-.spoke-title { font-size: 2.9px; fill: rgba(242, 238, 230, .64); pointer-events: none; }
-.spoke-now + .spoke-title, .spoke-title.spoke-title-now { fill: var(--ink); }
-.spoke-title-on { fill: var(--accent); font-weight: 700; font-size: 3.1px; }
-.puck[data-tier="spokes"] .count,
-.puck[data-tier="spokes"] .key-prev,
-.puck[data-tier="spokes"] .key-next { display: none; }
+.tok-titled { padding: 7%; box-sizing: border-box; text-align: center; color: rgba(242, 238, 230, .82); }
+.tok-title { width: 100%; font-weight: 600; line-height: 1.12; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow-wrap: break-word; }
+.opt-on .tok-titled { color: var(--ink); }
+.opt-now .tok { border-color: rgba(242, 238, 230, .7); }
+.opt-on.opt-now .tok { border-color: var(--accent); }
+.puck[data-tier="queue"] .count { display: none; }
 .chosen-play { display: none; width: calc(var(--u) * 4.8); height: calc(var(--u) * 4.8); color: var(--accent); margin-bottom: calc(var(--u) * .3); }
 .chosen-play .glyph { width: 100%; height: 100%; display: block; }
-.puck[data-tier="spokes"] .chosen-play { display: block; }
-/* The hub holds ▶, two lines of title and the place in the queue — 15.7 units
-   — so its ↑ ↓ shrink a little and sit on the rim (38.8 / 61.2), 17 apart. */
-.puck[data-tier="spokes"] .chosen-title { max-height: calc(var(--u) * 7.3); font-size: calc(var(--u) * 3.3); }
-.puck[data-tier="spokes"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .4); }
-.puck[data-tier="spokes"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
-.puck[data-tier="spokes"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
-.puck[data-tier="spokes"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
+.puck[data-tier="queue"] .chosen-play { display: block; }
+.puck[data-tier="queue"] .chosen-title { max-height: calc(var(--u) * 7.3); font-size: calc(var(--u) * 3.3); }
+.puck[data-tier="queue"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .4); }
+.puck[data-tier="queue"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
+.puck[data-tier="queue"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
+.puck[data-tier="queue"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
 
 /* The speller's keys: the transport cluster's own circles, in a row under the
    query. Delete · clear · space · search. Shown only while spelling. */

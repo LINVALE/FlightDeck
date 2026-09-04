@@ -176,7 +176,7 @@ export function queueRows(data) {
     rows.push({
       title: item.title || '(untitled)',
       // The artist alone: a jazz credit runs to five names before the album
-      // would even start, and the spoke has room for one line.
+      // would even start, and the hub has room for one line of it.
       subtitle: item.artist || item.album || '',
       art: item.art || null,
       hint: 'queue',
@@ -360,14 +360,8 @@ export function createBrowse(options) {
     var rows = queueRows(data);
     var was = view !== null && view.queue ? view : null;
     view = {
-      /**
-       * ⚖️ THE QUEUE IS A WHEEL OF SPOKES, PLAY AT THE HUB (Peter, 09-04: "titles
-       * arranged as spokes on a wheel, selected, and play being the hub of the
-       * spoke"). Every track is a spoke, all of them at once round the face —
-       * a queue is a set you look at whole — the playing one white, the chosen
-       * one in the accent, and the hub is the one place that plays.
-       */
-      hierarchy: 'queue', tier: 'spokes',
+      // A ring of titled circles, the whole queue at once (see drawQueueRing).
+      hierarchy: 'queue', tier: 'queue',
       title: 'Queue', total: rows.length,
       // Row zero is what is playing; the highlight opens on the first row still to come.
       items: rows, base: 0, sel: rows.length > 1 ? 1 : 0, depth: 0, letter: null, paging: false,
@@ -467,7 +461,7 @@ export function createBrowse(options) {
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
 
     if (view.tier === 'linear') drawPaged();
-    else if (view.tier === 'spokes') drawSpokes();
+    else if (view.tier === 'queue') drawQueueRing();
     else drawRing();
 
   }
@@ -489,96 +483,46 @@ export function createBrowse(options) {
     return where + (pick.subtitle ? ' \u00b7 ' + pick.subtitle : '');
   }
 
-  /* ---------- the queue: titles as spokes on a wheel ---------- */
-
-  var SPOKE_IN = 14.8;        // just outside the hub's rim (13) and the ↑ ↓ keys on it (13.7)
-  var SPOKE_OUT = 40;         // ends under the level's title, which bottoms at 8.5, even at twelve
-  var SPOKE_TEXT = 2.9;       // font size, in glass units
-  var SPOKE_TITLED_MAX = 16;  // every spoke carries its title up to here; past it, the chosen and its neighbours
-
-  /** The shortest way round a wheel of n from a to b. */
-  function spokeDistance(a, b, n) {
-    var d = Math.abs(a - b) % n;
-    return Math.min(d, n - d);
-  }
+  /* ---------- the queue: a ring of circles, the title in each ---------- */
 
   /**
-   * A title along its spoke, reading OUTWARD on the right half and INWARD on
-   * the left — so no title is ever upside down — and cut with an ellipsis, or
-   * squeezed a little, to end before the glass's edge. Measured with the
-   * browser's own text metrics, not guessed from a character count.
+   * ⚖️ THE QUEUE IS CIRCLES, THE TITLE IN EACH (Peter, 09-04: "circles for each
+   * track distributed as with the other menus, the title in each circle" — the
+   * spokes tried before it were "not so good with just a few items"). Up to
+   * twelve ring the face at once, evenly spread; a longer queue is pages of
+   * twelve, each page spread round the whole face. The circle carries the
+   * TITLE, not the sleeve — one album's tracks all wear the same sleeve, which
+   * told nobody anything — white-rimmed for the playing row, the accent for
+   * the chosen. The hub is ▶ over the chosen title and its place in the queue,
+   * and it is the one place that plays; a tap on a circle chooses.
    */
-  function spokeTitle(svg, deg, title, chosen) {
-    var text = document.createElementNS(SVG_NS, 'text');
-    var left = deg > 180;
-    var inner = SPOKE_IN + 1.6;
-    var max = SPOKE_OUT - inner - 0.6;
-    text.setAttribute('transform', 'rotate(' + String(left ? deg + 90 : deg - 90) + ' 50 50)');
-    text.setAttribute('x', String(left ? 50 - inner : 50 + inner));
-    text.setAttribute('y', '50');
-    text.setAttribute('text-anchor', left ? 'end' : 'start');
-    text.setAttribute('dominant-baseline', 'middle');
-    text.setAttribute('class', chosen ? 'spoke-title spoke-title-on' : 'spoke-title');
-    text.textContent = title;
-    svg.appendChild(text);
-    var length = text.getComputedTextLength();
-    if (length <= max) return text;
-    if (length <= max * 1.12) {
-      text.setAttribute('textLength', String(max));
-      text.setAttribute('lengthAdjust', 'spacingAndGlyphs');
-      return text;
-    }
-    var keep = Math.max(2, Math.floor(title.length * (max / length)) - 1);
-    text.textContent = title.slice(0, keep) + '\u2026';
-    while (text.getComputedTextLength() > max && keep > 2) {
-      keep -= 1;
-      text.textContent = title.slice(0, keep) + '\u2026';
-    }
-    return text;
-  }
+  var QUEUE_PAGE = 12;
 
-  /** A piece of a spoke, from one radius to another along `rad`. */
-  function spokeLine(group, rad, r1, r2, className) {
-    var line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', String(50 + r1 * Math.cos(rad))); line.setAttribute('y1', String(50 + r1 * Math.sin(rad)));
-    line.setAttribute('x2', String(50 + r2 * Math.cos(rad))); line.setAttribute('y2', String(50 + r2 * Math.sin(rad)));
-    if (className !== '') line.setAttribute('class', className);
-    group.appendChild(line);
-    return line;
-  }
-
-  function drawSpokes() {
-    var n = view.items.length;
-    var svg = document.createElementNS(SVG_NS, 'svg');
-    svg.setAttribute('viewBox', '0 0 100 100');
-    svg.setAttribute('class', 'spokes');
-    // ⚠️ Attached BEFORE any title is measured: a detached SVG measures every
-    // text as zero, so nothing was ever cut, and the titles at twelve ran into
-    // the level's name and off the glass (measured, the first live draw).
-    optWrap.appendChild(svg);
-    var titled = n <= SPOKE_TITLED_MAX;
-    for (var i = 0; i < n; i += 1) {
-      var item = view.items[i];
-      var deg = (i / n) * 360;   // the playing row at twelve; the rest clockwise, like a clock
-      var rad = (deg - 90) * Math.PI / 180;
-      var on = i === view.sel;
-      var group = document.createElementNS(SVG_NS, 'g');
-      group.setAttribute('class', 'spoke' + (on ? ' spoke-on' : '') + (item.now === true ? ' spoke-now' : ''));
-      svg.appendChild(group);
-      // THE TITLE IS THE SPOKE. The line is drawn only in the gaps either side
-      // of the text — from the hub to where the title starts, and from where
-      // it ends to the edge — so no title is struck through by its own spoke.
-      var text = titled || spokeDistance(i, view.sel, n) <= 2 ? spokeTitle(svg, deg, item.title, on) : null;
-      var from = SPOKE_IN;
-      if (text !== null) {
-        spokeLine(group, rad, SPOKE_IN, SPOKE_IN + 1.0, '');
-        from = SPOKE_IN + 1.6 + text.getComputedTextLength() + 0.8;
-      }
-      if (from < SPOKE_OUT) spokeLine(group, rad, from, SPOKE_OUT, '');
-      // A finger needs a target wider than a hairline: the whole spoke, struck invisibly.
-      var hit = spokeLine(group, rad, SPOKE_IN, SPOKE_OUT, 'spoke-hit');
-      bindSpoke(group, i);
-      bindSpoke(hit, i);
+  function drawQueueRing() {
+    var n = view.total;
+    var first = Math.floor(view.sel / QUEUE_PAGE) * QUEUE_PAGE;
+    var m = Math.max(0, Math.min(QUEUE_PAGE, n - first));
+    var size = tokenSize(m);
+    named = false;
+    for (var k = 0; k < m; k += 1) {
+      var index = first + k;
+      var item = view.items[index];
+      var angle = (k / m) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise: the playing row first
+      var node = el('div', (index === view.sel ? 'opt opt-on' : 'opt') + (item.now === true ? ' opt-now' : ''));
+      var mine = index === view.sel ? size * 1.3 : size;
+      var mark = el('div', 'tok tok-titled');
+      var words = el('div', 'tok-title', item.title);
+      mark.appendChild(words);
+      sizeToken(mark, mine);
+      // sizeToken's type is sized for an initial; a title is set much smaller —
+      // and at the RING's size in every circle, so the chosen one, a third
+      // larger, gains room for its words rather than larger words (measured:
+      // scaled with the circle, "I Miss You" ran to its rim).
+      mark.style.fontSize = 'calc(var(--u) * ' + String(size * 0.18) + ')';
+      node.appendChild(mark);
+      place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      bindChoose(node, index);
+      optWrap.appendChild(node);
     }
     var pick = itemAt(view.sel);
     chosenArt.style.display = 'none';
@@ -591,12 +535,12 @@ export function createBrowse(options) {
   }
 
   /**
-   * A tap on a spoke CHOOSES it; only the hub plays (Peter, 09-04: "play being
-   * the hub of the spoke"). Unlike a library circle, where one tap goes, a
-   * queue row changes what the room is playing — so the choice and the act are
-   * two touches, and the second is on the one place that says ▶.
+   * A tap on a queue circle CHOOSES it; only the hub plays (Peter, 09-04: "play
+   * being the hub"). In the library one tap on a circle goes, but a queue row
+   * changes what the room is playing, so the choice and the act are two
+   * touches, the second on the one place that says ▶.
    */
-  function bindSpoke(node, index) {
+  function bindChoose(node, index) {
     node.addEventListener('click', function (event) {
       event.stopPropagation();
       if (view === null || view.sel === index) return;

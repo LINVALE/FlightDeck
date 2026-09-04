@@ -221,7 +221,6 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.match(JS, /function lightDetents\(fraction, label\)[\s\S]{0,400}\(i < lit \? ' is-lit' : ''\)/);
   assert.match(JS, /var DETENT_DEG = 12;/, 'the DRAG keeps the board\'s own detent, which the gate was budgeted for');
   assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\)\)/);
-  assert.match(JS, /rotate\(-90 50 50\)/);
   assert.match(JS, /var progHalo = arcOf\('prog-halo', PROG_R, PROG_C\);\s*var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/,
     'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
   assert.match(CSS, /\.prog-halo \{ fill: none; stroke: rgba\(0, 0, 0, \.40\); stroke-width: 4\.2;/);
@@ -777,7 +776,6 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
     { id: '557529', title: '', artist: '', album: '', lengthSec: null, art: null },
   ] });
   assert.equal(rows.length, 3);
-  assert.deepEqual(rows[0], { title: 'Burn', subtitle: 'Norah Jones', art: '/api/v1/art/x', hint: 'queue', queueId: '557527', now: true }, 'the artist alone: a spoke has one line');
   assert.deepEqual(rows[1], { title: 'Tragedy', subtitle: 'Norah Jones', art: null, hint: 'queue', queueId: '557528', now: false }, 'ids are strings on the wire, whatever Roon sent');
   assert.equal(rows[2].title, '(untitled)');
   assert.equal(rows[2].subtitle, '');
@@ -787,20 +785,9 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(BROWSE, /fetch\('\/api\/v1\/queue\?zone=' \+ encodeURIComponent\(zone\), \{ cache: 'no-store' \}\)/);
   assert.match(BROWSE, /if \(data\.ready !== true && attempt < 8\)/, 'the mirror may honestly still be loading');
   assert.match(BROWSE, /if \(hierarchy === 'queue'\) \{ if \(view !== null && view\.queue\) return; park\(\); openQueue\(\); return; \}/);
-  assert.match(BROWSE, /hierarchy: 'queue', tier: 'spokes',/, 'a wheel of spokes, play at the hub (Peter, 09-04) — never pages');
-  assert.match(BROWSE, /else if \(view\.tier === 'spokes'\) drawSpokes\(\);/);
-  assert.match(BROWSE, /svg\.setAttribute\('class', 'spokes'\);[\s\S]{0,400}optWrap\.appendChild\(svg\);\s*var titled = n <= SPOKE_TITLED_MAX;/, 'attached before any title is measured: a detached SVG measures zero');
-  assert.match(CSS, /\.puck\[data-tier="spokes"\] \.nav-keys \.key-up \{ top: calc\(var\(--u\) \* 38\.8\); \}\s*\.puck\[data-tier="spokes"\] \.nav-keys \.key-down \{ top: calc\(var\(--u\) \* 61\.2\); \}/, 'the hub\'s keys sit on its rim so two lines of title fit between them');
-  assert.match(BROWSE, /var deg = \(i \/ n\) \* 360;/, 'the playing row at twelve, the rest clockwise');
-  assert.match(BROWSE, /text\.setAttribute\('transform', 'rotate\(' \+ String\(left \? deg \+ 90 : deg - 90\) \+ ' 50 50\)'\);/, 'a title reads outward on the right and inward on the left: never upside down');
-  assert.match(BROWSE, /var text = titled \|\| spokeDistance\(i, view\.sel, n\) <= 2 \? spokeTitle\(svg, deg, item\.title, on\) : null;/, 'past sixteen, only the chosen and its neighbours are titled');
-  assert.match(BROWSE, /from = SPOKE_IN \+ 1\.6 \+ text\.getComputedTextLength\(\) \+ 0\.8;\s*\}\s*if \(from < SPOKE_OUT\) spokeLine\(group, rad, from, SPOKE_OUT, ''\);/, 'the title IS the spoke: the line only fills the gaps either side of it');
-  assert.match(BROWSE, /function bindSpoke\(node, index\) \{[\s\S]{0,300}if \(view === null \|\| view\.sel === index\) return;\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a spoke chooses; it never plays');
   assert.match(BROWSE, /function queueSub\(pick\) \{\s*var where = pick\.now === true \? 'now' : String\(view\.sel \+ 1\) \+ ' \/ ' \+ String\(view\.total\);/, 'the hub says where in the queue this is');
   assert.match(BROWSE, /var chosenPlay = el\('div', 'chosen-play'\);\s*chosenPlay\.appendChild\(glyph\('play'\)\);/, 'the hub wears ▶');
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band && browse\.at\(\) !== 'queue'\) browse\.commit\(\); return; \}/, 'in the queue a stray tap on the glass never plays: only the hub does');
-  assert.match(CSS, /\.puck\[data-tier="spokes"\] \.count,\s*\.puck\[data-tier="spokes"\] \.key-prev,\s*\.puck\[data-tier="spokes"\] \.key-next \{ display: none; \}/);
-  assert.doesNotMatch(CSS, /\.spoke[^\n]*transform\s*:/, 'no CSS transform inside the glass; the rotation is an SVG attribute');
   assert.match(BROWSE, /sel: rows\.length > 1 \? 1 : 0/, 'the highlight opens on the first row still to come');
   // a row plays from there, fenced; the playing row is refused before the wire
   assert.match(BROWSE, /if \(view\.queue\) \{ playFrom\(item\); return; \}/);
@@ -815,4 +802,17 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(JS, /if \(playing !== nowKey\) \{\s*nowKey = playing;\s*if \(browse !== undefined\) browse\.reloadQueue\(\);/);
   assert.match(BROWSE, /var held = was\.items\[was\.sel\]\.queueId;/);
   assert.match(BROWSE, /'Nothing queued'/);
+  assert.match(BROWSE, /hierarchy: 'queue', tier: 'queue',/, 'a ring of titled circles (Peter, 09-04) — the spokes before it were "not so good with just a few items"');
+  assert.match(BROWSE, /else if \(view\.tier === 'queue'\) drawQueueRing\(\);/);
+  assert.match(BROWSE, /var QUEUE_PAGE = 12;/, 'up to twelve ring the face at once; more are pages of twelve');
+  assert.match(BROWSE, /var angle = \(k \/ m\) \* 2 \* Math\.PI - Math\.PI \/ 2;/, 'spread evenly round the whole face, whatever the page holds');
+  assert.match(BROWSE, /var mark = el\('div', 'tok tok-titled'\);\s*var words = el\('div', 'tok-title', item\.title\);/, 'the title in each circle, not the sleeve');
+  assert.match(BROWSE, /\(item\.now === true \? ' opt-now' : ''\)/, 'the playing row is marked on its rim');
+  assert.match(BROWSE, /function bindChoose\(node, index\) \{[\s\S]{0,300}if \(view === null \|\| view\.sel === index\) return;\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a circle chooses; only the hub plays');
+  assert.match(CSS, /\.tok-title \{[^\n]*-webkit-line-clamp: 3;/);
+  assert.match(CSS, /\.opt-now \.tok \{ border-color: rgba\(242, 238, 230, \.7\); \}/);
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.count \{ display: none; \}/, 'the place in the queue is read in the hub; an even ring puts a circle where the count would be');
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-up \{ top: calc\(var\(--u\) \* 38\.8\); \}\s*\.puck\[data-tier="queue"\] \.nav-keys \.key-down \{ top: calc\(var\(--u\) \* 61\.2\); \}/, 'the hub\'s keys sit on its rim so two lines of title fit between them');
+  assert.doesNotMatch(BROWSE, /drawSpokes|spokeTitle|bindSpoke|SPOKE_/, 'the spokes are gone (rejected 09-04)');
+  assert.doesNotMatch(CSS, /data-tier="spokes"|\.spoke/);
 });
