@@ -184,7 +184,7 @@ export function createBrowse(options) {
   var linsub = el('div', 'linsub');
   var count = el('div', 'count');
   var crumbs = document.createElementNS(SVG_NS, 'svg');
-  crumbs.setAttribute('class', 'ring');
+  crumbs.setAttribute('class', 'crumbs');   // its own class: the seek ring is hidden in browse, the cascade is not
   crumbs.setAttribute('viewBox', '0 0 100 100');
   layer.appendChild(veil);
   layer.appendChild(crumbs);

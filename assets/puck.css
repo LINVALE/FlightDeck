@@ -80,9 +80,15 @@ body {
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .tick { stroke: rgba(242, 238, 230, .16); stroke-width: .45; stroke-linecap: round; }
 .tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
-.tick.is-lit { stroke: rgba(242, 238, 230, .92); }
-.rig.is-turning .tick.is-lit { stroke: #ffffff; }
-.rig[data-muted="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .38); }
+/**
+ * ⚖️ THREE STATES (Peter, 09-03): at REST the face is the art, the progress
+ * ring and the words — nothing lit, nothing drawn; in CONTROL the cluster and
+ * the lit scale join the ring; in BROWSE the circles are the menu and the seek
+ * wheel goes. So the scale lights only while the controls are up.
+ */
+.puck[data-chrome="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .92); }
+.puck[data-chrome="1"] .rig.is-turning .tick.is-lit { stroke: #ffffff; }
+.puck[data-chrome="1"] .rig[data-muted="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .38); }
 
 .glass {
   position: absolute;
@@ -158,12 +164,16 @@ body {
 /* The accent moves with the sleeve; let it arrive rather than snap. */
 .prog-arc, .prog-bead, .opt-on .tok, .btn[data-on="1"] { -webkit-transition: stroke .6s, border-color .6s, color .6s; transition: stroke .6s, border-color .6s, color .6s; }
 
-.ring {
+.ring, .crumbs {
   position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;
   display: block;
   pointer-events: none;
 }
+
+/* In browse the circles are the menu and the seek wheel goes with the words:
+   one reading of the face at a time. The cascade's own arcs stay. */
+.puck[data-browse] .ring { display: none; }
 
 /* ---- the rim: PROGRESS, Roon's own reported second ---- */
 
@@ -563,8 +573,9 @@ body {
 /**
  * Browsing hides the now-playing copy rather than dimming it. A 72% veil left
  * the title and times legible THROUGH the menu, colliding with the options —
- * two readings of the same face at once. The progress ring stays: the music is
- * still going, and that is worth knowing while you look for the next thing.
+ * two readings of the same face at once. The progress ring goes too (Peter,
+ * 09-03: "in browse mode the seek wheel disappears and the circles represent
+ * the menus") — one reading of the face at a time.
  */
 .puck[data-browse] .room,
 .puck[data-browse] .words,

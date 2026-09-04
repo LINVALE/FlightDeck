@@ -205,8 +205,14 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
     'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
   assert.match(CSS, /\.prog-halo \{ fill: none; stroke: rgba\(0, 0, 0, \.40\); stroke-width: 4\.2;/);
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
-  assert.match(CSS, /\.tick\.is-lit \{ stroke: rgba\(242, 238, 230, \.92\); \}/);
-  assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit/, 'muted dims the lit run rather than emptying it');
+  // ⚖️ THREE STATES: the scale lights only while the controls are up; at rest
+  // the face is the art, the ring and the words.
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: rgba\(242, 238, 230, \.92\); \}/);
+  assert.doesNotMatch(CSS, /^\.tick\.is-lit \{/m, 'never lit at rest');
+  assert.match(CSS, /\.puck\[data-chrome="1"\] \.rig\[data-muted="1"\] \.tick\.is-lit/, 'muted dims the lit run rather than emptying it');
+  // In browse the circles are the menu and the seek wheel goes; the cascade stays.
+  assert.match(CSS, /\.puck\[data-browse\] \.ring \{ display: none; \}/);
+  assert.match(BROWSE, /crumbs\.setAttribute\('class', 'crumbs'\)/, 'the cascade has its own class so it is not hidden with the ring');
   assert.match(CSS, /\.prog-arc \{[\s\S]{0,160}stroke: var\(--accent\)/);
 });
 
