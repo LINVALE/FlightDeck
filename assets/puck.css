@@ -675,14 +675,20 @@ body {
 /**
  * ‹ › ⌃ RIDE THE DISC'S OWN RIM. The ring's labels reach into every radius
  * outside the disc, so the verbs go INSIDE their orbit, on the rim of the
- * select circle itself: prev at nine, next at three, up at twelve — small, half
- * off the disc, clear of every label. The disc is still the select; a tap on a
- * verb is caught before it. */
+ * select circle itself: prev at nine, next at three, ↑ at twelve and ↓ at six —
+ * small, half off the disc, clear of every label. The disc is still the select;
+ * a tap on a verb is caught before it. */
 .nav-keys .key { position: absolute; pointer-events: auto; margin: 0; width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); font-size: calc(var(--u) * 3.4); margin-top: calc(var(--u) * -3.2); margin-left: calc(var(--u) * -3.2); background: rgba(10, 11, 14, .92); }
 .key-prev { left: calc(var(--u) * 35); top: 50%; }
 .key-next { left: calc(var(--u) * 65); top: 50%; }
-/* ⌃ up, above the name — clear of the 10:17 and 1:43 names either side of it */
-.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 35); }
+/* ↑ ↓ at twelve and six, just INSIDE the rim: the axis (Peter, 09-04). With
+   seven a page the two lowest circles sit at five and seven o'clock, and their
+   names — drawn above their circles, inside the ring — reach up to 65.7 on a
+   letter's page and to within 3 units of the centre line; a key ON the rim at
+   65 crossed them by two pixels (measured). At 60.5 it ends at 63.7, clear;
+   ↑ mirrors it at 39.5, and the name between them keeps to two lines. */
+.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 39.5); }
+.nav-keys .key-down, .puck[data-browse][data-lettered="1"] .nav-keys .key-down { left: 50%; top: calc(var(--u) * 60.5); }
 .puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
 /**
  * ⚖️ THE CENTRE IS ONE BOLD CIRCLE (Peter, 09-04): the highlighted item's name,
@@ -707,8 +713,11 @@ body {
 }
 .puck[data-browse] .chosen-title {
   font-size: calc(var(--u) * 4.3); line-height: 1.1; font-weight: 700;
-  max-height: calc(var(--u) * 14.3);   /* up to three lines */
+  max-height: calc(var(--u) * 9.5);   /* up to two lines, between ↑ and ↓ */
   overflow: hidden;
+  /* A queue title can run to forty characters; two lines and an ellipsis,
+     not a cut mid-word (WebKit's old line clamp, on the floor since Chrome 6). */
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
   width: 100%;
   padding: 0 calc(var(--u) * 1.4);
   box-sizing: border-box;

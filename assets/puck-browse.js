@@ -32,10 +32,12 @@
  * buckets ⇒ the ring, and the bisection behind it is then sound because the
  * same evidence is what a bisection rests on. Anything else ⇒ the plain column.
  *
- * ⚖️ ONE AXIS WITH THREE STOPS (09-02): ↓ always descends, ↑ always climbs, and
- * repeated ↑ walks home. `commit()` is ↓ and `back()` is ↑, whatever the tier —
- * the alphabet's letter jump is the one move that is NOT a Roon level, so it is
- * remembered separately and climbed back out of without popping the Core's stack.
+ * ⚖️ THE AXIS IS THE PUCK'S, NOT A LEVEL'S (Peter, 09-04). ↑ ↓ walk the three
+ * faces — music, library, queue (see puck-axis.js) — so inside the library
+ * `commit()` is a tap on the disc or a circle and `back()` is a tap on the
+ * title, whatever the tier. The alphabet's letter jump is the one move that is
+ * NOT a Roon level, so it is remembered separately and climbed back out of
+ * without popping the Core's stack.
  *
  * ⚠️ Its OWN session key. Roon keeps one browse stack per `multi_session_key`,
  * so a puck sharing the default would drag every other screen's level around.
@@ -161,6 +163,32 @@ export function selectionComplete(item, result) {
   return item.hint === 'action' || result.action === 'none' || result.action === 'message';
 }
 
+/**
+ * Roon's queue rows in the shape every other level is drawn in. Row zero is
+ * what is PLAYING — Roon's window has no history — so it is marked as such and
+ * its byline opens with "now"; the rest read artist · album.
+ */
+export function queueRows(data) {
+  var items = data !== null && data !== undefined && Array.isArray(data.items) ? data.items : [];
+  var rows = [];
+  for (var i = 0; i < items.length; i += 1) {
+    var item = items[i];
+    var by = [];
+    if (item.artist) by.push(item.artist);
+    if (item.album) by.push(item.album);
+    var byline = by.join(' \u00b7 ');
+    rows.push({
+      title: item.title || '(untitled)',
+      subtitle: i === 0 ? ('now' + (byline === '' ? '' : ' \u00b7 ' + byline)) : byline,
+      art: item.art || null,
+      hint: 'queue',
+      queueId: String(item.id === undefined || item.id === null ? '' : item.id),
+      now: i === 0,
+    });
+  }
+  return rows;
+}
+
 export function createBrowse(options) {
   var host = options.host;
   var root = options.root;
@@ -169,6 +197,7 @@ export function createBrowse(options) {
   var flash = options.flash;
   var tick = options.tick || function () {};
   var onChange = options.onChange || function () {};
+  var onAxis = options.onAxis || function () {};
   var session = 'puck-' + String(Math.floor(Math.random() * 1e6));
 
   /* ---------- the layer ---------- */
@@ -218,18 +247,27 @@ export function createBrowse(options) {
   /**
    * ⚖️ THE VERBS, IN THE CENTRE (Peter, 09-03: "a click on a next arrow in the
    * centre — next/prev for the menu, select to choose, up/back for the previous
-   * level"). ‹ and › either side of the name, select beneath it, and up/back
-   * on the level's title at the top. Circles, like everything else pressable.
+   * level"). ‹ and › either side of the name, and the disc itself the select.
+   *
+   * ⚖️ ↑ ↓ ON THE DISC ARE THE AXIS, NOT THE LEVEL (Peter, 09-04: "an up and a
+   * down arrow on that centre circle, rather than the single return arrow, that
+   * indicates a swipe up or down — and those navigate between control, browse
+   * and queue"). The two arrows say what a swipe does here: up and down walk
+   * the puck's three faces. Climbing a LEVEL is the title's job — "‹ GENRES" at
+   * the top has always been the way back — so the return arrow the disc wore
+   * is gone. Circles, like everything else pressable.
    */
   var nav = el('div', 'nav-keys');
   var prevKey = key('\u2039', 'previous', function () { move(-1); });
   var nextKey = key('\u203a', 'next', function () { move(1); });
-  var upKey = key('', 'up', function () { back(); });   // Peter, 09-03: "an up button would be helpful"
-  upKey.appendChild(glyph('return'));                  // 09-04: "should look like a return arrow, curved back on itself"
+  var upKey = key('\u2191', 'swipe up: the face above', function () { onAxis(-1); });
+  var downKey = key('\u2193', 'swipe down: the face below', function () { onAxis(1); });
   prevKey.className = 'key key-prev';
   nextKey.className = 'key key-next';
   upKey.className = 'key key-up';
+  downKey.className = 'key key-down';
   nav.appendChild(upKey);
+  nav.appendChild(downKey);
   nav.appendChild(prevKey);
   nav.appendChild(nextKey);
   /**
@@ -263,6 +301,7 @@ export function createBrowse(options) {
   var epoch = 0;
   var busy = false;
   var spellReturn = null;   // { speller, depth } while search results are up
+  var parked = null;        // { view, spellReturn } — a library level set aside by the axis
 
   function current(mine) { return mine === epoch && view !== null; }
 
@@ -279,6 +318,119 @@ export function createBrowse(options) {
         if (!response.ok) throw new Error(data.error || ('browse failed ' + String(response.status)));
         return data;
       });
+    });
+  }
+
+  /* ---------- the queue: Roon's forward window, read as a level ---------- */
+
+  /**
+   * ⚖️ THE QUEUE IS A LEVEL OF THIS FACE (Peter, 09-04: "an option to expose
+   * and select from the queue"). Roon's forward window — what is playing and
+   * what comes next, fifty at most — drawn as the pages of seven every other
+   * list is drawn as: each circle the track's own sleeve, its title beneath,
+   * the centre reading title over artist, and a tap on a row PLAYS FROM THERE.
+   * It is not a Roon browse level: it comes from the deck's own queue mirror
+   * (/api/v1/queue) and a row is `play_from_here`, not an item key. Everything
+   * else — tier, pages, highlight, count — is the machinery the library uses.
+   */
+  function queueLoad(zone, attempt) {
+    return fetch('/api/v1/queue?zone=' + encodeURIComponent(zone), { cache: 'no-store' })
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (data) {
+          if (!response.ok) throw new Error(data.error || ('queue unavailable (' + String(response.status) + ')'));
+          return data;
+        });
+      })
+      .then(function (data) {
+        // The mirror fills as zones arrive; for its first moments it may honestly
+        // still be loading. Wait in place — never by asking twice at once.
+        if (data.ready !== true && attempt < 8) {
+          return new Promise(function (resolve) { setTimeout(resolve, 250); })
+            .then(function () { return queueLoad(zone, attempt + 1); });
+        }
+        return data;
+      });
+  }
+
+  function presentQueue(zone, data) {
+    var rows = queueRows(data);
+    var was = view !== null && view.queue ? view : null;
+    view = {
+      hierarchy: 'queue', tier: rows.length <= RADIAL_MAX ? 'radial' : 'linear',
+      title: 'Queue', total: rows.length,
+      // Row zero is what is playing; the highlight opens on the first row still to come.
+      items: rows, base: 0, sel: rows.length > 1 ? 1 : 0, depth: 0, letter: null, paging: false,
+      letters: null, probes: {}, plain: true,
+      queue: { zone: zone, generation: data.generation || '', revision: data.revision },
+    };
+    // A queue redrawn under a hand keeps the row the hand was on, if it is still there.
+    if (was !== null && was.items[was.sel] !== undefined) {
+      var held = was.items[was.sel].queueId;
+      for (var i = 0; i < rows.length; i += 1) if (rows[i].queueId === held) { view.sel = i; break; }
+    }
+    draw();
+    onChange(true);
+  }
+
+  function openQueue() {
+    var zone = zoneId();
+    if (zone === null) { flash('no room to read a queue for'); return; }
+    busy = true;
+    epoch += 1;
+    var mine = epoch;
+    view = null;
+    queueLoad(zone, 0)
+      .then(function (data) {
+        busy = false;
+        if (mine !== epoch) return;
+        presentQueue(zone, data);
+      })
+      .catch(function (error) {
+        busy = false;
+        if (mine !== epoch) return;
+        view = null;
+        onChange(false);
+        flash(String(error.message || error).slice(0, 80));
+      });
+  }
+
+  /** The queue moved under the face — a track ended, a row was added: read it again, in place. */
+  function reloadQueue() {
+    if (view === null || !view.queue) return;
+    var mine = epoch;
+    var zone = view.queue.zone;
+    queueLoad(zone, 0)
+      .then(function (data) { if (current(mine) && view.queue) presentQueue(zone, data); })
+      .catch(function () {});
+  }
+
+  /**
+   * ⚖️ A ROW IN THE QUEUE PLAYS FROM THERE — Roon's own `play_from_here`, through
+   * the deck, fenced by the screen generation and the queue revision the rows
+   * were read at: a queue that moved under the hand is read again, never
+   * guessed at. The playing row is refused here, as the deck refuses it.
+   */
+  function playFrom(item) {
+    if (item.now) { flash('already playing'); return; }
+    var fence = view.queue;
+    var mine = epoch;
+    busy = true;
+    tick();
+    fetch('/api/v1/queue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zone: fence.zone, itemId: item.queueId, generation: fence.generation, queueRevision: fence.revision }),
+    }).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (data) {
+        busy = false;
+        if (!current(mine)) return;
+        if (response.ok) { flash('playing ' + item.title); close(); return; }
+        if (data.code === 'stale' || data.code === 'current') { flash(data.error || 'the queue moved'); reloadQueue(); return; }
+        flash(data.error || ('could not play from the queue (' + String(response.status) + ')'));
+      });
+    }).catch(function () {
+      busy = false;
+      if (current(mine)) flash('could not reach FlightDeck');
     });
   }
 
@@ -314,6 +466,11 @@ export function createBrowse(options) {
     return item === null ? '' : item.title;
   }
 
+  /** The name under a circle: the title, and a ▶ before the row that is playing. */
+  function nameOf(item) {
+    return item === null ? '' : (item.now === true ? '\u25b6 ' : '') + item.title;
+  }
+
   /**
    * ⚖️ A CHOICE IS A TOKEN IN A CIRCLE (Peter, 09-03). `My Live Radio` will never
    * fit inside a thumb-wide disc, so the circle carries an ICON where one is
@@ -344,7 +501,8 @@ export function createBrowse(options) {
      * is a playlist, not the Favorites shelf, and wore a heart until it did.
      */
     var playlist = item !== null && !item.art && onPlaylistsLevel() && item.hint !== 'action' && item.hint !== 'action_list';
-    var name = item === null || playlist ? null : iconNameFor(item.title, item.hint, onGenreLevel());
+    // A plain level (the queue) is tracks: a track called "Radio Song" is not a radio.
+    var name = item === null || playlist || view.plain === true ? null : iconNameFor(item.title, item.hint, onGenreLevel());
     if (playlist) {
       var ready = collages.known(item.title);
       if (typeof ready === 'string') {
@@ -424,7 +582,7 @@ export function createBrowse(options) {
       sizeToken(mark, mine);
       node.appendChild(mark);
       if (named && view.tier !== 'alpha') {
-        var name = el('div', 'opt-name', label(i));
+        var name = el('div', 'opt-name', nameOf(itemAt(i)));
         /**
          * The label sits OUTSIDE the ring on the top half and INSIDE it on the
          * bottom half. Hung below the token everywhere, the six o'clock choices
@@ -447,7 +605,8 @@ export function createBrowse(options) {
       chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;
       chosenSub.textContent = view.spell.query === '' ? 'turn to a letter, tap to add it' : view.letters[view.sel];
     } else {
-      chosenTitle.textContent = view.tier === 'alpha' ? view.letters[view.sel] : (pick === null ? '' : pick.title);
+      chosenTitle.textContent = view.tier === 'alpha' ? view.letters[view.sel]
+        : (pick !== null ? pick.title : (view.queue ? 'Nothing queued' : ''));
       chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
     }
     // The chosen row's sleeve is already on the ring, in its own circle; drawing
@@ -485,18 +644,21 @@ export function createBrowse(options) {
     // at 33 the names reached the letters and the chosen circle touched them).
     var lettered = view.letters !== null && view.letter !== null;
     var radius = lettered ? 29 : OPT_R;
-    var size = lettered ? 12 : tokenSize(n);
+    var size = lettered ? 12 : tokenSize(SLOTS);
     named = true;
     for (var k = 0; k < n; k += 1) {
       var index = first + k;
       var item = itemAt(index);
-      var angle = (k / n) * 2 * Math.PI - Math.PI / 2;
+      // The seven SLOTS, whatever the page holds: a last page of four spread
+      // round the whole face put a circle at six o'clock, on the count
+      // (measured, the queue's second page) — and made every page a new shape.
+      var angle = (k / SLOTS) * 2 * Math.PI - Math.PI / 2;
       var node = el('div', index === view.sel ? 'opt opt-on' : 'opt');
       var mark = token(item, item === null ? '\u2026' : item.title.charAt(0).toUpperCase());
       var mine = index === view.sel ? size * 1.3 : size;
       sizeToken(mark, mine);
       node.appendChild(mark);
-      var name = el('div', 'opt-name', item === null ? '\u2026' : item.title);
+      var name = el('div', 'opt-name', item === null ? '\u2026' : nameOf(item));
       var below = Math.sin(angle) <= 1e-9;   // sin(π) is +1e-16: nine o'clock must side with three
       name.style.marginTop = below
         ? 'calc(var(--u) * ' + String(mine / 2 + 1.2) + ')'
@@ -712,6 +874,23 @@ export function createBrowse(options) {
 
   function open(hierarchy) {
     if (busy) return;
+    if (hierarchy === 'queue') { if (view !== null && view.queue) return; park(); openQueue(); return; }
+    /**
+     * ⚖️ THE LIBRARY KEEPS ITS PLACE ACROSS THE AXIS. A swipe from three levels
+     * down in Genres to the queue and back should land on those three levels,
+     * not on Explore: the Core's stack for this session is still exactly
+     * there, so the view was set aside, not thrown away. Only closing forgets.
+     */
+    if (hierarchy === 'browse' && parked !== null) {
+      if (view !== null && !view.queue) return;
+      epoch += 1;
+      view = parked.view;
+      spellReturn = parked.spellReturn;
+      parked = null;
+      draw();
+      onChange(true);
+      return;
+    }
     busy = true;
     epoch += 1;
     var mine = epoch;
@@ -731,7 +910,8 @@ export function createBrowse(options) {
       });
   }
 
-  function close() {
+  /** Off the face, whatever was on it. */
+  function leave() {
     epoch += 1;
     view = null;
     spellReturn = null;
@@ -741,6 +921,18 @@ export function createBrowse(options) {
     root.removeAttribute('data-spell');
     root.removeAttribute('data-lettered');
     onChange(false);
+  }
+
+  /** Done with it: a choice was played, or the title was climbed out of the top. */
+  function close() {
+    parked = null;
+    leave();
+  }
+
+  /** The axis leaving a library level: set it aside to come back to. The queue is never kept. */
+  function park() {
+    if (view !== null && !view.queue) parked = { view: view, spellReturn: spellReturn };
+    leave();
   }
 
   /* ---------- ↓ commit ---------- */
@@ -753,6 +945,7 @@ export function createBrowse(options) {
     if (view.tier === 'alpha') { jump(view.letters[view.sel]); return; }
     var item = itemAt(view.sel);
     if (item === null) return;
+    if (view.queue) { playFrom(item); return; }
     if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;
     var hierarchy = view.hierarchy;
@@ -823,7 +1016,8 @@ export function createBrowse(options) {
         .catch(function () { busy = false; if (current(mine)) close(); });
       return;
     }
-    close();
+    // The queue's title leaves the queue; it must not forget the library parked behind it.
+    if (view.queue) park(); else close();
   }
 
   /* ---------- the speller: Search, spelt on the ring ---------- */
@@ -1009,9 +1203,13 @@ export function createBrowse(options) {
   return {
     open: open,
     close: close,
+    park: park,
     back: back,
     commit: commit,
     move: move,
+    reloadQueue: reloadQueue,
     isOpen: function () { return view !== null; },
+    /** Which face is up: the music, the library, or the queue. */
+    at: function () { return view === null ? 'play' : (view.queue ? 'queue' : 'browse'); },
   };
 }

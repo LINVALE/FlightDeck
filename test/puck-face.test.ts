@@ -7,7 +7,8 @@ import { EventHub } from '../src/http/events.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from '../src/http/server.ts';
-import { tierFor, sampleOffsets, letterOf, isAlphabetical, selectionComplete } from '../assets/puck-browse.js';
+import { tierFor, sampleOffsets, letterOf, isAlphabetical, selectionComplete, queueRows } from '../assets/puck-browse.js';
+import { STOPS, nextStop } from '../assets/puck-axis.js';
 import { iconNameFor, genreIconFor, hasGlyph } from '../assets/puck-icons.js';
 import { ZONES } from './fixtures/zones.ts';
 
@@ -387,7 +388,8 @@ test('the credit at the foot opens browse on ONE tap, as does a downward swipe',
   assert.doesNotMatch(JS, /press\(words/);
   assert.match(JS, /words\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/,
     'and the tap must not ALSO reach the glass as a centre tap');
-  assert.match(JS, /if \(dy > 0\) \{[\s\S]{0,120}browse\.open\('browse'\)/);
+  assert.match(JS, /axis\(dy > 0 \? 1 : -1\);/);
+  assert.equal(nextStop('play', 1), 'browse', 'a downward swipe from the music is still the library (Peter, 09-04: the axis)');
 });
 
 /**
@@ -419,8 +421,8 @@ test('the ring is drawn on evidence, and a stop that leads nowhere says so', () 
 });
 
 test('the axis is the same at every depth, and its own session key', () => {
-  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    close\(\);\n  \}/,
-    'up restores the parent view; with no parent it walks out');
+  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    if \(view\.queue\) park\(\); else close\(\);\n  \}/,
+    'up restores the parent view; with no parent it walks out (the queue, without forgetting a parked library)');
   assert.match(BROWSE, /popLevels: 1/);
   assert.match(BROWSE, /var session = 'puck-'/,
     'Roon keeps one stack per multi_session_key; a shared key drags every other screen');
@@ -589,17 +591,17 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(BROWSE, /chosen\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); commit\(\); \}\);/);
   assert.match(BROWSE, /chosen\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/, 'and its tap stays on it');
   assert.match(CSS, /\.puck\[data-browse\] \.chosen \{[\s\S]{0,400}border-radius: 50%;[\s\S]{0,120}border: 2px solid var\(--accent\);/, 'a larger, bolder circle');
-  assert.match(BROWSE, /var upKey = key\('', 'up', function \(\) \{ back\(\); \}\);[^\n]*\n\s*upKey\.appendChild\(glyph\('return'\)\);/, 'an up button that looks like a return arrow (Peter, 09-03/04)');
+  assert.doesNotMatch(BROWSE, /upKey\.appendChild\(glyph\('return'\)\)/, 'the return arrow left the disc (Peter, 09-04: ↑ ↓ are the axis now)');
   // the same arrow on the control screen goes home to the Wall
   assert.match(JS, /var btnHome = button\('return', 'btn-home'\);/);
   assert.match(JS, /press\(btnHome, goHome\);/);
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
   assert.ok(hasGlyph('return'));
-  assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 35\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\.5\); \}/);
   // swipes mean the same: ↑ is up, ← → are next and previous
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dx < 0 \? 1 : -1\); return true; \}/, 'a sideways swipe steps the highlight');
-  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.back\(\);/, 'an upward swipe is up');
+  assert.match(JS, /axis\(dy > 0 \? 1 : -1\);/, 'a vertical swipe walks the axis (Peter, 09-04)');
   assert.match(CSS, /\.puck:not\(\[data-browse\]\) \.nav-keys, \.puck\[data-spell="1"\] \.nav-keys \{ display: none; \}/);
 });
 
@@ -636,7 +638,7 @@ test('genres get their own pictures, and only on a genre level', () => {
   }
   // Eight a page, each with its name beneath.
   assert.match(BROWSE, /var SLOTS = 7;/, 'seven a page: eight puts circles at three and nine, whose names land on their neighbours');
-  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,1800}var name = el\('div', 'opt-name', item === null \? '\\u2026' : item\.title\);/);
+  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,1800}var name = el\('div', 'opt-name', item === null \? '\\u2026' : nameOf\(item\)\);/);
 });
 
 /**
@@ -671,7 +673,7 @@ test('the cog is the volume in every state; the alphabet outside is reached by t
   assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title');
   assert.match(BROWSE, /var from = Math\.floor\(offset \/ SLOTS\) \* SLOTS;/, 'a jump loads from the page\'s own start');
   assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/);
-  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 35\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\.5\); \}/);
   assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
 });
 
@@ -704,8 +706,91 @@ test('a playlist circle asks for a collage and the initial stands in meanwhile',
   assert.match(BROWSE, /var collages = createCollages\(ask, \{ size: 96, want: 4 \}\);/);
   assert.match(BROWSE, /function ask\(body, sessionKey\) \{\s*body\.sessionKey = sessionKey \|\| session;/, 'the builder may use its own stack');
   assert.match(BROWSE, /var playlist = item !== null && !item\.art && onPlaylistsLevel\(\) && item\.hint !== 'action'/, 'only a playlist row, never an action');
-  assert.match(BROWSE, /var name = item === null \|\| playlist \? null : iconNameFor\(/, 'the collage comes before the shelf icons: "dCS Favourites" is a playlist, not a shelf');
+  assert.match(BROWSE, /var name = item === null \|\| playlist \|\| view\.plain === true \? null : iconNameFor\(/, 'the collage comes before the shelf icons: "dCS Favourites" is a playlist, not a shelf');
   assert.match(BROWSE, /collages\.request\('playlists', item\.title,/, "always Roon's own playlists hierarchy: via Explore the level is in `browse`, whose root has no playlists");
   assert.match(BROWSE, /var RADIAL_MAX = 7;/, 'more than seven are pages, named');
   assert.match(BROWSE, /if \(url === null \|\| node\.parentNode === null\) return;/, 'a late collage for a circle no longer on the face is dropped');
+});
+
+/**
+ * ⚖️ ONE AXIS, THREE FACES — A WHEEL (Peter, 09-04: "an up and a down arrow on
+ * that centre circle that indicates a swipe up or down — and those navigate
+ * between control, browse and queue"). ↓ from the music is the library, then
+ * the queue, then the music again; ↑ runs the other way. Both arrows always
+ * lead somewhere, and climbing a level is the title's job, not the axis's.
+ */
+test('the axis is a wheel of three faces: every face is one swipe from every other', () => {
+  assert.deepEqual(STOPS, ['play', 'browse', 'queue']);
+  assert.equal(nextStop('play', 1), 'browse', '↓ from the music is the library');
+  assert.equal(nextStop('browse', 1), 'queue', '↓ again is the queue');
+  assert.equal(nextStop('queue', 1), 'play', '↓ again is the music: a wheel, not a ladder');
+  assert.equal(nextStop('play', -1), 'queue', '↑ from the music is the queue');
+  assert.equal(nextStop('queue', -1), 'browse');
+  assert.equal(nextStop('browse', -1), 'play');
+  assert.equal(nextStop('elsewhere', 1), 'browse', 'an unknown place counts as the music');
+  // the disc wears ↑ and ↓, and they ARE the axis — not the level
+  assert.match(BROWSE, /var upKey = key\('\\u2191', 'swipe up: the face above', function \(\) \{ onAxis\(-1\); \}\);/);
+  assert.match(BROWSE, /var downKey = key\('\\u2193', 'swipe down: the face below', function \(\) \{ onAxis\(1\); \}\);/);
+  assert.match(BROWSE, /downKey\.className = 'key key-down';/);
+  assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');
+  assert.match(CSS, /\.puck\[data-browse\] \.chosen-title \{[^\n]*\n[^\n]*\n  max-height: calc\(var\(--u\) \* 9\.5\);/, 'the name keeps to two lines between ↑ and ↓');
+  // a swipe is judged where it started: the glass captures the pointer, so a lift over the disc or the credit is not lost
+  assert.match(JS, /document\.addEventListener\('pointerup', lift, true\);/, 'heard at the document in the capture phase, before a control can stop it');
+  assert.match(JS, /function lift\(event\) \{\s*if \(touch === null\) return;/);
+  assert.doesNotMatch(JS, /setPointerCapture\(event\.pointerId\)[\s\S]{0,60}\n\}\);\n\nfunction lift/, 'the capture that Chrome took without honouring is gone');
+  // the seven slots stay put whatever a page holds: a last page of four never puts a circle at six o'clock
+  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,1200}var angle = \(k \/ SLOTS\) \* 2 \* Math\.PI - Math\.PI \/ 2;/);
+  assert.match(BROWSE, /var size = lettered \? 12 : tokenSize\(SLOTS\);/);
+  // a swipe and the arrow keys walk the wheel; the title (and Backspace) climb a level
+  assert.match(JS, /function axis\(dir\) \{\s*var next = nextStop\(browse\.at\(\), dir\);/);
+  assert.match(JS, /if \(next === 'play'\) browse\.park\(\);\s*else browse\.open\(next\);/, 'the library is parked, not closed, when the axis leaves it');
+  assert.match(JS, /if \(key === 'ArrowDown'\) \{\s*axis\(1\);\s*\} else if \(key === 'ArrowUp'\) \{\s*axis\(-1\);/);
+  assert.match(JS, /key === 'Backspace'\) \{\s*if \(open\) browse\.back\(\);/);
+  assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/, 'the title is still the way back a level');
+  // the library keeps its place across the axis
+  assert.match(BROWSE, /if \(hierarchy === 'browse' && parked !== null\) \{[\s\S]{0,400}view = parked\.view;/);
+  assert.match(BROWSE, /function park\(\) \{\s*if \(view !== null && !view\.queue\) parked = \{ view: view, spellReturn: spellReturn \};\s*leave\(\);/);
+  assert.match(BROWSE, /function close\(\) \{\s*parked = null;\s*leave\(\);/, 'closing forgets; only the axis parks');
+  assert.match(BROWSE, /if \(view\.queue\) park\(\); else close\(\);/, "the queue's title leaves the queue without forgetting the parked library");
+});
+
+/**
+ * ⚖️ THE QUEUE IS A LEVEL OF THIS FACE (Peter, 09-04: "an option to expose and
+ * select from the queue"). Roon's forward window, drawn as pages of seven like
+ * every other list, each circle the track's own sleeve; a tap on a row plays
+ * from there through the deck's own queue route, fenced by generation and
+ * revision. Row zero is what is playing and cannot be "played from".
+ */
+test('the queue reads as a level: sleeves ring the face, the playing row is marked, a row plays from there', () => {
+  const rows = queueRows({ items: [
+    { id: '557527', title: 'Burn', artist: 'Norah Jones', album: 'Day Breaks', lengthSec: 279, art: '/api/v1/art/x' },
+    { id: 557528, title: 'Tragedy', artist: 'Norah Jones', album: '', lengthSec: 200, art: null },
+    { id: '557529', title: '', artist: '', album: '', lengthSec: null, art: null },
+  ] });
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows[0], { title: 'Burn', subtitle: 'now \u00b7 Norah Jones \u00b7 Day Breaks', art: '/api/v1/art/x', hint: 'queue', queueId: '557527', now: true });
+  assert.deepEqual(rows[1], { title: 'Tragedy', subtitle: 'Norah Jones', art: null, hint: 'queue', queueId: '557528', now: false }, 'ids are strings on the wire, whatever Roon sent');
+  assert.equal(rows[2].title, '(untitled)');
+  assert.equal(rows[2].subtitle, '');
+  assert.deepEqual(queueRows({}), []);
+  assert.deepEqual(queueRows(null), []);
+  // read from the deck's queue mirror, waiting in place while it fills
+  assert.match(BROWSE, /fetch\('\/api\/v1\/queue\?zone=' \+ encodeURIComponent\(zone\), \{ cache: 'no-store' \}\)/);
+  assert.match(BROWSE, /if \(data\.ready !== true && attempt < 8\)/, 'the mirror may honestly still be loading');
+  assert.match(BROWSE, /if \(hierarchy === 'queue'\) \{ if \(view !== null && view\.queue\) return; park\(\); openQueue\(\); return; \}/);
+  assert.match(BROWSE, /hierarchy: 'queue', tier: rows\.length <= RADIAL_MAX \? 'radial' : 'linear',/, 'seven ring the face; more are pages of seven');
+  assert.match(BROWSE, /sel: rows\.length > 1 \? 1 : 0/, 'the highlight opens on the first row still to come');
+  // a row plays from there, fenced; the playing row is refused before the wire
+  assert.match(BROWSE, /if \(view\.queue\) \{ playFrom\(item\); return; \}/);
+  assert.match(BROWSE, /function playFrom\(item\) \{\s*if \(item\.now\) \{ flash\('already playing'\); return; \}/);
+  assert.match(BROWSE, /body: JSON\.stringify\(\{ zone: fence\.zone, itemId: item\.queueId, generation: fence\.generation, queueRevision: fence\.revision \}\),/);
+  assert.match(BROWSE, /if \(response\.ok\) \{ flash\('playing ' \+ item\.title\); close\(\); return; \}/, 'and the face returns to the music');
+  assert.match(BROWSE, /if \(data\.code === 'stale' \|\| data\.code === 'current'\) \{[^\n]*reloadQueue\(\); return; \}/, 'a queue that moved is read again, never guessed at');
+  // the playing row is marked on the ring; tracks never wear shelf icons
+  assert.match(BROWSE, /function nameOf\(item\) \{\s*return item === null \? '' : \(item\.now === true \? '\\u25b6 ' : ''\) \+ item\.title;/);
+  assert.match(BROWSE, /var name = item === null \|\| playlist \|\| view\.plain === true \? null : iconNameFor\(/);
+  // when the room moves on, the face is read again in place, keeping the row under the hand
+  assert.match(JS, /if \(playing !== nowKey\) \{\s*nowKey = playing;\s*if \(browse !== undefined\) browse\.reloadQueue\(\);/);
+  assert.match(BROWSE, /var held = was\.items\[was\.sel\]\.queueId;/);
+  assert.match(BROWSE, /'Nothing queued'/);
 });

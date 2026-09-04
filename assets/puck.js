@@ -4,6 +4,7 @@ import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
+import { nextStop } from './puck-axis.js';
 import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle } from './volume-gate.js';
 import { readPalette } from './sleeve-palette.js';
@@ -37,7 +38,7 @@ import { readPalette } from './sleeve-palette.js';
  *     tap the centre  play/pause · select
  *     swipe ← →       next · previous
  *     tap the ring    seek
- *     swipe ↑ ↓       climb · descend  (one axis, three stops)
+ *     swipe ↑ ↓       the face above · below  (music · library · queue: a wheel)
  *
  * ⚖️ THE OVERLAY (Peter, 09-03). The first cut drew no transport buttons on the
  * ground that the glass commits — true of the DEVICE, but a mock has to show
@@ -693,10 +694,19 @@ function paintControls(zone) {
   else btnRepeat.removeAttribute('data-on');
 }
 
+var nowKey = '';   // what the room was last seen playing, so a change can be noticed
+
 function render() {
   var zone = currentZone();
   paintVolume();
   paintControls(zone);
+  // The queue face reads Roon's window ONCE; when the room moves on to the next
+  // row the window has moved too, and the face is read again in place.
+  var playing = zone === null || zone.nowPlaying === null ? '' : zone.id + '|' + zone.nowPlaying.title + '|' + zone.nowPlaying.line2;
+  if (playing !== nowKey) {
+    nowKey = playing;
+    if (browse !== undefined) browse.reloadQueue();
+  }
   if (zone === null) {
     room.textContent = '';
     title.textContent = '';
@@ -750,6 +760,7 @@ var browse = createBrowse({
     if (open) sleep();
     render();
   },
+  onAxis: function (dir) { axis(dir); },
 });
 
 // The browse layer was appended last and would otherwise paint over the toast —
@@ -822,19 +833,25 @@ function swiped(dx, dy, size) {
     transport(dx < 0 ? 'next' : 'previous');
     return true;
   }
-  /**
-   * ⚖️ ONE AXIS WITH THREE STOPS: ↑ always climbs and ↓ always descends, at every
-   * depth, so a repeated ↑ walks home from anywhere. Rooms sit one stop above
-   * PLAY and are not built yet (I4) — an ↑ from the top is deliberately silent
-   * rather than a promise the device cannot keep.
-   */
-  if (dy > 0) {
-    if (browse.isOpen()) browse.commit();
-    else browse.open('browse');
-  } else {
-    if (browse.isOpen()) browse.back();
-  }
+  axis(dy > 0 ? 1 : -1);
   return true;
+}
+
+/**
+ * ⚖️ ONE AXIS, THREE FACES — A WHEEL, NOT A LADDER (Peter, 09-04: "an up and a
+ * down arrow on that centre circle … navigate between control, browse and
+ * queue"). ↓ from the music is the library; ↓ again the queue; ↓ again the
+ * music, and ↑ runs the other way — so every face is one swipe from every
+ * other and both arrows on the disc always lead somewhere. Climbing a LEVEL
+ * inside the library is the title's job ("‹ GENRES"), not the axis's: it used
+ * to be ↑, and that is what changed. The library keeps its place while the
+ * axis is elsewhere; the music face has nothing to keep.
+ */
+function axis(dir) {
+  var next = nextStop(browse.at(), dir);
+  wake();
+  if (next === 'play') browse.park();
+  else browse.open(next);
 }
 
 glass.addEventListener('pointerdown', function (event) {
@@ -849,7 +866,7 @@ glass.addEventListener('pointerdown', function (event) {
   touch = { x: event.clientX, y: event.clientY, at: Date.now() };
 });
 
-glass.addEventListener('pointerup', function (event) {
+function lift(event) {
   if (touch === null) return;
   var start = touch;
   touch = null;
@@ -859,7 +876,21 @@ glass.addEventListener('pointerup', function (event) {
   if (swiped(dx, dy, metrics.size)) return;
   if (Math.abs(dx) > metrics.size * TAP_SLOP || Math.abs(dy) > metrics.size * TAP_SLOP) return;
   tapped(event.clientX, event.clientY);
-});
+}
+
+/**
+ * ⚠️ A SWIPE IS JUDGED WHERE IT STARTED, NOT WHERE THE FINGER LIFTS. Every
+ * pressable thing on the face stops its pointerup so a tap on it is its own —
+ * which meant a MOUSE swipe that ended over the disc, a circle or the credit
+ * was swallowed with it (measured: two probe swipes lost, and the keys that
+ * followed fell through to the music face). A finger never had the problem:
+ * touch lifts go back to where the touch began. Capturing the pointer was
+ * tried and Chrome took the capture without retargeting the mouse — so the
+ * lift is heard HERE, at the document in the capture phase, which runs before
+ * any control's own listener can stop it. A gesture that began on a control
+ * never set `touch`, so nothing acts twice.
+ */
+document.addEventListener('pointerup', lift, true);
 
 glass.addEventListener('pointercancel', function () { touch = null; });
 
@@ -1056,11 +1087,11 @@ window.addEventListener('keydown', function (event) {
   var key = event.key;
   var open = browse.isOpen();
   if (key === 'ArrowDown') {
-    if (open) browse.commit();
-    else { wake(); browse.open('browse'); }
+    axis(1);
   } else if (key === 'ArrowUp') {
-    if (open) browse.back();
-    else wake();
+    axis(-1);
+  } else if (key === 'Backspace') {
+    if (open) browse.back();   // the title's climb, for a desk
   } else if (key === 'ArrowRight') {
     if (open) browse.move(1); else { wake(); transport('next'); }
   } else if (key === 'ArrowLeft') {
