@@ -177,6 +177,22 @@ test('a browse row earns an icon from the Core\'s own words, or none at all', ()
   assert.equal(named('Start Radio', 'action'), 'radio');
   assert.equal(named('Add Next', 'action'), 'queue');
   assert.equal(named('Shuffle', 'action'), 'shuffle');
+  // The services' own shelves (Peter, 09-04): Favorites, What's New, TIDAL Rising and kin.
+  assert.equal(named('Favorites', 'list'), 'heart');
+  assert.equal(named("What's New", 'list'), 'sparkle');
+  assert.equal(named('New Releases', 'list'), 'sparkle');
+  assert.equal(named('TIDAL Rising', 'list'), 'rising', 'rising, not TIDAL');
+  assert.equal(named('Press Awards', 'list'), 'award');
+  assert.equal(named('Top Charts', 'list'), 'chart');
+  assert.equal(named('Recently Played', 'list'), 'clock');
+  assert.equal(named('Moods', 'list'), 'leaf');
+  assert.equal(named('Works', 'list'), 'clef');
+  assert.equal(named('Qobuz Playlists', 'list'), 'playlist');
+  assert.equal(named('Taste of Qobuz', 'list'), 'award', 'the editorial shelf, not the service cloud');
+  assert.equal(named('My Qobuz', 'list'), 'heart');
+  assert.equal(named('My Live Radio', 'list'), 'radio', '"my" must not steal a row that names a radio');
+  assert.equal(named('Your Favorites', 'list'), 'heart');
+  for (const name of ['sparkle', 'rising', 'award', 'chart', 'clock', 'bookmark']) assert.ok(hasGlyph(name), name + ' has line-work');
   // A row the Core names for itself gets no icon rather than a wrong one, and
   // falls back to its own sleeve and then to its initial.
   assert.equal(named('Kind of Blue', 'list'), null);
@@ -317,7 +333,7 @@ test('the menu and the cluster share one circle and one set of line-work', () =>
   assert.match(BROWSE, /import \{ glyph, iconNameFor \} from '\.\/puck-icons\.js';/);
   assert.match(JS, /import \{ glyph \} from '\.\/puck-icons\.js';/,
     'the transport cluster and the menu draw from the same set, not two copies of it');
-  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,700}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
+  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,1600}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
     'icon, then the row\'s own sleeve, then its initial');
   assert.match(CSS, /\.tok \{[\s\S]{0,300}border-radius: 50%/);
   assert.match(CSS, /\.opt-on \.tok \{[\s\S]{0,160}border-color: var\(--accent\)/,
@@ -670,4 +686,17 @@ test('the times ride the bead, the room name sits inside the ring, the wheel say
   assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\)\);/);
   assert.match(JS, /var TICK_READ_R = 44\.6;/);
   assert.match(CSS, /\.tick-read \{ fill: var\(--accent\);/);
+});
+
+/**
+ * ⚖️ A PLAYLIST'S CIRCLE IS A COLLAGE OF ITS COVERS (Peter, 09-04), built in a
+ * browse session of its own, remembered by title, and swapped in only if the
+ * circle is still on the face.
+ */
+test('a playlist circle asks for a collage and the initial stands in meanwhile', () => {
+  assert.match(BROWSE, /import \{ createCollages \} from '\.\/collage\.js';/);
+  assert.match(BROWSE, /var collages = createCollages\(ask, \{ size: 96, want: 4 \}\);/);
+  assert.match(BROWSE, /function ask\(body, sessionKey\) \{\s*body\.sessionKey = sessionKey \|\| session;/, 'the builder may use its own stack');
+  assert.match(BROWSE, /onPlaylistsLevel\(\) && item\.hint !== 'action'/, 'only a playlist row, never an action');
+  assert.match(BROWSE, /if \(url === null \|\| node\.parentNode === null\) return;/, 'a late collage for a circle no longer on the face is dropped');
 });

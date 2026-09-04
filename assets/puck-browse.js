@@ -44,6 +44,7 @@
  */
 
 import { glyph, iconNameFor } from './puck-icons.js';
+import { createCollages } from './collage.js';
 
 var SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -257,8 +258,8 @@ export function createBrowse(options) {
 
   function current(mine) { return mine === epoch && view !== null; }
 
-  function ask(body) {
-    body.sessionKey = session;
+  function ask(body, sessionKey) {
+    body.sessionKey = sessionKey || session;
     var zone = zoneId();
     if (zone !== null && body.load !== true) body.zoneId = zone;
     return fetch('/api/v1/browse', {
@@ -318,9 +319,41 @@ export function createBrowse(options) {
       || (view.parentTitle !== undefined && /genre/i.test(view.parentTitle)));
   }
 
+  /** Playlists have no sleeve of their own; their tracks do. */
+  var collages = createCollages(ask, { size: 96, want: 4 });
+
+  function onPlaylistsLevel() {
+    return view !== null && (view.hierarchy === 'playlists' || /playlist/i.test(view.title || ''));
+  }
+
   function token(item, text) {
     var node = el('div', 'tok');
     var name = item === null ? null : iconNameFor(item.title, item.hint, onGenreLevel());
+    /**
+     * ⚖️ A PLAYLIST'S CIRCLE IS A COLLAGE OF ITS COVERS (Peter, 09-04). The
+     * initial stands in while it is built; the sleeves replace it when they
+     * arrive, and only if this circle is still the one on the face.
+     */
+    if (name === null && item !== null && !item.art && onPlaylistsLevel() && item.hint !== 'action' && item.hint !== 'action_list') {
+      var ready = collages.known(item.title);
+      if (typeof ready === 'string') {
+        var art = document.createElement('img');
+        art.className = 'tok-art';
+        art.alt = '';
+        art.src = ready;
+        node.appendChild(art);
+        return node;
+      }
+      collages.request(view.hierarchy, item.title, function (url) {
+        if (url === null || node.parentNode === null) return;
+        var late = document.createElement('img');
+        late.className = 'tok-art';
+        late.alt = '';
+        late.src = url;
+        while (node.firstChild) node.removeChild(node.firstChild);
+        node.appendChild(late);
+      });
+    }
     if (name !== null) {
       node.appendChild(glyph(name));
       return node;

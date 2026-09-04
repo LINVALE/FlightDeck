@@ -91,6 +91,13 @@ var STROKED = {
   queue: ['M4.6 7.4h10', 'M4.6 12h10', 'M4.6 16.6h6.4', 'M17.6 10.4v7.2', 'M14 14h7.2'],
   /* a return: out along the top, down, and curving back on itself (Peter, 09-04) */
   'return': ['M17.6 6v5.2a3.2 3.2 0 0 1-3.2 3.2H6.4', 'M9.6 11 6.4 14.4l3.2 3.4'],
+  /* ---- the services' own shelves (Peter, 09-04: "icons for favorites, what's new, tidal rising") ---- */
+  sparkle: ['M12 4.2v4.4', 'M12 15.4v4.4', 'M4.2 12h4.4', 'M15.4 12h4.4', 'M12 8.6a3.4 3.4 0 0 1 3.4 3.4 3.4 3.4 0 0 1-3.4 3.4 3.4 3.4 0 0 1-3.4-3.4A3.4 3.4 0 0 1 12 8.6z', 'M18.2 5.8l1.2 1.2', 'M4.6 18.2l1.2-1.2'],
+  rising: ['M4.4 17.6 9.6 12.4l3.2 3.2 6.8-6.8', 'M14.6 8.8h5v5'],
+  award: ['M12 4.6a4.6 4.6 0 1 1 0 9.2 4.6 4.6 0 0 1 0-9.2', 'M9.2 13.2 8 20l4-2.2 4 2.2-1.2-6.8'],
+  chart: ['M5.2 19.4V12.2', 'M10 19.4V7.4', 'M14.8 19.4V10.6', 'M19.6 19.4V4.6'],
+  clock: ['M12 4.4a7.6 7.6 0 1 1 0 15.2 7.6 7.6 0 0 1 0-15.2', 'M12 7.8V12l3 2'],
+  bookmark: ['M7 4.6h10v14.8l-5-3.6-5 3.6z'],
   /* ---- the genres: one picture each, chosen to be recognised at the size of a thumb ---- */
   maracas: ['M8.4 4.8a3 3 0 1 1 0 6 3 3 0 0 1 0-6', 'M8.4 10.8 5.6 19.2', 'M15.6 4.8a3 3 0 1 1 0 6 3 3 0 0 1 0-6', 'M15.6 10.8l2.8 8.4'],
   hat: ['M9.2 5.4h5.6l1.4 6.6H7.8z', 'M4 12h16', 'M4 12c0 2.2 3.6 3.6 8 3.6s8-1.4 8-3.6'],
@@ -207,10 +214,25 @@ export function iconNameFor(title, hint, onGenreLevel) {
     return null;
   }
   if (has('search')) return 'search';
+  if (has('radio')) return 'radio';   // before "my …": My Live Radio is a radio
+  // The services' own shelves come before the nouns: "New Releases" is new,
+  // not a release; "TIDAL Rising" is rising, not TIDAL.
+  if (has('favorite') || has('favourite') || has('for you') || has('recommend') || text.indexOf('my ') === 0) return 'heart';
+  if (has('taste of') || has('curated') || has('selection')) return 'award';
+  if (has("what's new") || has('new release') || has('just added') || has('new ')) return 'sparkle';
+  if (has('rising') || has('trending')) return 'rising';
+  if (has('award') || has('editor') || has('press')) return 'award';
+  if (has('chart') || has('top ') || has('popular')) return 'chart';
+  if (has('history') || has('recent') || has('listened')) return 'clock';
+  if (has('bookmark')) return 'bookmark';
+  if (has('mood')) return 'leaf';
+  if (has('podcast')) return 'mic';
+  if (has('video')) return 'clapper';
+  if (has('concert') || has('live ')) return 'radio';
   if (has('playlist')) return 'playlist';
-  if (has('radio')) return 'radio';
   if (has('setting')) return 'settings';
   if (has('composer')) return 'composer';
+  if (has('work')) return 'clef';
   if (has('artist') || has('performer') || has('conductor')) return 'artist';
   if (has('album') || has('discograph')) return 'album';
   if (has('track') || has('song')) return 'track';
