@@ -72,15 +72,17 @@ body {
 .rig.is-turning { cursor: -webkit-grabbing; cursor: grabbing; }
 
 /**
- * ⚖️ THE DOTS ARE THE VOLUME (Peter, 09-03): one per detent from twelve o'clock,
- * lit up to the level, on the wheel you turn to change it. Muted is a dimmed
- * run rather than an empty one — the level is still set, just not heard.
+ * ⚖️ THE SCALE IS THE VOLUME (Peter, 09-03): a hundred fine radial ticks from
+ * twelve o'clock, every tenth longer, lit up to the level, on the wheel you
+ * turn to change it. Muted is a dimmed run rather than an empty one — the level
+ * is still set, just not heard.
  */
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-.detent { fill: rgba(242, 238, 230, .16); }
-.detent.is-lit { fill: rgba(242, 238, 230, .92); }
-.rig.is-turning .detent.is-lit { fill: #ffffff; }
-.rig[data-muted="1"] .detent.is-lit { fill: rgba(242, 238, 230, .38); }
+.tick { stroke: rgba(242, 238, 230, .16); stroke-width: .45; stroke-linecap: round; }
+.tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
+.tick.is-lit { stroke: rgba(242, 238, 230, .92); }
+.rig.is-turning .tick.is-lit { stroke: #ffffff; }
+.rig[data-muted="1"] .tick.is-lit { stroke: rgba(242, 238, 230, .38); }
 
 .glass {
   position: absolute;

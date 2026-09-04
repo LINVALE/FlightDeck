@@ -18,10 +18,10 @@ import { createVolumeGate, levelAtAngle } from './volume-gate.js';
  * ⚖️ The art FILLS the dial (Peter, 09-02). Legibility is painted over it in
  * scrims; the cover itself is never dimmed, tinted or transformed.
  *
- * ⚖️ THE DOTS ARE THE VOLUME; THE RING IS THE POSITION (Peter, 09-03, third
- * look). The bezel is the wheel, and its ring of detent dots lights up to the
- * level — the reading sits ON the thing you turn, outside the glass. The glass
- * keeps one ring, progress, at its rim. Nothing else is drawn on the sleeve,
+ * ⚖️ THE SCALE IS THE VOLUME; THE RING IS THE POSITION (Peter, 09-03). The
+ * bezel is the wheel, and its scale of a hundred ticks lights up to the level —
+ * the reading sits ON the thing you turn, outside the glass. The glass keeps
+ * one ring, progress, inside its edge. Nothing else is drawn on the sleeve,
  * which is cropped to the circle and fills it to the edge. Both start at twelve.
  *
  * ⚖️ Progress is Roon's reported second, VERBATIM (Peter, 08-28) — the store
@@ -98,16 +98,29 @@ var glass = el('div', 'glass');
 var detents = document.createElementNS(SVG_NS, 'svg');
 detents.setAttribute('class', 'detents');
 detents.setAttribute('viewBox', '0 0 100 100');
-var detentMarks = [];
-for (var tick = 0; tick < 360 / DETENT_DEG; tick += 1) {
-  var mark = document.createElementNS(SVG_NS, 'circle');
-  var markAngle = ((tick * DETENT_DEG) - 90) * Math.PI / 180;   // twelve o'clock, clockwise
-  mark.setAttribute('class', 'detent');
-  mark.setAttribute('r', '0.8');
-  mark.setAttribute('cx', String(50 + 48.4 * Math.cos(markAngle)));
-  mark.setAttribute('cy', String(50 + 48.4 * Math.sin(markAngle)));
+/**
+ * ⚖️ A SCALE, 0 TO 100 ROUND THE DIAL (Peter, 09-03: "not granular enough —
+ * maybe 0 (mute) to 100 around the circle, small radials rather than dots").
+ * A hundred fine radial ticks from twelve o'clock clockwise, every tenth
+ * longer, lit up to the level: a tap on the wheel lands to one percent. The
+ * DRAG still moves a device step per twelve degrees — that is the detent the
+ * board has and the budget the gate was written for; the tap is the fine path.
+ */
+var SCALE = 100;
+var ticks = [];
+for (var tick = 0; tick < SCALE; tick += 1) {
+  var mark = document.createElementNS(SVG_NS, 'line');
+  var tickAngle = ((tick / SCALE) * 360 - 90) * Math.PI / 180;   // twelve o'clock, clockwise
+  var major = tick % 10 === 0;
+  var outer = 49.2;
+  var inner = major ? 46.4 : 47.6;
+  mark.setAttribute('class', major ? 'tick major' : 'tick');
+  mark.setAttribute('x1', String(50 + inner * Math.cos(tickAngle)));
+  mark.setAttribute('y1', String(50 + inner * Math.sin(tickAngle)));
+  mark.setAttribute('x2', String(50 + outer * Math.cos(tickAngle)));
+  mark.setAttribute('y2', String(50 + outer * Math.sin(tickAngle)));
   detents.appendChild(mark);
-  detentMarks.push(mark);
+  ticks.push(mark);
 }
 rig.appendChild(detents);
 
@@ -534,9 +547,10 @@ function paintVolume() {
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
 function lightDetents(fraction) {
-  var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * detentMarks.length);
-  for (var i = 0; i < detentMarks.length; i += 1) {
-    detentMarks[i].setAttribute('class', i < lit ? 'detent is-lit' : 'detent');
+  var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * ticks.length);
+  for (var i = 0; i < ticks.length; i += 1) {
+    var major = i % 10 === 0;
+    ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : ''));
   }
 }
 
@@ -856,7 +870,7 @@ function tapBezel(degrees) {
   if (now - lastBezelTap < 300) return;
   lastBezelTap = now;
   var bounds = volumeBounds(output);
-  var value = levelAtAngle(degrees, bounds.min, bounds.max, detentMarks.length);
+  var value = levelAtAngle(degrees, bounds.min, bounds.max, ticks.length);
   if (value === null) return;
   haptic(12);
   showTurning();

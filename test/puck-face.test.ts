@@ -192,14 +192,19 @@ test('a browse row earns an icon from the Core\'s own words, or none at all', ()
  * one ring, progress, in the accent at its rim. Both start at twelve.
  */
 test('the bezel dots read the volume; the glass ring is progress alone', () => {
-  assert.match(JS, /var markAngle = \(\(tick \* DETENT_DEG\) - 90\) \* Math\.PI \/ 180;/, 'dots from twelve o\'clock');
-  assert.match(JS, /function lightDetents\(fraction\)[\s\S]{0,300}'detent is-lit' : 'detent'/);
+  // ⚖️ A SCALE, 0 TO 100 ROUND THE DIAL: a hundred radial ticks from twelve
+  // o'clock, every tenth longer; a tap lands to one percent.
+  assert.match(JS, /var SCALE = 100;/);
+  assert.match(JS, /var tickAngle = \(\(tick \/ SCALE\) \* 360 - 90\) \* Math\.PI \/ 180;/, 'ticks from twelve o\'clock');
+  assert.match(JS, /createElementNS\(SVG_NS, 'line'\)/, 'radials, not dots');
+  assert.match(JS, /function lightDetents\(fraction\)[\s\S]{0,400}\(i < lit \? ' is-lit' : ''\)/);
+  assert.match(JS, /var DETENT_DEG = 12;/, 'the DRAG keeps the board\'s own detent, which the gate was budgeted for');
   assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span\)/);
   assert.match(JS, /rotate\(-90 50 50\)/);
   assert.match(JS, /var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/);
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
-  assert.match(CSS, /\.detent\.is-lit \{ fill: rgba\(242, 238, 230, \.92\); \}/);
-  assert.match(CSS, /\.rig\[data-muted="1"\] \.detent\.is-lit/, 'muted dims the lit run rather than emptying it');
+  assert.match(CSS, /\.tick\.is-lit \{ stroke: rgba\(242, 238, 230, \.92\); \}/);
+  assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit/, 'muted dims the lit run rather than emptying it');
   assert.match(CSS, /\.prog-arc \{[\s\S]{0,160}stroke: var\(--accent\)/);
 });
 
@@ -245,7 +250,7 @@ test('every path to a volume request goes through the gate', () => {
   assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}wake\(\);   \/\/ raise the readout; a dot has a place/,
     'a tap on a dot acts on the first touch');
   assert.match(JS, /if \(now - lastBezelTap < 300\) return;/, 'and never faster than one every 300 ms');
-  assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, detentMarks\.length\);[\s\S]{0,200}command\(\{ action: 'volume', output: output\.id, value: value \}\)/,
+  assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, ticks\.length\);[\s\S]{0,200}command\(\{ action: 'volume', output: output\.id, value: value \}\)/,
     'the dot under the finger, on the device\'s own range, as one absolute value');
   assert.match(JS, /var verdict = volumeGate\.step\(step\);/);
   // A wheel event is DISTANCE: the gate turns it into detents, and a page that
