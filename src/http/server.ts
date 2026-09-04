@@ -123,6 +123,20 @@ const ASSET_TYPES = new Map<string, string>([
   ['.webmanifest', 'application/manifest+json'],
 ]);
 
+/**
+ * The entry script's version: a short hash of the file as it is on disk, read
+ * per request. Assets are read from disk per request too, so this is what makes
+ * a page and its client agree — a screen can never load today's page with this
+ * morning's module. Empty when the file cannot be read, and then the URL is bare.
+ */
+function assetVersion(assetDir: string, script: string): string {
+  try {
+    return createHash('sha256').update(readFileSync(join(assetDir, script + '.js'))).digest('base64url').slice(0, 10);
+  } catch {
+    return '';
+  }
+}
+
 /** Greatest whole seek position strictly inside a finite Roon timeline. */
 function safeSeekSecond(seconds: number, length: number | null): number {
   const rounded = Math.max(0, Math.round(seconds));
@@ -411,7 +425,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     }
 
     if (path === '/' || path === '/wall') {
-      html(response, 200, renderWallPage(nonce, deps.urls()), nonce);
+      html(response, 200, renderWallPage(nonce, deps.urls(), assetVersion(deps.assetDir, 'wall')), nonce);
       return;
     }
     // The PHONE: the remote in a pocket. /phone holds what it last held;
@@ -420,7 +434,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const token = path.startsWith('/phone/') ? decodeURIComponent(path.slice('/phone/'.length)) : '';
       const snapshot = deps.hub.snapshot();
       const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
-      html(response, 200, renderPhonePage(nonce, resolved ?? '', token), nonce);
+      html(response, 200, renderPhonePage(nonce, resolved ?? '', token, assetVersion(deps.assetDir, 'phone')), nonce);
       return;
     }
     // The PUCK: a model of the knob, driven by the same plane as every other
@@ -437,14 +451,16 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         : (token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token));
       html(response, 200, renderPuckPage(nonce, resolved ?? '', token,
         url.searchParams.get('px'), url.searchParams.get('browse'),
-        bound === null ? null : bound.outputId, url.searchParams.get('chrome')), nonce);
+        bound === null ? null : bound.outputId, url.searchParams.get('chrome'),
+        assetVersion(deps.assetDir, 'puck')), nonce);
       return;
     }
     // The address worth bookmarking on a TV: no zone, always whatever is playing.
     // Checked BEFORE the prefix route, or '/face/' would fall into it with an
     // empty zone and no following — a screen pinned to nothing.
     if (path === '/now' || path === '/face' || path === '/face/') {
-      html(response, 200, renderFacePage(nonce, '', url.searchParams.get('face'), '1'), nonce);
+      html(response, 200, renderFacePage(nonce, '', url.searchParams.get('face'), '1', null, null,
+        assetVersion(deps.assetDir, 'face')), nonce);
       return;
     }
     if (path.startsWith('/face/')) {
@@ -461,7 +477,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         : (snapshot === null ? null : resolveZone(snapshot.zones, token));
       html(response, 200,
         renderFacePage(nonce, resolved ?? token, face, url.searchParams.get('follow'), token,
-          bound === null ? null : bound.outputId), nonce);
+          bound === null ? null : bound.outputId, assetVersion(deps.assetDir, 'face')), nonce);
       return;
     }
     json(response, 404, { error: 'not found' });

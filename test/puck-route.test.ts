@@ -56,7 +56,7 @@ test('every page loads its own client, and the puck answers by name and by pixel
 
   for (const [path, script] of [['/', 'wall'], ['/phone', 'phone'], ['/now', 'face'], ['/puck', 'puck']]) {
     const html = await body(path);
-    assert.ok(html.includes('src="/assets/' + script + '.js"'), path + ' must load ' + script + '.js');
+    assert.match(html, new RegExp('src="/assets/' + script + '\\.js(\\?v=[A-Za-z0-9_-]{10})?"'), path + ' must load ' + script + '.js');
   }
 
   // The three ways in, exactly as /phone offers them, plus the pinned glass.

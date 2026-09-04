@@ -19,7 +19,14 @@ export function normalizeFace(raw: string | null): FaceName | null {
   return (FACES as readonly string[]).includes(lower) ? (lower as FaceName) : null;
 }
 
-function head(nonce: string, title: string, styleHref: string, script: string): string {
+/**
+ * `version` rides the entry script's URL. On 2026-09-03 a screen that refreshed
+ * got the new stylesheet and the MORNING'S module — a browser's memory cache
+ * hands back a module by URL without asking, and a television cannot
+ * hard-reload. A URL that changes with the file's bytes is the one thing every
+ * cache honours. The server computes it per request from the file itself.
+ */
+function head(nonce: string, title: string, styleHref: string, script: string, version = ''): string {
   return '<!doctype html><html lang="en"><head>'
     + '<meta charset="utf-8">'
     + '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -39,7 +46,8 @@ function head(nonce: string, title: string, styleHref: string, script: string): 
     // The page NAMES its own client. This was inferred from the stylesheet href,
     // which silently served face.js to any page whose name it did not know — a
     // fourth page would have rendered as a blank Face rather than as an error.
-    + '<script type="module" nonce="' + nonce + '" src="/assets/' + script + '.js"></script>'
+    + '<script type="module" nonce="' + nonce + '" src="/assets/' + script + '.js'
+    + (version === '' ? '' : '?v=' + version) + '"></script>'
     + '</head>';
 }
 
@@ -57,11 +65,11 @@ function head(nonce: string, title: string, styleHref: string, script: string): 
  * Three lines were two too many: whoever is reading this already reached the
  * page, and the address is for the NEXT device, which needs one that works.
  */
-export function renderWallPage(nonce: string, urls: readonly string[]): string {
+export function renderWallPage(nonce: string, urls: readonly string[], version = ''): string {
   const numeric = urls.find((url) => /^https?:\/\/\d+\.\d+\.\d+\.\d+(\/|:|$)/.test(url));
   const reach = numeric ?? urls[0] ?? '';
   const now = reach === '' ? '' : reach.replace(/\/$/, '') + '/now';
-  return head(nonce, 'FlightDeck', '/assets/wall.css', 'wall')
+  return head(nonce, 'FlightDeck', '/assets/wall.css', 'wall', version)
     + '<body><main class="wall" id="wall" data-state="connecting">'
     + '<div class="wall-startup" id="wall-startup" role="status" aria-live="polite">'
     + '<div class="wall-startup-brand">FLIGHT<span>DECK</span></div>'
@@ -183,7 +191,7 @@ export function resolveOutput(zones: readonly ZoneLike[], token: string): { outp
 
 export function renderFacePage(
   nonce: string, zoneId: string, faceParam: string | null, followParam: string | null = null,
-  zoneToken: string | null = null, outputId: string | null = null,
+  zoneToken: string | null = null, outputId: string | null = null, version = '',
 ): string {
   const face = normalizeFace(faceParam);
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
@@ -191,7 +199,7 @@ export function renderFacePage(
   // Roon zone ids do not survive every Core change, and a bookmark that dies
   // silently is worse than one that re-finds its room by name.
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
-  return head(nonce, 'FlightDeck', '/assets/face.css', 'face')
+  return head(nonce, 'FlightDeck', '/assets/face.css', 'face', version)
     + '<body><main class="face" id="face"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
@@ -215,10 +223,10 @@ export function renderFacePage(
  * Like the Face it can be pinned by NAME (/phone/study); with no token the page
  * holds whatever this phone last held, then whatever is playing.
  */
-export function renderPhonePage(nonce: string, zoneId: string, zoneToken: string | null = null): string {
+export function renderPhonePage(nonce: string, zoneId: string, zoneToken: string | null = null, version = ''): string {
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
-  return head(nonce, 'FlightDeck', '/assets/phone.css', 'phone')
+  return head(nonce, 'FlightDeck', '/assets/phone.css', 'phone', version)
     + '<body><main class="phone" id="phone"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
@@ -252,12 +260,12 @@ export function normalizePuckPx(raw: string | null): number | null {
 export function renderPuckPage(
   nonce: string, zoneId: string, zoneToken: string | null = null, pxParam: string | null = null,
   browseParam: string | null = null, outputId: string | null = null,
-  chromeParam: string | null = null,
+  chromeParam: string | null = null, version = '',
 ): string {
   const safeZone = zoneId.replace(/[^A-Za-z0-9:_-]/g, '').slice(0, 128);
   const safeToken = (zoneToken ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 64).toLowerCase();
   const px = normalizePuckPx(pxParam);
-  return head(nonce, 'FlightDeck', '/assets/puck.css', 'puck')
+  return head(nonce, 'FlightDeck', '/assets/puck.css', 'puck', version)
     + '<body><main class="puck" id="puck"'
     + ' data-zone="' + safeZone + '"'
     + (safeToken === '' ? '' : ' data-zone-slug="' + safeToken + '"')
