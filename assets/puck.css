@@ -146,6 +146,18 @@ body {
   background-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.52) 46%, rgba(0,0,0,.86) 100%);
 }
 
+/* A bright foot needs a floor the credit can stand on; a dark one needs less
+   and gets less, so the sleeve shows through wherever it can. Measured from the
+   sleeve's lower third, never assumed. */
+.puck[data-foot="bright"] .scrim-foot {
+  height: 54%;
+  background-image: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,.68) 42%, rgba(0,0,0,.94) 100%);
+  background-image: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,.68) 42%, rgba(0,0,0,.94) 100%);
+}
+
+/* The accent moves with the sleeve; let it arrive rather than snap. */
+.prog-arc, .prog-bead, .opt-on .tok, .btn[data-on="1"] { -webkit-transition: stroke .6s, border-color .6s, color .6s; transition: stroke .6s, border-color .6s, color .6s; }
+
 .ring {
   position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;

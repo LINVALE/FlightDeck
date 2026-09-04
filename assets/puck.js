@@ -6,6 +6,7 @@ import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
 import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle } from './volume-gate.js';
+import { readPalette } from './sleeve-palette.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -478,9 +479,27 @@ function fallbackField() {
   return groundCanvas;
 }
 
+/**
+ * ⚖️ SUBTLE COLOUR AND CONTRAST FROM THE SLEEVE (Peter, 09-03). The ring takes
+ * the sleeve's own tone, lifted until it measurably clears the band of art it
+ * is drawn over; the bezel is tinted a third of the way toward the sleeve's
+ * deep tone; and the scrim under the credit is as strong as the sleeve's foot
+ * needs. Nothing touches the cover itself. A sleeve with no colour to lend — an
+ * all-black or all-white cover — leaves the face's own defaults standing.
+ */
+var DEFAULT_PAINT = { accent: 'rgb(204, 98, 102)', bezelFace: '#202329', bezelLip: '#34383f' };
+
+function paintFromSleeve(tones) {
+  var style = document.documentElement.style;
+  style.setProperty('--accent', tones === null ? DEFAULT_PAINT.accent : tones.ring);
+  style.setProperty('--bezel-face', tones === null ? DEFAULT_PAINT.bezelFace : tones.bezelFace);
+  style.setProperty('--bezel-lip', tones === null ? DEFAULT_PAINT.bezelLip : tones.bezelLip);
+  root.setAttribute('data-foot', tones !== null && tones.foot > 0.35 ? 'bright' : 'dark');
+}
+
 function paintCover(art) {
   if (art === null) {
-    if (coverKey !== null) { coverImg.removeAttribute('src'); coverKey = null; }
+    if (coverKey !== null) { coverImg.removeAttribute('src'); coverKey = null; paintFromSleeve(null); }
     coverImg.style.display = 'none';
     if (fallbackField().parentNode === null) cover.appendChild(fallbackField());
     return;
@@ -490,6 +509,12 @@ function paintCover(art) {
   if (art.key === coverKey) return;
   coverKey = art.key;
   coverImg.src = art.path;
+  // Keyed to the sleeve it was read from: a late answer for the last track must
+  // never paint this one.
+  readPalette(art.path, function (tones) {
+    if (coverKey !== art.key) return;
+    paintFromSleeve(tones);
+  });
 }
 
 function setArc(arc, circumference, fraction) {

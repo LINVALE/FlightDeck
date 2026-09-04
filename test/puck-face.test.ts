@@ -464,3 +464,19 @@ test('the puck is offered beside the faces, remembered, and has a way back', () 
   assert.match(JS, /room\.addEventListener\('click',[\s\S]{0,400}'\/face\/' \+ encodeURIComponent\(boundOutputId \|\| wantedZoneId \|\| ''\) \+ '\?face=' \+ before/,
     'the room name is the way back, onto the face the screen had before');
 });
+
+/**
+ * ⚖️ SUBTLE COLOUR AND CONTRAST FROM THE SLEEVE (Peter, 09-03). The ring takes
+ * the sleeve's tone lifted against the band it is drawn over, the bezel is
+ * tinted toward the sleeve's deep tone, and the scrim under the credit is as
+ * strong as the sleeve's foot needs — read from the sleeve, never assumed, and
+ * keyed to it so a late answer cannot paint the wrong track.
+ */
+test('the face takes its colour from the sleeve, measured, and keyed to it', () => {
+  assert.match(JS, /import \{ readPalette \} from '\.\/sleeve-palette\.js';/);
+  assert.match(JS, /readPalette\(art\.path, function \(tones\) \{\s*if \(coverKey !== art\.key\) return;/, 'keyed to the sleeve it was read from');
+  assert.match(JS, /style\.setProperty\('--accent', tones === null \? DEFAULT_PAINT\.accent : tones\.ring\)/, 'the ring tone, chosen against the band it sits on');
+  assert.match(JS, /root\.setAttribute\('data-foot', tones !== null && tones\.foot > 0\.35 \? 'bright' : 'dark'\)/);
+  assert.match(CSS, /\.puck\[data-foot="bright"\] \.scrim-foot \{/, 'a bright foot gets a stronger floor');
+  assert.match(JS, /paintFromSleeve\(null\)/, 'no sleeve, no borrowed colour: the defaults stand');
+});
