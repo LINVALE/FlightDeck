@@ -358,7 +358,7 @@ test('the ring is drawn on evidence, and a stop that leads nowhere says so', () 
 });
 
 test('the axis is the same at every depth, and its own session key', () => {
-  assert.match(BROWSE, /function back\(\)[\s\S]{0,400}if \(view\.depth === 0\) \{ close\(\); return; \}/);
+  assert.match(BROWSE, /function back\(\)[\s\S]{0,900}if \(view\.depth === 0\) \{ close\(\); return; \}/);
   assert.match(BROWSE, /popLevels: 1/);
   assert.match(BROWSE, /var session = 'puck-'/,
     'Roon keeps one stack per multi_session_key; a shared key drags every other screen');
@@ -403,4 +403,40 @@ test('the puck binds to a durable output, and the page carries it', async (t) =>
   assert.match(html, /data-zone="1603ghi"/, 'the zone is still resolved for transport');
   assert.match(html, /data-zone-slug="garden"/, 'and the name survives a Core that renumbers');
   assert.match(JS, /if \(wantedSlug !== ''\)/, 'the client re-finds its room by name');
+});
+
+/**
+ * ⚖️ THE ALPHABET IS THE KEYBOARD (Peter, 09-03: "use an alphabet selector from
+ * the puck"). A Search row opens the same ring of letters that jumps into a big
+ * list, plus space, delete and search; the middle reads the query; ⏎ asks
+ * Roon's Search hierarchy exactly as the Face does; ↑ walks back to the query
+ * and then to the row it came from.
+ */
+test('Search is spelt on the ring, and asks Roon the way the Face does', () => {
+  assert.match(BROWSE, /var SPELL = ALPHABET\.concat\(\[SPACE, DELETE, GO\]\);/);
+  assert.match(BROWSE, /if \(item\.input !== null && item\.input !== undefined\) \{ spell\(item\); return; \}/,
+    'an input row opens the speller rather than refusing');
+  assert.doesNotMatch(BROWSE, /needs a keyboard/);
+  assert.match(BROWSE, /ask\(\{ hierarchy: 'search', popAll: true, input: query \}\)/, 'the same call face.js makes');
+  assert.match(BROWSE, /if \(view\.spell\) \{ view = view\.spell\.parent; tick\(\); draw\(\); return; \}/, '↑ from the speller is the row it came from');
+  assert.match(BROWSE, /view\.depth === spellReturn\.depth[\s\S]{0,120}view = spellReturn\.speller;/, '↑ from the first results is the query again');
+});
+
+/**
+ * ⚖️ THE PUCK IS A NORMAL FACE OPTION (Peter, 09-03, twice) — offered in the
+ * faces list, remembered per screen, and with a way back — but NOT drawn inside
+ * face.css, whose `vw` rules are a television's. Choosing it goes to its page.
+ */
+test('the puck is offered beside the faces, remembered, and has a way back', () => {
+  const FACE = asset('face.js');
+  const PAGES = readFileSync(resolve(import.meta.dirname, '..', 'src', 'http', 'pages.ts'), 'utf8');
+  assert.match(FACE, /faceRow\.appendChild\(puckOption\(\)\);/, 'offered in the faces list');
+  assert.match(FACE, /if \(current === 'puck'\) \{ window\.location\.replace\(puckHref\(\)\); \}/,
+    'a screen that remembers puck goes there on load — and touches nothing else');
+  assert.match(FACE, /function leaveForPuck\(\) \{\s*try \{ localStorage\.setItem\(STORE_KEY_FACE_BEFORE \+ zoneId,/,
+    'the face being left is kept ONLY when the puck is chosen from the list, never on the remembered redirect');
+  assert.doesNotMatch(FACE, /var FACES = \[[^\]]*'puck'/, 'never a face LAYOUT: face.css is a television\'s');
+  assert.match(PAGES, /'aurora', 'puck'\] as const/, '?face=puck pins it like any face');
+  assert.match(JS, /room\.addEventListener\('click',[\s\S]{0,400}'\/face\/' \+ encodeURIComponent\(boundOutputId \|\| wantedZoneId \|\| ''\) \+ '\?face=' \+ before/,
+    'the room name is the way back, onto the face the screen had before');
 });

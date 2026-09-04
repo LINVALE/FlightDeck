@@ -792,6 +792,26 @@ words.addEventListener('click', function (event) {
 words.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
 words.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 
+/**
+ * ⚖️ THE PUCK IS A NORMAL FACE OPTION (Peter, 09-03), which cuts both ways: a
+ * screen that chose it from the faces list must be able to choose another. The
+ * room name is the way back — it lands on the face the screen had before, which
+ * the Face kept beside its memory, and forgets "puck" so the Face does not turn
+ * straight round.
+ */
+room.addEventListener('click', function (event) {
+  event.stopPropagation();
+  var before = 'presence';
+  try {
+    before = localStorage.getItem('flightdeck.face.before.' + wantedZoneId) || 'presence';
+    localStorage.setItem('flightdeck.face.' + wantedZoneId, before);
+  } catch (error) { /* private mode: the Face falls back to presence */ }
+  haptic(10);
+  window.location.href = '/face/' + encodeURIComponent(boundOutputId || wantedZoneId || '') + '?face=' + before;
+});
+room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+room.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+
 /* ---------- the bezel: a turn, quantised to its detents ---------- */
 
 var turning = null;

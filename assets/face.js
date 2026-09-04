@@ -319,6 +319,29 @@ function remember(name) {
 // An explicit ?face= is the durable, pinnable form and always wins.
 var pinned = root.getAttribute('data-face-param');
 var current = pinned || remembered() || 'presence';
+/**
+ * ⚖️ THE PUCK IS A NORMAL FACE OPTION (Peter, 09-03, twice). It is NOT drawn
+ * inside this page — face.css is `vw` for a 16:9 television and a circle sized
+ * off the short side has no business inside those rules — so choosing it here
+ * means going to its own page, and a screen that remembers "puck" goes there
+ * the moment it loads. The face it left is kept beside the memory, so the way
+ * back from the puck lands on that face and not on the puck again.
+ */
+var STORE_KEY_FACE_BEFORE = 'flightdeck.face.before.';
+function puckHref() {
+  return '/puck/' + encodeURIComponent(boundOutputId || zoneId || '');
+}
+/** Chosen from the list: keep the face being left, remember the puck, go. */
+function leaveForPuck() {
+  try { localStorage.setItem(STORE_KEY_FACE_BEFORE + zoneId, FACES.indexOf(current) === -1 ? 'presence' : current); }
+  catch (error) { /* private mode */ }
+  remember('puck');
+  window.location.replace(puckHref());
+}
+// Remembered from a previous visit: go, and touch NOTHING — the face kept
+// beside the memory is the one the person chose the puck from, and writing
+// over it here sent every way back to presence.
+if (current === 'puck') { window.location.replace(puckHref()); }
 if (FACES.indexOf(current) === -1) current = 'presence';
 
 function rememberedTransition(face) {
@@ -1708,6 +1731,14 @@ function faceOption(name) {
   // The choice rebuilds this node. A semantic press key lets the shared echo
   // gate consume the pointerup/mouseup/click tail on the replacement node.
   pressable(node, function () { cancelDwell(); applyFace(name); }, 'face:' + name);
+  return node;
+}
+
+/** The puck, offered beside the faces. Choosing it leaves for its own page. */
+function puckOption() {
+  var node = el('span', 'opt', 'puck');
+  node.setAttribute('data-face-option', 'puck');
+  pressable(node, function () { cancelDwell(); leaveForPuck(); }, 'face:puck');
   return node;
 }
 
@@ -3144,6 +3175,7 @@ function showPicker(mode, refreshing) {
   if (mode === 'faces') {
     var faceRow = el('div', 'row row-faces');
     for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
+    faceRow.appendChild(puckOption());
     nodes.push(faceRow);
     nodes.push(el('div', 'move-guide transition-guide',
       'Cover transition for ' + current + ' · Random never repeats immediately'));

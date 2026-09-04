@@ -7,7 +7,9 @@ import { renderMarkdown } from './markdown.ts';
 
 // Every face from the design tournament, each with a layout behind it. A name
 // only belongs here once it renders differently from the others.
-const FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora'] as const;
+// `puck` is a face OPTION but not a face LAYOUT: the Face page forwards to
+// /puck rather than drawing a circle inside its own 16:9 rules.
+const FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora', 'puck'] as const;
 export type FaceName = (typeof FACES)[number];
 export const DEFAULT_FACE: FaceName = 'presence';
 
