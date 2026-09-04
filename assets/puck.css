@@ -603,21 +603,29 @@ body {
  * with its keys at 35, 50 and 65 — and nothing touches.
  */
 .nav-keys { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; top: calc(var(--u) * 56); margin-top: calc(var(--u) * -4.5); margin-left: calc(var(--u) * -4.5); }
+.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; top: calc(var(--u) * 54); margin-top: calc(var(--u) * -4.5); margin-left: calc(var(--u) * -4.5); }
 .key-prev { left: calc(var(--u) * 35); }
 .key-next { left: calc(var(--u) * 65); }
 .key-select { left: 50%; border-color: var(--accent); color: var(--accent); }
 .puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
+/* name at 42.5, the row at 54, the subtitle at 61 — under the row, where the
+   ring of seven leaves the width for it. Measured: the 10:17 and 1:43 names end
+   at 41.6, the enlarged 3:26 circle reaches in to 73. */
 .puck[data-browse]:not([data-spell="1"]) .chosen {
-  left: calc(var(--u) * 25); right: calc(var(--u) * 25);
-  top: calc(var(--u) * 40); margin-top: 0;
+  left: calc(var(--u) * 34); right: calc(var(--u) * 34);
+  top: calc(var(--u) * 42.5); margin-top: 0;
 }
 .puck[data-browse]:not([data-spell="1"]) .chosen-title {
-  font-size: calc(var(--u) * 5.6); line-height: 1.1;
-  max-height: calc(var(--u) * 6.2);
+  font-size: calc(var(--u) * 5.4); line-height: 1.1;
+  max-height: calc(var(--u) * 6);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.puck[data-browse]:not([data-spell="1"]) .chosen-sub { margin-top: calc(var(--u) * .8); font-size: calc(var(--u) * 3.4); }
+.puck[data-browse]:not([data-spell="1"]) .chosen-sub {
+  position: absolute; left: calc(var(--u) * -6); right: calc(var(--u) * -6);
+  top: calc(var(--u) * 18.5); margin-top: 0;
+  font-size: calc(var(--u) * 3.2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* The speller's keys: the transport cluster's own circles, in a row under the
    query. Delete · clear · space · search. Shown only while spelling. */

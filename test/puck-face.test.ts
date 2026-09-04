@@ -585,7 +585,7 @@ test('genres get their own pictures, and only on a genre level', () => {
     assert.ok(hasGlyph(name), name + ' has line-work');
   }
   // Eight a page, each with its name beneath.
-  assert.match(BROWSE, /var SLOTS = 8;/);
+  assert.match(BROWSE, /var SLOTS = 7;/, 'seven a page: eight puts circles at three and nine, whose names land on their neighbours');
   assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,900}var name = el\('div', 'opt-name', item === null \? '\\u2026' : item\.title\);/);
 });
 

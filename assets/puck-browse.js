@@ -358,9 +358,9 @@ export function createBrowse(options) {
   function drawRing() {
     var n = view.tier === 'alpha' ? view.letters.length : view.items.length;
     var size = tokenSize(n);
-    // Under nine choices there is room to name each one under its circle; past
+    // Up to seven choices there is room to name each one under its circle; past
     // that the labels collide, and the centre is where the name is read anyway.
-    named = n <= 8;
+    named = n <= 7;
     for (var i = 0; i < n; i += 1) {
       var angle = (i / n) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise
       var node = el('div', i === view.sel ? 'opt opt-on' : 'opt');
@@ -420,9 +420,11 @@ export function createBrowse(options) {
    * twelve with the highlight back at twelve o'clock. The centre reads the
    * name; the count says where in the whole list this is.
    */
-  /* Eight a page, not twelve: with a name under every circle, eight is what a
-     ring has room for (Peter, 09-03: "icon with name underneath would be good"). */
-  var SLOTS = 8;
+  /* Seven a page, not twelve: with a name under every circle, seven is what a
+     ring has room for (Peter, 09-03: "icon with name underneath would be good").
+     Eight puts circles at exactly three and nine o'clock, whose names land on
+     the half-past-seven and half-past-four ones — measured, not guessed. */
+  var SLOTS = 7;
 
   function drawPaged() {
     var first = Math.floor(view.sel / SLOTS) * SLOTS;
