@@ -699,7 +699,8 @@ test('a playlist circle asks for a collage and the initial stands in meanwhile',
   assert.match(BROWSE, /import \{ createCollages \} from '\.\/collage\.js';/);
   assert.match(BROWSE, /var collages = createCollages\(ask, \{ size: 96, want: 4 \}\);/);
   assert.match(BROWSE, /function ask\(body, sessionKey\) \{\s*body\.sessionKey = sessionKey \|\| session;/, 'the builder may use its own stack');
-  assert.match(BROWSE, /onPlaylistsLevel\(\) && item\.hint !== 'action'/, 'only a playlist row, never an action');
+  assert.match(BROWSE, /var playlist = item !== null && !item\.art && onPlaylistsLevel\(\) && item\.hint !== 'action'/, 'only a playlist row, never an action');
+  assert.match(BROWSE, /var name = item === null \|\| playlist \? null : iconNameFor\(/, 'the collage comes before the shelf icons: "dCS Favourites" is a playlist, not a shelf');
   assert.match(BROWSE, /collages\.request\('playlists', item\.title,/, "always Roon's own playlists hierarchy: via Explore the level is in `browse`, whose root has no playlists");
   assert.match(BROWSE, /var RADIAL_MAX = 7;/, 'more than seven are pages, named');
   assert.match(BROWSE, /if \(url === null \|\| node\.parentNode === null\) return;/, 'a late collage for a circle no longer on the face is dropped');

@@ -330,13 +330,16 @@ export function createBrowse(options) {
 
   function token(item, text) {
     var node = el('div', 'tok');
-    var name = item === null ? null : iconNameFor(item.title, item.hint, onGenreLevel());
     /**
      * ⚖️ A PLAYLIST'S CIRCLE IS A COLLAGE OF ITS COVERS (Peter, 09-04). The
      * initial stands in while it is built; the sleeves replace it when they
-     * arrive, and only if this circle is still the one on the face.
+     * arrive, and only if this circle is still the one on the face. The
+     * collage comes BEFORE the shelf icons: a playlist called "dCS Favourites"
+     * is a playlist, not the Favorites shelf, and wore a heart until it did.
      */
-    if (name === null && item !== null && !item.art && onPlaylistsLevel() && item.hint !== 'action' && item.hint !== 'action_list') {
+    var playlist = item !== null && !item.art && onPlaylistsLevel() && item.hint !== 'action' && item.hint !== 'action_list';
+    var name = item === null || playlist ? null : iconNameFor(item.title, item.hint, onGenreLevel());
+    if (playlist) {
       var ready = collages.known(item.title);
       if (typeof ready === 'string') {
         var art = document.createElement('img');
