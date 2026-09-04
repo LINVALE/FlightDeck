@@ -584,7 +584,11 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(BROWSE, /level\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/, 'and its tap stays on it');
   assert.match(CSS, /\.level:before \{ content: '\\2039 '; color: var\(--accent\); \}/, 'the title reads "‹ GENRES"');
   assert.match(BROWSE, /var prevKey = key\('\\u2039', 'previous', function \(\) \{ move\(-1\); \}\);/);
-  assert.match(BROWSE, /var selectKey = key\('\\u25cf', 'select', function \(\) \{ commit\(\); \}\);/);
+  // ⚖️ THE NAME AND THE SELECT ARE ONE THING (Peter, 09-04): the centre circle is the select.
+  assert.doesNotMatch(BROWSE, /selectKey|key-select/);
+  assert.match(BROWSE, /chosen\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); commit\(\); \}\);/);
+  assert.match(BROWSE, /chosen\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/, 'and its tap stays on it');
+  assert.match(CSS, /\.puck\[data-browse\] \.chosen \{[\s\S]{0,400}border-radius: 50%;[\s\S]{0,120}border: 2px solid var\(--accent\);/, 'a larger, bolder circle');
   assert.match(BROWSE, /var upKey = key\('', 'up', function \(\) \{ back\(\); \}\);[^\n]*\n\s*upKey\.appendChild\(glyph\('return'\)\);/, 'an up button that looks like a return arrow (Peter, 09-03/04)');
   // the same arrow on the control screen goes home to the Wall
   assert.match(JS, /var btnHome = button\('return', 'btn-home'\);/);
@@ -592,7 +596,7 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
   assert.ok(hasGlyph('return'));
-  assert.match(CSS, /\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 35\); \}/);
   // swipes mean the same: ↑ is up, ← → are next and previous
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dx < 0 \? 1 : -1\); return true; \}/, 'a sideways swipe steps the highlight');
   assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.back\(\);/, 'an upward swipe is up');
@@ -667,7 +671,7 @@ test('the cog is the volume in every state; the alphabet outside is reached by t
   assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title');
   assert.match(BROWSE, /var from = Math\.floor\(offset \/ SLOTS\) \* SLOTS;/, 'a jump loads from the page\'s own start');
   assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/);
-  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 35\); \}/);
   assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
 });
 

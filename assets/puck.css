@@ -622,6 +622,7 @@ body {
    six o'clock choice. */
 .puck[data-tier="radial"] .count { display: none; }
 
+
 .count {
   position: absolute; left: 0; right: 0;
   bottom: calc(var(--u) * 7);
@@ -657,9 +658,7 @@ body {
 .puck[data-lettered="1"] .count { bottom: calc(var(--u) * 14); left: calc(var(--u) * 30); right: calc(var(--u) * 30); font-size: calc(var(--u) * 3); }
 .puck[data-lettered="1"] .opt-name { width: calc(var(--u) * 20); margin-left: calc(var(--u) * -10); font-size: calc(var(--u) * 2.8); }
 /* at a specificity that beats the browse block's own placement */
-.puck[data-browse][data-lettered="1"]:not([data-spell="1"]) .chosen { top: calc(var(--u) * 44.5); }
-.puck[data-browse][data-lettered="1"]:not([data-spell="1"]) .chosen-sub { top: calc(var(--u) * 6.4); left: calc(var(--u) * -4); right: calc(var(--u) * -4); }
-.puck[data-browse][data-lettered="1"] .nav-keys .key { top: calc(var(--u) * 59); }
+
 
 /* The centre's verbs: ‹ › either side of the name, select beneath it. Inside
    the ring at 9 and 3, where no circle or label sits; not while spelling, which
@@ -673,38 +672,61 @@ body {
  * with its keys at 35, 50 and 65 — and nothing touches.
  */
 .nav-keys { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; top: calc(var(--u) * 54); margin-top: calc(var(--u) * -4.5); margin-left: calc(var(--u) * -4.5); }
-.key-prev { left: calc(var(--u) * 35); }
-.key-next { left: calc(var(--u) * 65); }
-.key-select { left: 50%; border-color: var(--accent); color: var(--accent); }
+/**
+ * ‹ › ⌃ RIDE THE DISC'S OWN RIM. The ring's labels reach into every radius
+ * outside the disc, so the verbs go INSIDE their orbit, on the rim of the
+ * select circle itself: prev at nine, next at three, up at twelve — small, half
+ * off the disc, clear of every label. The disc is still the select; a tap on a
+ * verb is caught before it. */
+.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); font-size: calc(var(--u) * 3.4); margin-top: calc(var(--u) * -3.2); margin-left: calc(var(--u) * -3.2); background: rgba(10, 11, 14, .92); }
+.key-prev { left: calc(var(--u) * 35); top: 50%; }
+.key-next { left: calc(var(--u) * 65); top: 50%; }
 /* ⌃ up, above the name — clear of the 10:17 and 1:43 names either side of it */
-.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 36.5); }
+.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 35); }
 .puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
-/* name at 42.5, the row at 54, the subtitle at 61 — under the row, where the
-   ring of seven leaves the width for it. Measured: the 10:17 and 1:43 names end
-   at 41.6, the enlarged 3:26 circle reaches in to 73. */
-.puck[data-browse]:not([data-spell="1"]) .chosen {
-  left: calc(var(--u) * 34); right: calc(var(--u) * 34);
-  top: calc(var(--u) * 42.5); margin-top: 0;
+/**
+ * ⚖️ THE CENTRE IS ONE BOLD CIRCLE (Peter, 09-04): the highlighted item's name,
+ * its subtitle beneath, inside a 22-unit disc with the accent's rim — and the
+ * disc itself is the select. Sized to sit inside the ring's names: the 10:17
+ * and 1:43 names end at 42 (44 on a letter's page), the half-past-seven and
+ * half-past-four names begin at 64, the 3:26 circle reaches in to 72.
+ */
+.puck[data-browse] .chosen {
+  left: 50%; right: auto; top: 50%; margin-top: 0;
+  width: calc(var(--u) * 26); height: calc(var(--u) * 26);
+  margin-left: calc(var(--u) * -13); margin-top: calc(var(--u) * -13);
+  border-radius: 50%;
+  background: rgba(10, 11, 14, .8);
+  border: 2px solid var(--accent);
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  padding: 0 calc(var(--u) * 2.2);
+  cursor: pointer;
 }
-.puck[data-browse]:not([data-spell="1"]) .chosen-title {
-  font-size: calc(var(--u) * 5.4); line-height: 1.1;
-  max-height: calc(var(--u) * 6);
+.puck[data-browse] .chosen-title {
+  font-size: calc(var(--u) * 4.3); line-height: 1.1; font-weight: 700;
+  max-height: calc(var(--u) * 14.3);   /* up to three lines */
+  overflow: hidden;
+  width: 100%;
+  padding: 0 calc(var(--u) * 1.4);
+  box-sizing: border-box;
+}
+.puck[data-browse] .chosen-sub {
+  margin-top: calc(var(--u) * .6);
+  font-size: calc(var(--u) * 2.7);
+  width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.puck[data-browse]:not([data-spell="1"]) .chosen-sub {
-  position: absolute; left: calc(var(--u) * -6); right: calc(var(--u) * -6);
-  top: calc(var(--u) * 18.5); margin-top: 0;
-  font-size: calc(var(--u) * 3.2);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+.puck[data-browse] .chosen-art { display: none !important; }
 
 /* The speller's keys: the transport cluster's own circles, in a row under the
    query. Delete · clear · space · search. Shown only while spelling. */
 .spell-keys {
   position: absolute; left: 0; right: 0;
-  /* Between the query and the five-o'clock letters: at 66 the row sat on Q and K. */
-  top: calc(var(--u) * 59);
+  /* Under the centre circle (which ends at 61), above the five-o'clock letters at 71. */
+  top: calc(var(--u) * 66);
   display: -webkit-flex; display: flex;
   -webkit-justify-content: center; justify-content: center;
 }

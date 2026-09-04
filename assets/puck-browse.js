@@ -224,17 +224,23 @@ export function createBrowse(options) {
   var nav = el('div', 'nav-keys');
   var prevKey = key('\u2039', 'previous', function () { move(-1); });
   var nextKey = key('\u203a', 'next', function () { move(1); });
-  var selectKey = key('\u25cf', 'select', function () { commit(); });
   var upKey = key('', 'up', function () { back(); });   // Peter, 09-03: "an up button would be helpful"
   upKey.appendChild(glyph('return'));                  // 09-04: "should look like a return arrow, curved back on itself"
   prevKey.className = 'key key-prev';
   nextKey.className = 'key key-next';
-  selectKey.className = 'key key-select';
   upKey.className = 'key key-up';
   nav.appendChild(upKey);
   nav.appendChild(prevKey);
-  nav.appendChild(selectKey);
   nav.appendChild(nextKey);
+  /**
+   * ⚖️ THE NAME AND THE SELECT ARE ONE THING (Peter, 09-04: "make the centre
+   * select text and the button one item in a larger bolder circle, e.g. 'Play
+   * now'"). The centre circle reads the highlighted item, subtitle inside, and
+   * a tap on it selects; the ● key it replaces is gone.
+   */
+  chosen.addEventListener('click', function (event) { event.stopPropagation(); commit(); });
+  chosen.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+  chosen.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 
   keys.appendChild(key('\u232b', 'delete the last letter', function () { if (view && view.spell) spellStop(DELETE); }));
   keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
