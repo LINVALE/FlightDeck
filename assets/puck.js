@@ -162,12 +162,19 @@ function arcOf(className, radius, circumference) {
  * rings", "art doesn't fill circle"). Volume lives on the bezel's dots now.
  */
 var progTrack = circle('prog-track', PROG_R);
+/**
+ * A hairline dark halo under the arc — the arc's own edge, not a ring. It is
+ * what lets the accent stay the sleeve's colour: legibility comes from the
+ * halo, so the tone need not be pushed to white or to mud to be seen.
+ */
+var progHalo = arcOf('prog-halo', PROG_R, PROG_C);
 var progArc = arcOf('prog-arc', PROG_R, PROG_C);
 var progBead = document.createElementNS(SVG_NS, 'circle');
 progBead.setAttribute('class', 'prog-bead');
 progBead.setAttribute('r', '1.8');
 progBead.style.display = 'none';
 ring.appendChild(progTrack);
+ring.appendChild(progHalo);
 ring.appendChild(progArc);
 ring.appendChild(progBead);
 
@@ -524,6 +531,7 @@ function setArc(arc, circumference, fraction) {
 }
 
 function setProgress(fraction) {
+  setArc(progHalo, PROG_C, fraction);
   setArc(progArc, PROG_C, fraction);
   if (fraction === null) { progBead.style.display = 'none'; return; }
   var clamped = Math.max(0, Math.min(1, fraction));

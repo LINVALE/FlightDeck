@@ -177,7 +177,8 @@ body {
   stroke-linecap: round;
 }
 
-.prog-bead { fill: #fffef8; }
+.prog-halo { fill: none; stroke: rgba(0, 0, 0, .40); stroke-width: 4.2; stroke-linecap: round; }
+.prog-bead { fill: #fffef8; stroke: rgba(0, 0, 0, .45); stroke-width: .6; }
 
 /* ---- the copy: inset from the rim, because a circle narrows toward its ends ---- */
 

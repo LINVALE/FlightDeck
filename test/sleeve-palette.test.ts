@@ -32,17 +32,25 @@ test('a dark red sleeve gives a red accent that clears the deck, and a ring that
   const rich = hexToRgb(tones.rich);
   assert.ok(contrast(rich, 0.00518) >= 2.6 && luminance(rich) < luminance(lit), 'the ring tone keeps more of its colour');
   // The ring is drawn OVER the sleeve's edge band, which here is that same dark red.
-  assert.ok(contrast(hexToRgb(tones.ring), tones.band) >= 3.0, 'the ring clears the band it sits on');
+  assert.ok(contrast(hexToRgb(tones.ring), tones.band) >= 2.2, 'the ring clears the band it sits on');
   assert.ok(tones.foot < 0.2, 'a dark foot');
 });
 
-/** A bright sleeve is where lifting would wash the ring out: the deep tone wins there. */
-test('on a bright sleeve the ring goes deep rather than washing to white', () => {
+/**
+ * A bright sleeve is where lifting would wash the ring out, so it is SUNK
+ * instead — toward black with the hue kept. Never the raw deep tone: that
+ * painted Charlie Brown's ring mud-brown, contrast without colour.
+ */
+test('on a bright sleeve the ring darkens with its hue kept, rather than washing out or going to mud', () => {
   const tones = tonesOf(sleeve(() => [210, 200, 120]), 32);
   assert.ok(tones);
   assert.ok(tones.band > 0.5, 'a bright band');
-  assert.equal(tones.ring, tones.deep, 'deep reads on a bright band; lifting only makes it paler');
-  assert.ok(contrast(hexToRgb(tones.ring), tones.band) >= 3.0);
+  const ring = hexToRgb(tones.ring);
+  const rich = hexToRgb(tones.rich);
+  assert.ok(luminance(ring) < luminance(rich), 'sunk, not lifted');
+  assert.ok(ring[0] > ring[2] && ring[1] > ring[2], 'still the sleeve\'s yellow');
+  assert.notEqual(tones.ring, tones.deep, 'and not the flat deep tone');
+  assert.ok(contrast(ring, tones.band) >= 2.2);
   assert.ok(tones.foot > 0.35, 'a bright foot, so the scrim must be stronger');
 });
 

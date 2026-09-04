@@ -50,6 +50,15 @@ export function liftToContrast(rgb, target, againstLuminance) {
   return out;
 }
 
+/** The mirror of the lift: toward black, hue kept, until it clears. */
+export function sinkToContrast(rgb, target, againstLuminance) {
+  var out = [rgb[0], rgb[1], rgb[2]];
+  for (var step = 0; step < 24 && contrast(out, againstLuminance) < target; step += 1) {
+    for (var c = 0; c < 3; c += 1) out[c] = out[c] * 0.92;
+  }
+  return out;
+}
+
 export function toHex(rgb, lift) {
   var scale = typeof lift === 'number' ? lift : 1;
   var out = '#';
@@ -139,13 +148,17 @@ export function tonesOf(data, size) {
   var foot = regionLuminance(data, n, inFoot);
   var rich = liftToContrast(top, 2.6, DECK);
   var deep = [top[0] * 0.42, top[1] * 0.42, top[2] * 0.42];
-  // The ring against the sleeve's own edge: lift the rich tone until it clears
-  // 3:1 there; on a bright band, where lifting only washes it out, the deep tone
-  // is the one that reads — whichever of the two clears the band better wins.
+  /**
+   * The ring against the sleeve's own edge, HUE KEPT EITHER WAY: on a dark band
+   * the rich tone is lifted toward white until it clears; on a bright band it is
+   * sunk toward black instead. A first cut jumped to the deep tone on a bright
+   * band and painted Charlie Brown's ring mud-brown — contrast without colour.
+   * The target is modest, 2.2:1, because the arc also carries a hairline dark
+   * halo on the face: legibility comes from the halo, colour from the sleeve.
+   */
   var ring = rich;
   if (band !== null) {
-    var lifted = liftToContrast(rich, 3.0, band);
-    ring = contrast(lifted, band) >= contrast(deep, band) ? lifted : deep;
+    ring = luminance(rich) >= band ? liftToContrast(rich, 2.2, band) : sinkToContrast(rich, 2.2, band);
   }
   return {
     deep: toHex(deep),

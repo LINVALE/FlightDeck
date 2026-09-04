@@ -201,7 +201,9 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.match(JS, /var DETENT_DEG = 12;/, 'the DRAG keeps the board\'s own detent, which the gate was budgeted for');
   assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span\)/);
   assert.match(JS, /rotate\(-90 50 50\)/);
-  assert.match(JS, /var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/);
+  assert.match(JS, /var progHalo = arcOf\('prog-halo', PROG_R, PROG_C\);\s*var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/,
+    'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
+  assert.match(CSS, /\.prog-halo \{ fill: none; stroke: rgba\(0, 0, 0, \.40\); stroke-width: 4\.2;/);
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
   assert.match(CSS, /\.tick\.is-lit \{ stroke: rgba\(242, 238, 230, \.92\); \}/);
   assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit/, 'muted dims the lit run rather than emptying it');
