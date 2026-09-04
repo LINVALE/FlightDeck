@@ -179,6 +179,17 @@ ring.appendChild(progArc);
 ring.appendChild(progBead);
 
 var room = el('div', 'room');
+/**
+ * ⚖️ A TURN OR A TAP ON THE WHEEL SHOWS THE LEVEL IN THE CENTRE, THEN FADES
+ * (Peter, 09-03). The number, large, with the word under it — a knob that
+ * answers a turn with a number is what makes the wheel feel connected — and
+ * it goes again by itself, so the face's subject stays the music.
+ */
+var volRead = el('div', 'vol-read');
+var volReadValue = el('b', 'vol-read-value');
+var volReadLabel = el('span', 'vol-read-label', 'volume');
+volRead.appendChild(volReadValue);
+volRead.appendChild(volReadLabel);
 
 var words = el('div', 'words');
 var title = el('div', 'title');
@@ -222,6 +233,7 @@ glass.appendChild(ring);
 glass.appendChild(room);
 glass.appendChild(words);
 glass.appendChild(pad);
+glass.appendChild(volRead);
 glass.appendChild(note);
 glass.appendChild(toast);
 rig.appendChild(glass);
@@ -557,6 +569,7 @@ function paintVolume() {
     // An incremental output says only that it takes + and −: no level to read,
     // no dots to light, and inventing either would be a lie.
     root.setAttribute('data-vol', 'blind');
+    volReadValue.textContent = volume.muted ? 'muted' : '\u00b7\u00b7\u00b7';
     lightDetents(null);
     return;
   }
@@ -576,6 +589,8 @@ function paintVolume() {
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
   lightDetents((shown - bounds.min) / span);
+  volReadValue.textContent = volume.muted ? 'muted' : String(Math.round(shown));
+  volReadLabel.textContent = volume.muted ? output.name : 'volume \u00b7 ' + output.name;
 }
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */

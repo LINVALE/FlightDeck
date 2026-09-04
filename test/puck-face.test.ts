@@ -8,7 +8,7 @@ import { RecentLedger } from '../src/ledger/recent.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from '../src/http/server.ts';
 import { tierFor, sampleOffsets, letterOf, isAlphabetical, selectionComplete } from '../assets/puck-browse.js';
-import { iconNameFor, hasGlyph } from '../assets/puck-icons.js';
+import { iconNameFor, genreIconFor, hasGlyph } from '../assets/puck-icons.js';
 import { ZONES } from './fixtures/zones.ts';
 
 const asset = (name: string): string =>
@@ -208,15 +208,16 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
     'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
   assert.match(CSS, /\.prog-halo \{ fill: none; stroke: rgba\(0, 0, 0, \.40\); stroke-width: 4\.2;/);
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
-  // ⚖️ THREE STATES: the scale lights only while the controls are up; at rest
-  // the face is the art, the ring and the words.
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.95; \}/,
-    'lit in the accent the ring wears: the wheel follows the sleeve');
-  assert.doesNotMatch(CSS, /^\.tick\.is-lit \{/m, 'never lit at rest');
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
+  // ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "bold the ticks up to
+  // the level") — lit in the accent and thicker, in every state.
+  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.95; stroke-width: 1; \}/m,
+    'lit and bold, at rest as much as in control');
+  assert.doesNotMatch(CSS, /\[data-chrome="1"\] \.tick\.is-lit/, 'no state gate on the level');
+  assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
   // In browse the circles are the menu and the seek wheel goes; the cascade stays.
   assert.match(CSS, /\.puck\[data-browse\] \.ring \{ display: none; \}/);
-  assert.match(BROWSE, /crumbs\.setAttribute\('class', 'crumbs'\)/, 'the cascade has its own class so it is not hidden with the ring');
+  assert.doesNotMatch(BROWSE, /crumbs/, 'no circle of any kind in browse: the breadcrumb arcs read as a progress circle (Peter, 09-03)');
+  assert.doesNotMatch(CSS, /\.crumb/);
   assert.match(CSS, /\.prog-arc \{[\s\S]{0,160}stroke: var\(--accent\)/);
 });
 
@@ -316,13 +317,13 @@ test('the menu and the cluster share one circle and one set of line-work', () =>
   assert.match(BROWSE, /import \{ glyph, iconNameFor \} from '\.\/puck-icons\.js';/);
   assert.match(JS, /import \{ glyph \} from '\.\/puck-icons\.js';/,
     'the transport cluster and the menu draw from the same set, not two copies of it');
-  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,420}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
+  assert.match(BROWSE, /function token\(item, text\)[\s\S]{0,700}node\.appendChild\(el\('span', 'tok-text', text\)\)/,
     'icon, then the row\'s own sleeve, then its initial');
   assert.match(CSS, /\.tok \{[\s\S]{0,300}border-radius: 50%/);
   assert.match(CSS, /\.opt-on \.tok \{[\s\S]{0,160}border-color: var\(--accent\)/,
     'the chosen circle is marked the way an engaged transport button is');
-  assert.match(BROWSE, /var below = Math\.sin\(angle\) <= 0;/,
-    'a label hangs below on the top half and above on the bottom: a circle has no room at its foot');
+  assert.match(BROWSE, /var below = Math\.sin\(angle\) <= 1e-9;/,
+    'a label hangs below on the top half and above on the bottom — with a tolerance, because sin(π) is +1e-16 and nine o\'clock must side with three');
 });
 
 test('the cluster is repeat · previous · play/pause · next · shuffle', () => {
@@ -516,7 +517,7 @@ test('the overlay lets a tap through to the title, the ring and the field', () =
   assert.match(CSS, /\.pad-veil \{[\s\S]{0,200}pointer-events: none;/);
   assert.match(CSS, /\.btn \{\s*position: absolute;\s*pointer-events: auto;/);
   // The wheel follows the sleeve: the lit run wears the accent the ring wears.
-  assert.match(CSS, /\.puck\[data-chrome="1"\] \.tick\.is-lit \{ stroke: var\(--accent\);/);
+  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\);/m);
   assert.match(CSS, /\.tick\.major \{ stroke: var\(--accent\); stroke-opacity: \.34; \}/);
 });
 
@@ -529,4 +530,76 @@ test('one tap on a circle selects it and goes; the centre commits the highlight'
   // and the tap must not ALSO reach the glass as a centre tap on the highlight
   assert.match(BROWSE, /function bindPick\(node, index\)[\s\S]{0,1200}node\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/);
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band\) browse\.commit\(\); return; \}/, 'a tap inside the ring band commits the highlight');
+});
+
+/**
+ * ⚖️ THE HIGHLIGHT WALKS THE RING; A FULL CIRCLE TURNS THE PAGE (Peter, 09-03:
+ * "the menus become vertical, which will be hard on the puck … a turn of the
+ * wheel advances around the selection, 360 brings up the next, or a click on a
+ * next arrow in the centre — next/prev, select, up/back"). The middle tier is
+ * pages of twelve circles that stay put; ‹ › flank the name, select sits
+ * beneath it, and back is the level's own title.
+ */
+test('the middle tier is pages on the ring, with next, prev, select and back to hand', () => {
+  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,300}var first = Math\.floor\(view\.sel \/ SLOTS\) \* SLOTS;/);
+  assert.doesNotMatch(BROWSE, /drawColumn|drawCarousel/);
+  assert.doesNotMatch(CSS, /\[data-tier="linear"\] \.tok \{/, 'no column layout survives');
+  assert.match(BROWSE, /if \(view\.sel \+ SLOTS < have \|\| have >= view\.total\) return;/, 'a whole page is kept in hand past the highlight');
+  assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/);
+  assert.match(BROWSE, /level\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/, 'and its tap stays on it');
+  assert.match(CSS, /\.level:before \{ content: '\\2039 '; color: var\(--accent\); \}/, 'the title reads "‹ GENRES"');
+  assert.match(BROWSE, /var prevKey = key\('\\u2039', 'previous', function \(\) \{ move\(-1\); \}\);/);
+  assert.match(BROWSE, /var selectKey = key\('\\u25cf', 'select', function \(\) \{ commit\(\); \}\);/);
+  assert.match(CSS, /\.puck:not\(\[data-browse\]\) \.nav-keys, \.puck\[data-spell="1"\] \.nav-keys \{ display: none; \}/);
+});
+
+/**
+ * ⚖️ A PICTURE FOR EACH GENRE, CHOSEN WISELY (Peter, 09-03). Only on a genre
+ * level, so an album called "Country Roads" never wears a hat; the more specific
+ * word wins, so Latin Jazz is Latin and Folk/Rock is folk.
+ */
+test('genres get their own pictures, and only on a genre level', () => {
+  assert.equal(genreIconFor('Latin'), 'maracas');
+  assert.equal(genreIconFor('Latin Jazz / World'), 'maracas', 'the specific word wins');
+  assert.equal(genreIconFor('Country'), 'hat');
+  assert.equal(genreIconFor('Alternative Country'), 'hat');
+  assert.equal(genreIconFor('Jazz'), 'trumpet');
+  assert.equal(genreIconFor('Classical'), 'clef');
+  assert.equal(genreIconFor('Blues'), 'harmonica');
+  assert.equal(genreIconFor('Folk/Rock'), 'guitar');
+  assert.equal(genreIconFor('Pop/Rock'), 'star', 'pop before rock on the biggest shelf');
+  assert.equal(genreIconFor('Hip-Hop/Rap'), 'mic');
+  assert.equal(genreIconFor('R&B/Soul'), 'heart');
+  assert.equal(genreIconFor('Reggae'), 'globe');
+  assert.equal(genreIconFor('Electronic'), 'wave');
+  assert.equal(genreIconFor('Stage & Screen'), 'clapper');
+  assert.equal(genreIconFor('Holiday'), 'snowflake');
+  assert.equal(genreIconFor("Children's"), 'balloon');
+  assert.equal(genreIconFor('Unclassifiable'), null, 'no picture beats a wrong one');
+  // The level gate: the same word is a hat on a genre level and nothing elsewhere.
+  assert.equal(iconNameFor('Country', 'list', true), 'hat');
+  assert.equal(iconNameFor('Country Roads', 'list', false), null);
+  assert.equal(iconNameFor('Artists', 'list', true), 'artist', 'Roon\'s nouns keep their own pictures on a genre level');
+  assert.equal(iconNameFor('Play Genre', 'action_list', true), 'play');
+  for (const name of ['maracas', 'hat', 'trumpet', 'clef', 'harmonica', 'guitar', 'mic', 'heart', 'globe', 'wave', 'clapper', 'bubble', 'star', 'snowflake', 'bell', 'balloon', 'leaf']) {
+    assert.ok(hasGlyph(name), name + ' has line-work');
+  }
+  // Eight a page, each with its name beneath.
+  assert.match(BROWSE, /var SLOTS = 8;/);
+  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,900}var name = el\('div', 'opt-name', item === null \? '\\u2026' : item\.title\);/);
+});
+
+/**
+ * ⚖️ A TURN OR A TAP ON THE WHEEL SHOWS THE LEVEL IN THE CENTRE, THEN FADES
+ * (Peter, 09-03). Raised by the same `data-turning` a turn or a tap holds for
+ * a moment; it fades by itself and takes no touch.
+ */
+test('the level shows large in the centre on a turn or a tap, then fades', () => {
+  assert.match(JS, /var volRead = el\('div', 'vol-read'\);/);
+  assert.match(JS, /volReadValue\.textContent = volume\.muted \? 'muted' : String\(Math\.round\(shown\)\);/, 'the reading under the hand, bounded by the gate');
+  assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,700}showTurning\(\);/, 'a tap on the wheel raises it');
+  assert.match(JS, /function turn\(step\)[\s\S]{0,400}showTurning\(\);/, 'so does a turn');
+  assert.match(CSS, /\.vol-read \{[\s\S]{0,600}top: 50%;[\s\S]{0,500}opacity: 0;[\s\S]{0,120}pointer-events: none;[\s\S]{0,200}transition: opacity \.55s ease-out;/);
+  assert.match(CSS, /\.puck\[data-turning="1"\] \.vol-read \{ opacity: 1;/);
+  assert.match(CSS, /\.puck\[data-browse\] \.vol-read, \.puck\[data-vol="none"\] \.vol-read \{ display: none; \}/);
 });

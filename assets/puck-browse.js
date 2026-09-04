@@ -6,10 +6,13 @@
  * first. Measured on a real library: Explore 7, Genres 56, Albums 2295 — which
  * is exactly why all three tiers have to exist.
  *
- *   ≤ 12    RADIAL   the choices ring the face, the selected one read large
- *   ≤ 200   COLUMN   the whole level in hand, spun under the thumb
- *   more    LETTERS  a ring of initials — IF the level is in order — then a
- *                    column anchored where that letter starts
+ *   ≤ 12    RADIAL    the choices ring the face, all of them at once
+ *   ≤ 200   PAGES     the whole level in hand, twelve circles at a time; the
+ *                     wheel walks the highlight round them and a full circle
+ *                     turns the page (Peter, 09-03: "the menus become vertical,
+ *                     which will be hard on the puck")
+ *   more    LETTERS   a ring of initials — IF the level is in order — then the
+ *                     pages anchored where that letter starts
  *
  * ⚖️ THE LETTER RING BELONGS TO THE BIG LISTS (Peter, 09-03). It was designed
  * for the 13–200 band, and that band never needed it: two hundred rows is a
@@ -169,7 +172,17 @@ export function createBrowse(options) {
 
   var layer = el('div', 'browse');
   var veil = el('div', 'browse-veil');
+  /**
+   * ⚖️ THE LEVEL'S TITLE IS THE WAY BACK (Peter, 09-03: "back to previous menu
+   * available on clicking"). It is the one thing in browse that is always at
+   * the top and never under a circle, and a title that reads "‹ GENRES" says
+   * where a tap on it goes. It also carries the depth: the breadcrumb arcs
+   * that used to are gone — in browse they read as a progress circle.
+   */
   var level = el('div', 'level');
+  level.addEventListener('click', function (event) { event.stopPropagation(); back(); });
+  level.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+  level.addEventListener('pointerup', function (event) { event.stopPropagation(); });
   var optWrap = el('div', 'opt-wrap');
   var chosen = el('div', 'chosen');
   var chosenArt = document.createElement('img');
@@ -199,20 +212,34 @@ export function createBrowse(options) {
     node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
     return node;
   }
+  /**
+   * ⚖️ THE VERBS, IN THE CENTRE (Peter, 09-03: "a click on a next arrow in the
+   * centre — next/prev for the menu, select to choose, up/back for the previous
+   * level"). ‹ and › either side of the name, select beneath it, and up/back
+   * on the level's title at the top. Circles, like everything else pressable.
+   */
+  var nav = el('div', 'nav-keys');
+  var prevKey = key('\u2039', 'previous', function () { move(-1); });
+  var nextKey = key('\u203a', 'next', function () { move(1); });
+  var selectKey = key('\u25cf', 'select', function () { commit(); });
+  prevKey.className = 'key key-prev';
+  nextKey.className = 'key key-next';
+  selectKey.className = 'key key-select';
+  nav.appendChild(prevKey);
+  nav.appendChild(selectKey);
+  nav.appendChild(nextKey);
+
   keys.appendChild(key('\u232b', 'delete the last letter', function () { if (view && view.spell) spellStop(DELETE); }));
   keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
   keys.appendChild(key('\u2423', 'space', function () { if (view && view.spell) spellStop(SPACE); }));
   keys.appendChild(key('\u21b5', 'search', function () { if (view && view.spell) spellStop(GO); }));
-  var crumbs = document.createElementNS(SVG_NS, 'svg');
-  crumbs.setAttribute('class', 'crumbs');   // its own class: the seek ring is hidden in browse, the cascade is not
-  crumbs.setAttribute('viewBox', '0 0 100 100');
   layer.appendChild(veil);
-  layer.appendChild(crumbs);
   layer.appendChild(level);
   layer.appendChild(optWrap);
   layer.appendChild(chosen);
   layer.appendChild(linsub);
   layer.appendChild(count);
+  layer.appendChild(nav);
   layer.appendChild(keys);
   host.appendChild(layer);
 
@@ -261,19 +288,9 @@ export function createBrowse(options) {
     level.textContent = view.title;
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
 
-    if (view.tier === 'linear') drawColumn();
+    if (view.tier === 'linear') drawPaged();
     else drawRing();
 
-    // the cascade: one thin arc per Roon level already descended
-    while (crumbs.firstChild) crumbs.removeChild(crumbs.firstChild);
-    for (var d = 0; d < view.depth; d += 1) {
-      var arc = document.createElementNS(SVG_NS, 'circle');
-      arc.setAttribute('class', 'crumb');
-      arc.setAttribute('cx', '50');
-      arc.setAttribute('cy', '50');
-      arc.setAttribute('r', String(43 - d * 3));
-      crumbs.appendChild(arc);
-    }
   }
 
   function label(index) {
@@ -289,9 +306,15 @@ export function createBrowse(options) {
    * and the full name is read large in the middle. Navigate by the ring, read by
    * the centre, which is the rule this face was built on.
    */
+  /** A genre level: Roon's own Genres hierarchy, or any level whose title says so. */
+  function onGenreLevel() {
+    return view !== null && (view.hierarchy === 'genres' || /genre/i.test(view.title || '')
+      || (view.parentTitle !== undefined && /genre/i.test(view.parentTitle)));
+  }
+
   function token(item, text) {
     var node = el('div', 'tok');
-    var name = item === null ? null : iconNameFor(item.title, item.hint);
+    var name = item === null ? null : iconNameFor(item.title, item.hint, onGenreLevel());
     if (name !== null) {
       node.appendChild(glyph(name));
       return node;
@@ -356,7 +379,7 @@ export function createBrowse(options) {
          * ran off the bottom of the glass and into the count line — a circle has
          * no room at its foot, so the label goes wherever there is any.
          */
-        var below = Math.sin(angle) <= 0;
+        var below = Math.sin(angle) <= 1e-9;   // sin(π) is +1e-16: nine o'clock must side with three
         name.style.marginTop = below
           ? 'calc(var(--u) * ' + String(mine / 2 + 1.4) + ')'
           : 'calc(var(--u) * ' + String(-(mine / 2 + 5.1)) + ')';
@@ -388,31 +411,52 @@ export function createBrowse(options) {
     else count.textContent = String(view.sel + 1) + ' / ' + String(view.total);
   }
 
-  function drawColumn() {
-    for (var d = -WINDOW; d <= WINDOW; d += 1) {
-      var index = view.sel + d;
-      if (index < 0 || index >= view.total) continue;
+  /**
+   * ⚖️ THE HIGHLIGHT WALKS THE RING; A FULL CIRCLE TURNS THE PAGE (Peter, 09-03:
+   * "a turn of the wheel advances around the selection, 360 brings up the
+   * next"). The middle tier and the list under a letter are PAGES of up to
+   * twelve circles that stay put, exactly like the small ring; the wheel moves
+   * the highlight round them, and stepping past the last brings up the next
+   * twelve with the highlight back at twelve o'clock. The centre reads the
+   * name; the count says where in the whole list this is.
+   */
+  /* Eight a page, not twelve: with a name under every circle, eight is what a
+     ring has room for (Peter, 09-03: "icon with name underneath would be good"). */
+  var SLOTS = 8;
+
+  function drawPaged() {
+    var first = Math.floor(view.sel / SLOTS) * SLOTS;
+    var n = Math.max(1, Math.min(SLOTS, view.total - first));
+    var size = tokenSize(n);
+    named = true;
+    for (var k = 0; k < n; k += 1) {
+      var index = first + k;
       var item = itemAt(index);
-      var node = el('div', d === 0 ? 'opt opt-on' : 'opt');
-      node.appendChild(token(item, item === null ? '\u2026' : item.title.charAt(0).toUpperCase()));
-      node.appendChild(el('div', 'opt-name', item === null ? '\u2026' : item.title));
-      place(node, 50, 50 + d * 12);
+      var angle = (k / n) * 2 * Math.PI - Math.PI / 2;
+      var node = el('div', index === view.sel ? 'opt opt-on' : 'opt');
+      var mark = token(item, item === null ? '\u2026' : item.title.charAt(0).toUpperCase());
+      var mine = index === view.sel ? size * 1.3 : size;
+      sizeToken(mark, mine);
+      node.appendChild(mark);
+      var name = el('div', 'opt-name', item === null ? '\u2026' : item.title);
+      var below = Math.sin(angle) <= 1e-9;   // sin(π) is +1e-16: nine o'clock must side with three
+      name.style.marginTop = below
+        ? 'calc(var(--u) * ' + String(mine / 2 + 1.4) + ')'
+        : 'calc(var(--u) * ' + String(-(mine / 2 + 5.1)) + ')';
+      node.appendChild(name);
+      place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
       bindPick(node, index);
       optWrap.appendChild(node);
     }
     var pick = itemAt(view.sel);
     chosenArt.style.display = 'none';
     chosen.className = 'chosen';
-    linsub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
+    chosenTitle.textContent = pick === null ? '\u2026' : pick.title;
+    chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
+    linsub.textContent = '';
+    root.setAttribute('data-named', '1');
     count.textContent = String(view.sel + 1) + ' / ' + String(view.total)
-      + (view.letter === null ? '' : '  ·  ' + view.letter);
-  }
-
-  function stopName(stop) {
-    if (stop === SPACE) return 'space';
-    if (stop === DELETE) return 'delete';
-    if (stop === GO) return 'search';
-    return stop;
+      + (view.letter === null ? '' : '  \u00b7  ' + view.letter);
   }
 
   function bindPick(node, index) {
@@ -464,7 +508,9 @@ export function createBrowse(options) {
   function fill() {
     if (view === null || view.tier !== 'linear' || view.paging) return;
     var have = view.base + view.items.length;
-    if (view.sel < have - (WINDOW + 2) || have >= view.total) return;
+    // Keep a whole page in hand past the highlight, so the next twelve are
+    // drawn the moment the wheel steps onto them.
+    if (view.sel + SLOTS < have || have >= view.total) return;
     var mine = epoch;
     view.paging = true;
     ask({ hierarchy: view.hierarchy, load: true, count: PAGE, offset: have })
@@ -522,9 +568,10 @@ export function createBrowse(options) {
     if (list === null || list === undefined) throw new Error('that level has no list');
     var total = list.count;
     var wanted = tierFor(total);
+    var parentTitle = view !== null ? view.title : undefined;
     view = {
       hierarchy: hierarchy, tier: wanted === 'alpha' ? 'linear' : wanted,
-      title: list.title || 'Browse', total: total,
+      title: list.title || 'Browse', total: total, parentTitle: parentTitle,
       items: [], base: 0, sel: 0, depth: depth, letter: null, paging: false,
       letters: null, probes: {},
     };

@@ -81,19 +81,19 @@ body {
 .tick { stroke: rgba(242, 238, 230, .16); stroke-width: .45; stroke-linecap: round; }
 .tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
 /**
- * ⚖️ THREE STATES (Peter, 09-03): at REST the face is the art, the progress
- * ring and the words — nothing lit, nothing drawn; in CONTROL the cluster and
- * the lit scale join the ring; in BROWSE the circles are the menu and the seek
- * wheel goes. So the scale lights only while the controls are up.
+ * ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "we need the volume to be
+ * reflected on the cogs on screen — bold the ticks up to the level"). An
+ * earlier reading of "progress only at rest" had the scale light only while
+ * the controls were up; overruled. The lit run is BOLD as well as bright, in
+ * the accent the ring wears, so the level reads across a room; the bezel face
+ * is tinted toward the sleeve's deep tone and the majors carry a trace of the
+ * accent even unlit — one scheme, from the sleeve, on everything active.
  */
-/* ⚖️ THE WHEEL FOLLOWS THE SLEEVE (Peter, 09-03: "cog wheel doesn't follow a
-   colour scheme"): the lit run is the accent the ring wears, the bezel face is
-   tinted toward the sleeve's deep tone, and the majors carry a trace of the
-   accent even unlit — one scheme, from the sleeve, on everything active. */
 .tick.major { stroke: var(--accent); stroke-opacity: .34; }
-.puck[data-chrome="1"] .tick.is-lit { stroke: var(--accent); stroke-opacity: .95; }
-.puck[data-chrome="1"] .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
-.puck[data-chrome="1"] .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
+.tick.is-lit { stroke: var(--accent); stroke-opacity: .95; stroke-width: 1; }
+.tick.major.is-lit { stroke-width: 1.4; }
+.rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
+.rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
 
 .glass {
   position: absolute;
@@ -169,7 +169,7 @@ body {
 /* The accent moves with the sleeve; let it arrive rather than snap. */
 .prog-arc, .prog-bead, .opt-on .tok, .btn[data-on="1"] { -webkit-transition: stroke .6s, border-color .6s, color .6s; transition: stroke .6s, border-color .6s, color .6s; }
 
-.ring, .crumbs {
+.ring {
   position: absolute; top: 0; left: 0;
   width: 100%; height: 100%;
   display: block;
@@ -177,7 +177,7 @@ body {
 }
 
 /* In browse the circles are the menu and the seek wheel goes with the words:
-   one reading of the face at a time. The cascade's own arcs stay. */
+   one reading of the face at a time. No circle of any kind is drawn in browse. */
 .puck[data-browse] .ring { display: none; }
 
 /* ---- the rim: PROGRESS, Roon's own reported second ---- */
@@ -207,6 +207,43 @@ body {
   text-transform: uppercase;
   color: var(--ink-dim);
   cursor: pointer;   /* the way back to the faces list */
+}
+
+/**
+ * THE LEVEL, LARGE IN THE CENTRE, THEN GONE (Peter, 09-03: "if the cog is
+ * turned or the outer circle clicked, show that clearly on the centre of the
+ * screen and then fade"). Raised by `data-turning`, which a turn or a tap on
+ * the wheel holds for a moment; it fades on its own. It is a reading, so it
+ * takes no touch: a finger through it lands on whatever is beneath.
+ */
+.vol-read {
+  position: absolute;
+  left: calc(var(--u) * 20); right: calc(var(--u) * 20);
+  top: 50%;
+  margin-top: calc(var(--u) * -13);
+  padding: calc(var(--u) * 2) 0;
+  border-radius: calc(var(--u) * 6);
+  background: rgba(6, 7, 10, .72);
+  text-align: center;
+  font-size: calc(var(--u) * 15);
+  line-height: 1;
+  font-weight: 600;
+  color: var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  -webkit-transition: opacity .55s ease-out; transition: opacity .55s ease-out;
+}
+.puck[data-turning="1"] .vol-read { opacity: 1; -webkit-transition: opacity .06s; transition: opacity .06s; }
+.puck[data-browse] .vol-read, .puck[data-vol="none"] .vol-read { display: none; }
+.vol-read-value { display: block; }
+.vol-read-label {
+  display: block;
+  margin-top: calc(var(--u) * 1);
+  font-size: calc(var(--u) * 3.4);
+  font-weight: 400;
+  letter-spacing: calc(var(--u) * .3);
+  text-transform: uppercase;
+  color: var(--ink-dim);
 }
 
 /* ---- the words: title, artist, album, at the foot ---- */
@@ -413,7 +450,9 @@ body {
   letter-spacing: calc(var(--u) * .3);
   text-transform: uppercase;
   color: var(--ink-dim);
+  cursor: pointer;   /* the way back to the previous menu */
 }
+.level:before { content: '\2039 '; color: var(--accent); }
 
 /**
  * ⚖️ A CHOICE IS A TOKEN IN A CIRCLE (Peter, 09-03), matching the transport
@@ -473,39 +512,11 @@ body {
 .opt-on .opt-name { font-weight: 700; }
 
 /**
- * THE THIRD TIER. Two thousand three hundred albums cannot ring a face, so they
- * run as a column under the thumb: the choice in the middle, its neighbours
- * fading above and below, each behind its own disc. It is what a knob-driven
- * list looks like on every round device.
+ * THE PAGES (the third tier and the list under a letter) are drawn with the
+ * ring's own circles — nothing here is a column. Two thousand three hundred
+ * albums cannot ring a face at once, so twelve at a time do, and the wheel
+ * walks the highlight round them.
  */
-.puck[data-tier="linear"] .tok {
-  position: absolute;
-  left: calc(var(--u) * -31); top: 0;
-  width: calc(var(--u) * 8); height: calc(var(--u) * 8);
-  margin-left: 0; margin-top: calc(var(--u) * -4);
-  font-size: calc(var(--u) * 3.6);
-}
-
-.puck[data-tier="linear"] .opt-on .tok {
-  left: calc(var(--u) * -33);
-  width: calc(var(--u) * 11); height: calc(var(--u) * 11);
-  margin-top: calc(var(--u) * -5.5);
-  font-size: calc(var(--u) * 4.8);
-}
-
-.puck[data-tier="linear"] .opt-name {
-  left: calc(var(--u) * -19);
-  width: calc(var(--u) * 52);
-  margin-left: 0;
-  margin-top: calc(var(--u) * -2.2);
-  text-align: left;
-  font-size: calc(var(--u) * 3.8);
-}
-
-.puck[data-tier="linear"] .opt-on .opt-name {
-  font-size: calc(var(--u) * 5);
-  margin-top: calc(var(--u) * -2.9);
-}
 
 .chosen {
   position: absolute;
@@ -514,8 +525,6 @@ body {
   margin-top: calc(var(--u) * -9);
   text-align: center;
 }
-
-.puck[data-tier="linear"] .chosen { display: none; }
 
 /* A labelled ring has names at three and nine o'clock; the centre pulls in so a
    long one wraps rather than running under them. */
@@ -582,6 +591,34 @@ body {
   color: var(--ink-dim);
 }
 
+/* The centre's verbs: ‹ › either side of the name, select beneath it. Inside
+   the ring at 9 and 3, where no circle or label sits; not while spelling, which
+   has its own keys. The name pulls in to make room for the arrows. */
+/**
+ * THE CENTRE, IN BROWSE: a compact block that sits INSIDE the orbit of the ring's
+ * labels — name, subtitle, then ‹ ● › on one row. Measured against a
+ * labelled ring of eight: the labels of the 10:30 and 1:30 circles end at 39
+ * units, those of 9 and 3 begin at 58 and sit outside x 29..71, those of 7:30
+ * and 4:30 begin at 62. So the name sits at 40, the sub at 47, the row at 56
+ * with its keys at 35, 50 and 65 — and nothing touches.
+ */
+.nav-keys { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; top: calc(var(--u) * 56); margin-top: calc(var(--u) * -4.5); margin-left: calc(var(--u) * -4.5); }
+.key-prev { left: calc(var(--u) * 35); }
+.key-next { left: calc(var(--u) * 65); }
+.key-select { left: 50%; border-color: var(--accent); color: var(--accent); }
+.puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
+.puck[data-browse]:not([data-spell="1"]) .chosen {
+  left: calc(var(--u) * 25); right: calc(var(--u) * 25);
+  top: calc(var(--u) * 40); margin-top: 0;
+}
+.puck[data-browse]:not([data-spell="1"]) .chosen-title {
+  font-size: calc(var(--u) * 5.6); line-height: 1.1;
+  max-height: calc(var(--u) * 6.2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.puck[data-browse]:not([data-spell="1"]) .chosen-sub { margin-top: calc(var(--u) * .8); font-size: calc(var(--u) * 3.4); }
+
 /* The speller's keys: the transport cluster's own circles, in a row under the
    query. Delete · clear · space · search. Shown only while spelling. */
 .spell-keys {
@@ -605,9 +642,6 @@ body {
   cursor: pointer;
 }
 .key:last-child { border-color: var(--accent); color: var(--accent); }
-
-/* The cascade, drawn as concentric breadcrumb arcs inside the rim. */
-.crumb { fill: none; stroke: rgba(242, 238, 230, .34); stroke-width: 1.1; stroke-linecap: round; }
 
 /**
  * Browsing hides the now-playing copy rather than dimming it. A 72% veil left
