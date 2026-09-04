@@ -269,7 +269,7 @@ test('every path to a volume request goes through the gate', () => {
  * number and a control you can see.
  */
 test('one ring on the glass, and no volume control drawn on it at all', () => {
-  assert.match(JS, /var PROG_R = 47;/, 'progress at the rim');
+  assert.match(JS, /var PROG_R = 42;/, 'the position ring sits inside the wheel band, clear of the dots');
   // A circle cut from WITHIN the sleeve: drawn past the glass so no edge of the
   // square can reach the rim, and cropped rather than stretched or boxed.
   assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 118%; height: 118%;\s*margin-left: -9%; margin-top: -9%;/);
@@ -385,7 +385,12 @@ test('a tap on the ring seeks, through the one-intent gate', () => {
   assert.match(JS, /var seconds = seekTargetSecond\(fraction, length\)/);
   assert.match(JS, /seekIntent\.seek\(\{ zone: zone\.id, seconds: seconds \}\)/);
   assert.match(JS, /if \(!zone\.allowed\.seek\) \{ flash\('seeking is not available here'\); return; \}/);
-  assert.match(JS, /radiusOf\(metrics, clientX, clientY\) >= RING_BAND/);
+  assert.match(JS, /radiusOf\(metrics, clientX, clientY\) >= SEEK_BAND/);
+  // ⚖️ OUTER = VOLUME, INNER = POSITION, in the hand: the glass's outer edge is
+  // handed to the wheel before the face ever sees it, so a finger on the dots
+  // can never be read as a seek.
+  assert.match(JS, /var SEEK_BAND = 34;\s*var WHEEL_BAND = 45;/);
+  assert.match(JS, /glass\.addEventListener\('pointerdown',[\s\S]{0,300}>= WHEEL_BAND\) \{\s*beginTurn\(event\);\s*return;/);
 });
 
 /**

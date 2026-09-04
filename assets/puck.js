@@ -52,12 +52,22 @@ var root = document.getElementById('puck');
 var SVG_NS = 'http://www.w3.org/2000/svg';
 
 /** Close to the rim: the art runs under it, so the rings read as the edge. */
-var PROG_R = 47;
+var PROG_R = 42;
 var PROG_C = 2 * Math.PI * PROG_R;
 var BEZEL_RATIO = 0.085;
 
-/** Inside this radius the glass is the face; outside it, the band is the ring. */
-var RING_BAND = 38;
+/**
+ * ⚖️ OUTER = VOLUME, INNER = POSITION, in the HAND and not only in the drawing
+ * (Peter, 09-03: "the outer ring is still seeking rather than adjusting
+ * volume"). The seek band had run right out to the rim, so a finger on the
+ * dots landed a few pixels inside the glass and the glass said "seek". Now the
+ * glass has three bands: inside SEEK_BAND it is the face; from there to
+ * WHEEL_BAND it is the position ring; and its outer edge joins the bezel as one
+ * wheel — a tap sets the level, a circular drag turns it — wide enough for a
+ * finger to find without looking.
+ */
+var SEEK_BAND = 34;
+var WHEEL_BAND = 45;
 
 /** The field behind a missing cover: the art drawn tiny and scaled up. */
 var GROUND_PX = 20;
@@ -663,7 +673,7 @@ function seekTo(clientX, clientY) {
 
 function tapped(clientX, clientY) {
   var metrics = glassMetrics();
-  var band = radiusOf(metrics, clientX, clientY) >= RING_BAND;
+  var band = radiusOf(metrics, clientX, clientY) >= SEEK_BAND;
   // While a menu is up the rim belongs to nothing: seeking mid-browse would act
   // on music the person has already stopped looking at.
   if (browse.isOpen()) { if (!band) browse.commit(); return; }
@@ -707,6 +717,11 @@ function swiped(dx, dy, size) {
 
 glass.addEventListener('pointerdown', function (event) {
   if (event.button !== undefined && event.button !== 0) return;
+  // The glass's outer edge IS the wheel: hand it to the bezel, not the face.
+  if (!browse.isOpen() && radiusOf(glassMetrics(), event.clientX, event.clientY) >= WHEEL_BAND) {
+    beginTurn(event);
+    return;
+  }
   touch = { x: event.clientX, y: event.clientY, at: Date.now() };
 });
 
@@ -809,11 +824,16 @@ function angleAt(event) {
   return Math.atan2(dy, dx) * 180 / Math.PI;
 }
 
-rig.addEventListener('pointerdown', function (event) {
-  if (event.target !== rig && event.target !== detents && event.target.parentNode !== detents) return;
+/** A hand on the wheel — the bezel itself, or the glass's outer edge. */
+function beginTurn(event) {
   turning = { angle: angleAt(event), carried: 0, moved: 0, at: Date.now() };
   rig.className = 'rig is-turning';
   try { rig.setPointerCapture(event.pointerId); } catch (error) { /* mouse without capture */ }
+}
+
+rig.addEventListener('pointerdown', function (event) {
+  if (event.target !== rig && event.target !== detents && event.target.parentNode !== detents) return;
+  beginTurn(event);
 });
 
 /**
