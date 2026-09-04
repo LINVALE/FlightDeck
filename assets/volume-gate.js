@@ -16,8 +16,10 @@
  *     past the four the server will honour, and go as one batch afterwards
  *   · a rolling BUDGET: no more than five steps in any second, which is what a
  *     hand does on a detented knob and more than a wheel with inertia deserves
- *   · a SESSION CAP: no more than twelve steps net without the wheel resting for
+ *   · a SESSION CAP: no more than twenty steps net without the wheel resting for
  *     most of a second — a continuous spin cannot take a room to its maximum
+ *     (twelve at first; a deliberate sweep kept hitting it, so two thirds of a
+ *     turn now, and the face says "wheel paused — lift, then turn again")
  *   · the reading under the hand never runs more than four ahead of what Roon
  *     has confirmed, so a face cannot show a level the room never reached
  *
@@ -30,7 +32,7 @@ export function createVolumeGate(send, options) {
   var setTimer = typeof opts.setTimer === 'function' ? opts.setTimer : setTimeout;
   var detentDelta = typeof opts.detentDelta === 'number' ? opts.detentDelta : 100;
   var budget = typeof opts.budgetPerSecond === 'number' ? opts.budgetPerSecond : 5;
-  var sessionCap = typeof opts.sessionCap === 'number' ? opts.sessionCap : 12;
+  var sessionCap = typeof opts.sessionCap === 'number' ? opts.sessionCap : 20;
   var restMs = typeof opts.restMs === 'number' ? opts.restMs : 800;
   var batchMax = typeof opts.batchMax === 'number' ? opts.batchMax : 4;
   var flightMs = typeof opts.flightMs === 'number' ? opts.flightMs : 2500;

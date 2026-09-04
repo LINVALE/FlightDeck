@@ -245,7 +245,14 @@ var btnShuffle = button('shuffle', 'btn-shuffle');
  * no way to unmute from the puck). The speaker shows the state; a tap flips it.
  */
 var btnMute = button('speaker', 'btn-mute');
+/**
+ * ⚖️ THE SAME RETURN ARROW ON THE CONTROL SCREEN GOES HOME TO THE WALL (Peter,
+ * 09-04). In browse it climbs a level; here there is nothing above but the
+ * house, so it leaves for the Wall — the room name does the same.
+ */
+var btnHome = button('return', 'btn-home');
 
+pad.appendChild(btnHome);
 pad.appendChild(btnRepeat);
 pad.appendChild(btnMute);
 pad.appendChild(btnPrev);
@@ -476,7 +483,9 @@ function turn(step) {
   wake();   // the bezel has a place; a hand on it means it
   var verdict = volumeGate.step(step);
   showTurning();
-  if (verdict === 'rest') { flash('rest the wheel'); return; }
+  // The runaway guard: twenty steps of continuous turning, then it waits for
+  // the hand to pause. Say so in words a person can act on.
+  if (verdict === 'rest') { flash('wheel paused \u2014 lift, then turn again'); return; }
   if (verdict !== 'sent') return;
   haptic(6);
   render();
@@ -922,8 +931,7 @@ words.addEventListener('pointerup', function (event) { event.stopPropagation(); 
  * kept beside that memory, so a Face opened from the Wall afterwards does not
  * turn straight round.
  */
-room.addEventListener('click', function (event) {
-  event.stopPropagation();
+function goHome() {
   try {
     var before = localStorage.getItem('flightdeck.face.before.' + wantedZoneId) || 'presence';
     if (localStorage.getItem('flightdeck.face.' + wantedZoneId) === 'puck') {
@@ -932,7 +940,9 @@ room.addEventListener('click', function (event) {
   } catch (error) { /* private mode */ }
   haptic(10);
   window.location.href = '/';
-});
+}
+room.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
+press(btnHome, goHome);
 room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
 room.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 

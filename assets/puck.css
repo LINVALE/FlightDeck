@@ -437,6 +437,14 @@ body {
 
 .btn-repeat { left: calc(var(--u) * 33); margin-left: calc(var(--u) * -5); }
 .btn-shuffle { left: calc(var(--u) * 67); margin-left: calc(var(--u) * -5); }
+/* home, between the room name and the cluster: the return arrow, to the Wall */
+.btn-home {
+  left: 50%; top: calc(var(--u) * 24);
+  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
+  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
+}
+.key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
+
 /* mute, between them: the speaker shows the state, a tap flips it */
 .btn-mute {
   left: 50%; top: calc(var(--u) * 56);

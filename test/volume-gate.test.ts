@@ -46,8 +46,8 @@ test('a five-second wheel flood cannot move a room more than the session cap', a
     r.tick(16);
     await r.settle();
   }
-  assert.ok(stepped <= 12, 'accepted ' + String(stepped) + ' steps of a 300-event flood');
-  assert.ok(sum(r.sent) <= 12, 'sent ' + String(sum(r.sent)) + ' steps net to Roon');
+  assert.ok(stepped <= 20, 'accepted ' + String(stepped) + ' steps of a 300-event flood');
+  assert.ok(sum(r.sent) <= 20, 'sent ' + String(sum(r.sent)) + ' steps net to Roon');
   for (const batch of r.sent) assert.ok(Math.abs(batch) <= 4, 'a batch of ' + String(batch));
 });
 
@@ -77,14 +77,14 @@ test('no more than five steps in any second, whatever the hand does', async () =
   assert.equal(r.gate.step(1), 'sent');
 });
 
-test('a continuous spin stops at twelve net until the wheel rests', async () => {
+test('a continuous spin stops at twenty net until the wheel rests', async () => {
   const r = rig();
   const verdicts: string[] = [];
-  // Four detents a second, well inside the budget, for six seconds.
-  for (let i = 0; i < 24; i += 1) { verdicts.push(r.gate.step(1)); r.tick(250); await r.settle(); }
-  assert.equal(verdicts.filter((v) => v === 'sent').length, 12);
-  assert.equal(verdicts.filter((v) => v === 'rest').length, 12);
-  assert.equal(sum(r.sent), 12);
+  // Four detents a second, well inside the budget, for ten seconds.
+  for (let i = 0; i < 40; i += 1) { verdicts.push(r.gate.step(1)); r.tick(250); await r.settle(); }
+  assert.equal(verdicts.filter((v) => v === 'sent').length, 20);
+  assert.equal(verdicts.filter((v) => v === 'rest').length, 20);
+  assert.equal(sum(r.sent), 20);
   // Resting for most of a second opens a new session; turning back down is fine
   // within one too — the cap is on NET movement, not on activity.
   r.tick(900);

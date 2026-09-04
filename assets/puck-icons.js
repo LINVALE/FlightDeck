@@ -89,6 +89,8 @@ var STROKED = {
   library: ['M4.8 5.6h4.6v12.8H4.8z', 'M11.6 5.6h6.8v12.8h-6.8z', 'M11.6 10.2h6.8'],
   explore: ['M12 4.4a7.6 7.6 0 1 1 0 15.2 7.6 7.6 0 0 1 0-15.2', 'M15.4 8.6 13.4 13.4 8.6 15.4l2-4.8z'],
   queue: ['M4.6 7.4h10', 'M4.6 12h10', 'M4.6 16.6h6.4', 'M17.6 10.4v7.2', 'M14 14h7.2'],
+  /* a return: out along the top, down, and curving back on itself (Peter, 09-04) */
+  'return': ['M17.6 6v5.2a3.2 3.2 0 0 1-3.2 3.2H6.4', 'M9.6 11 6.4 14.4l3.2 3.4'],
   /* ---- the genres: one picture each, chosen to be recognised at the size of a thumb ---- */
   maracas: ['M8.4 4.8a3 3 0 1 1 0 6 3 3 0 0 1 0-6', 'M8.4 10.8 5.6 19.2', 'M15.6 4.8a3 3 0 1 1 0 6 3 3 0 0 1 0-6', 'M15.6 10.8l2.8 8.4'],
   hat: ['M9.2 5.4h5.6l1.4 6.6H7.8z', 'M4 12h16', 'M4 12c0 2.2 3.6 3.6 8 3.6s8-1.4 8-3.6'],

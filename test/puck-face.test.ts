@@ -502,7 +502,7 @@ test('the puck is offered beside the faces, remembered, and has a way back', () 
     'the face being left is kept ONLY when the puck is chosen from the list, never on the remembered redirect');
   assert.doesNotMatch(FACE, /var FACES = \[[^\]]*'puck'/, 'never a face LAYOUT: face.css is a television\'s');
   assert.match(PAGES, /'aurora', 'puck'\] as const/, '?face=puck pins it like any face');
-  assert.match(JS, /room\.addEventListener\('click',[\s\S]{0,600}window\.location\.href = '\/';/,
+  assert.match(JS, /room\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); goHome\(\); \}\);/,
     'the room name goes home to the Wall, where every way of opening a room lives');
   assert.match(JS, /=== 'puck'\) \{\s*localStorage\.setItem\('flightdeck\.face\.' \+ wantedZoneId, before\);/,
     'and forgets puck as this screen\'s face on the way, restoring the one kept beside it');
@@ -568,7 +568,13 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(CSS, /\.level:before \{ content: '\\2039 '; color: var\(--accent\); \}/, 'the title reads "‹ GENRES"');
   assert.match(BROWSE, /var prevKey = key\('\\u2039', 'previous', function \(\) \{ move\(-1\); \}\);/);
   assert.match(BROWSE, /var selectKey = key\('\\u25cf', 'select', function \(\) \{ commit\(\); \}\);/);
-  assert.match(BROWSE, /var upKey = key\('\\u2303', 'up', function \(\) \{ back\(\); \}\);/, 'an up button (Peter, 09-03)');
+  assert.match(BROWSE, /var upKey = key\('', 'up', function \(\) \{ back\(\); \}\);[^\n]*\n\s*upKey\.appendChild\(glyph\('return'\)\);/, 'an up button that looks like a return arrow (Peter, 09-03/04)');
+  // the same arrow on the control screen goes home to the Wall
+  assert.match(JS, /var btnHome = button\('return', 'btn-home'\);/);
+  assert.match(JS, /press\(btnHome, goHome\);/);
+  assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
+  assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
+  assert.ok(hasGlyph('return'));
   assert.match(CSS, /\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/);
   // swipes mean the same: ↑ is up, ← → are next and previous
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dx < 0 \? 1 : -1\); return true; \}/, 'a sideways swipe steps the highlight');

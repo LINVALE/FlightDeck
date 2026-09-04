@@ -222,7 +222,8 @@ export function createBrowse(options) {
   var prevKey = key('\u2039', 'previous', function () { move(-1); });
   var nextKey = key('\u203a', 'next', function () { move(1); });
   var selectKey = key('\u25cf', 'select', function () { commit(); });
-  var upKey = key('\u2303', 'up', function () { back(); });   // Peter, 09-03: "an up button would be helpful"
+  var upKey = key('', 'up', function () { back(); });   // Peter, 09-03: "an up button would be helpful"
+  upKey.appendChild(glyph('return'));                  // 09-04: "should look like a return arrow, curved back on itself"
   prevKey.className = 'key key-prev';
   nextKey.className = 'key key-next';
   selectKey.className = 'key key-select';
