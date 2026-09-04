@@ -171,6 +171,9 @@ test('a browse row earns an icon from the Core\'s own words, or none at all', ()
   // The hint wins: these are leaves, and they must read as what they DO.
   assert.equal(named('Play Album', 'action'), 'play');
   assert.equal(named('Play Artist', 'action'), 'play');
+  // Roon hints a row that OPENS its actions `action_list`; it still does a thing.
+  assert.equal(named('Play Genre', 'action_list'), 'play', 'seen live under Folk: it wore the genre tag');
+  assert.equal(named('Play Genre', 'list'), 'play', '"Play …" is a verb whatever the hint');
   assert.equal(named('Start Radio', 'action'), 'radio');
   assert.equal(named('Add Next', 'action'), 'queue');
   assert.equal(named('Shuffle', 'action'), 'shuffle');

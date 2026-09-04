@@ -134,7 +134,10 @@ export function iconNameFor(title, hint) {
   if (text === '') return null;
   var has = function (word) { return text.indexOf(word) !== -1; };
 
-  if (hint === 'action') {
+  // A row that DOES something reads as what it does, never as its noun: Roon
+  // hints `action` for a leaf and `action_list` for a row that opens its
+  // actions (Play Genre, Play Artist…), and "Play …" is a verb whatever the hint.
+  if (hint === 'action' || hint === 'action_list' || text.indexOf('play ') === 0) {
     if (has('shuffle')) return 'shuffle';
     if (has('radio')) return 'radio';
     if (has('queue') || has('add ')) return 'queue';
