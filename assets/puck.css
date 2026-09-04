@@ -582,6 +582,29 @@ body {
   color: var(--ink-dim);
 }
 
+/* The speller's keys: the transport cluster's own circles, in a row under the
+   query. Delete · clear · space · search. Shown only while spelling. */
+.spell-keys {
+  position: absolute; left: 0; right: 0;
+  top: calc(var(--u) * 66);
+  display: -webkit-flex; display: flex;
+  -webkit-justify-content: center; justify-content: center;
+}
+.puck:not([data-spell="1"]) .spell-keys { display: none; }
+.key {
+  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
+  margin: 0 calc(var(--u) * 2);
+  border-radius: 50%;
+  background: rgba(10, 11, 14, .66);
+  border: 1px solid rgba(242, 238, 230, .22);
+  color: var(--ink);
+  font-size: calc(var(--u) * 4.4);
+  line-height: calc(var(--u) * 10);
+  text-align: center;
+  cursor: pointer;
+}
+.key:last-child { border-color: var(--accent); color: var(--accent); }
+
 /* The cascade, drawn as concentric breadcrumb arcs inside the rim. */
 .crumb { fill: none; stroke: rgba(242, 238, 230, .34); stroke-width: 1.1; stroke-linecap: round; }
 

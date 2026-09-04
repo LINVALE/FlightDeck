@@ -60,7 +60,7 @@ var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 var SPACE = '\u2423';
 var DELETE = '\u232b';
 var GO = '\u23ce';
-var SPELL = ALPHABET.concat([SPACE, DELETE, GO]);
+/* The three verbs are BUTTONS under the query (see `keys`); the ring is letters only. */
 
 /**
  * The tier a count ALLOWS. Over the whole-load band the ring is only a
@@ -183,6 +183,26 @@ export function createBrowse(options) {
   chosen.appendChild(chosenSub);
   var linsub = el('div', 'linsub');
   var count = el('div', 'count');
+  /**
+   * ⚖️ A CLEAR SET OF KEYS FOR INPUT (Peter, 09-03: "on alphabet entry we need
+   * an enter and back/clear set of buttons"). Enter, space, delete and clear
+   * were stops on the ring, found by spinning to them; now they are buttons
+   * under the query — the same circles as the transport cluster — and the ring
+   * keeps only the letters, larger for it.
+   */
+  var keys = el('div', 'spell-keys');
+  function key(symbol, label, act) {
+    var node = el('div', 'key', symbol);
+    node.setAttribute('title', label);
+    node.addEventListener('click', function (event) { event.stopPropagation(); act(); });
+    node.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+    node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+    return node;
+  }
+  keys.appendChild(key('\u232b', 'delete the last letter', function () { if (view && view.spell) spellStop(DELETE); }));
+  keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
+  keys.appendChild(key('\u2423', 'space', function () { if (view && view.spell) spellStop(SPACE); }));
+  keys.appendChild(key('\u21b5', 'search', function () { if (view && view.spell) spellStop(GO); }));
   var crumbs = document.createElementNS(SVG_NS, 'svg');
   crumbs.setAttribute('class', 'crumbs');   // its own class: the seek ring is hidden in browse, the cascade is not
   crumbs.setAttribute('viewBox', '0 0 100 100');
@@ -193,6 +213,7 @@ export function createBrowse(options) {
   layer.appendChild(chosen);
   layer.appendChild(linsub);
   layer.appendChild(count);
+  layer.appendChild(keys);
   host.appendChild(layer);
 
   /* ---------- what is on the face ---------- */
@@ -236,6 +257,7 @@ export function createBrowse(options) {
     if (view === null) return;
     root.setAttribute('data-browse', view.tier);
     root.setAttribute('data-tier', view.tier);
+    if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
     level.textContent = view.title;
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
 
@@ -348,7 +370,7 @@ export function createBrowse(options) {
     if (view.spell) {
       // The middle is the query so far; the ring is the keyboard.
       chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;
-      chosenSub.textContent = view.spell.query === '' ? 'turn to a letter, tap to add it' : stopName(view.letters[view.sel]);
+      chosenSub.textContent = view.spell.query === '' ? 'turn to a letter, tap to add it' : view.letters[view.sel];
     } else {
       chosenTitle.textContent = view.tier === 'alpha' ? view.letters[view.sel] : (pick === null ? '' : pick.title);
       chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
@@ -361,7 +383,7 @@ export function createBrowse(options) {
     chosen.className = 'chosen';
     root.setAttribute('data-named', named && view.tier !== 'alpha' ? '1' : '0');
     linsub.textContent = '';
-    if (view.spell) count.textContent = view.spell.query === '' ? '' : '\u23ce to search';
+    if (view.spell) count.textContent = '';
     else if (view.tier === 'alpha') count.textContent = String(view.total) + ' — pick a letter';
     else count.textContent = String(view.sel + 1) + ' / ' + String(view.total);
   }
@@ -547,6 +569,7 @@ export function createBrowse(options) {
     busy = false;
     root.removeAttribute('data-browse');
     root.removeAttribute('data-tier');
+    root.removeAttribute('data-spell');
     onChange(false);
   }
 
@@ -630,7 +653,7 @@ export function createBrowse(options) {
     view = {
       hierarchy: parent.hierarchy, tier: 'alpha', title: item.title || 'Search', total: 0,
       items: [], base: 0, sel: 0, depth: parent.depth, letter: null, paging: false,
-      letters: SPELL, probes: {},
+      letters: ALPHABET, probes: {},
       spell: { query: '', prompt: (item.input && item.input.prompt) || 'Search', parent: parent },
     };
     tick();

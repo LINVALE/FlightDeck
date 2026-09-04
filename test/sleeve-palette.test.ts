@@ -73,3 +73,14 @@ test('the ring band and the foot are the regions they claim', () => {
   assert.equal(inFoot(5, 21, 32), true);
   assert.equal(inFoot(5, 20, 32), false);
 });
+
+/** The wheel's ground is the sleeve's: nearer its deep tone than the grey it started from. */
+test('the bezel face follows the sleeve\'s deep tone, not the default grey', () => {
+  const tones = tonesOf(sleeve(() => [40, 120, 60]), 32);
+  assert.ok(tones);
+  const face = hexToRgb(tones.bezelFace);
+  const deep = hexToRgb(tones.deep);
+  const dist = (a: number[], b: number[]): number => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  assert.ok(dist(face, deep) < dist(face, [32, 35, 41]), 'nearer the sleeve than the grey');
+  assert.ok(face[1] > face[0] && face[1] > face[2], 'a green sleeve gives a green wheel');
+});

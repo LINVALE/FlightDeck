@@ -166,8 +166,13 @@ export function tonesOf(data, size) {
     lit: toHex(liftToContrast(top, 4.5, DECK)),
     rich: toHex(rich),
     ring: toHex(ring),
-    bezelFace: toHex(mix([32, 35, 41], deep, 0.35)),
-    bezelLip: toHex(mix([52, 56, 63], deep, 0.35)),
+    // ⚖️ THE WHEEL'S GROUND FOLLOWS THE SLEEVE (Peter, 09-03: "background of
+    // volume cog wheel needs to follow colour of album art"). A third of the way
+    // toward the deep tone read as grey on most sleeves; now the face is mostly
+    // the sleeve's deep tone and the lip its second tone, so the wheel is
+    // unmistakably of this record.
+    bezelFace: toHex(mix([32, 35, 41], deep, 0.72)),
+    bezelLip: toHex(mix([52, 56, 63], second, 0.42)),
     foot: foot === null ? 0 : foot,
     band: band === null ? 0 : band,
   };

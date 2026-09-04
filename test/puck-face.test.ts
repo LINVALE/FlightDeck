@@ -446,7 +446,15 @@ test('the puck binds to a durable output, and the page carries it', async (t) =>
  * and then to the row it came from.
  */
 test('Search is spelt on the ring, and asks Roon the way the Face does', () => {
-  assert.match(BROWSE, /var SPELL = ALPHABET\.concat\(\[SPACE, DELETE, GO\]\);/);
+  // ⚖️ A CLEAR SET OF KEYS: enter, space, delete and clear are BUTTONS under
+  // the query; the ring keeps only the letters.
+  assert.match(BROWSE, /var keys = el\('div', 'spell-keys'\);/);
+  assert.match(BROWSE, /keys\.appendChild\(key\('\\u21b5', 'search'/);
+  assert.match(BROWSE, /keys\.appendChild\(key\('\\u232b', 'delete the last letter'/);
+  assert.match(BROWSE, /keys\.appendChild\(key\('\\u2715', 'clear'/);
+  assert.match(BROWSE, /letters: ALPHABET, probes: \{\},\s*spell: \{/, 'the ring is letters only');
+  assert.doesNotMatch(BROWSE, /var SPELL = /);
+  assert.match(CSS, /\.puck:not\(\[data-spell="1"\]\) \.spell-keys \{ display: none; \}/);
   assert.match(BROWSE, /if \(item\.input !== null && item\.input !== undefined\) \{ spell\(item\); return; \}/,
     'an input row opens the speller rather than refusing');
   assert.doesNotMatch(BROWSE, /needs a keyboard/);
