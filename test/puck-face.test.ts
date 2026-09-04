@@ -566,7 +566,7 @@ test('one tap on a circle selects it and goes; the centre commits the highlight'
   assert.match(BROWSE, /if \(view\.sel !== index\) \{ view\.sel = index; draw\(\); \}\s*commit\(\);/);
   // and the tap must not ALSO reach the glass as a centre tap on the highlight
   assert.match(BROWSE, /function bindPick\(node, index\)[\s\S]{0,1200}node\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/);
-  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band\) browse\.commit\(\); return; \}/, 'a tap inside the ring band commits the highlight');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band && browse\.at\(\) !== 'queue'\) browse\.commit\(\); return; \}/, 'a tap inside the ring band commits the highlight — in the library; in the queue only the hub plays');
 });
 
 /**
@@ -593,8 +593,9 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(CSS, /\.puck\[data-browse\] \.chosen \{[\s\S]{0,400}border-radius: 50%;[\s\S]{0,120}border: 2px solid var\(--accent\);/, 'a larger, bolder circle');
   assert.doesNotMatch(BROWSE, /upKey\.appendChild\(glyph\('return'\)\)/, 'the return arrow left the disc (Peter, 09-04: ↑ ↓ are the axis now)');
   // the same arrow on the control screen goes home to the Wall
-  assert.match(JS, /var btnHome = button\('return', 'btn-home'\);/);
-  assert.match(JS, /press\(btnHome, goHome\);/);
+  assert.doesNotMatch(JS, /btnHome/, 'the return arrow rides the room name now — always visible, never summoned (Peter, 09-04)');
+  assert.match(JS, /room\.appendChild\(glyph\('return'\)\);\s*var roomName = el\('span', 'room-name'\);/);
+  assert.match(JS, /roomName\.textContent = zone\.name;/);
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
   assert.ok(hasGlyph('return'));
@@ -729,8 +730,16 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.equal(nextStop('browse', -1), 'play');
   assert.equal(nextStop('elsewhere', 1), 'browse', 'an unknown place counts as the music');
   // the disc wears ↑ and ↓, and they ARE the axis — not the level
-  assert.match(BROWSE, /var upKey = key\('\\u2191', 'swipe up: the face above', function \(\) \{ onAxis\(-1\); \}\);/);
-  assert.match(BROWSE, /var downKey = key\('\\u2193', 'swipe down: the face below', function \(\) \{ onAxis\(1\); \}\);/);
+  assert.match(BROWSE, /var upKey = key\('', 'swipe up: the face above', function \(\) \{ onAxis\(-1\); \}\);/);
+  assert.match(BROWSE, /var downKey = key\('', 'swipe down: the face below', function \(\) \{ onAxis\(1\); \}\);/);
+  assert.match(BROWSE, /upKey\.appendChild\(glyph\('up'\)\);[^\n]*\n\s*downKey\.appendChild\(glyph\('down'\)\);/, 'the same line-work on both faces');
+  assert.ok(hasGlyph('up') && hasGlyph('down'));
+  // the same idiom on the music face: ↑ above play, ↓ below the shoulder row, tap to rotate
+  assert.match(JS, /var btnUp = button\('up', 'btn-up'\);\s*var btnDown = button\('down', 'btn-down'\);/);
+  assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
+  assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
+  assert.match(CSS, /\.btn-mute \{\s*left: calc\(var\(--u\) \* 33\); top: calc\(var\(--u\) \* 24\);/, 'mute moved up beside ↑, above repeat');
+  assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);
   assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');
   assert.match(CSS, /\.puck\[data-browse\] \.chosen-title \{[^\n]*\n[^\n]*\n  max-height: calc\(var\(--u\) \* 9\.5\);/, 'the name keeps to two lines between ↑ and ↓');
@@ -743,7 +752,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(BROWSE, /var size = lettered \? 12 : tokenSize\(SLOTS\);/);
   // a swipe and the arrow keys walk the wheel; the title (and Backspace) climb a level
   assert.match(JS, /function axis\(dir\) \{\s*var next = nextStop\(browse\.at\(\), dir\);/);
-  assert.match(JS, /if \(next === 'play'\) browse\.park\(\);\s*else browse\.open\(next\);/, 'the library is parked, not closed, when the axis leaves it');
+  assert.match(JS, /if \(next === 'play'\) \{ browse\.park\(\); wake\(\); \}\s*else \{ wake\(\); browse\.open\(next\); \}/, 'the library is parked, not closed, when the axis leaves it; the cluster comes up with the music');
   assert.match(JS, /if \(key === 'ArrowDown'\) \{\s*axis\(1\);\s*\} else if \(key === 'ArrowUp'\) \{\s*axis\(-1\);/);
   assert.match(JS, /key === 'Backspace'\) \{\s*if \(open\) browse\.back\(\);/);
   assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/, 'the title is still the way back a level');
@@ -768,7 +777,7 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
     { id: '557529', title: '', artist: '', album: '', lengthSec: null, art: null },
   ] });
   assert.equal(rows.length, 3);
-  assert.deepEqual(rows[0], { title: 'Burn', subtitle: 'now \u00b7 Norah Jones \u00b7 Day Breaks', art: '/api/v1/art/x', hint: 'queue', queueId: '557527', now: true });
+  assert.deepEqual(rows[0], { title: 'Burn', subtitle: 'Norah Jones', art: '/api/v1/art/x', hint: 'queue', queueId: '557527', now: true }, 'the artist alone: a spoke has one line');
   assert.deepEqual(rows[1], { title: 'Tragedy', subtitle: 'Norah Jones', art: null, hint: 'queue', queueId: '557528', now: false }, 'ids are strings on the wire, whatever Roon sent');
   assert.equal(rows[2].title, '(untitled)');
   assert.equal(rows[2].subtitle, '');
@@ -778,7 +787,20 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(BROWSE, /fetch\('\/api\/v1\/queue\?zone=' \+ encodeURIComponent\(zone\), \{ cache: 'no-store' \}\)/);
   assert.match(BROWSE, /if \(data\.ready !== true && attempt < 8\)/, 'the mirror may honestly still be loading');
   assert.match(BROWSE, /if \(hierarchy === 'queue'\) \{ if \(view !== null && view\.queue\) return; park\(\); openQueue\(\); return; \}/);
-  assert.match(BROWSE, /hierarchy: 'queue', tier: rows\.length <= RADIAL_MAX \? 'radial' : 'linear',/, 'seven ring the face; more are pages of seven');
+  assert.match(BROWSE, /hierarchy: 'queue', tier: 'spokes',/, 'a wheel of spokes, play at the hub (Peter, 09-04) — never pages');
+  assert.match(BROWSE, /else if \(view\.tier === 'spokes'\) drawSpokes\(\);/);
+  assert.match(BROWSE, /svg\.setAttribute\('class', 'spokes'\);[\s\S]{0,400}optWrap\.appendChild\(svg\);\s*var titled = n <= SPOKE_TITLED_MAX;/, 'attached before any title is measured: a detached SVG measures zero');
+  assert.match(CSS, /\.puck\[data-tier="spokes"\] \.nav-keys \.key-up \{ top: calc\(var\(--u\) \* 38\.8\); \}\s*\.puck\[data-tier="spokes"\] \.nav-keys \.key-down \{ top: calc\(var\(--u\) \* 61\.2\); \}/, 'the hub\'s keys sit on its rim so two lines of title fit between them');
+  assert.match(BROWSE, /var deg = \(i \/ n\) \* 360;/, 'the playing row at twelve, the rest clockwise');
+  assert.match(BROWSE, /text\.setAttribute\('transform', 'rotate\(' \+ String\(left \? deg \+ 90 : deg - 90\) \+ ' 50 50\)'\);/, 'a title reads outward on the right and inward on the left: never upside down');
+  assert.match(BROWSE, /var text = titled \|\| spokeDistance\(i, view\.sel, n\) <= 2 \? spokeTitle\(svg, deg, item\.title, on\) : null;/, 'past sixteen, only the chosen and its neighbours are titled');
+  assert.match(BROWSE, /from = SPOKE_IN \+ 1\.6 \+ text\.getComputedTextLength\(\) \+ 0\.8;\s*\}\s*if \(from < SPOKE_OUT\) spokeLine\(group, rad, from, SPOKE_OUT, ''\);/, 'the title IS the spoke: the line only fills the gaps either side of it');
+  assert.match(BROWSE, /function bindSpoke\(node, index\) \{[\s\S]{0,300}if \(view === null \|\| view\.sel === index\) return;\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a spoke chooses; it never plays');
+  assert.match(BROWSE, /function queueSub\(pick\) \{\s*var where = pick\.now === true \? 'now' : String\(view\.sel \+ 1\) \+ ' \/ ' \+ String\(view\.total\);/, 'the hub says where in the queue this is');
+  assert.match(BROWSE, /var chosenPlay = el\('div', 'chosen-play'\);\s*chosenPlay\.appendChild\(glyph\('play'\)\);/, 'the hub wears ▶');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band && browse\.at\(\) !== 'queue'\) browse\.commit\(\); return; \}/, 'in the queue a stray tap on the glass never plays: only the hub does');
+  assert.match(CSS, /\.puck\[data-tier="spokes"\] \.count,\s*\.puck\[data-tier="spokes"\] \.key-prev,\s*\.puck\[data-tier="spokes"\] \.key-next \{ display: none; \}/);
+  assert.doesNotMatch(CSS, /\.spoke[^\n]*transform\s*:/, 'no CSS transform inside the glass; the rotation is an SVG attribute');
   assert.match(BROWSE, /sel: rows\.length > 1 \? 1 : 0/, 'the highlight opens on the first row still to come');
   // a row plays from there, fenced; the playing row is refused before the wire
   assert.match(BROWSE, /if \(view\.queue\) \{ playFrom\(item\); return; \}/);

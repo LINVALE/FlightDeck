@@ -232,6 +232,14 @@ body {
   color: var(--ink-dim);
   cursor: pointer;   /* the way back to the faces list */
 }
+/* The return arrow rides the name (Peter, 09-04): always there, never summoned. */
+.room .glyph {
+  display: inline-block;
+  width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4);
+  vertical-align: calc(var(--u) * -0.7);
+  margin-right: calc(var(--u) * 1);
+  color: var(--accent);
+}
 
 /**
  * THE LEVEL, LARGE IN THE CENTRE, THEN GONE (Peter, 09-03: "if the cog is
@@ -438,19 +446,25 @@ body {
 
 .btn-repeat { left: calc(var(--u) * 33); margin-left: calc(var(--u) * -5); }
 .btn-shuffle { left: calc(var(--u) * 67); margin-left: calc(var(--u) * -5); }
-/* home, between the room name and the cluster: the return arrow, to the Wall */
-.btn-home {
-  left: 50%; top: calc(var(--u) * 24);
-  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
-  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
+/* ↑ above play and ↓ in the shoulder row's centre: the axis, where the disc
+   wears it in browse (Peter, 09-04). Below the shoulder row is the credit, which
+   the overlay keeps whole (Peter, 09-03: all three lines) — so ↓ took the
+   centre of that row and mute moved up beside ↑. A 3×3 grid: 33 · 50 · 67 across,
+   24 · 39 · 56 down, with the top-right cell empty. */
+.btn-up, .btn-down {
+  left: 50%;
+  width: calc(var(--u) * 8); height: calc(var(--u) * 8);
+  margin-left: calc(var(--u) * -4); margin-top: calc(var(--u) * -4);
 }
+.btn-up { top: calc(var(--u) * 24); }
+.btn-down { top: calc(var(--u) * 56); }
 .key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
 
-/* mute, between them: the speaker shows the state, a tap flips it */
+/* mute, top-left above repeat: the speaker shows the state, a tap flips it */
 .btn-mute {
-  left: 50%; top: calc(var(--u) * 56);
-  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
-  margin-left: calc(var(--u) * -5); margin-top: calc(var(--u) * -5);
+  left: calc(var(--u) * 33); top: calc(var(--u) * 24);
+  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
+  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
 }
 .puck[data-vol="none"] .btn-mute { display: none; }
 
@@ -729,6 +743,39 @@ body {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .puck[data-browse] .chosen-art { display: none !important; }
+
+/* ---------- the queue: titles as spokes on a wheel, play at the hub ---------- */
+
+/**
+ * ⚖️ SPOKES (Peter, 09-04). Every track is a spoke from the hub to the glass's
+ * edge with its title laid along it; the playing one is white, the chosen one
+ * the accent, and the hub — the disc — is the one place that plays: ▶ over the
+ * chosen title, and where in the queue it is. ‹ › leave the hub's rim here so
+ * the spokes can start close in; the choice moves by a tap on a spoke, a swipe,
+ * or the arrow keys. SVG throughout: a rotated title is an SVG attribute, not a
+ * CSS transform inside the glass.
+ */
+.spokes { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.spoke line { stroke: rgba(242, 238, 230, .16); stroke-width: .3; stroke-linecap: round; }
+.spoke-now line { stroke: rgba(242, 238, 230, .5); stroke-width: .45; }
+.spoke-on line { stroke: var(--accent); stroke-width: .6; }
+.spoke .spoke-hit { stroke: rgba(0, 0, 0, .002); stroke-width: 7; pointer-events: stroke; cursor: pointer; }
+.spoke-title { font-size: 2.9px; fill: rgba(242, 238, 230, .64); pointer-events: none; }
+.spoke-now + .spoke-title, .spoke-title.spoke-title-now { fill: var(--ink); }
+.spoke-title-on { fill: var(--accent); font-weight: 700; font-size: 3.1px; }
+.puck[data-tier="spokes"] .count,
+.puck[data-tier="spokes"] .key-prev,
+.puck[data-tier="spokes"] .key-next { display: none; }
+.chosen-play { display: none; width: calc(var(--u) * 4.8); height: calc(var(--u) * 4.8); color: var(--accent); margin-bottom: calc(var(--u) * .3); }
+.chosen-play .glyph { width: 100%; height: 100%; display: block; }
+.puck[data-tier="spokes"] .chosen-play { display: block; }
+/* The hub holds ▶, two lines of title and the place in the queue — 15.7 units
+   — so its ↑ ↓ shrink a little and sit on the rim (38.8 / 61.2), 17 apart. */
+.puck[data-tier="spokes"] .chosen-title { max-height: calc(var(--u) * 7.3); font-size: calc(var(--u) * 3.3); }
+.puck[data-tier="spokes"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .4); }
+.puck[data-tier="spokes"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
+.puck[data-tier="spokes"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
+.puck[data-tier="spokes"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
 
 /* The speller's keys: the transport cluster's own circles, in a row under the
    query. Delete · clear · space · search. Shown only while spelling. */

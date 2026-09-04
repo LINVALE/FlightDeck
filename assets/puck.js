@@ -201,6 +201,17 @@ ring.appendChild(progBead);
 
 var room = el('div', 'room');
 /**
+ * ⚖️ THE ROOM NAME CARRIES THE WAY BACK, ALWAYS (Peter, 09-04: "we need to be
+ * able to get back to FlightDeck in a browser so the face can be changed").
+ * The return arrow used to be a button in the summoned cluster — invisible
+ * until a touch, and easy to miss in a browser. Now it rides the room name at
+ * the top, which is never hidden: "↩ STUDY" is the way out, exactly as
+ * "‹ GENRES" is the way up in browse. One grammar: the title is the way back.
+ */
+room.appendChild(glyph('return'));
+var roomName = el('span', 'room-name');
+room.appendChild(roomName);
+/**
  * ⚖️ A TURN OR A TAP ON THE WHEEL SHOWS THE LEVEL IN THE CENTRE, THEN FADES
  * (Peter, 09-03). The number, large, with the word under it — a knob that
  * answers a turn with a number is what makes the wheel feel connected — and
@@ -247,13 +258,18 @@ var btnShuffle = button('shuffle', 'btn-shuffle');
  */
 var btnMute = button('speaker', 'btn-mute');
 /**
- * ⚖️ THE SAME RETURN ARROW ON THE CONTROL SCREEN GOES HOME TO THE WALL (Peter,
- * 09-04). In browse it climbs a level; here there is nothing above but the
- * house, so it leaves for the Wall — the room name does the same.
+ * ⚖️ THE SAME IDIOM ON THE MUSIC FACE (Peter, 09-04: "swipe up and down, with
+ * up and down arrows to tap to rotate through, or tap on the metadata area").
+ * ↑ above the play button and ↓ below the shoulder row are the axis, exactly
+ * where the disc wears them in browse: a tap on ↓ is the library, ↑ the queue,
+ * and a swipe does the same without looking. The credit at the foot stays the
+ * door to browse. The return arrow that sat above play now rides the room name.
  */
-var btnHome = button('return', 'btn-home');
+var btnUp = button('up', 'btn-up');
+var btnDown = button('down', 'btn-down');
 
-pad.appendChild(btnHome);
+pad.appendChild(btnUp);
+pad.appendChild(btnDown);
 pad.appendChild(btnRepeat);
 pad.appendChild(btnMute);
 pad.appendChild(btnPrev);
@@ -708,7 +724,7 @@ function render() {
     if (browse !== undefined) browse.reloadQueue();
   }
   if (zone === null) {
-    room.textContent = '';
+    roomName.textContent = '';
     title.textContent = '';
     artist.textContent = '';
     album.textContent = '';
@@ -717,7 +733,7 @@ function render() {
     return;
   }
 
-  room.textContent = zone.name;
+  roomName.textContent = zone.name;
 
   var np = zone.nowPlaying;
   if (np === null) {
@@ -809,7 +825,9 @@ function tapped(clientX, clientY) {
   var band = radiusOf(metrics, clientX, clientY) >= SEEK_BAND;
   // While a menu is up the rim belongs to nothing: seeking mid-browse would act
   // on music the person has already stopped looking at.
-  if (browse.isOpen()) { if (!band) browse.commit(); return; }
+  // In the queue only the HUB plays (Peter, 09-04): a stray tap on the glass
+  // must not start a track, where in the library it would merely open a level.
+  if (browse.isOpen()) { if (!band && browse.at() !== 'queue') browse.commit(); return; }
   /**
    * ⚖️ A CONTROL WITH A PLACE ACTS ON THE FIRST TOUCH (Peter, 09-03: "volume and
    * seek are seemingly timed"). The ring, a dot, the title — each names what it
@@ -849,9 +867,12 @@ function swiped(dx, dy, size) {
  */
 function axis(dir) {
   var next = nextStop(browse.at(), dir);
-  wake();
-  if (next === 'play') browse.park();
-  else browse.open(next);
+  // Landing on the music, the cluster comes up WITH it — a hand that just
+  // swiped is about to tap ↑ or ↓ again, and a first tap that only summoned
+  // would break the rhythm. (Woken after the library is parked: a sleeping
+  // face refuses to wake while a menu is up.)
+  if (next === 'play') { browse.park(); wake(); }
+  else { wake(); browse.open(next); }
 }
 
 glass.addEventListener('pointerdown', function (event) {
@@ -973,7 +994,8 @@ function goHome() {
   window.location.href = '/';
 }
 room.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
-press(btnHome, goHome);
+press(btnUp, function () { axis(-1); });
+press(btnDown, function () { axis(1); });
 room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
 room.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 
