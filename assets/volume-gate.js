@@ -117,3 +117,21 @@ export function createVolumeGate(send, options) {
     inFlight: function () { return inFlight; },
   };
 }
+
+/**
+ * The level a tap on the bezel means. The dots run from twelve o'clock
+ * clockwise, one per detent; an angle is measured from three o'clock the way
+ * atan2 gives it, so twelve is -90. The tap is quantised to the dot under it,
+ * then placed on the device's own range — and the top dot is the device's own
+ * maximum, never a step past it.
+ */
+export function levelAtAngle(degrees, min, max, detents) {
+  if (typeof degrees !== 'number' || !isFinite(degrees)) return null;
+  if (typeof min !== 'number' || typeof max !== 'number' || max <= min) return null;
+  if (typeof detents !== 'number' || detents < 1) return null;
+  var turn = (((degrees + 90) % 360) + 360) % 360;      // 0 at twelve, clockwise
+  var dot = Math.round((turn / 360) * detents);
+  if (dot >= detents) dot = detents;
+  var fraction = dot / detents;
+  return Math.round(min + fraction * (max - min));
+}

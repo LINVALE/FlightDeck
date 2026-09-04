@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createVolumeGate } from '../assets/volume-gate.js';
+import { createVolumeGate, levelAtAngle } from '../assets/volume-gate.js';
 
 /**
  * A clock and a timer the test owns, so a five-second flood runs in no time and
@@ -127,4 +127,29 @@ test('the reading under the hand never runs more than four ahead of Roon', async
   assert.equal(r.gate.ahead(), 0, 'what Roon answered is no longer owed');
   r.gate.reset();
   assert.equal(r.gate.inFlight(), true, 'reset forgets the hand, not the wire');
+});
+
+/**
+ * ⚖️ THE DOTS ARE THE CONTROL (Peter, 09-03). A tap on a dot is the level that
+ * dot shows: twelve o'clock is the floor, round clockwise to the device's own
+ * maximum at the top again, quantised to the thirty detents the bezel draws.
+ */
+test('a tap on the bezel maps to the dot under it, on the device\'s own range', () => {
+  // atan2 angles: -90 is twelve o'clock, 0 is three, 90 is six, 180 is nine.
+  // With four dots the quarter hours sit exactly on a dot.
+  assert.equal(levelAtAngle(-90, 0, 80, 4), 0, 'twelve o\'clock is the floor');
+  assert.equal(levelAtAngle(0, 0, 80, 4), 20, 'three o\'clock is a quarter turn');
+  assert.equal(levelAtAngle(90, 0, 80, 4), 40, 'six is half');
+  assert.equal(levelAtAngle(180, 0, 80, 4), 60, 'nine is three quarters');
+  // Thirty dots, as the bezel draws: six o'clock is dot 15 of 30, and just
+  // short of twelve is the top dot — the maximum, never a step past it.
+  assert.equal(levelAtAngle(90, 0, 80, 30), 40);
+  assert.equal(levelAtAngle(-91, 0, 80, 30), 80);
+  // The Theater: 0–98, and a range that does not start at zero.
+  assert.equal(levelAtAngle(90, 0, 98, 30), 49);
+  assert.equal(levelAtAngle(90, 20, 60, 30), 40);
+  // Quantised: two angles inside the same detent give the same level.
+  assert.equal(levelAtAngle(3, 0, 80, 30), levelAtAngle(8, 0, 80, 30));
+  assert.equal(levelAtAngle(NaN, 0, 80, 30), null);
+  assert.equal(levelAtAngle(0, 80, 80, 30), null, 'a range with no span is not a control');
 });

@@ -235,19 +235,6 @@ body {
 .puck[data-chrome="1"] .artist { font-size: calc(var(--u) * 4.2); margin-top: calc(var(--u) * .9); }
 .puck[data-chrome="1"] .album { font-size: calc(var(--u) * 3.7); }
 
-.times {
-  position: absolute;
-  left: 0; right: 0;
-  bottom: calc(var(--u) * 5.5);
-  text-align: center;
-  font-size: calc(var(--u) * 4);
-  letter-spacing: calc(var(--u) * .1);
-  color: var(--ink-dim);
-  pointer-events: none;
-}
-
-.times b { color: var(--ink); font-weight: 600; }
-
 .note {
   position: absolute;
   left: 0; right: 0;
@@ -566,6 +553,5 @@ body {
  */
 .puck[data-browse] .room,
 .puck[data-browse] .words,
-.puck[data-browse] .times,
 .puck[data-browse] .scrim-top,
 .puck[data-browse] .scrim-foot { display: none; }

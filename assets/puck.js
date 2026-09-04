@@ -5,7 +5,7 @@ import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
 import { glyph } from './puck-icons.js';
-import { createVolumeGate } from './volume-gate.js';
+import { createVolumeGate, levelAtAngle } from './volume-gate.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -156,7 +156,6 @@ var album = el('div', 'album');
 words.appendChild(title);
 words.appendChild(artist);
 words.appendChild(album);
-var times = el('div', 'times');
 var note = el('div', 'note', 'connecting');
 var toast = el('div', 'toast');
 
@@ -191,7 +190,6 @@ glass.appendChild(scrimFoot);
 glass.appendChild(ring);
 glass.appendChild(room);
 glass.appendChild(words);
-glass.appendChild(times);
 glass.appendChild(pad);
 glass.appendChild(note);
 glass.appendChild(toast);
@@ -489,14 +487,6 @@ function setProgress(fraction) {
   progBead.style.display = '';
 }
 
-/** When it ends, on the wall clock — the Dial's signature reading. */
-function endsAt(remainingSec) {
-  var end = new Date(Date.now() + remainingSec * 1000);
-  var h = end.getHours();
-  var m = end.getMinutes();
-  return String(h) + ':' + (m < 10 ? '0' + String(m) : String(m));
-}
-
 function paintVolume() {
   var output = currentOutput();
   if (output === null || output.volume === null) {
@@ -582,7 +572,6 @@ function render() {
     title.textContent = '';
     artist.textContent = '';
     album.textContent = '';
-    times.textContent = '';
     paintCover(null);
     setProgress(null);
     return;
@@ -595,7 +584,6 @@ function render() {
     title.textContent = zone.state === 'stopped' ? 'Nothing playing' : '';
     artist.textContent = '';
     album.textContent = '';
-    times.textContent = '';
     paintCover(null);
     setProgress(null);
     return;
@@ -606,21 +594,16 @@ function render() {
   album.textContent = np.line3;
   paintCover(np.art);
 
-  // The store returns null for a live stream: an ever-rising seek_position with
-  // no duration is a stream-age counter, not progress, and must not draw an arc.
+  /**
+   * ⚖️ THE RING IS THE CLOCK (Peter, 09-03: "remove ends time and time elapsed
+   * — rely on the progress"). No numbers under the credit: the arc says how far,
+   * and that is all a face at arm's length needs. The store returns null for a
+   * live stream — an ever-rising seek_position with no duration is a stream-age
+   * counter, not progress — and then there is no arc either.
+   */
   var position = store.positionSec(zone);
   var length = np.lengthSec;
-  if (position === null || typeof length !== 'number' || length <= 0) {
-    times.textContent = '';
-    setProgress(null);
-    return;
-  }
-  var remaining = Math.max(0, length - position);
-  times.innerHTML = '';
-  var strong = document.createElement('b');
-  strong.textContent = '−' + formatTime(remaining);
-  times.appendChild(strong);
-  times.appendChild(document.createTextNode(' ENDS ' + endsAt(remaining)));
+  if (position === null || typeof length !== 'number' || length <= 0) { setProgress(null); return; }
   setProgress(position / length);
 }
 
@@ -825,10 +808,37 @@ function angleAt(event) {
 
 rig.addEventListener('pointerdown', function (event) {
   if (event.target !== rig && event.target !== detents && event.target.parentNode !== detents) return;
-  turning = { angle: angleAt(event), carried: 0 };
+  turning = { angle: angleAt(event), carried: 0, moved: 0, at: Date.now() };
   rig.className = 'rig is-turning';
   try { rig.setPointerCapture(event.pointerId); } catch (error) { /* mouse without capture */ }
 });
+
+/**
+ * ⚖️ THE DOTS ARE THE CONTROL (Peter, 09-03: "that should be the control"). A
+ * tap on the bezel sets the level to the dot under the finger — one press, one
+ * level, the tap-only rule the Wall's volume bar lives by — while a drag still
+ * turns it a detent at a time. One tap is one intention and cannot repeat
+ * itself, so it goes straight to Roon as an absolute value, bounded by the
+ * device's own range; the only guard it needs is the one every touch obeys: a
+ * sleeping face is first woken.
+ */
+var lastBezelTap = 0;
+function tapBezel(degrees) {
+  if (browse.isOpen()) return;
+  var output = currentOutput();
+  if (output === null) return;
+  if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
+  if (wake()) { showTurning(); return; }
+  var now = Date.now();
+  if (now - lastBezelTap < 300) return;
+  lastBezelTap = now;
+  var bounds = volumeBounds(output);
+  var value = levelAtAngle(degrees, bounds.min, bounds.max, detentMarks.length);
+  if (value === null) return;
+  haptic(12);
+  showTurning();
+  command({ action: 'volume', output: output.id, value: value });
+}
 
 rig.addEventListener('pointermove', function (event) {
   if (turning === null) return;
@@ -839,6 +849,7 @@ rig.addEventListener('pointermove', function (event) {
   while (delta < -180) delta += 360;
   turning.angle = now;
   turning.carried += delta;
+  turning.moved += Math.abs(delta);
   while (Math.abs(turning.carried) >= DETENT_DEG) {
     var step = turning.carried > 0 ? 1 : -1;
     turning.carried -= step * DETENT_DEG;
@@ -847,10 +858,15 @@ rig.addEventListener('pointermove', function (event) {
   }
 });
 
-function endTurn() {
+function endTurn(event) {
   if (turning === null) return;
+  var was = turning;
   turning = null;
   rig.className = 'rig';
+  // Barely moved and quickly released: that was a tap on a dot, not a turn.
+  if (event && event.type === 'pointerup' && was.moved < DETENT_DEG / 2 && Date.now() - was.at < 600) {
+    tapBezel(angleAt(event));
+  }
 }
 
 rig.addEventListener('pointerup', endTurn);

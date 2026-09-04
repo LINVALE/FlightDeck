@@ -211,6 +211,9 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
 test('progress comes from the store and never from a browser clock', () => {
   assert.match(JS, /var position = store\.positionSec\(zone\)/);
   assert.doesNotMatch(JS, /setInterval/, 'no local ticker may run the ring');
+  // ⚖️ THE RING IS THE CLOCK (Peter, 09-03): no remaining time, no ends-at.
+  assert.doesNotMatch(JS, /endsAt|'times'|ENDS /);
+  assert.doesNotMatch(CSS, /\.times/);
 });
 
 /**
@@ -232,10 +235,17 @@ test('volume acts on the bound output and transport on the zone', () => {
  * replays the flood and gets twelve. This holds the face to USING it.
  */
 test('every path to a volume request goes through the gate', () => {
-  assert.match(JS, /import \{ createVolumeGate \} from '\.\/volume-gate\.js';/);
+  assert.match(JS, /import \{ createVolumeGate, levelAtAngle \} from '\.\/volume-gate\.js';/);
   assert.match(JS, /var volumeGate = createVolumeGate\(function \(steps\) \{[\s\S]{0,240}command\(\{ action: 'volume', output: output\.id, steps: steps \}\)/,
     'the gate is the only thing that ever sends a volume step');
-  assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 1, 'one place, not two');
+  // Exactly two places send a volume request: the gate's stepped batches, and a
+  // TAP on a bezel dot — one press, one absolute level, which cannot repeat
+  // itself and is throttled and wake-gated like every other touch.
+  assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 2, 'the gate, and the dot tap — nothing else');
+  assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}if \(wake\(\)\) \{ showTurning\(\); return; \}/, 'a tap on a sleeping bezel only wakes');
+  assert.match(JS, /if \(now - lastBezelTap < 300\) return;/, 'and never faster than one every 300 ms');
+  assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, detentMarks\.length\);[\s\S]{0,200}command\(\{ action: 'volume', output: output\.id, value: value \}\)/,
+    'the dot under the finger, on the device\'s own range, as one absolute value');
   assert.match(JS, /var verdict = volumeGate\.step\(step\);/);
   // A wheel event is DISTANCE: the gate turns it into detents, and a page that
   // is asleep is only woken by the first of them.
