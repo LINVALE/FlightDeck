@@ -257,7 +257,10 @@ test('every path to a volume request goes through the gate', () => {
  */
 test('one ring on the glass, and no volume control drawn on it at all', () => {
   assert.match(JS, /var PROG_R = 47;/, 'progress at the rim');
-  assert.match(CSS, /\.cover img \{[\s\S]{0,120}object-fit: cover/, 'the sleeve fills the circle: cropped, never stretched or boxed');
+  // A circle cut from WITHIN the sleeve: drawn past the glass so no edge of the
+  // square can reach the rim, and cropped rather than stretched or boxed.
+  assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 118%; height: 118%;\s*margin-left: -9%; margin-top: -9%;/);
+  assert.match(CSS, /\.cover img \{[\s\S]{0,200}object-fit: cover/);
   // The wheel and its dots ARE the volume (Peter, 09-03): nothing on the glass.
   assert.doesNotMatch(JS, /vol-pill|volMinus|volPlus|volMute|vol-num/);
   assert.doesNotMatch(CSS, /vol-pill|vol-num|vol-step/);
