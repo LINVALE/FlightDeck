@@ -586,7 +586,8 @@ body {
    query. Delete · clear · space · search. Shown only while spelling. */
 .spell-keys {
   position: absolute; left: 0; right: 0;
-  top: calc(var(--u) * 66);
+  /* Between the query and the five-o'clock letters: at 66 the row sat on Q and K. */
+  top: calc(var(--u) * 59);
   display: -webkit-flex; display: flex;
   -webkit-justify-content: center; justify-content: center;
 }
