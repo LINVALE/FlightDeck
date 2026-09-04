@@ -411,8 +411,15 @@ body {
   margin-top: calc(var(--u) * -5);
 }
 
-.btn-repeat { left: calc(var(--u) * 35); margin-left: calc(var(--u) * -5); }
-.btn-shuffle { left: calc(var(--u) * 65); margin-left: calc(var(--u) * -5); }
+.btn-repeat { left: calc(var(--u) * 33); margin-left: calc(var(--u) * -5); }
+.btn-shuffle { left: calc(var(--u) * 67); margin-left: calc(var(--u) * -5); }
+/* mute, between them: the speaker shows the state, a tap flips it */
+.btn-mute {
+  left: 50%; top: calc(var(--u) * 56);
+  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
+  margin-left: calc(var(--u) * -5); margin-top: calc(var(--u) * -5);
+}
+.puck[data-vol="none"] .btn-mute { display: none; }
 
 /* No volume control on the glass at all (Peter, 09-03): the wheel and its
    dots are the volume. A fixed-volume output simply has no lit dots. */
@@ -591,6 +598,36 @@ body {
   color: var(--ink-dim);
 }
 
+/* The alphabet round the OUTSIDE of a letter's page: small, just inside the
+   glass's edge, the current letter in the accent. It is the wheel's own scale
+   there — a turn skips letters — and each is a tap. */
+.lt {
+  position: absolute;
+  width: calc(var(--u) * 5.2); height: calc(var(--u) * 5.2);
+  margin-left: calc(var(--u) * -2.6); margin-top: calc(var(--u) * -2.6);
+  border-radius: 50%;
+  background: rgba(10, 11, 14, .55);
+  border: 1px solid rgba(242, 238, 230, .14);
+  color: rgba(242, 238, 230, .5);
+  font-size: calc(var(--u) * 2.6);
+  line-height: calc(var(--u) * 5);
+  text-align: center;
+  cursor: pointer;
+}
+.lt-on { color: var(--ink); border-color: var(--accent); background: rgba(10, 11, 14, .8); font-weight: 700; }
+/* On a letter's page the count sits under the title, in the alphabet's gap;
+   at the foot it sat on the bottom letters. */
+/* A letter's page: the ring at 29 with smaller circles and names, the count
+   between the lowest circles and the bottom letters, and the centre block
+   restacked — name at 44.5, subtitle right under it, the row at 58 — all
+   measured against the pulled-in ring. */
+.puck[data-lettered="1"] .count { bottom: calc(var(--u) * 14); left: calc(var(--u) * 30); right: calc(var(--u) * 30); font-size: calc(var(--u) * 3); }
+.puck[data-lettered="1"] .opt-name { width: calc(var(--u) * 20); margin-left: calc(var(--u) * -10); font-size: calc(var(--u) * 2.8); }
+/* at a specificity that beats the browse block's own placement */
+.puck[data-browse][data-lettered="1"]:not([data-spell="1"]) .chosen { top: calc(var(--u) * 44.5); }
+.puck[data-browse][data-lettered="1"]:not([data-spell="1"]) .chosen-sub { top: calc(var(--u) * 6.4); left: calc(var(--u) * -4); right: calc(var(--u) * -4); }
+.puck[data-browse][data-lettered="1"] .nav-keys .key { top: calc(var(--u) * 59); }
+
 /* The centre's verbs: ‹ › either side of the name, select beneath it. Inside
    the ring at 9 and 3, where no circle or label sits; not while spelling, which
    has its own keys. The name pulls in to make room for the arrows. */
@@ -607,6 +644,8 @@ body {
 .key-prev { left: calc(var(--u) * 35); }
 .key-next { left: calc(var(--u) * 65); }
 .key-select { left: 50%; border-color: var(--accent); color: var(--accent); }
+/* ⌃ up, above the name — clear of the 10:17 and 1:43 names either side of it */
+.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 36.5); }
 .puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
 /* name at 42.5, the row at 54, the subtitle at 61 — under the row, where the
    ring of seven leaves the width for it. Measured: the 10:17 and 1:43 names end

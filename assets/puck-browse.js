@@ -222,9 +222,12 @@ export function createBrowse(options) {
   var prevKey = key('\u2039', 'previous', function () { move(-1); });
   var nextKey = key('\u203a', 'next', function () { move(1); });
   var selectKey = key('\u25cf', 'select', function () { commit(); });
+  var upKey = key('\u2303', 'up', function () { back(); });   // Peter, 09-03: "an up button would be helpful"
   prevKey.className = 'key key-prev';
   nextKey.className = 'key key-next';
   selectKey.className = 'key key-select';
+  upKey.className = 'key key-up';
+  nav.appendChild(upKey);
   nav.appendChild(prevKey);
   nav.appendChild(selectKey);
   nav.appendChild(nextKey);
@@ -245,6 +248,7 @@ export function createBrowse(options) {
 
   /* ---------- what is on the face ---------- */
 
+  var SLOTS = 7;     // circles a page (see drawPaged)
   var view = null;   // null when closed
   var epoch = 0;
   var busy = false;
@@ -284,6 +288,7 @@ export function createBrowse(options) {
     if (view === null) return;
     root.setAttribute('data-browse', view.tier);
     root.setAttribute('data-tier', view.tier);
+    if (view.tier !== 'linear') root.removeAttribute('data-lettered');
     if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
     level.textContent = view.title;
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
@@ -424,12 +429,16 @@ export function createBrowse(options) {
      ring has room for (Peter, 09-03: "icon with name underneath would be good").
      Eight puts circles at exactly three and nine o'clock, whose names land on
      the half-past-seven and half-past-four ones — measured, not guessed. */
-  var SLOTS = 7;
 
   function drawPaged() {
     var first = Math.floor(view.sel / SLOTS) * SLOTS;
     var n = Math.max(1, Math.min(SLOTS, view.total - first));
-    var size = tokenSize(n);
+    // With the alphabet round the outside, the ring pulls in and its circles
+    // and names shrink, so the letters keep an orbit of their own (measured:
+    // at 33 the names reached the letters and the chosen circle touched them).
+    var lettered = view.letters !== null && view.letter !== null;
+    var radius = lettered ? 29 : OPT_R;
+    var size = lettered ? 12 : tokenSize(n);
     named = true;
     for (var k = 0; k < n; k += 1) {
       var index = first + k;
@@ -443,14 +452,22 @@ export function createBrowse(options) {
       var name = el('div', 'opt-name', item === null ? '\u2026' : item.title);
       var below = Math.sin(angle) <= 1e-9;   // sin(π) is +1e-16: nine o'clock must side with three
       name.style.marginTop = below
-        ? 'calc(var(--u) * ' + String(mine / 2 + 1.4) + ')'
-        : 'calc(var(--u) * ' + String(-(mine / 2 + 5.1)) + ')';
+        ? 'calc(var(--u) * ' + String(mine / 2 + 1.2) + ')'
+        : 'calc(var(--u) * ' + String(-(mine / 2 + (lettered ? 4.4 : 5.1))) + ')';
       node.appendChild(name);
-      place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      place(node, 50 + radius * Math.cos(angle), 50 + radius * Math.sin(angle));
       bindPick(node, index);
       optWrap.appendChild(node);
     }
     var pick = itemAt(view.sel);
+    // Walking ‹ › across a letter boundary moves the outer highlight with it.
+    if (view.letters !== null && pick !== null) view.letter = letterOf(pick.title);
+    if (view.letters !== null && view.letter !== null) {
+      drawAlphabetOutside();
+      root.setAttribute('data-lettered', '1');
+    } else {
+      root.removeAttribute('data-lettered');
+    }
     chosenArt.style.display = 'none';
     chosen.className = 'chosen';
     chosenTitle.textContent = pick === null ? '\u2026' : pick.title;
@@ -459,6 +476,30 @@ export function createBrowse(options) {
     root.setAttribute('data-named', '1');
     count.textContent = String(view.sel + 1) + ' / ' + String(view.total)
       + (view.letter === null ? '' : '  \u00b7  ' + view.letter);
+  }
+
+  /**
+   * The alphabet, small, just inside the glass's edge: the wheel's own scale
+   * here. It leaves a GAP at the top for the level's title — a first cut put
+   * "#" at twelve o'clock, on the title, and a tap meant as up became a jump.
+   */
+  var LETTER_R = 44;
+  var LETTER_GAP = 44 * Math.PI / 180;   // ±22° free at twelve
+
+  function drawAlphabetOutside() {
+    var letters = view.letters;
+    var span = 2 * Math.PI - 2 * LETTER_GAP;
+    for (var i = 0; i < letters.length; i += 1) {
+      var angle = -Math.PI / 2 + LETTER_GAP + (i / (letters.length - 1)) * span;
+      var node = el('div', letters[i] === view.letter ? 'lt lt-on' : 'lt', letters[i]);
+      place(node, 50 + LETTER_R * Math.cos(angle), 50 + LETTER_R * Math.sin(angle));
+      (function (letter) {
+        node.addEventListener('click', function (event) { event.stopPropagation(); jumpWithin(letter); });
+        node.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+        node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+      }(letters[i]));
+      optWrap.appendChild(node);
+    }
   }
 
   function bindPick(node, index) {
@@ -494,11 +535,11 @@ export function createBrowse(options) {
     if (n === 0) return;
     if (view.tier === 'linear') {
       var next = view.sel + step;
-      // A library has ends; a ring does not. The floor is the loaded window's
-      // own start, because a letter jump lands mid-list and never pages back.
-      if (next < view.base || next >= n) return;
+      // A library has ends; a ring does not.
+      if (next < 0 || next >= n) return;
       view.sel = next;
       fill();
+      fillBack();
     } else {
       view.sel = ((view.sel + step) % n + n) % n;
     }
@@ -526,6 +567,26 @@ export function createBrowse(options) {
         draw();
       })
       .catch(function () { if (current(mine)) view.paging = false; });
+  }
+
+  /** And behind it: ‹ from the first loaded row loads the page before. */
+  function fillBack() {
+    if (view === null || view.tier !== 'linear' || view.paging || view.base === 0) return;
+    if (view.sel > view.base + 1) return;
+    var mine = epoch;
+    var page = view;
+    var from = Math.max(0, page.base - PAGE);
+    page.paging = true;
+    ask({ hierarchy: page.hierarchy, load: true, count: page.base - from, offset: from })
+      .then(function (data) {
+        if (!current(mine) || view !== page) return;
+        page.paging = false;
+        var items = data.items || [];
+        page.items = items.concat(page.items);
+        page.base = from;
+        draw();
+      })
+      .catch(function () { if (current(mine)) page.paging = false; });
   }
 
   /* ---------- opening a level ---------- */
@@ -631,6 +692,7 @@ export function createBrowse(options) {
     root.removeAttribute('data-browse');
     root.removeAttribute('data-tier');
     root.removeAttribute('data-spell');
+    root.removeAttribute('data-lettered');
     onChange(false);
   }
 
@@ -660,7 +722,12 @@ export function createBrowse(options) {
           return;
         }
         if (result.isError === true) { flash(result.message || 'could not open that'); return; }
-        return present(result, depth + 1, mine, hierarchy);
+        var from = view;
+        return present(result, depth + 1, mine, hierarchy).then(function () {
+          // The child remembers the view it came from, AS IT WAS — page, place
+          // and all — so ↑ lands back on it rather than on a fresh copy.
+          if (current(mine)) { view.parent = from; view.roonLevel = true; }
+        });
       })
       .catch(function (error) {
         busy = false;
@@ -685,26 +752,31 @@ export function createBrowse(options) {
     }
     // A letter jump is not a Roon level: climb back to the alphabet without
     // popping the Core's stack, or the list under the letter would be lost too.
-    if (view.letter !== null) {
-      var restored = view.alpha;
-      view = restored;
-      view.letter = null;
-      tick();
-      draw();
+    /**
+     * ⚖️ UP CLIMBS ONE LEVEL, TO THE VIEW AS IT WAS (Peter, 09-03: "x → artists →
+     * genres … forward and back in the A's, and an up to return to Artists").
+     * A first cut re-presented the parent fresh, so ↑ from an artist reached by
+     * "M" landed on the alphabet at "#". Now each view keeps the one it came
+     * from — page, place and highlight — and ↑ restores it. Roon's own stack is
+     * popped only when the child was a Roon level; a letter's page is not.
+     */
+    if (view.parent !== undefined && view.parent !== null) {
+      var parent = view.parent;
+      if (view.roonLevel !== true) { view = parent; tick(); draw(); return; }
+      var mine = epoch;
+      busy = true;
+      ask({ hierarchy: view.hierarchy, popLevels: 1 })
+        .then(function () {
+          busy = false;
+          if (!current(mine)) return;
+          view = parent;
+          tick();
+          draw();
+        })
+        .catch(function () { busy = false; if (current(mine)) close(); });
       return;
     }
-    if (view.depth === 0) { close(); return; }
-    var mine = epoch;
-    var hierarchy = view.hierarchy;
-    var depth = view.depth;
-    busy = true;
-    ask({ hierarchy: hierarchy, popLevels: 1 })
-      .then(function (result) {
-        busy = false;
-        if (!current(mine)) return;
-        return present(result, depth - 1, mine, hierarchy);
-      })
-      .catch(function () { busy = false; if (current(mine)) close(); });
+    close();
   }
 
   /* ---------- the speller: Search, spelt on the ring ---------- */
@@ -829,7 +901,8 @@ export function createBrowse(options) {
       // Anchor the page a couple of rows BEFORE the letter. Loading exactly at
       // it left the two rows above the chosen one unloaded, and a column that
       // opens under two ellipses reads as broken rather than as a beginning.
-      var from = Math.max(0, offset - WINDOW);
+      // From the page's own start, so every circle on it is in hand at once.
+      var from = Math.floor(offset / SLOTS) * SLOTS;
       ask({ hierarchy: hierarchy, load: true, count: PAGE, offset: from })
         .then(function (data) {
           busy = false;
@@ -837,7 +910,9 @@ export function createBrowse(options) {
           view = {
             hierarchy: hierarchy, tier: 'linear', title: alpha.title, total: alpha.total,
             items: data.items || [], base: from, sel: offset, depth: alpha.depth,
-            letter: letter, paging: false, alpha: alpha, probes: alpha.probes, letters: null,
+            letter: letter, paging: false, probes: alpha.probes,
+            // the alphabet rides round the OUTSIDE of this page, for the wheel
+            letters: alpha.letters, parent: alpha, roonLevel: false,
           };
           tick();
           draw();
@@ -846,8 +921,69 @@ export function createBrowse(options) {
     });
   }
 
+  /**
+   * ⚖️ THE WHEEL SKIPS LETTERS; ‹ › WALK THE ARTISTS (Peter, 09-03: "the outer
+   * wheel should be a way to skip through the long list — the alphabet around
+   * the outside to advance rapidly, and a single next button to advance the
+   * list"). On a letter's page a turn moves to the next letter that has
+   * anything under it, in the same view; the parent stays the alphabet.
+   */
+  function jumpWithin(letter, done) {
+    if (view === null || busy || view.letters === null) { if (done) done(false); return; }
+    var page = view;
+    var mine = epoch;
+    busy = true;
+    findLetter(page.hierarchy, letter, page.total, mine, page.probes, function (offset) {
+      if (!current(mine) || view !== page) { busy = false; if (done) done(false); return; }
+      var landed = offset === null ? null : page.probes[offset];
+      if (offset === null || landed === null || landed === undefined || letterOf(landed) !== letter) {
+        busy = false;
+        if (done) done(false);
+        return;
+      }
+      var from = Math.floor(offset / SLOTS) * SLOTS;
+      ask({ hierarchy: page.hierarchy, load: true, count: PAGE, offset: from })
+        .then(function (data) {
+          busy = false;
+          if (!current(mine) || view !== page) { if (done) done(false); return; }
+          page.items = data.items || [];
+          page.base = from;
+          page.sel = offset;
+          page.letter = letter;
+          tick();
+          draw();
+          if (done) done(true);
+        })
+        .catch(function () { busy = false; if (done) done(false); });
+    });
+  }
+
+  function stepLetter(dir) {
+    if (view === null || view.letters === null || view.letter === null) { move(dir); return; }
+    var letters = view.letters;
+    var at = letters.indexOf(view.letter);
+    var next = at + dir;
+    var tryNext = function () {
+      if (next < 0 || next >= letters.length) return;
+      var target = letters[next];
+      jumpWithin(target, function (ok) {
+        if (ok) return;
+        next += dir;          // nothing under that letter: keep going the same way
+        tryNext();
+      });
+    };
+    tryNext();
+  }
+
+  /** The wheel's meaning here: letters on a letter's page, otherwise the highlight. */
+  function turn(dir) {
+    if (view !== null && view.tier === 'linear' && view.letters !== null && view.letter !== null) stepLetter(dir);
+    else move(dir);
+  }
+
   return {
     open: open,
+    turn: turn,
     close: close,
     back: back,
     commit: commit,

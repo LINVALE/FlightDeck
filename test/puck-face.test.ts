@@ -326,6 +326,18 @@ test('the menu and the cluster share one circle and one set of line-work', () =>
     'a label hangs below on the top half and above on the bottom — with a tolerance, because sin(π) is +1e-16 and nine o\'clock must side with three');
 });
 
+/**
+ * MUTE, on the cluster (Peter, 09-03: "volume change always shows muted"). Roon
+ * was reporting the room muted; the readout now keeps the number and says
+ * "muted" beneath it, and the speaker between repeat and shuffle flips it.
+ */
+test('mute is on the cluster, and the readout keeps the number when muted', () => {
+  assert.match(JS, /var btnMute = button\('speaker', 'btn-mute'\);/);
+  assert.match(JS, /press\(btnMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
+  assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : 'volume \\u00b7 '\) \+ output\.name;/);
+  assert.match(CSS, /\.puck\[data-vol="none"\] \.btn-mute \{ display: none; \}/);
+});
+
 test('the cluster is repeat · previous · play/pause · next · shuffle', () => {
   for (const name of ['btn-repeat', 'btn-prev', 'btn-play', 'btn-next', 'btn-shuffle']) {
     assert.match(JS, new RegExp("'" + name + "'"), name + ' is part of the cluster');
@@ -390,12 +402,18 @@ test('the ring is drawn on evidence, and a stop that leads nowhere says so', () 
 });
 
 test('the axis is the same at every depth, and its own session key', () => {
-  assert.match(BROWSE, /function back\(\)[\s\S]{0,900}if \(view\.depth === 0\) \{ close\(\); return; \}/);
+  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    close\(\);\n  \}/,
+    'up restores the parent view; with no parent it walks out');
   assert.match(BROWSE, /popLevels: 1/);
   assert.match(BROWSE, /var session = 'puck-'/,
     'Roon keeps one stack per multi_session_key; a shared key drags every other screen');
-  // A letter jump is not a Roon level and must not pop the Core's stack.
-  assert.match(BROWSE, /if \(view\.letter !== null\) \{[\s\S]{0,200}view = restored;/);
+  // ⚖️ UP CLIMBS ONE LEVEL, TO THE VIEW AS IT WAS: each view keeps the one it
+  // came from, and Roon's stack is popped only for a Roon level — a letter's
+  // page is not one.
+  assert.match(BROWSE, /if \(current\(mine\)\) \{ view\.parent = from; view\.roonLevel = true; \}/);
+  assert.match(BROWSE, /if \(view\.roonLevel !== true\) \{ view = parent; tick\(\); draw\(\); return; \}/);
+  assert.match(BROWSE, /letters: alpha\.letters, parent: alpha, roonLevel: false,/, 'a letter\'s page: parent is the alphabet, no pop');
+  assert.doesNotMatch(BROWSE, /view\.alpha\b/);
 });
 
 /** The ring band is the seek control, and it never names the terminal second. */
@@ -550,6 +568,11 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(CSS, /\.level:before \{ content: '\\2039 '; color: var\(--accent\); \}/, 'the title reads "‹ GENRES"');
   assert.match(BROWSE, /var prevKey = key\('\\u2039', 'previous', function \(\) \{ move\(-1\); \}\);/);
   assert.match(BROWSE, /var selectKey = key\('\\u25cf', 'select', function \(\) \{ commit\(\); \}\);/);
+  assert.match(BROWSE, /var upKey = key\('\\u2303', 'up', function \(\) \{ back\(\); \}\);/, 'an up button (Peter, 09-03)');
+  assert.match(CSS, /\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/);
+  // swipes mean the same: ↑ is up, ← → are next and previous
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dx < 0 \? 1 : -1\); return true; \}/, 'a sideways swipe steps the highlight');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.back\(\);/, 'an upward swipe is up');
   assert.match(CSS, /\.puck:not\(\[data-browse\]\) \.nav-keys, \.puck\[data-spell="1"\] \.nav-keys \{ display: none; \}/);
 });
 
@@ -586,7 +609,7 @@ test('genres get their own pictures, and only on a genre level', () => {
   }
   // Eight a page, each with its name beneath.
   assert.match(BROWSE, /var SLOTS = 7;/, 'seven a page: eight puts circles at three and nine, whose names land on their neighbours');
-  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,900}var name = el\('div', 'opt-name', item === null \? '\\u2026' : item\.title\);/);
+  assert.match(BROWSE, /function drawPaged\(\)[\s\S]{0,1800}var name = el\('div', 'opt-name', item === null \? '\\u2026' : item\.title\);/);
 });
 
 /**
@@ -596,10 +619,30 @@ test('genres get their own pictures, and only on a genre level', () => {
  */
 test('the level shows large in the centre on a turn or a tap, then fades', () => {
   assert.match(JS, /var volRead = el\('div', 'vol-read'\);/);
-  assert.match(JS, /volReadValue\.textContent = volume\.muted \? 'muted' : String\(Math\.round\(shown\)\);/, 'the reading under the hand, bounded by the gate');
+  assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);/, 'the reading under the hand, bounded by the gate — the number even when muted');
   assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,700}showTurning\(\);/, 'a tap on the wheel raises it');
   assert.match(JS, /function turn\(step\)[\s\S]{0,400}showTurning\(\);/, 'so does a turn');
   assert.match(CSS, /\.vol-read \{[\s\S]{0,600}top: 50%;[\s\S]{0,500}opacity: 0;[\s\S]{0,120}pointer-events: none;[\s\S]{0,200}transition: opacity \.55s ease-out;/);
   assert.match(CSS, /\.puck\[data-turning="1"\] \.vol-read \{ opacity: 1;/);
   assert.match(CSS, /\.puck\[data-browse\] \.vol-read, \.puck\[data-vol="none"\] \.vol-read \{ display: none; \}/);
+});
+
+/**
+ * ⚖️ THE WHEEL SKIPS LETTERS; ‹ › WALK THE ARTISTS (Peter, 09-03). On a
+ * letter's page the alphabet rides round the outside, a turn moves to the next
+ * letter with anything under it, ‹ › step one artist, and ‹ from the first
+ * loaded row fetches the page before.
+ */
+test('on a letter\'s page the wheel skips letters and the arrows step artists', () => {
+  assert.match(BROWSE, /function turn\(dir\) \{\s*if \(view !== null && view\.tier === 'linear' && view\.letters !== null && view\.letter !== null\) stepLetter\(dir\);\s*else move\(dir\);/);
+  assert.match(BROWSE, /function stepLetter\(dir\)[\s\S]{0,600}next \+= dir;          \/\/ nothing under that letter: keep going the same way/);
+  assert.match(BROWSE, /function drawAlphabetOutside\(\)[\s\S]{0,400}'lt lt-on' : 'lt'/);
+  assert.match(BROWSE, /var LETTER_R = 44;/, 'just inside the glass\'s edge');
+  assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title: "#" on the title made a tap meant as up into a jump');
+  assert.match(BROWSE, /var from = Math\.floor\(offset \/ SLOTS\) \* SLOTS;/, 'a jump loads from the page\'s own start');
+  assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/, 'the count sits between the lowest circles and the bottom letters');
+  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/, 'up above the name, at a specificity that wins');
+  assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
+  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.turn\(step\);/, 'the bezel asks the menu what a turn means');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.turn\(dir\); return; \}/, 'so does the scroll wheel');
 });

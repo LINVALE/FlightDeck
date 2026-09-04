@@ -219,8 +219,15 @@ var btnPrev = button('prev', 'btn-prev');
 var btnPlay = button('play', 'btn-play');
 var btnNext = button('next', 'btn-next');
 var btnShuffle = button('shuffle', 'btn-shuffle');
+/**
+ * MUTE, between repeat and shuffle (Peter, 09-03: "volume change always shows
+ * muted" — Roon was reporting the room muted, and with the pill gone there was
+ * no way to unmute from the puck). The speaker shows the state; a tap flips it.
+ */
+var btnMute = button('speaker', 'btn-mute');
 
 pad.appendChild(btnRepeat);
+pad.appendChild(btnMute);
 pad.appendChild(btnPrev);
 pad.appendChild(btnPlay);
 pad.appendChild(btnNext);
@@ -569,7 +576,8 @@ function paintVolume() {
     // An incremental output says only that it takes + and −: no level to read,
     // no dots to light, and inventing either would be a lie.
     root.setAttribute('data-vol', 'blind');
-    volReadValue.textContent = volume.muted ? 'muted' : '\u00b7\u00b7\u00b7';
+    volReadValue.textContent = '\u00b7\u00b7\u00b7';
+    volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : '') + output.name;
     lightDetents(null);
     return;
   }
@@ -589,8 +597,15 @@ function paintVolume() {
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
   lightDetents((shown - bounds.min) / span);
-  volReadValue.textContent = volume.muted ? 'muted' : String(Math.round(shown));
-  volReadLabel.textContent = volume.muted ? output.name : 'volume \u00b7 ' + output.name;
+  // The number always; "muted" is said beneath it, not instead of it.
+  volReadValue.textContent = String(Math.round(shown));
+  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : 'volume \u00b7 ') + output.name;
+  var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
+  if (btnMute.getAttribute('data-shows') !== muteShows) {
+    btnMute.setAttribute('data-shows', muteShows);
+    btnMute.replaceChildren(glyph(muteShows));
+  }
+  if (volume.muted) btnMute.setAttribute('data-on', '1'); else btnMute.removeAttribute('data-on');
 }
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
@@ -833,6 +848,12 @@ press(btnShuffle, function () {
   haptic(12);
   command({ action: 'shuffle', zone: zone.id });
 });
+press(btnMute, function () {
+  var output = currentOutput();
+  if (output === null || output.volume === null) return;
+  haptic(12);
+  command({ action: 'mute', output: output.id, muted: !output.volume.muted });
+});
 press(btnRepeat, function () {
   var zone = currentZone();
   if (zone === null) return;
@@ -942,7 +963,7 @@ rig.addEventListener('pointermove', function (event) {
   while (Math.abs(turning.carried) >= DETENT_DEG) {
     var step = turning.carried > 0 ? 1 : -1;
     turning.carried -= step * DETENT_DEG;
-    if (browse.isOpen()) browse.move(step);
+    if (browse.isOpen()) browse.turn(step);
     else turn(step);
   }
 });
@@ -973,7 +994,7 @@ window.addEventListener('wheel', function (event) {
   if (event.deltaMode === 1) delta *= 33;
   else if (event.deltaMode === 2) delta *= 100;
   volumeGate.scroll(delta, function (dir) {
-    if (browse.isOpen()) { browse.move(dir); return; }
+    if (browse.isOpen()) { browse.turn(dir); return; }
     // The one input with NO place: a scroll can land on an idle page from a
     // hand that meant another window. So a sleeping face is only woken by it,
     // and the next detent acts — the bezel and its dots never wait.
