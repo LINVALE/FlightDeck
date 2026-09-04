@@ -980,7 +980,6 @@ rig.addEventListener('pointerdown', function (event) {
  */
 var lastBezelTap = 0;
 function tapBezel(degrees) {
-  if (browse.isOpen()) return;
   var output = currentOutput();
   if (output === null) return;
   if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
@@ -1009,8 +1008,10 @@ rig.addEventListener('pointermove', function (event) {
   while (Math.abs(turning.carried) >= DETENT_DEG) {
     var step = turning.carried > 0 ? 1 : -1;
     turning.carried -= step * DETENT_DEG;
-    if (browse.isOpen()) browse.turn(step);
-    else turn(step);
+    // ⚖️ THE COG IS THE VOLUME, IN EVERY STATE (Peter, 09-04: "in browse mode let
+    // the outer cog still adjust volume — so it always serves that function
+    // alone"). The highlight moves by ‹ ›, swipes, taps and the outer letters.
+    turn(step);
   }
 });
 
@@ -1040,10 +1041,10 @@ window.addEventListener('wheel', function (event) {
   if (event.deltaMode === 1) delta *= 33;
   else if (event.deltaMode === 2) delta *= 100;
   volumeGate.scroll(delta, function (dir) {
-    if (browse.isOpen()) { browse.turn(dir); return; }
-    // The one input with NO place: a scroll can land on an idle page from a
-    // hand that meant another window. So a sleeping face is only woken by it,
-    // and the next detent acts — the bezel and its dots never wait.
+    // The scroll wheel is the desk's cog, and the cog is the volume in every
+    // state. It is the one input with NO place — a scroll can land on an idle
+    // page from a hand that meant another window — so a sleeping face is only
+    // woken by it, and the next detent acts; the bezel and its scale never wait.
     if (wake()) { showTurning(); return; }
     turn(-dir);
   });

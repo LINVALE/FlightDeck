@@ -258,7 +258,8 @@ body {
   -webkit-transition: opacity .55s ease-out; transition: opacity .55s ease-out;
 }
 .puck[data-turning="1"] .vol-read { opacity: 1; -webkit-transition: opacity .06s; transition: opacity .06s; }
-.puck[data-browse] .vol-read, .puck[data-vol="none"] .vol-read { display: none; }
+/* Shown in browse too: the cog is the volume there as everywhere. */
+.puck[data-vol="none"] .vol-read { display: none; }
 .vol-read-value { display: block; }
 .vol-read-label {
   display: block;

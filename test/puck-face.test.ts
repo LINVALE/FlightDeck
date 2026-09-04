@@ -646,27 +646,28 @@ test('the level shows large in the centre on a turn or a tap, then fades', () =>
   assert.match(JS, /function turn\(step\)[\s\S]{0,400}showTurning\(\);/, 'so does a turn');
   assert.match(CSS, /\.vol-read \{[\s\S]{0,600}top: 50%;[\s\S]{0,500}opacity: 0;[\s\S]{0,120}pointer-events: none;[\s\S]{0,200}transition: opacity \.55s ease-out;/);
   assert.match(CSS, /\.puck\[data-turning="1"\] \.vol-read \{ opacity: 1;/);
-  assert.match(CSS, /\.puck\[data-browse\] \.vol-read, \.puck\[data-vol="none"\] \.vol-read \{ display: none; \}/);
+  assert.match(CSS, /\.puck\[data-vol="none"\] \.vol-read \{ display: none; \}/, 'hidden only where there is no level to read — the cog is the volume in browse too');
 });
 
 /**
- * ⚖️ THE WHEEL SKIPS LETTERS; ‹ › WALK THE ARTISTS (Peter, 09-03). On a
- * letter's page the alphabet rides round the outside, a turn moves to the next
- * letter with anything under it, ‹ › step one artist, and ‹ from the first
- * loaded row fetches the page before.
+ * ⚖️ THE COG IS THE VOLUME, IN EVERY STATE (Peter, 09-04: "in browse mode let
+ * the outer cog still adjust volume — so it always serves that function
+ * alone"). The highlight moves by ‹ ›, swipes, taps and the outer letters; the
+ * bezel, the glass's edge and the scroll wheel never touch it.
  */
-test('on a letter\'s page the wheel skips letters and the arrows step artists', () => {
-  assert.match(BROWSE, /function turn\(dir\) \{\s*if \(view !== null && view\.tier === 'linear' && view\.letters !== null && view\.letter !== null\) stepLetter\(dir\);\s*else move\(dir\);/);
-  assert.match(BROWSE, /function stepLetter\(dir\)[\s\S]{0,600}next \+= dir;          \/\/ nothing under that letter: keep going the same way/);
+test('the cog is the volume in every state; the alphabet outside is reached by tap', () => {
+  assert.doesNotMatch(JS, /browse\.turn\(/, 'the face never asks the menu what a turn means');
+  assert.doesNotMatch(BROWSE, /function turn\(|stepLetter/);
+  assert.match(JS, /function tapBezel\(degrees\) \{\s*var output = currentOutput\(\);/, 'a tap on the wheel sets the level in browse too');
+  assert.doesNotMatch(CSS, /\.puck\[data-browse\] \.vol-read/, 'the reading shows in browse as everywhere');
   assert.match(BROWSE, /function drawAlphabetOutside\(\)[\s\S]{0,400}'lt lt-on' : 'lt'/);
+  assert.match(BROWSE, /node\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); jumpWithin\(letter\); \}\);/, 'a letter is a tap');
   assert.match(BROWSE, /var LETTER_R = 44;/, 'just inside the glass\'s edge');
-  assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title: "#" on the title made a tap meant as up into a jump');
+  assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title');
   assert.match(BROWSE, /var from = Math\.floor\(offset \/ SLOTS\) \* SLOTS;/, 'a jump loads from the page\'s own start');
-  assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/, 'the count sits between the lowest circles and the bottom letters');
-  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/, 'up above the name, at a specificity that wins');
+  assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/);
+  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 36\.5\); \}/);
   assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
-  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.turn\(step\);/, 'the bezel asks the menu what a turn means');
-  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.turn\(dir\); return; \}/, 'so does the scroll wheel');
 });
 
 /**

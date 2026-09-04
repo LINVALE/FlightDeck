@@ -956,11 +956,9 @@ export function createBrowse(options) {
   }
 
   /**
-   * ⚖️ THE WHEEL SKIPS LETTERS; ‹ › WALK THE ARTISTS (Peter, 09-03: "the outer
-   * wheel should be a way to skip through the long list — the alphabet around
-   * the outside to advance rapidly, and a single next button to advance the
-   * list"). On a letter's page a turn moves to the next letter that has
-   * anything under it, in the same view; the parent stays the alphabet.
+   * THE ALPHABET ROUND THE OUTSIDE; ‹ › WALK THE ARTISTS. On a letter's page a
+   * tap on a letter moves to it in the same view; the parent stays the
+   * alphabet. (The cog itself is the volume, in every state — Peter, 09-04.)
    */
   function jumpWithin(letter, done) {
     if (view === null || busy || view.letters === null) { if (done) done(false); return; }
@@ -992,32 +990,11 @@ export function createBrowse(options) {
     });
   }
 
-  function stepLetter(dir) {
-    if (view === null || view.letters === null || view.letter === null) { move(dir); return; }
-    var letters = view.letters;
-    var at = letters.indexOf(view.letter);
-    var next = at + dir;
-    var tryNext = function () {
-      if (next < 0 || next >= letters.length) return;
-      var target = letters[next];
-      jumpWithin(target, function (ok) {
-        if (ok) return;
-        next += dir;          // nothing under that letter: keep going the same way
-        tryNext();
-      });
-    };
-    tryNext();
-  }
-
-  /** The wheel's meaning here: letters on a letter's page, otherwise the highlight. */
-  function turn(dir) {
-    if (view !== null && view.tier === 'linear' && view.letters !== null && view.letter !== null) stepLetter(dir);
-    else move(dir);
-  }
+  /* The cog never moves the highlight (Peter, 09-04): letters are reached by a
+     tap on the alphabet round the outside, the list by ‹ ›, swipes and taps. */
 
   return {
     open: open,
-    turn: turn,
     close: close,
     back: back,
     commit: commit,
