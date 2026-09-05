@@ -539,7 +539,7 @@ test('the puck is offered beside the faces, remembered, and has a way back', () 
  * keyed to it so a late answer cannot paint the wrong track.
  */
 test('the face takes its colour from the sleeve, measured, and keyed to it', () => {
-  assert.match(JS, /import \{ readPalette \} from '\.\/sleeve-palette\.js';/);
+  assert.match(JS, /import \{ readPalette, luminance \} from '\.\/sleeve-palette\.js';/);
   assert.match(JS, /readPalette\(art\.path, function \(tones\) \{\s*if \(coverKey !== art\.key\) return;/, 'keyed to the sleeve it was read from');
   assert.match(JS, /style\.setProperty\('--accent', tones === null \? DEFAULT_PAINT\.accent : tones\.ring\)/, 'the ring tone, chosen against the band it sits on');
   assert.match(JS, /root\.setAttribute\('data-foot', tones !== null && tones\.foot > 0\.35 \? 'bright' : 'dark'\)/);
@@ -701,7 +701,12 @@ test('in a menu the cog moves the highlight, on the music face it is the volume;
  */
 test('the times ride the bead, the room name sits inside the ring, the wheel says its number', () => {
   assert.match(JS, /var progRead = el\('div', 'prog-read'\);/);
-  assert.match(JS, /progRead\.textContent = formatTime\(positionSec\) \+ ' \/ ' \+ formatTime\(lengthSec\);/);
+  // ⚖️ 09-05: the elapsed time IS the bead — a circle in the arc's tone at the arc's end — and the length sits above the room name
+  assert.match(JS, /progRead\.textContent = formatTime\(positionSec\);\s*progLength\.textContent = formatTime\(lengthSec\);/);
+  assert.match(JS, /if \(clamped < 0\.03\) tagAngle \+= 40 \* Math\.PI \/ 180;/, 'near twelve the circle trails the bead, clear of the mute and the length');
+  assert.match(JS, /style\.setProperty\('--on-accent', onTone\(/, 'the number reads on the tone: ink on a light one, bone on a deep one');
+  assert.match(CSS, /\.prog-read \{[\s\S]{0,300}border-radius: 50%;\s*background: var\(--accent\);/, 'a circle in the arc\'s own tone, not a white-on-black pill');
+  assert.match(CSS, /\.prog-length \{[\s\S]{0,160}top: calc\(var\(--u\) \* 8\.4\);/, 'the length just above the room name');
   assert.match(JS, /var READ_R = 42;/, 'on the arc, inside the glass at three and nine');
   assert.match(JS, /setProgress\(position \/ length, position, length\);/);
   assert.match(CSS, /\.prog-read \{[\s\S]{0,700}white-space: nowrap;[\s\S]{0,200}pointer-events: none;/);
@@ -754,7 +759,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
   assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
   assert.match(CSS, /\.btn-mute \{\s*left: 50%; top: calc\(var\(--u\) \* 4\.4\);\s*width: calc\(var\(--u\) \* 5\.6\);/, 'mute at the top centre, between the volume scale and the progress ring (Peter, 09-05)');
-  assert.match(JS, /if \(clamped < 0\.03\) tagAngle \+= 18 \* Math\.PI \/ 180;\s*else if \(clamped > 0\.97\) tagAngle -= 18 \* Math\.PI \/ 180;/, 'the times tag steps aside near twelve, where mute lives');
+  assert.match(JS, /if \(clamped < 0\.03\) tagAngle \+= 40 \* Math\.PI \/ 180;\s*else if \(clamped > 0\.97\) tagAngle -= 40 \* Math\.PI \/ 180;/, 'the circle steps aside near twelve, where mute and the length live');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);
   assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');

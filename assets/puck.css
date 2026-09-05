@@ -197,24 +197,42 @@ body {
 .prog-halo { fill: none; stroke: rgba(0, 0, 0, .40); stroke-width: 4.2; stroke-linecap: round; }
 .prog-bead { fill: #fffef8; stroke: rgba(0, 0, 0, .45); stroke-width: .6; }
 
-/* The times, riding the bead: elapsed / length, over the arc, taking no touch. */
+/* ⚖️ THE ELAPSED TIME IS THE BEAD (Peter, 09-05: "the round circle at the end
+   of the progress bar, using the same subtle colouring and shading rather than
+   the white-on-black bean"): a small circle at the arc's end in the arc's own
+   tone, the halo's dark shade round it and the bead's light rim, the number in
+   whichever of ink or bone reads on that tone. It takes no touch. */
 .prog-read {
   position: absolute;
-  width: calc(var(--u) * 15); height: calc(var(--u) * 4);
-  margin-left: calc(var(--u) * -7.5); margin-top: calc(var(--u) * -2);
-  border-radius: calc(var(--u) * 2);
-  background: rgba(6, 7, 10, .84);
-  border: 1px solid rgba(242, 238, 230, .16);
-  color: var(--ink);
-  font-size: calc(var(--u) * 2.4);
-  line-height: calc(var(--u) * 3.8);
+  width: calc(var(--u) * 7.6); height: calc(var(--u) * 7.6);
+  margin-left: calc(var(--u) * -3.8); margin-top: calc(var(--u) * -3.8);
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1px solid rgba(255, 254, 248, .55);
+  box-shadow: 0 0 0 calc(var(--u) * .9) rgba(0, 0, 0, .40), 0 calc(var(--u) * .5) calc(var(--u) * 1.4) rgba(0, 0, 0, .45);
+  color: var(--on-accent, #f2eee6);
+  font-size: calc(var(--u) * 2.3);
+  font-weight: 600;
+  line-height: calc(var(--u) * 7.4);
   white-space: nowrap;
   text-align: center;
-  letter-spacing: calc(var(--u) * .06);
+  letter-spacing: calc(var(--u) * .04);
   pointer-events: none;
   display: none;
 }
 .puck[data-browse] .prog-read { display: none !important; }
+/* The length, once, just above the room name — between the mute and the name. */
+.prog-length {
+  position: absolute; left: calc(var(--u) * 40); right: calc(var(--u) * 40);
+  top: calc(var(--u) * 8.4);
+  text-align: center;
+  font-size: calc(var(--u) * 2.6);
+  letter-spacing: calc(var(--u) * .16);
+  color: var(--ink-dim);
+  pointer-events: none;
+  display: none;
+}
+.puck[data-browse] .prog-length { display: none !important; }
 
 /* The wheel's own number, at the end of the lit run. */
 .tick-read { fill: var(--accent); font-size: 2.7px; font-weight: 700; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }

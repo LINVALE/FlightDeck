@@ -7,7 +7,7 @@ import { createBrowse } from './puck-browse.js';
 import { nextStop } from './puck-axis.js';
 import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle } from './volume-gate.js';
-import { readPalette } from './sleeve-palette.js';
+import { readPalette, luminance } from './sleeve-palette.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -189,7 +189,15 @@ var progArc = arcOf('prog-arc', PROG_R, PROG_C);
  * the hand of a clock would be read. It sits just outside the arc, over it,
  * and takes no touch.
  */
+/**
+ * ⚖️ THE TIMES (Peter, 09-05): the ELAPSED time rides the arc's end as the bead
+ * itself — a small round circle in the arc's own tone, with the halo's shade
+ * and the bead's rim, never a white-on-black pill — and the LENGTH sits
+ * quietly above the room name. One number where the arc ends, one where the
+ * track's size is read once.
+ */
 var progRead = el('div', 'prog-read');
+var progLength = el('div', 'prog-length');
 var progBead = document.createElementNS(SVG_NS, 'circle');
 progBead.setAttribute('class', 'prog-bead');
 progBead.setAttribute('r', '1.8');
@@ -301,6 +309,7 @@ glass.appendChild(room);
 glass.appendChild(words);
 glass.appendChild(pad);
 glass.appendChild(progRead);
+glass.appendChild(progLength);
 glass.appendChild(volRead);
 glass.appendChild(note);
 glass.appendChild(toast);
@@ -601,9 +610,22 @@ function fallbackField() {
  */
 var DEFAULT_PAINT = { accent: 'rgb(204, 98, 102)', bezelFace: '#202329', bezelLip: '#34383f' };
 
+/** The text colour that reads on a tone — ink on a light one, bone on a deep one. */
+function onTone(colour) {
+  var rgb = null;
+  var hex = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(colour);
+  var dec = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(colour);
+  if (hex) rgb = [parseInt(hex[1], 16), parseInt(hex[2], 16), parseInt(hex[3], 16)];
+  else if (dec) rgb = [Number(dec[1]), Number(dec[2]), Number(dec[3])];
+  if (rgb === null) return '#f2eee6';
+  return luminance(rgb) >= 0.4 ? '#0c0d10' : '#f2eee6';
+}
+
 function paintFromSleeve(tones) {
   var style = document.documentElement.style;
   style.setProperty('--accent', tones === null ? DEFAULT_PAINT.accent : tones.ring);
+  // What reads on the accent: ink on a light tone, bone on a deep one.
+  style.setProperty('--on-accent', onTone(tones === null ? DEFAULT_PAINT.accent : tones.ring));
   style.setProperty('--bezel-face', tones === null ? DEFAULT_PAINT.bezelFace : tones.bezelFace);
   style.setProperty('--bezel-lip', tones === null ? DEFAULT_PAINT.bezelLip : tones.bezelLip);
   root.setAttribute('data-foot', tones !== null && tones.foot > 0.35 ? 'bright' : 'dark');
@@ -641,18 +663,22 @@ var READ_R = 42;
 function setProgress(fraction, positionSec, lengthSec) {
   setArc(progHalo, PROG_C, fraction);
   setArc(progArc, PROG_C, fraction);
-  if (fraction === null) { progBead.style.display = 'none'; progRead.style.display = 'none'; return; }
+  if (fraction === null) { progBead.style.display = 'none'; progRead.style.display = 'none'; progLength.style.display = 'none'; return; }
   var clamped = Math.max(0, Math.min(1, fraction));
   var angle = (clamped * 2 * Math.PI) - (Math.PI / 2);
   progBead.setAttribute('cx', String(50 + PROG_R * Math.cos(angle)));
   progBead.setAttribute('cy', String(50 + PROG_R * Math.sin(angle)));
   progBead.style.display = '';
-  progRead.textContent = formatTime(positionSec) + ' / ' + formatTime(lengthSec);
-  // The tag steps aside near twelve, where the mute button lives (Peter,
-  // 09-05): within the first or last few percent it trails the bead by 18°.
+  progRead.textContent = formatTime(positionSec);
+  progLength.textContent = formatTime(lengthSec);
+  progLength.style.display = 'block';
+  // The circle steps aside near twelve, where the mute, the length and the
+  // room name live (Peter, 09-05): within the first or last few percent it
+  // trails the bead by 40°, clear of all three (measured at 0:19 on the Study:
+  // 28° still sat on the room's last letter).
   var tagAngle = angle;
-  if (clamped < 0.03) tagAngle += 18 * Math.PI / 180;
-  else if (clamped > 0.97) tagAngle -= 18 * Math.PI / 180;
+  if (clamped < 0.03) tagAngle += 40 * Math.PI / 180;
+  else if (clamped > 0.97) tagAngle -= 40 * Math.PI / 180;
   progRead.style.left = String(50 + READ_R * Math.cos(tagAngle)) + '%';
   progRead.style.top = String(50 + READ_R * Math.sin(tagAngle)) + '%';
   progRead.style.display = 'block';   // the stylesheet hides it; '' would only defer to that
