@@ -770,7 +770,7 @@ test('an open picker owns Fire TV Up, Down and Enter before global shortcuts', (
   const presentStart = FACE.indexOf('function presentPicker(');
   const presentEnd = FACE.indexOf('function showPicker(', presentStart);
   const present = FACE.slice(presentStart, presentEnd);
-  assert.match(present, /seedPickerNavigation\(refreshing \? preservedNavigation : ['"]['"]\)/,
+  assert.match(present, /seedPickerNavigation\(refreshing \? preservedNavigation : ['"]['"], refreshing\)/,
     'the one presentation seam seeds every body-owned and in-layout picker');
   const keysStart = FACE.indexOf('function onKey(event)');
   const keysEnd = FACE.indexOf('// Capture on window AND document', keysStart);
@@ -1013,4 +1013,23 @@ test('multizone mute sends one honest intent and repaints room and group state',
   assert.match(FACE,
     /function paintMemberVolumes\(\)[\s\S]{0,420}paintMuteNode\(speakers\[i\], !!vol\.muted, output\.name\)/,
     'member colour follows the Roon snapshot rather than changing optimistically');
+});
+
+/**
+ * ⚖️ THE ROOMS LIST SCROLLS AND PICKS (Peter, 09-05: "the zone picker shows
+ * zones but doesn't allow a pick and won't scroll below the first part; mouse
+ * drag, touch and up/down keys should work"). A structural refresh rebuilt the
+ * column at the top and scrolled the current room back into view; a mouse drag
+ * ended as a press on the card it lifted over.
+ */
+test('a refresh keeps a column\'s place and rebuilds nothing when the house is unchanged; a mouse drag scrolls, never presses', () => {
+  assert.match(FACE, /var kept = refreshing \? columnScrolls\(\) : null;\s*picker\.replaceChildren\.apply\(picker, nodes\);/);
+  assert.match(FACE, /seedPickerNavigation\(refreshing \? preservedNavigation : '', refreshing\);\s*if \(kept !== null\) restoreColumnScrolls\(kept\);/);
+  assert.match(FACE, /function setPickerNavigation\(node, quiet\) \{[\s\S]{0,600}if \(quiet !== true && typeof node\.scrollIntoView === 'function'\)/, 'quiet on a refresh: the list stays where the hand left it');
+  assert.match(FACE, /node\.focus\(\{ preventScroll: true \}\)/, 'focus must not scroll either');
+  assert.match(FACE, /if \(refreshing && !picker\.hidden && stamp === roomsStampShown\) return;/, 'an unchanged house redraws nothing');
+  assert.match(FACE, /if \(Date\.now\(\) < columnDragSuppressUntil\) return;/, 'a drag that scrolled is not a press');
+  assert.match(FACE, /columnDrag\.column\.scrollTop = columnDrag\.top - dy;/, 'the mouse moves the column');
+  assert.match(FACE, /if \(node\.classList && node\.classList\.contains\('roomcard-drag'\)\) return null;/, 'the grouping handle keeps its own drag');
+  assert.match(FACE, /if \(event\.pointerType !== undefined && event\.pointerType !== 'mouse'\) return;/, 'a finger scrolls by itself');
 });

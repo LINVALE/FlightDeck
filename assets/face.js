@@ -1523,20 +1523,21 @@ function pickerNavigationIdentity(node) {
   return 'text:' + String(node.textContent || '').replace(/^\s+|\s+$/g, '');
 }
 
-function setPickerNavigation(node) {
+function setPickerNavigation(node, quiet) {
   if (pickerNavigationCurrent !== null) pickerNavigationCurrent.classList.remove('picker-key-current');
   pickerNavigationCurrent = node;
   if (node === null) return;
   node.classList.add('picker-key-current');
-  try { node.focus(); } catch (error) { /* old TV engine: the visible mark still works */ }
-  if (typeof node.scrollIntoView === 'function') {
+  try { node.focus({ preventScroll: true }); } catch (error) { try { node.focus(); } catch (again) { /* old TV engine: the visible mark still works */ } }
+  // Quiet on a refresh: the list stays where the hand left it.
+  if (quiet !== true && typeof node.scrollIntoView === 'function') {
     try { node.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }
     catch (error) { node.scrollIntoView(false); }
   }
 }
 
 /** Seed the current choice on open; retain the same choice through live repaint. */
-function seedPickerNavigation(preferred) {
+function seedPickerNavigation(preferred, quiet) {
   var choices = pickerNavigationChoices();
   if (choices.length === 0) { setPickerNavigation(null); return null; }
   var chosen = null;
@@ -1556,7 +1557,7 @@ function seedPickerNavigation(preferred) {
     }
   }
   if (chosen === null) chosen = choices[0];
-  setPickerNavigation(chosen);
+  setPickerNavigation(chosen, quiet);
   return chosen;
 }
 
@@ -2925,6 +2926,21 @@ function repositionHeaderPicker() {
 window.addEventListener('resize', repositionHeaderPicker);
 window.addEventListener('orientationchange', function () { setTimeout(repositionHeaderPicker, 140); });
 
+/** Where each scrolling column of the open picker stands, by position. */
+function columnScrolls() {
+  var out = [];
+  var columns = picker.querySelectorAll('.row-column');
+  for (var i = 0; i < columns.length; i += 1) out.push(columns[i].scrollTop);
+  return out;
+}
+
+function restoreColumnScrolls(kept) {
+  var columns = picker.querySelectorAll('.row-column');
+  for (var i = 0; i < columns.length && i < kept.length; i += 1) {
+    if (kept[i] > 0) columns[i].scrollTop = kept[i];
+  }
+}
+
 function presentPicker(nodes, mode, refreshing, preservedNavigation) {
   var trigger = headerPickerTrigger(mode);
   var headerOwned = trigger !== null && root.getAttribute('data-size') === null;
@@ -2933,6 +2949,16 @@ function presentPicker(nodes, mode, refreshing, preservedNavigation) {
   var host = headerOwned ? document.body
     : (root.getAttribute('data-idle') === '1' ? pickerHome : (hasShelf() ? copy : pickerHome));
   if (picker.parentNode !== host) host.appendChild(picker);
+  /**
+   * ⚖️ A REFRESH MUST NOT MOVE A LIST SOMEBODY IS SCROLLING (Peter, 09-05: "the
+   * zone picker shows zones but doesn't allow a pick and won't scroll below the
+   * first part of the list"). A rebuilt column starts at the top, and seeding
+   * the current choice then scrolled it back into view — so with the house
+   * playing, every structural snapshot undid the scroll and moved the card
+   * under the finger. Each column keeps its place across the rebuild, and the
+   * current choice is scrolled into view only when a hand or a key moved it.
+   */
+  var kept = refreshing ? columnScrolls() : null;
   picker.replaceChildren.apply(picker, nodes);
   picker.className = 'picker mode-' + mode
     + (mode === 'faces' ? ' face-picker-vertical' : '')
@@ -2940,7 +2966,8 @@ function presentPicker(nodes, mode, refreshing, preservedNavigation) {
   picker.hidden = false;
   if (headerOwned) positionHeaderPicker(mode);
   else clearHeaderPickerPosition();
-  seedPickerNavigation(refreshing ? preservedNavigation : '');
+  seedPickerNavigation(refreshing ? preservedNavigation : '', refreshing);
+  if (kept !== null) restoreColumnScrolls(kept);
   if (!refreshing) {
     panelShownAt = Date.now();
     if (pickerTimer !== null) clearTimeout(pickerTimer);
@@ -2948,6 +2975,18 @@ function presentPicker(nodes, mode, refreshing, preservedNavigation) {
       || mode === 'rooms' || mode === 'queue') ? 22000 : 8000;
     pickerTimer = setTimeout(function () { picker.hidden = true; }, linger);
   }
+}
+
+/** What the rooms list would show, as one string, so an unchanged house redraws nothing. */
+var roomsStampShown = '';
+function roomsStamp(zones, here) {
+  var parts = [];
+  for (var i = 0; i < zones.length; i += 1) {
+    var z = zones[i];
+    parts.push(z.id + ':' + z.name + ':' + z.state + ':' + (z.nowPlaying === null ? '' : z.nowPlaying.title)
+      + ':' + (z.outputs.length > 0 ? z.outputs[0].id : ''));
+  }
+  return parts.join('|') + '#' + (here === null ? '' : here.id) + '#' + String(lockedOutputId);
 }
 
 function showPicker(mode, refreshing) {
@@ -2980,6 +3019,11 @@ function showPicker(mode, refreshing) {
     var snapshot = store.snapshot();
     var zones = snapshot === null ? [] : snapshot.zones;
     var here = currentZone();
+    // A snapshot that changes nothing on the list rebuilds nothing: the cards,
+    // and the hand on them, stay exactly where they are.
+    var stamp = roomsStamp(zones, here);
+    if (refreshing && !picker.hidden && stamp === roomsStampShown) return;
+    roomsStampShown = stamp;
     /**
      * A LOCKED SCREEN DOES NOT OFFER OTHER ROOMS — that is the whole point of
      * locking it. It still shows the room it is bound to, and it still gets the
@@ -3399,6 +3443,63 @@ document.addEventListener('visibilitychange', function () {
  * pointerup/mouseup/click for the original press.
  */
 var pressEchoAt = {};
+
+/**
+ * ⚖️ A MOUSE DRAG SCROLLS A LIST (Peter, 09-05: "mouse drag, touch and up/down
+ * keys should work on this"). A finger scrolls an overflowing column by itself;
+ * a mouse does not — and a drag that ended over a room card was a PRESS on it
+ * (measured: a drag up the rooms list chose Study). So a mouse dragged inside a
+ * scrolling column moves the column, and once it has moved more than a tap's
+ * slop the lift is not a press. The room cards' own drag handle keeps grouping.
+ */
+var columnDragSuppressUntil = 0;
+var columnDrag = null;   // { column, y, top, moved }
+
+function columnUnder(target) {
+  var node = target;
+  while (node && node !== document.body) {
+    if (node.classList && node.classList.contains('row-column')) return node;
+    if (node.classList && node.classList.contains('roomcard-drag')) return null;
+    node = node.parentNode;
+  }
+  return null;
+}
+
+function startColumnDrag(event) {
+  if (event.button !== undefined && event.button !== 0) return;
+  if (event.pointerType !== undefined && event.pointerType !== 'mouse') return;
+  var column = columnUnder(event.target);
+  if (column === null || column.scrollHeight <= column.clientHeight) return;
+  columnDrag = { column: column, y: event.clientY, top: column.scrollTop, moved: false };
+}
+
+function moveColumnDrag(event) {
+  if (columnDrag === null) return;
+  var dy = event.clientY - columnDrag.y;
+  if (!columnDrag.moved && Math.abs(dy) <= 12) return;
+  columnDrag.moved = true;
+  columnDrag.column.scrollTop = columnDrag.top - dy;
+  columnDragSuppressUntil = Date.now() + 400;
+  if (event.cancelable) event.preventDefault();
+}
+
+function endColumnDrag() {
+  if (columnDrag !== null && columnDrag.moved) columnDragSuppressUntil = Date.now() + 400;
+  columnDrag = null;
+}
+
+(function bindColumnDrag() {
+  if (window.PointerEvent) {
+    document.addEventListener('pointerdown', startColumnDrag, true);
+    document.addEventListener('pointermove', moveColumnDrag, true);
+    document.addEventListener('pointerup', endColumnDrag, true);
+    document.addEventListener('pointercancel', endColumnDrag, true);
+  } else {
+    document.addEventListener('mousedown', startColumnDrag, true);
+    document.addEventListener('mousemove', moveColumnDrag, true);
+    document.addEventListener('mouseup', endColumnDrag, true);
+  }
+}());
 var PRESS_ECHO_MS = 800;
 
 function pressable(node, onPress, pressKey) {
@@ -3423,6 +3524,8 @@ function pressable(node, onPress, pressKey) {
   var fire = function (event) {
     if (event && event.type !== 'keyup') {
       if ((roomDrag !== null && roomDrag.armed) || Date.now() < roomDragSuppressUntil) return;
+      // A mouse drag that scrolled a column is not a press on whatever it lifted over.
+      if (Date.now() < columnDragSuppressUntil) return;
     }
     if (event && event.type === 'keyup') {
       var keyCode = event.keyCode || event.which || 0;
