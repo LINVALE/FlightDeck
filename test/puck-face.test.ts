@@ -352,7 +352,7 @@ test('mute is on the cluster, and the readout keeps the number when muted', () =
   assert.match(JS, /var btnMute = button\('mute', 'btn-mute'\);/, 'a mute, not a volume: the crossed speaker in both states (Peter, 09-05)');
   assert.doesNotMatch(JS, /muteShows|replaceChildren\(glyph\(muteShows\)\)/, 'the glyph never changes; the disc\'s fill is the state');
   assert.match(JS, /if \(volume\.muted\) \{ btnMute\.setAttribute\('data-on', '1'\);/);
-  assert.match(CSS, /\.btn-mute\[data-on="1"\] \{\s*background: #d8a24a; border-color: #d8a24a; color: #0c0d10;/, 'muted = the disc filled in FlightDeck\'s gold, never the sleeve\'s accent (grey on a monochrome sleeve)');
+  assert.match(CSS, /\.btn-mute\[data-on="1"\] \{\s*background: rgba\(216, 162, 74, \.5\); border-color: rgba\(216, 162, 74, \.75\); color: #f2eee6;/, 'muted = a subtler wash of FlightDeck\'s gold, never the sleeve\'s accent (grey on a monochrome sleeve)');
   assert.ok(hasGlyph('mute'));
   assert.match(JS, /press\(btnMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
   assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(atLimit \? \"at Roon's limit \\u00b7 \" : 'volume \\u00b7 '\)\) \+ output\.name;/);
@@ -705,7 +705,7 @@ test('the times ride the bead, the room name sits inside the ring, the wheel say
   assert.match(JS, /progRead\.textContent = formatTime\(positionSec\);\s*progLength\.textContent = formatTime\(lengthSec\);/);
   assert.match(JS, /var tagAngle = angle;\s*progRead\.style\.left/, 'always exactly at the arc\'s end: stepping aside made "two different places" (Peter, 09-05)');
   assert.match(JS, /progLength\.style\.display = clamped < 0\.03 \|\| clamped > 0\.97 \? 'none' : 'block';/, 'the length yields its spot at twelve to the bead');
-  assert.match(CSS, /\.puck\[data-browse\] \.prog-length, \.puck\[data-chrome="1"\] \.prog-length \{ display: none !important; \}/, 'and to the mute while the cluster is up');
+  assert.match(CSS, /\.puck\[data-browse\] \.prog-length \{ display: none !important; \}/, 'the length shows in control too, now that the mute holds six');
   assert.match(CSS, /\.prog-length \{[\s\S]{0,400}text-shadow: 0 0 calc\(var\(--u\) \* 1\.4\) rgba\(6, 7, 10, \.95\)/, 'bone with a soft dark glow: no pill, no bullet');
   assert.doesNotMatch(CSS, /\.prog-length \{[\s\S]{0,400}background: rgba/, 'no bullet behind the length');
   assert.match(JS, /progBead\.style\.display = 'none';   \/\/ the circle IS the bead/);
@@ -764,7 +764,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(JS, /var btnUp = button\('up', 'btn-up'\);\s*var btnDown = button\('down', 'btn-down'\);/);
   assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
   assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
-  assert.match(CSS, /\.btn-mute \{\s*left: 50%; top: calc\(var\(--u\) \* 4\.4\);\s*width: calc\(var\(--u\) \* 5\.6\);/, 'mute at the top centre, between the volume scale and the progress ring (Peter, 09-05)');
+  assert.match(CSS, /\.btn-mute \{\s*left: 50%; top: calc\(var\(--u\) \* 95\.6\);\s*width: calc\(var\(--u\) \* 5\.6\);/, 'mute at the bottom, between the two rings, opposite the length (Peter, 09-05)');
   assert.doesNotMatch(JS, /tagAngle \+= /, 'the circle never steps aside: it IS the bead');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);

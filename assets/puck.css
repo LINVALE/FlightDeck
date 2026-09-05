@@ -223,8 +223,8 @@ body {
 .puck[data-browse] .prog-read { display: none !important; }
 /* ⚖️ The length, once, EXACTLY OVER THE TOP OF THE PROGRESS CIRCLE (Peter,
    09-05): plain bone with a soft dark glow behind it — no pill, no bullet — in
-   the band between the cog and the arc, at twelve. It yields that spot to the
-   mute while the cluster is up, and to the bead for a track's first and last
+   the band between the cog and the arc, at twelve. The mute holds the same band at
+   six. It yields its spot only to the bead, for a track's first and last
    seconds, when the bead itself is at twelve. */
 .prog-length {
   position: absolute; left: calc(var(--u) * 40); width: calc(var(--u) * 20);
@@ -239,7 +239,7 @@ body {
   pointer-events: none;
   display: none;
 }
-.puck[data-browse] .prog-length, .puck[data-chrome="1"] .prog-length { display: none !important; }
+.puck[data-browse] .prog-length { display: none !important; }
 
 /* The wheel's own number, at the end of the lit run. */
 .tick-read { fill: var(--accent); font-size: 2.7px; font-weight: 700; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
@@ -520,13 +520,13 @@ body {
 .btn-down { top: calc(var(--u) * 56); }
 .key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
 
-/* ⚖️ MUTE AT THE TOP CENTRE, BETWEEN THE VOLUME SCALE AND THE PROGRESS RING
-   (Peter, 09-05): the band inside the glass's edge and outside the ring at 42
-   is 8 units deep at twelve; a 5.6 button at 4.4 sits in it, 0.8 clear of the
-   ring. The speaker shows the state, a tap flips it. The times tag, which
-   rides the bead in that same band, steps aside when the bead is near twelve. */
+/* ⚖️ MUTE AT THE BOTTOM, BETWEEN THE TWO RINGS, OPPOSITE THE LENGTH (Peter,
+   09-05): the band inside the glass's edge and outside the arc at 42 is 8
+   units deep at six; a 5.6 button at 95.6 sits in it, 0.8 clear of the arc.
+   The crossed speaker is the act; the disc's colour is the state. The elapsed
+   bead crosses it for a moment at a track's midpoint, in control only. */
 .btn-mute {
-  left: 50%; top: calc(var(--u) * 4.4);
+  left: 50%; top: calc(var(--u) * 95.6);
   width: calc(var(--u) * 5.6); height: calc(var(--u) * 5.6);
   margin-left: calc(var(--u) * -2.8); margin-top: calc(var(--u) * -2.8);
 }
@@ -535,8 +535,9 @@ body {
    the colour, the symbol stays the act (Peter, 09-05). FlightDeck's own gold,
    never the sleeve's accent: on a monochrome sleeve that accent is grey, and a
    grey disc said nothing (measured, Diana Krall's Live in Paris). */
+/* Subtler (Peter, 09-05): a translucent wash of the gold, bone on it, rather than a solid disc. */
 .btn-mute[data-on="1"] {
-  background: #d8a24a; border-color: #d8a24a; color: #0c0d10;
+  background: rgba(216, 162, 74, .5); border-color: rgba(216, 162, 74, .75); color: #f2eee6;
   -webkit-transition: background-color .25s, border-color .25s, color .25s; transition: background-color .25s, border-color .25s, color .25s;
 }
 .btn-mute { -webkit-transition: background-color .25s, border-color .25s, color .25s; transition: background-color .25s, border-color .25s, color .25s; }
