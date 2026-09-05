@@ -349,7 +349,11 @@ test('the menu and the cluster share one circle and one set of line-work', () =>
  * "muted" beneath it, and the speaker between repeat and shuffle flips it.
  */
 test('mute is on the cluster, and the readout keeps the number when muted', () => {
-  assert.match(JS, /var btnMute = button\('speaker', 'btn-mute'\);/);
+  assert.match(JS, /var btnMute = button\('mute', 'btn-mute'\);/, 'a mute, not a volume: the crossed speaker in both states (Peter, 09-05)');
+  assert.doesNotMatch(JS, /muteShows|replaceChildren\(glyph\(muteShows\)\)/, 'the glyph never changes; the disc\'s fill is the state');
+  assert.match(JS, /if \(volume\.muted\) \{ btnMute\.setAttribute\('data-on', '1'\);/);
+  assert.match(CSS, /\.btn-mute\[data-on="1"\] \{\s*background: #d8a24a; border-color: #d8a24a; color: #0c0d10;/, 'muted = the disc filled in FlightDeck\'s gold, never the sleeve\'s accent (grey on a monochrome sleeve)');
+  assert.ok(hasGlyph('mute'));
   assert.match(JS, /press\(btnMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
   assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(atLimit \? \"at Roon's limit \\u00b7 \" : 'volume \\u00b7 '\)\) \+ output\.name;/);
   assert.match(CSS, /\.puck\[data-vol="none"\] \.btn-mute \{ display: none; \}/);

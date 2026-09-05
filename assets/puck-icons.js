@@ -45,6 +45,12 @@ var MIXED = {
     fill: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
     strokes: [],
   },
+  /* The MUTE button's own face (Peter, 09-05: "a mute rather than volume"):
+     the crossed speaker in both states; the disc's colour says which. */
+  mute: {
+    fill: 'M4 9.5h3.4L12 5.4v13.2L7.4 14.5H4z',
+    strokes: ['M15.2 9.2l5.6 5.6', 'M20.8 9.2l-5.6 5.6'],
+  },
 };
 
 var STROKED = {

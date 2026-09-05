@@ -265,7 +265,14 @@ var btnShuffle = button('shuffle', 'btn-shuffle');
  * muted" — Roon was reporting the room muted, and with the pill gone there was
  * no way to unmute from the puck). The speaker shows the state; a tap flips it.
  */
-var btnMute = button('speaker', 'btn-mute');
+/**
+ * ⚖️ THE BUTTON IS A MUTE, NOT A VOLUME (Peter, 09-05: "make the mute symbol a
+ * mute rather than volume, and colour the background to indicate status"). It
+ * wears the crossed speaker in both states — the symbol names the ACT — and
+ * the disc fills with the accent while the room is muted, which is the state.
+ */
+var btnMute = button('mute', 'btn-mute');
+btnMute.setAttribute('title', 'mute');
 /**
  * ⚖️ THE SAME IDIOM ON THE MUSIC FACE (Peter, 09-04: "swipe up and down, with
  * up and down arrows to tap to rotate through, or tap on the metadata area").
@@ -693,12 +700,9 @@ function paintVolume() {
   var atLimit = bounds.ceiling < bounds.max && shown >= bounds.ceiling;
   volReadValue.textContent = String(Math.round(shown));
   volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (atLimit ? "at Roon's limit \u00b7 " : 'volume \u00b7 ')) + output.name;
-  var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
-  if (btnMute.getAttribute('data-shows') !== muteShows) {
-    btnMute.setAttribute('data-shows', muteShows);
-    btnMute.replaceChildren(glyph(muteShows));
-  }
-  if (volume.muted) btnMute.setAttribute('data-on', '1'); else btnMute.removeAttribute('data-on');
+  // The glyph never changes; the disc's fill is the state.
+  if (volume.muted) { btnMute.setAttribute('data-on', '1'); btnMute.setAttribute('title', 'muted \u2014 tap to unmute'); }
+  else { btnMute.removeAttribute('data-on'); btnMute.setAttribute('title', 'mute'); }
 }
 
 /** The dots up to the level are lit, from twelve o'clock clockwise. */

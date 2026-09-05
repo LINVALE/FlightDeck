@@ -496,6 +496,15 @@ body {
   margin-left: calc(var(--u) * -2.8); margin-top: calc(var(--u) * -2.8);
 }
 .puck[data-vol="none"] .btn-mute { display: none; }
+/* Muted: the disc fills and the crossed speaker goes dark on it — the state is
+   the colour, the symbol stays the act (Peter, 09-05). FlightDeck's own gold,
+   never the sleeve's accent: on a monochrome sleeve that accent is grey, and a
+   grey disc said nothing (measured, Diana Krall's Live in Paris). */
+.btn-mute[data-on="1"] {
+  background: #d8a24a; border-color: #d8a24a; color: #0c0d10;
+  -webkit-transition: background-color .25s, border-color .25s, color .25s; transition: background-color .25s, border-color .25s, color .25s;
+}
+.btn-mute { -webkit-transition: background-color .25s, border-color .25s, color .25s; transition: background-color .25s, border-color .25s, color .25s; }
 
 /* No volume control on the glass at all (Peter, 09-03): the wheel and its
    dots are the volume. A fixed-volume output simply has no lit dots. */
