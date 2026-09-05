@@ -200,17 +200,22 @@ ring.appendChild(progArc);
 ring.appendChild(progBead);
 
 var room = el('div', 'room');
-/**
- * ⚖️ THE ROOM NAME CARRIES THE WAY BACK, ALWAYS (Peter, 09-04: "we need to be
- * able to get back to FlightDeck in a browser so the face can be changed").
- * The return arrow used to be a button in the summoned cluster — invisible
- * until a touch, and easy to miss in a browser. Now it rides the room name at
- * the top, which is never hidden: "↩ STUDY" is the way out, exactly as
- * "‹ GENRES" is the way up in browse. One grammar: the title is the way back.
- */
-room.appendChild(glyph('return'));
 var roomName = el('span', 'room-name');
 room.appendChild(roomName);
+/**
+ * ⚖️ THE WAY BACK IS A BUTTON, NOT A HINT (Peter, 09-04: "getting back to
+ * FlightDeck is not intuitive — at present we click on the room name; is there
+ * an icon that maps that better?"). A return arrow on the room name said
+ * "back", faintly, about the room. This is the Face's own mark — the arrow
+ * with a tail that Peter chose there on 08-28 because "an arrow says back,
+ * which is what a viewer is actually looking for and reads without being
+ * learned" — in a circle like every other control, top-left, ALWAYS visible
+ * (never summoned), and it acts on the first touch. The same mark in the same
+ * corner on both screens: one thing to learn.
+ */
+var homeMark = el('div', 'btn btn-home');
+homeMark.appendChild(glyph('back'));
+homeMark.setAttribute('title', 'back to every room');
 /**
  * ⚖️ A TURN OR A TAP ON THE WHEEL SHOWS THE LEVEL IN THE CENTRE, THEN FADES
  * (Peter, 09-03). The number, large, with the word under it — a knob that
@@ -282,6 +287,7 @@ glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
 glass.appendChild(ring);
 glass.appendChild(room);
+glass.appendChild(homeMark);
 glass.appendChild(words);
 glass.appendChild(pad);
 glass.appendChild(progRead);
@@ -994,6 +1000,9 @@ function goHome() {
   window.location.href = '/';
 }
 room.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
+homeMark.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
+homeMark.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+homeMark.addEventListener('pointerup', function (event) { event.stopPropagation(); });
 press(btnUp, function () { axis(-1); });
 press(btnDown, function () { axis(1); });
 room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });

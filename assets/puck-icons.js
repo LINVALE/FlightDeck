@@ -67,6 +67,8 @@ var STROKED = {
     'M4 10.2 6 8 8 10.2',
     'M11 11.2 12.6 10.2V14',
   ],
+  /* ---- the way back to the house: the Face's own mark, an arrow with a tail ---- */
+  back: ['M10.5 5.5 4 12l6.5 6.5', 'M4 12h16'],
   /* ---- the axis: the face above, the face below ---- */
   up: ['M12 18.5v-13', 'M6.5 11 12 5.5 17.5 11'],
   down: ['M12 5.5v13', 'M6.5 13 12 18.5 17.5 13'],

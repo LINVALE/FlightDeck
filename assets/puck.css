@@ -232,14 +232,16 @@ body {
   color: var(--ink-dim);
   cursor: pointer;   /* the way back to the faces list */
 }
-/* The return arrow rides the name (Peter, 09-04): always there, never summoned. */
-.room .glyph {
-  display: inline-block;
-  width: calc(var(--u) * 4.4); height: calc(var(--u) * 4.4);
-  vertical-align: calc(var(--u) * -0.7);
-  margin-right: calc(var(--u) * 1);
-  color: var(--accent);
+/* The way back to the house: the Face's arrow, in a circle, top-left, always
+   there (it is not in the summoned cluster) — except in browse, where the
+   10:17 circle sits on that spot and the title climbs out instead. */
+.btn-home {
+  left: calc(var(--u) * 33); top: calc(var(--u) * 24);
+  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
+  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
+  border-color: rgba(242, 238, 230, .3);
 }
+.puck[data-browse] .btn-home { display: none; }
 
 /**
  * THE LEVEL, LARGE IN THE CENTRE, THEN GONE (Peter, 09-03: "if the cog is
@@ -450,7 +452,7 @@ body {
    wears it in browse (Peter, 09-04). Below the shoulder row is the credit, which
    the overlay keeps whole (Peter, 09-03: all three lines) — so ↓ took the
    centre of that row and mute moved up beside ↑. A 3×3 grid: 33 · 50 · 67 across,
-   24 · 39 · 56 down, with the top-right cell empty. */
+   24 · 39 · 56 down; the top-left cell is the way back, and is never hidden. */
 .btn-up, .btn-down {
   left: 50%;
   width: calc(var(--u) * 8); height: calc(var(--u) * 8);
@@ -460,9 +462,10 @@ body {
 .btn-down { top: calc(var(--u) * 56); }
 .key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
 
-/* mute, top-left above repeat: the speaker shows the state, a tap flips it */
+/* mute, top-right above shuffle: the speaker shows the state, a tap flips it.
+   The grid: back · ↑ · mute / ‹ ▶ › / repeat · ↓ · shuffle. */
 .btn-mute {
-  left: calc(var(--u) * 33); top: calc(var(--u) * 24);
+  left: calc(var(--u) * 67); top: calc(var(--u) * 24);
   width: calc(var(--u) * 9); height: calc(var(--u) * 9);
   margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
 }

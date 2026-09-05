@@ -592,8 +592,14 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(CSS, /\.puck\[data-browse\] \.chosen \{[\s\S]{0,400}border-radius: 50%;[\s\S]{0,120}border: 2px solid var\(--accent\);/, 'a larger, bolder circle');
   assert.doesNotMatch(BROWSE, /upKey\.appendChild\(glyph\('return'\)\)/, 'the return arrow left the disc (Peter, 09-04: ↑ ↓ are the axis now)');
   // the same arrow on the control screen goes home to the Wall
-  assert.doesNotMatch(JS, /btnHome/, 'the return arrow rides the room name now — always visible, never summoned (Peter, 09-04)');
-  assert.match(JS, /room\.appendChild\(glyph\('return'\)\);\s*var roomName = el\('span', 'room-name'\);/);
+  // the way back is a BUTTON, not a hint: the Face's own arrow, in a circle, top-left, never summoned (Peter, 09-04)
+  assert.doesNotMatch(JS, /btnHome|glyph\('return'\)/, 'the return arrow left both the cluster and the room name');
+  assert.match(JS, /var homeMark = el\('div', 'btn btn-home'\);\s*homeMark\.appendChild\(glyph\('back'\)\);/);
+  assert.match(JS, /glass\.appendChild\(room\);\s*glass\.appendChild\(homeMark\);/, 'on the glass, not in the pad: visible at rest');
+  assert.match(JS, /homeMark\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); goHome\(\); \}\);/, 'acts on the first touch');
+  assert.ok(hasGlyph('back'));
+  assert.match(CSS, /\.btn-home \{\s*left: calc\(var\(--u\) \* 33\); top: calc\(var\(--u\) \* 24\);/);
+  assert.match(CSS, /\.puck\[data-browse\] \.btn-home \{ display: none; \}/, 'in browse the 10:17 circle sits there; the title climbs out');
   assert.match(JS, /roomName\.textContent = zone\.name;/);
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
@@ -737,7 +743,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(JS, /var btnUp = button\('up', 'btn-up'\);\s*var btnDown = button\('down', 'btn-down'\);/);
   assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
   assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
-  assert.match(CSS, /\.btn-mute \{\s*left: calc\(var\(--u\) \* 33\); top: calc\(var\(--u\) \* 24\);/, 'mute moved up beside ↑, above repeat');
+  assert.match(CSS, /\.btn-mute \{\s*left: calc\(var\(--u\) \* 67\); top: calc\(var\(--u\) \* 24\);/, 'mute top-right, above shuffle; the way back holds the top-left');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);
   assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');
