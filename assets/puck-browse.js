@@ -139,8 +139,17 @@ export function letterOf(title) {
   if (first >= 'A' && first <= 'Z') return first;
   // ASCII digits and the marks Roon does sort on, plus the general-punctuation
   // block (… – « ‘): a Latin title that merely opens with one.
-  if (first < '\u0080') return '#';
-  if (first >= '\u2000' && first <= '\u206f') return '#';
+  var code = first.charCodeAt(0);
+  if (isNaN(code) || code < 0x80) return '#';
+  /**
+   * Latin-1 punctuation and symbols (¡ ¿ « » § …), the general-punctuation
+   * block (… – ‘) and the symbol blocks up to the dingbats (★ ♪ →): Roon files
+   * a title that merely opens with one of these AHEAD of A. Measured 09-05:
+   * Tracks begins "¡Buenos Días, Marco!", which the old rule exiled past Z —
+   * and that one row cost 28,390 tracks their ring.
+   */
+  if (code >= 0xa1 && code <= 0xbf) return '#';
+  if (code >= 0x2000 && code <= 0x2bff) return '#';
   return '~';
 }
 
@@ -207,6 +216,70 @@ export function queueRows(data) {
   return rows;
 }
 
+/**
+ * ⚖️ RECENT AND TOP COME FROM THE DECK'S OWN LEDGER (Peter, 09-05: "we
+ * maintain recent and other items in other views"). Roon's API has no
+ * history and no sort, but FlightDeck sees every zone and keeps what it saw:
+ * title, artist, album (since 09-05) and when. Folded per level kind —
+ * tracks by title and artist, albums by album and artist, artists by the first
+ * name on the credit — newest first for RECENT, most played first for TOP.
+ */
+export function firstArtist(line2) {
+  var text = String(line2 === undefined || line2 === null ? '' : line2);
+  var cut = text.indexOf(' / ');
+  return (cut === -1 ? text : text.slice(0, cut)).trim();
+}
+
+export function ledgerRows(tracks, kind, mode, now) {
+  var at = typeof now === 'number' ? now : Date.now();
+  var folded = {};
+  var order = [];
+  for (var i = 0; i < tracks.length; i += 1) {
+    var t = tracks[i];
+    var artist = firstArtist(t.line2);
+    var name;
+    if (kind === 'artists') name = artist;
+    else if (kind === 'albums') name = String(t.line3 || '');
+    else name = String(t.title || '');
+    if (name === '') continue;
+    var key = kind === 'artists' ? keyOf(name) : keyOf(name) + '|' + keyOf(artist);
+    var row = folded[key];
+    if (row === undefined) {
+      row = { kind: kind, name: name, artist: artist, plays: 0, last: '', zone: '', artKey: t.artKey || null };
+      folded[key] = row;
+      order.push(row);
+    }
+    row.plays += 1;
+    if (typeof t.at === 'string' && t.at > row.last) { row.last = t.at; row.zone = t.zoneName || ''; }
+  }
+  order.sort(mode === 'top'
+    ? function (x, y) { return y.plays - x.plays || (y.last > x.last ? 1 : (y.last < x.last ? -1 : 0)); }
+    : function (x, y) { return y.last > x.last ? 1 : (y.last < x.last ? -1 : 0); });
+  var rows = [];
+  for (var r = 0; r < order.length && r < 60; r += 1) {
+    var o = order[r];
+    rows.push({
+      title: o.name, kind: o.kind, name: o.name, artist: o.artist, plays: o.plays, hint: 'local',
+      subtitle: mode === 'top'
+        ? String(o.plays) + (o.plays === 1 ? ' play' : ' plays') + (kind === 'artists' || o.artist === '' ? '' : ' · ' + o.artist)
+        : ago(o.last, at) + (o.zone === '' ? '' : ' · ' + o.zone),
+      art: null,
+    });
+  }
+  return rows;
+}
+
+/** "3 min ago", "2 h ago", "4 d ago" — the ledger's stamp, read for a glance. */
+export function ago(iso, now) {
+  var then = Date.parse(iso);
+  if (isNaN(then)) return '';
+  var s = Math.max(0, Math.round((now - then) / 1000));
+  if (s < 60) return 'just now';
+  if (s < 3600) return String(Math.round(s / 60)) + ' min ago';
+  if (s < 86400) return String(Math.round(s / 3600)) + ' h ago';
+  return String(Math.round(s / 86400)) + ' d ago';
+}
+
 export function createBrowse(options) {
   var host = options.host;
   var root = options.root;
@@ -235,7 +308,20 @@ export function createBrowse(options) {
    * that used to are gone — in browse they read as a progress circle.
    */
   var level = el('div', 'level');
-  level.addEventListener('click', function (event) { event.stopPropagation(); back(); });
+  /**
+   * ⚖️ THE LABEL ROTATES THE MODE (Peter, 09-05: "each of these views should
+   * present options for recently played, random or most frequently played,
+   * controlled by clicking on the label and rotating"). So the label is two
+   * things now: the ‹ at its left is the way up a level, as the whole title
+   * was; the NAME cycles the level's mode where it has modes — A–Z, RECENT,
+   * TOP, RANDOM — and is the way up where it has none.
+   */
+  var levelBack = el('span', 'level-back', '‹');
+  var levelName = el('span', 'level-name');
+  level.appendChild(levelBack);
+  level.appendChild(levelName);
+  levelBack.addEventListener('click', function (event) { event.stopPropagation(); back(); });
+  levelName.addEventListener('click', function (event) { event.stopPropagation(); cycleMode(); });
   level.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
   level.addEventListener('pointerup', function (event) { event.stopPropagation(); });
   var optWrap = el('div', 'opt-wrap');
@@ -500,12 +586,13 @@ export function createBrowse(options) {
     root.setAttribute('data-tier', view.tier);
     if (view.tier !== 'linear') root.removeAttribute('data-lettered');
     if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
-    level.textContent = view.title;
+    paintLevel();
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
 
     if (view.tier === 'linear') drawPaged();
     else if (view.tier === 'queue') drawQueueRing();
     else if (view.tier === 'rooms') drawRooms();
+    else if (view.tier === 'local') drawLocalRing();
     else drawRing();
 
   }
@@ -525,6 +612,189 @@ export function createBrowse(options) {
   function queueSub(pick) {
     var where = pick.now === true ? 'now' : String(view.sel + 1) + ' / ' + String(view.total);
     return where + (pick.subtitle ? ' \u00b7 ' + pick.subtitle : '');
+  }
+
+  /* ---------- modes: A–Z · recent · top · random, rotated on the label ---------- */
+
+  var MODES = ['az', 'recent', 'top', 'random'];
+  var MODE_WORD = { az: '', recent: 'RECENT ', top: 'TOP ', random: 'RANDOM ' };
+
+  /** The three library lists that have modes; Roon names them, so the name is the key. */
+  function levelKind(title) {
+    var t = String(title === undefined || title === null ? '' : title).toLowerCase();
+    return t === 'artists' || t === 'albums' || t === 'tracks' ? t : null;
+  }
+
+  /**
+   * The level that owns the mode, if THIS view is in its territory: the list
+   * itself, a page hung under it (a letter's, or RANDOM's), or its ledger ring.
+   * A level reached from a ledger row by the search hop is Roon's own again —
+   * it wears its own name, and its label is the way up, not a mode.
+   */
+  function modeBase(v) {
+    if (!v) return null;
+    if (v.kind) return v;
+    if (v.parent && v.parent.kind && (v.local || v.letters !== null)) return v.parent;
+    return null;
+  }
+
+  function paintLevel() {
+    var base = modeBase(view);
+    var mode = base === null ? 'az' : (base.mode || 'az');
+    levelName.textContent = (base !== null && mode !== 'az' ? MODE_WORD[mode] : '') + (base !== null ? base.title : view.title);
+    if (base !== null && mode !== 'az') root.setAttribute('data-mode', mode); else root.removeAttribute('data-mode');
+  }
+
+  function cycleMode() {
+    if (view === null || busy) return;
+    var base = modeBase(view);
+    if (base === null) { back(); return; }
+    var next = MODES[(MODES.indexOf(base.mode || 'az') + 1) % MODES.length];
+    base.mode = next;
+    tick();
+    if (next === 'az') { view = base; draw(); return; }
+    if (next === 'random') { view = base; randomPage(); return; }
+    openLocal(base, next);
+  }
+
+  /** RANDOM: a page at a random offset of the big list, or a random row of a small one. */
+  function randomPage() {
+    var base = modeBase(view);
+    if (base === null) return;
+    var offset = Math.floor(Math.random() * Math.max(1, base.total));
+    if (base.tier === 'linear') { view = base; base.sel = offset; fill(); fillBack(); draw(); return; }
+    landAt(base, offset);
+  }
+
+  /** RECENT and TOP: the deck's ledger, folded for this level, as a ring of titled circles. */
+  function openLocal(base, mode) {
+    var mine = epoch;
+    busy = true;
+    levelName.textContent = 'reading…';
+    fetch('/api/v1/recent?limit=2000', { cache: 'no-store' })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        busy = false;
+        if (!current(mine)) return;
+        var rows = ledgerRows(data.tracks || [], base.kind, mode);
+        view = {
+          hierarchy: base.hierarchy, tier: 'local', title: base.title, total: rows.length,
+          items: rows, base: 0, sel: 0, depth: base.depth, letter: null, paging: false,
+          letters: null, probes: {}, plain: true, local: true, parent: base, roonLevel: false, spelt: null,
+        };
+        draw();
+      })
+      .catch(function () {
+        busy = false;
+        if (!current(mine)) return;
+        base.mode = 'az';
+        view = base;
+        draw();
+        flash('the deck has no history to show');
+      });
+  }
+
+  var LOCAL_PAGE = 12;
+
+  function drawLocalRing() {
+    var n = view.total;
+    var first = Math.floor(view.sel / LOCAL_PAGE) * LOCAL_PAGE;
+    var m = Math.max(0, Math.min(LOCAL_PAGE, n - first));
+    var size = tokenSize(m);
+    named = false;
+    for (var k = 0; k < m; k += 1) {
+      var index = first + k;
+      var item = view.items[index];
+      var angle = (k / m) * 2 * Math.PI - Math.PI / 2;
+      var node = el('div', index === view.sel ? 'opt opt-on' : 'opt');
+      var mine = index === view.sel ? size * 1.3 : size;
+      node.appendChild(titledToken(item.title, size, mine));
+      place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      bindPick(node, index);
+      optWrap.appendChild(node);
+    }
+    var pick = itemAt(view.sel);
+    chosenArt.style.display = 'none';
+    chosen.className = 'chosen';
+    chosenTitle.textContent = pick !== null ? pick.title : 'Nothing played yet';
+    chosenSub.textContent = pick === null ? '' : pick.subtitle;
+    root.setAttribute('data-named', '0');
+    linsub.textContent = '';
+    count.textContent = n > LOCAL_PAGE ? String(first + 1) + '–' + String(first + m) + ' of ' + String(n) : '';
+  }
+
+  /**
+   * ⚖️ A LEDGER ROW HOPS INTO ROON BY SEARCH. The deck's history has names, not
+   * item keys, so choosing a recent album asks Roon's own search for it, opens
+   * the matching category, picks the row whose name (and artist) agree, and
+   * presents THAT level — an album's tracks and Play Album, an artist's page, a
+   * track's Play Now / Add Next / Queue. ‹ from there is the ledger ring again.
+   */
+  function hop(row) {
+    var from = view;
+    var mine = epoch;
+    var want = { tracks: 'Tracks', albums: 'Albums', artists: 'Artists' }[row.kind];
+    var query = row.kind === 'artists' ? row.name : row.title;
+    var wantKey = keyOf(query);
+    busy = true;
+    levelName.textContent = 'finding…';
+    ask({ hierarchy: 'search', popAll: true, input: query })
+      .then(function () { return ask({ hierarchy: 'search', load: true, count: 20, offset: 0 }); })
+      .then(function (head) {
+        var items = head.items || [];
+        var category = null;
+        for (var i = 0; i < items.length; i += 1) if (items[i].title === want) category = items[i];
+        if (category === null) throw new Error('not in Roon');
+        return ask({ hierarchy: 'search', itemKey: category.itemKey })
+          .then(function () { return ask({ hierarchy: 'search', load: true, count: 40, offset: 0 }); });
+      })
+      .then(function (page) {
+        var items = page.items || [];
+        var artistKey = keyOf(row.artist || '').split(' ')[0];
+        var pick = null;
+        for (var i = 0; i < items.length; i += 1) {
+          if (keyOf(items[i].title) !== wantKey) continue;
+          if (row.kind !== 'artists' && artistKey !== '' && items[i].subtitle && keyOf(items[i].subtitle).indexOf(artistKey) === -1) continue;
+          pick = items[i];
+          break;
+        }
+        if (pick === null && items.length > 0) pick = items[0];
+        if (pick === null) throw new Error('not in Roon');
+        return ask({ hierarchy: 'search', itemKey: pick.itemKey });
+      })
+      .then(function (result) {
+        busy = false;
+        if (!current(mine)) return;
+        if (result.isError === true) { flash(result.message || 'could not open that'); draw(); return; }
+        return present(result, from.depth + 1, mine, 'search').then(function () {
+          if (!current(mine)) return;
+          view.parent = from;
+          view.roonLevel = false;
+          // Roon's search nests a track (and an album) one level deep: a level
+          // holding just the row itself. Pass straight through to its actions
+          // — a list or an action LIST opens; a bare action would play, and
+          // is never taken here.
+          var only = view.total === 1 && view.items.length === 1 ? view.items[0] : null;
+          if (only === null || keyOf(only.title) !== wantKey || (only.hint !== 'list' && only.hint !== 'action_list')) return;
+          busy = true;
+          return ask({ hierarchy: 'search', itemKey: only.itemKey })
+            .then(function (inner) {
+              busy = false;
+              if (!current(mine)) return;
+              if (inner.isError === true) return;
+              return present(inner, from.depth + 1, mine, 'search').then(function () {
+                // Hung straight under the ledger ring: ‹ never shows the one-row shell.
+                if (current(mine)) { view.parent = from; view.roonLevel = false; }
+              });
+            });
+        });
+      })
+      .catch(function (error) {
+        busy = false;
+        if (!current(mine)) return;
+        draw();
+        flash(String(error.message || error).slice(0, 80));
+      });
   }
 
   /* ---------- rooms: the other rooms, pull from · shift to ---------- */
@@ -1012,6 +1282,9 @@ export function createBrowse(options) {
       var next = view.sel + step;
       // A library has ends; a ring does not.
       if (next < 0 || next >= n) return;
+      // In RANDOM, stepping off the page deals another random page.
+      var base = modeBase(view);
+      if (base !== null && base.mode === 'random' && Math.floor(next / SLOTS) !== Math.floor(view.sel / SLOTS)) { randomPage(); return; }
       view.sel = next;
       fill();
       fillBack();
@@ -1112,6 +1385,7 @@ export function createBrowse(options) {
       title: list.title || 'Browse', total: total, parentTitle: parentTitle,
       items: [], base: 0, sel: 0, depth: depth, letter: null, paging: false,
       letters: null, probes: {}, spelt: null,
+      kind: levelKind(list.title), mode: 'az',
     };
     // The two small tiers are read WHOLE; a big one takes a page and is sampled.
     var take = wanted === 'radial' ? RADIAL_MAX : (wanted === 'linear' ? WHOLE_MAX : PAGE);
@@ -1187,6 +1461,7 @@ export function createBrowse(options) {
     root.removeAttribute('data-tier');
     root.removeAttribute('data-spell');
     root.removeAttribute('data-lettered');
+    root.removeAttribute('data-mode');
     onChange(false);
   }
 
@@ -1215,6 +1490,7 @@ export function createBrowse(options) {
     // The rooms' hub is the ZONE PICKER (Peter, 09-05): a tap on it makes this
     // puck that room's. Pull and shift are the two keys under it.
     if (view.rooms) { onSwitch(item); return; }
+    if (view.local) { hop(item); return; }
     if (view.queue) { playFrom(item); return; }
     if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;
@@ -1325,7 +1601,7 @@ export function createBrowse(options) {
     var speller = view;
     var mine = epoch;
     busy = true;
-    level.textContent = 'searching\u2026';
+    levelName.textContent = 'searching\u2026';
     ask({ hierarchy: 'search', popAll: true, input: query })
       .then(function (result) {
         busy = false;
@@ -1393,7 +1669,7 @@ export function createBrowse(options) {
     var mine = epoch;
     var hierarchy = alpha.hierarchy;
     busy = true;
-    level.textContent = 'finding ' + letter + '\u2026';
+    levelName.textContent = 'finding ' + letter + '\u2026';
     findLetter(hierarchy, letter, alpha.total, mine, alpha.probes, function (offset) {
       if (!current(mine)) { busy = false; return; }
       /**
@@ -1409,28 +1685,39 @@ export function createBrowse(options) {
         flash('nothing under ' + letter);
         return;
       }
-      // Anchor the page a couple of rows BEFORE the letter. Loading exactly at
-      // it left the two rows above the chosen one unloaded, and a column that
-      // opens under two ellipses reads as broken rather than as a beginning.
-      // From the page's own start, so every circle on it is in hand at once.
-      var from = Math.floor(offset / SLOTS) * SLOTS;
-      ask({ hierarchy: hierarchy, load: true, count: PAGE, offset: from })
-        .then(function (data) {
-          busy = false;
-          if (!current(mine)) return;
-          view = {
-            hierarchy: hierarchy, tier: 'linear', title: alpha.title, total: alpha.total,
-            items: data.items || [], base: from, sel: offset, depth: alpha.depth,
-            letter: letter, paging: false, probes: alpha.probes,
-            // the alphabet rides round the OUTSIDE of this page, for the wheel
-            letters: alpha.letters, parent: alpha, roonLevel: false,
-            spelt: { prefix: letter, at: Date.now() },   // the next tap may spell on from here
-          };
-          tick();
-          draw();
-        })
-        .catch(function () { busy = false; if (current(mine)) draw(); });
+      landAt(alpha, offset, letter);
     });
+  }
+
+  /**
+   * A page of the big list at `offset`, hung under its alphabet as a letter's
+   * page is — the letter jump lands here, and so does RANDOM. Loaded from the
+   * page's own start, so every circle on it is in hand at once.
+   */
+  function landAt(alpha, offset, letter) {
+    var mine = epoch;
+    var hierarchy = alpha.hierarchy;
+    var from = Math.floor(offset / SLOTS) * SLOTS;
+    busy = true;
+    ask({ hierarchy: hierarchy, load: true, count: PAGE, offset: from })
+      .then(function (data) {
+        busy = false;
+        if (!current(mine)) return;
+        var items = data.items || [];
+        var landed = items[offset - from] ? items[offset - from].title : null;
+        view = {
+          hierarchy: hierarchy, tier: 'linear', title: alpha.title, total: alpha.total,
+          items: items, base: from, sel: offset, depth: alpha.depth,
+          letter: letter !== undefined ? letter : (landed === null ? null : letterOf(landed)),
+          paging: false, probes: alpha.probes,
+          // the alphabet rides round the OUTSIDE of this page, for the wheel
+          letters: alpha.letters, parent: alpha, roonLevel: false,
+          spelt: letter !== undefined ? { prefix: letter, at: Date.now() } : null,   // the next tap may spell on from here
+        };
+        tick();
+        draw();
+      })
+      .catch(function () { busy = false; if (current(mine)) draw(); });
   }
 
   /**
@@ -1470,7 +1757,7 @@ export function createBrowse(options) {
   function seek(page, prefix, quiet, done) {
     var mine = epoch;
     busy = true;
-    level.textContent = 'finding ' + prefix + '…';
+    levelName.textContent = 'finding ' + prefix + '…';
     findLetter(page.hierarchy, prefix, page.total, mine, page.probes, function (offset) {
       if (!current(mine) || view !== page) { busy = false; done(false); return; }
       var landed = offset === null ? null : page.probes[offset];

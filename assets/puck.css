@@ -542,9 +542,17 @@ body {
   letter-spacing: calc(var(--u) * .3);
   text-transform: uppercase;
   color: var(--ink-dim);
-  cursor: pointer;   /* the way back to the previous menu */
+  display: -webkit-flex; display: flex;
+  -webkit-justify-content: center; justify-content: center;
+  -webkit-align-items: baseline; align-items: baseline;
 }
-.level:before { content: '\2039 '; color: var(--accent); }
+/* ‹ is the way up; the name rotates the level's mode where it has one (Peter, 09-05).
+   The row keeps to the chord at that height (44 units): a long name is cut with an
+   ellipsis rather than pushing the ‹ off the glass (measured on a hopped track). */
+.level { left: calc(var(--u) * 28); right: calc(var(--u) * 28); }
+.level-back { -webkit-flex: 0 0 auto; flex: 0 0 auto; color: var(--accent); padding: 0 calc(var(--u) * 1.4) 0 calc(var(--u) * 1); cursor: pointer; }
+.level-name { -webkit-flex: 0 1 auto; flex: 0 1 auto; min-width: 0; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.puck[data-mode] .level { font-size: calc(var(--u) * 3.6); }
 
 /**
  * ⚖️ A CHOICE IS A TOKEN IN A CIRCLE (Peter, 09-03), matching the transport
@@ -823,6 +831,14 @@ body {
 .opt-now .tok { border-color: rgba(242, 238, 230, .7); }
 .opt-on.opt-now .tok { border-color: var(--accent); }
 .puck[data-tier="queue"] .count { display: none; }
+/* A ledger ring (RECENT · TOP) is drawn like the queue's circles, its hub the
+   same two lines; ‹ › stay, since it may run to pages. */
+.puck[data-tier="local"] .chosen-title { max-height: calc(var(--u) * 7.3); font-size: calc(var(--u) * 3.3); }
+.puck[data-tier="local"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .4); }
+.puck[data-tier="local"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
+.puck[data-tier="local"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
+.puck[data-tier="local"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
+.puck[data-tier="local"] .count { bottom: calc(var(--u) * 3); font-size: calc(var(--u) * 2.6); }
 .chosen-play { display: none; width: calc(var(--u) * 4.8); height: calc(var(--u) * 4.8); color: var(--accent); margin-bottom: calc(var(--u) * .3); }
 .chosen-play .glyph { width: 100%; height: 100%; display: block; }
 .puck[data-tier="queue"] .chosen-play { display: block; }

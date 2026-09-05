@@ -330,7 +330,11 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     }
 
     if (path === '/api/v1/recent') {
-      json(response, 200, { tracks: deps.ledger.recent(24) });
+      // The Idle face's gallery takes the default; the puck's recent/top modes
+      // ask for the whole ledger (capped at what it keeps).
+      const asked = parseInt(url.searchParams.get('limit') ?? '24', 10);
+      const limit = Number.isFinite(asked) ? Math.max(1, Math.min(2000, asked)) : 24;
+      json(response, 200, { tracks: deps.ledger.recent(limit) });
       return;
     }
     if (path === '/api/v1/health') {

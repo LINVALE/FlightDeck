@@ -113,6 +113,7 @@ function republish(): void {
       typeof three.line2 === 'string' ? three.line2 : '',
       typeof np?.image_key === 'string' ? np.image_key : null,
       at,
+      typeof three.line3 === 'string' ? three.line3 : '',
     );
   }
   const candidate = buildSnapshot(

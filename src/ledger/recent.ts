@@ -14,6 +14,8 @@ export interface RecentTrack {
   readonly zoneName: string;
   readonly title: string;
   readonly line2: string;
+  /** The album line (Roon's line3), kept since 2026-09-05 so a screen can list recent ALBUMS; '' before that. */
+  readonly line3: string;
   readonly artKey: string | null;
   readonly at: string;
 }
@@ -25,7 +27,12 @@ interface ZoneRecord {
   wasLive: boolean;
 }
 
-const MAX_TRACKS = 120;
+/**
+ * Two thousand, not a hundred and twenty: the puck's "top" mode counts plays
+ * per track, album and artist (Peter, 09-05), and a window of a hundred rows is
+ * a day of the house, not a habit. Two thousand small rows persist fine.
+ */
+const MAX_TRACKS = 2000;
 
 export class RecentLedger {
   private readonly zones = new Map<string, ZoneRecord>();
@@ -59,6 +66,7 @@ export class RecentLedger {
   observe(
     zoneId: string, zoneName: string, state: string,
     title: string | null, line2: string, artKey: string | null, at: string,
+    line3 = '',
   ): void {
     const live = state === 'playing' || state === 'loading';
     let record = this.zones.get(zoneId);
@@ -76,7 +84,7 @@ export class RecentLedger {
     // Checked against the newest row for THIS zone, not just in-memory state.
     if (live && title !== null && title !== record.lastTitle && !this.alreadyNewest(zoneId, title)) {
       record.lastTitle = title;
-      this.tracks.unshift({ zoneId, zoneName, title, line2, artKey, at });
+      this.tracks.unshift({ zoneId, zoneName, title, line2, line3, artKey, at });
       if (this.tracks.length > MAX_TRACKS) this.tracks.length = MAX_TRACKS;
       this.dirty = true;
     }
@@ -128,6 +136,7 @@ export class RecentLedger {
       if (Array.isArray(parsed.tracks)) {
         this.tracks = parsed.tracks.filter((t: unknown): t is RecentTrack =>
           t !== null && typeof t === 'object' && typeof (t as RecentTrack).title === 'string')
+          .map((t) => ({ ...t, line3: typeof t.line3 === 'string' ? t.line3 : '' }))
           .slice(0, MAX_TRACKS);
         // Re-seed each zone's last title from the newest surviving row, so the
         // first observation after a restart is not mistaken for a track change.

@@ -7,7 +7,7 @@ import { EventHub } from '../src/http/events.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from '../src/http/server.ts';
-import { tierFor, sampleOffsets, letterOf, keyOf, prefixCompare, isAlphabetical, selectionComplete, queueRows } from '../assets/puck-browse.js';
+import { tierFor, sampleOffsets, letterOf, keyOf, prefixCompare, isAlphabetical, selectionComplete, queueRows, ledgerRows, firstArtist, ago } from '../assets/puck-browse.js';
 import { STOPS, nextStop } from '../assets/puck-axis.js';
 import { iconNameFor, genreIconFor, hasGlyph } from '../assets/puck-icons.js';
 import { ZONES } from './fixtures/zones.ts';
@@ -585,9 +585,9 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.doesNotMatch(BROWSE, /drawColumn|drawCarousel/);
   assert.doesNotMatch(CSS, /\[data-tier="linear"\] \.tok \{/, 'no column layout survives');
   assert.match(BROWSE, /if \(view\.sel \+ SLOTS < have \|\| have >= view\.total\) return;/, 'a whole page is kept in hand past the highlight');
-  assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/);
+  assert.match(BROWSE, /levelBack\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/);
   assert.match(BROWSE, /level\.addEventListener\('pointerup', function \(event\) \{ event\.stopPropagation\(\); \}\);/, 'and its tap stays on it');
-  assert.match(CSS, /\.level:before \{ content: '\\2039 '; color: var\(--accent\); \}/, 'the title reads "‹ GENRES"');
+  assert.match(CSS, /\.level-back \{[^\n]*color: var\(--accent\);/, 'the title reads "‹ GENRES" — the ‹ its own element since 09-05, the name beside it');
   assert.match(BROWSE, /var prevKey = key\('\\u2039', 'previous', function \(\) \{ move\(-1\); \}\);/);
   // ⚖️ THE NAME AND THE SELECT ARE ONE THING (Peter, 09-04): the centre circle is the select.
   assert.doesNotMatch(BROWSE, /selectKey|key-select/);
@@ -767,7 +767,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(JS, /if \(next === 'play'\) \{ browse\.park\(\); wake\(\); \}\s*else \{ wake\(\); browse\.open\(next\); \}/, 'the library is parked, not closed, when the axis leaves it; the cluster comes up with the music');
   assert.match(JS, /if \(key === 'ArrowDown'\) \{\s*axis\(1\);\s*\} else if \(key === 'ArrowUp'\) \{\s*axis\(-1\);/);
   assert.match(JS, /key === 'Backspace'\) \{\s*if \(open\) browse\.back\(\);/);
-  assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/, 'the title is still the way back a level');
+  assert.match(BROWSE, /levelBack\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/, 'the ‹ on the title is still the way back a level');
   // the library keeps its place across the axis
   assert.match(BROWSE, /if \(hierarchy === 'browse' && parked !== null\) \{[\s\S]{0,400}view = parked\.view;/);
   assert.match(BROWSE, /function park\(\) \{\s*if \(view !== null && !view\.queue && !view\.rooms\) parked = \{ view: view, spellReturn: spellReturn \};\s*leave\(\);/);
@@ -860,7 +860,7 @@ test('taps spell a prefix, judged in Roon\'s order, and the page seeks the first
   assert.match(BROWSE, /if \(found \|\| !extend\) \{ if \(done\) done\(found\); return; \}\s*\/\/ Nothing spells that far[^\n]*\n\s*seek\(page, letter, false,/, 'a letter that spells nothing starts over');
   assert.match(BROWSE, /function seek\(page, prefix, quiet, done\) \{[\s\S]{0,700}if \(!quiet\) flash\('nothing under ' \+ prefix\);/, 'a failed extension is quiet; a letter the library lacks is said');
   assert.match(BROWSE, /page\.spelt = \{ prefix: prefix, at: Date\.now\(\) \};/);
-  assert.match(BROWSE, /spelt: \{ prefix: letter, at: Date\.now\(\) \},/, 'the first letter, from the ring, can be spelt on from');
+  assert.match(BROWSE, /spelt: letter !== undefined \? \{ prefix: letter, at: Date\.now\(\) \} : null,/, 'the first letter, from the ring, can be spelt on from');
   assert.match(BROWSE, /if \(view\.spelt && pick !== null && prefixCompare\(pick\.title, view\.spelt\.prefix\) !== 0\) view\.spelt = null;/, 'what is spelt stays only while the highlight is under it');
   assert.match(BROWSE, /\(view\.spelt \? view\.spelt\.prefix : view\.letter\)\);/, 'what is spelt is written beside the count');
 });
@@ -911,4 +911,72 @@ test('the wheel honours Roon\'s soft_limit and draws the scale past it dead', ()
   assert.match(JS, /\(i >= alive \? ' beyond' : ''\)/, 'the ticks past the limit are dead');
   assert.match(JS, /"at Roon's limit \\u00b7 "/, 'and the readout says so, beneath the number');
   assert.match(CSS, /\.tick\.beyond, \.tick\.major\.beyond \{ stroke: rgba\(242, 238, 230, \.07\); stroke-width: \.3; \}/);
+});
+
+/**
+ * ⚖️ TRACKS EARNS THE RING (Peter, 09-05: "the tracks screen should present an
+ * alphabet picker as it does for artists and albums"). Measured: 28,390 tracks,
+ * alphabetical, and the very first title is "¡Buenos Días, Marco!" — Latin-1
+ * punctuation the old rule filed after Z, which failed the order check and
+ * cost the whole level its ring. Roon files such marks ahead of A.
+ */
+test('Latin-1 punctuation and symbols sort ahead of A, as Roon files them; other scripts still after Z', () => {
+  assert.equal(letterOf('¡Buenos Días, Marco! For my Brother'), '#');
+  assert.equal(letterOf('¿Quién?'), '#');
+  assert.equal(letterOf('★ Star'), '#');
+  assert.equal(letterOf('聽 Just Listen'), '~');
+  assert.equal(letterOf('Édith Piaf'), 'E');
+  assert.ok(isAlphabetical([
+    { title: '¡Buenos Días, Marco!' }, { title: '(Ad Lib) Slow Dances' }, { title: 'Everybody Has a Dream' },
+    { title: 'Line' }, { title: 'Se Me Rompe el Alma' }, { title: '聽 Just Listen' },
+  ]), 'the measured Tracks samples, in Roon\'s order');
+});
+
+/**
+ * ⚖️ MODES ON THE LABEL (Peter, 09-05: "each of these views should present
+ * options for recently played, random or most frequently played, controlled by
+ * clicking on the label and rotating"). Recent and top are the deck's own
+ * ledger folded per level; random deals a page of the Roon list; a ledger row
+ * hops into Roon by search. ‹ stays the way up.
+ */
+test('the label rotates A-Z, recent, top and random; recent and top fold the ledger per level', () => {
+  const tracks = [
+    { title: 'Burn', line2: 'Norah Jones', line3: 'Day Breaks', zoneName: 'Study', at: '2026-09-05T10:00:00Z', artKey: 'a' },
+    { title: 'Burn', line2: 'Norah Jones', line3: 'Day Breaks', zoneName: 'Kitchen', at: '2026-09-05T12:00:00Z', artKey: 'a' },
+    { title: 'Flipside', line2: 'Norah Jones / Leon Michels', line3: 'Day Breaks', zoneName: 'Study', at: '2026-09-05T11:00:00Z', artKey: 'a' },
+    { title: 'Linger Awhile', line2: 'Samara Joy', line3: 'Linger Awhile', zoneName: 'Theater', at: '2026-09-05T09:00:00Z', artKey: 'b' },
+    { title: 'Old Row', line2: 'Someone', line3: '', zoneName: 'Porch', at: '2026-09-01T09:00:00Z', artKey: null },
+  ];
+  const now = Date.parse('2026-09-05T12:30:00Z');
+  assert.equal(firstArtist('Norah Jones / Leon Michels'), 'Norah Jones');
+  const recentTracks = ledgerRows(tracks, 'tracks', 'recent', now);
+  assert.deepEqual(recentTracks.map((r) => r.title), ['Burn', 'Flipside', 'Linger Awhile', 'Old Row'], 'newest first, a repeat folded');
+  assert.equal(recentTracks[0].subtitle, '30 min ago · Kitchen');
+  const topTracks = ledgerRows(tracks, 'tracks', 'top', now);
+  assert.equal(topTracks[0].title, 'Burn');
+  assert.equal(topTracks[0].subtitle, '2 plays · Norah Jones');
+  const albums = ledgerRows(tracks, 'albums', 'top', now);
+  assert.deepEqual(albums.map((r) => [r.title, r.plays]), [['Day Breaks', 3], ['Linger Awhile', 1]], 'albums fold by album and artist; a row without an album is skipped');
+  const artists = ledgerRows(tracks, 'artists', 'recent', now);
+  assert.deepEqual(artists.map((r) => r.title), ['Norah Jones', 'Samara Joy', 'Someone'], 'artists fold by the first name on the credit');
+  assert.equal(ago('2026-09-05T12:29:50Z', now), 'just now');
+  assert.equal(ago('2026-09-03T12:30:00Z', now), '2 d ago');
+  // the label
+  assert.match(BROWSE, /var levelBack = el\('span', 'level-back', '‹'\);\s*var levelName = el\('span', 'level-name'\);/);
+  assert.match(BROWSE, /levelName\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); cycleMode\(\); \}\);/, 'the name rotates the mode');
+  assert.match(BROWSE, /var MODES = \['az', 'recent', 'top', 'random'\];/);
+  assert.match(BROWSE, /function levelKind\(title\) \{[\s\S]{0,200}t === 'artists' \|\| t === 'albums' \|\| t === 'tracks' \? t : null;/, 'the three library lists have modes');
+  assert.match(BROWSE, /if \(base === null\) \{ back\(\); return; \}/, 'a level without modes: the name is the way up, as before');
+  assert.match(BROWSE, /kind: levelKind\(list\.title\), mode: 'az',/);
+  assert.match(BROWSE, /fetch\('\/api\/v1\/recent\?limit=2000', \{ cache: 'no-store' \}\)/, 'recent and top read the deck\'s own ledger');
+  assert.match(BROWSE, /if \(base !== null && base\.mode === 'random' && Math\.floor\(next \/ SLOTS\) !== Math\.floor\(view\.sel \/ SLOTS\)\) \{ randomPage\(\); return; \}/, 'in RANDOM, stepping off the page deals another');
+  assert.match(BROWSE, /if \(view\.local\) \{ hop\(item\); return; \}/);
+  assert.match(BROWSE, /ask\(\{ hierarchy: 'search', popAll: true, input: query \}\)/, 'a ledger row hops into Roon by search');
+  assert.match(BROWSE, /landAt\(alpha, offset, letter\);/, 'the letter jump and RANDOM land the same way');
+  assert.match(BROWSE, /if \(v\.parent && v\.parent\.kind && \(v\.local \|\| v\.letters !== null\)\) return v\.parent;\s*return null;/, 'a hopped Roon level is not mode territory: its label is its own name and the way up');
+  assert.match(BROWSE, /if \(only === null \|\| keyOf\(only\.title\) !== wantKey \|\| \(only\.hint !== 'list' && only\.hint !== 'action_list'\)\) return;/, 'the one-row shell Roon nests a track in is passed through, never a bare action');
+  assert.match(BROWSE, /\/\/ Hung straight under the ledger ring: ‹ never shows the one-row shell\.\s*if \(current\(mine\)\) \{ view\.parent = from; view\.roonLevel = false; \}/);
+  assert.match(CSS, /\.level-back \{[^\n]*color: var\(--accent\);/);
+  assert.match(CSS, /\.puck\[data-mode\] \.level \{ font-size: calc\(var\(--u\) \* 3\.6\); \}/, 'a longer label is set smaller');
+  assert.doesNotMatch(CSS, /\.level:before/, 'the ‹ is a real element now, with its own tap');
 });
