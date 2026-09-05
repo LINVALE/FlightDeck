@@ -62,3 +62,26 @@ test('Search forwards one bounded query on the requesting display stack', async 
   assert.equal(received?.pop_all, true);
   assert.equal(received?.input, input.slice(0, 400));
 });
+
+/**
+ * Roon's one markup: streaming results carry its link form in titles and
+ * subtitles — `[[673402|Dua Lipa]]` (measured 2026-09-05 on a TIDAL album) —
+ * and a screen must read the name alone.
+ */
+test('Roon link markup [[id|name]] is read as the name in titles, subtitles and the level', async () => {
+  const service = {
+    browse(_options: unknown, done: (error: unknown, body: unknown) => void): void {
+      done(false, { action: 'list', list: { title: 'Radical Optimism (Extended Versions)', subtitle: '[[673402|Dua Lipa]]', count: 1, level: 2 } });
+    },
+    load(_options: unknown, done: (error: unknown, body: unknown) => void): void {
+      done(false, { offset: 0, items: [{ title: '1. End Of An Era', subtitle: '[[1|Danny L Harle]], [[673402|Dua Lipa]]', item_key: 'k1', hint: 'action_list' }],
+        list: { title: 'Radical Optimism (Extended Versions)', subtitle: '[[673402|Dua Lipa]]', count: 1, level: 2 } });
+    },
+  };
+  const gateway = new BrowseGateway(() => service, 1000);
+  const head = await gateway.browse({ hierarchy: 'search', sessionKey: 'face-markup' });
+  assert.equal(head.list?.subtitle, 'Dua Lipa');
+  const page = await gateway.load({ hierarchy: 'search', sessionKey: 'face-markup', count: 10, offset: 0 });
+  assert.equal(page.items?.[0]?.subtitle, 'Danny L Harle, Dua Lipa');
+  assert.equal(page.items?.[0]?.title, '1. End Of An Era');
+});

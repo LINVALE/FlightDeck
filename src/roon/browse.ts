@@ -44,7 +44,13 @@ export const HIERARCHIES = new Set([
 function text(value: unknown, fallback: string | null = null): string | null {
   if (typeof value !== 'string') return fallback;
   // Roon titles are library data, not markup: drop control characters and cap.
-  return value.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, MAX_TEXT);
+  // The one markup Roon does send is its own link form on streaming results —
+  // `[[673402|Dua Lipa]]` (measured 2026-09-05 on a TIDAL album's subtitle) —
+  // which a screen must read as the name alone.
+  return value
+    .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, '$1')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .slice(0, MAX_TEXT);
 }
 
 function sanitizeItem(raw: unknown): BrowseItem | null {
