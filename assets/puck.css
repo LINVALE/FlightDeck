@@ -94,6 +94,8 @@ body {
 .tick.major.is-lit { stroke-width: 1.4; }
 .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
 .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
+/* Past Roon's own volume limit the scale is dead: the wheel cannot go there. */
+.tick.beyond, .tick.major.beyond { stroke: rgba(242, 238, 230, .07); stroke-width: .3; }
 
 .glass {
   position: absolute;
@@ -232,16 +234,37 @@ body {
   color: var(--ink-dim);
   cursor: pointer;   /* the door to the other rooms (Peter, 09-05) */
 }
-/* The way back to the house: the Face's arrow, in a circle, top-left, always
-   there (it is not in the summoned cluster) — except in browse, where the
-   10:17 circle sits on that spot and the title climbs out instead. */
-.btn-home {
-  left: calc(var(--u) * 33); top: calc(var(--u) * 24);
-  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
-  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
-  border-color: rgba(242, 238, 230, .3);
+/* ---------- outside the puck: the page's own chrome, where there is a page ---------- */
+
+/**
+ * ⚖️ NOTHING ON THE PUCK GOES BACK TO THE WALL (Peter, 09-05): it controls one
+ * zone. The way back, and the door to this room's other faces, are the Face's
+ * own marks, drawn in the corners OUTSIDE the circle — and only where there is
+ * an outside: `data-outside` is set when the viewport is wider than the puck
+ * (a browser, a television). On the device there is no page, only the puck.
+ */
+.outside {
+  position: fixed; top: 2vh; left: 2vh; right: 2vh;
+  display: none;
+  -webkit-justify-content: space-between; justify-content: space-between;
+  -webkit-align-items: center; align-items: center;
+  pointer-events: none;
 }
-.puck[data-browse] .btn-home { display: none; }
+.puck[data-outside="1"] .outside { display: -webkit-flex; display: flex; }
+.outside .homemark, .outside .cog {
+  pointer-events: auto;
+  display: -webkit-inline-flex; display: inline-flex;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  padding: 1vh 1.4vh; min-height: 2.4vh;
+  border: 1px solid rgba(242, 238, 230, .22); border-radius: 6px;
+  background: rgba(6, 7, 10, .55);
+  color: #f2eee6; cursor: pointer;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.6vh; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+}
+.outside .homemark .glyph { width: 2.4vh; height: 2.4vh; display: block; }
+.outside .homemark:hover, .outside .cog:hover { border-color: var(--accent); color: var(--accent); }
 
 /**
  * THE LEVEL, LARGE IN THE CENTRE, THEN GONE (Peter, 09-03: "if the cog is

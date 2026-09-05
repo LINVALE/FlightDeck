@@ -220,6 +220,7 @@ export function createBrowse(options) {
   var outputId = options.outputId || function () { return null; };
   var fence = options.fence || function () { return null; };
   var act = options.act || function () { return Promise.resolve(false); };
+  var onSwitch = options.onSwitch || function () {};
   var session = 'puck-' + String(Math.floor(Math.random() * 1e6));
 
   /* ---------- the layer ---------- */
@@ -617,6 +618,7 @@ export function createBrowse(options) {
     chosen.className = 'chosen';
     chosenTitle.textContent = pick !== null ? pick.title : 'No other rooms';
     chosenSub.textContent = pick === null ? '' : pick.subtitle;
+    chosen.setAttribute('title', pick === null ? '' : 'control ' + pick.title + ' with this puck');
     // PULL needs that room playing; SHIFT needs this one playing.
     pullKey.setAttribute('data-off', pick !== null && pick.live ? '0' : '1');
     shiftKey.setAttribute('data-off', pick !== null && here !== null && here.nowPlaying ? '0' : '1');
@@ -1210,7 +1212,9 @@ export function createBrowse(options) {
     if (view.tier === 'alpha') { jump(view.letters[view.sel]); return; }
     var item = itemAt(view.sel);
     if (item === null) return;
-    if (view.rooms) return;   // the hub's two keys are the verbs here; the disc itself is not one
+    // The rooms' hub is the ZONE PICKER (Peter, 09-05): a tap on it makes this
+    // puck that room's. Pull and shift are the two keys under it.
+    if (view.rooms) { onSwitch(item); return; }
     if (view.queue) { playFrom(item); return; }
     if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;

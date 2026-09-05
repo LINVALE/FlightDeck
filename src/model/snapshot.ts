@@ -88,6 +88,7 @@ function projectVolume(raw: unknown): OutputVolume | null {
     value: typeof volume.value === 'number' ? volume.value : null,
     step: typeof volume.step === 'number' ? volume.step : null,
     muted: volume.is_muted === true,
+    softLimit: typeof volume.soft_limit === 'number' && Number.isFinite(volume.soft_limit) ? volume.soft_limit : null,
   };
 }
 

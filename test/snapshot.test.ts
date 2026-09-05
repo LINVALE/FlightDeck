@@ -265,3 +265,21 @@ test('an output that supports standby carries its power; one that does not carri
   assert.deepEqual(study.outputs[0].power, { wakeable: true, asleep: false, controlKey: '1' });
   assert.equal(study.outputs[1].power, null);
 });
+
+/**
+ * ⚖️ ROON'S OWN LIMIT IS THE CEILING (Peter, 2026-09-05). The wire's volume
+ * object carries `soft_limit` (measured on the Core); the snapshot carries it
+ * as softLimit and never invents one.
+ */
+test('an output\'s soft_limit is carried as softLimit, null when Roon did not say', () => {
+  const raw = ZONES[0] as unknown as { outputs: { volume?: Record<string, unknown> }[] };
+  const plain = projectZone(ZONES[0], art, noRecency, AT);
+  const plainVolume = plain?.outputs[0].volume;
+  assert.ok(plainVolume === null || plainVolume === undefined || plainVolume.softLimit === null, 'null when Roon did not say');
+  const limited = {
+    ...(ZONES[0] as unknown as Record<string, unknown>),
+    outputs: [{ ...raw.outputs[0], volume: { ...(raw.outputs[0].volume ?? {}), soft_limit: 60 } }, ...raw.outputs.slice(1)],
+  } as unknown as Parameters<typeof projectZone>[0];
+  const zone = projectZone(limited, art, noRecency, AT);
+  assert.equal(zone?.outputs[0].volume?.softLimit, 60);
+});

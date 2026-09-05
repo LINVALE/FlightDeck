@@ -324,6 +324,16 @@ a RheoStat hand-off link (never an iframe — `frame-ancestors 'none'`).
 run inline after the run hit the account's monthly spend limit). Gallery:
 `claude.ai/code/artifact/451ce2cc-e537-4bda-99d2-ff2f166b4cfd`. Mocks + 1080p renders: session scratchpad `faces/`.
 
+## 9. Volume limits — Roon's, not ours (⚖️ Peter 2026-09-05)
+
+Roon keeps a **Volume Limit per zone** in its own zone settings, and the transport
+API reports it on every output's volume as `soft_limit` (measured on the Core's
+wire: `min 0, max 100, soft_limit 100` when unset). FlightDeck does **not** build a
+second limit. It carries Roon's as `softLimit`, the puck's wheel cannot ask past
+it, and the scale draws the ticks beyond it dead. **Set the limit in Roon when a
+zone is first enabled** — that is the one place it lives, and every screen,
+knob and remote in the house then respects it.
+
 ## Sources (Roon Display facts)
 
 - https://community.roonlabs.com/t/using-web-display-with-roon/52106

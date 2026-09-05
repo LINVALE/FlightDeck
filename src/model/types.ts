@@ -55,6 +55,14 @@ export interface OutputVolume {
   readonly value: number | null;
   readonly step: number | null;
   readonly muted: boolean;
+  /**
+   * Roon's own Volume Limit for the zone — set in Roon's zone settings, reported
+   * on the wire as `soft_limit` (measured on Peter's Core 2026-08-03: `max 100,
+   * soft_limit 100` when unset). FlightDeck never duplicates it: screens read it,
+   * the wheel cannot ask past it, the scale shows where it lies. Null when Roon
+   * did not say.
+   */
+  readonly softLimit: number | null;
 }
 
 /**

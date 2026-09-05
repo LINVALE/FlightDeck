@@ -203,19 +203,23 @@ var room = el('div', 'room');
 var roomName = el('span', 'room-name');
 room.appendChild(roomName);
 /**
- * ⚖️ THE WAY BACK IS A BUTTON, NOT A HINT (Peter, 09-04: "getting back to
- * FlightDeck is not intuitive — at present we click on the room name; is there
- * an icon that maps that better?"). A return arrow on the room name said
- * "back", faintly, about the room. This is the Face's own mark — the arrow
- * with a tail that Peter chose there on 08-28 because "an arrow says back,
- * which is what a viewer is actually looking for and reads without being
- * learned" — in a circle like every other control, top-left, ALWAYS visible
- * (never summoned), and it acts on the first touch. The same mark in the same
- * corner on both screens: one thing to learn.
+ * ⚖️ THE PUCK HAS NO WAY BACK TO THE WALL (Peter, 09-05: "the puck will never
+ * have a back-to-the-wall option — it only ever controls one zone"). What it
+ * has instead is a way to another ROOM: the hub of the rooms ring. The return
+ * and the face options a browser needs live OUTSIDE the puck, in the page's
+ * own chrome — the Face's mark and its "faces" door, drawn only where there
+ * is an outside (a browser, a television), never on the device, and never
+ * repeating a control the puck already has.
  */
-var homeMark = el('div', 'btn btn-home');
+var outside = el('div', 'outside');
+var homeMark = el('span', 'homemark');
 homeMark.appendChild(glyph('back'));
 homeMark.setAttribute('title', 'back to every room');
+homeMark.setAttribute('aria-label', 'go to the whole house');
+var faceDoor = el('span', 'cog', 'faces');
+faceDoor.setAttribute('title', 'this room on the screen, and its other faces');
+outside.appendChild(homeMark);
+outside.appendChild(faceDoor);
 /**
  * ⚖️ A TURN OR A TAP ON THE WHEEL SHOWS THE LEVEL IN THE CENTRE, THEN FADES
  * (Peter, 09-03). The number, large, with the word under it — a knob that
@@ -287,7 +291,6 @@ glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
 glass.appendChild(ring);
 glass.appendChild(room);
-glass.appendChild(homeMark);
 glass.appendChild(words);
 glass.appendChild(pad);
 glass.appendChild(progRead);
@@ -296,6 +299,7 @@ glass.appendChild(note);
 glass.appendChild(toast);
 rig.appendChild(glass);
 root.appendChild(rig);
+root.appendChild(outside);
 
 /* ---------- geometry: the SHORT side, never vw ---------- */
 
@@ -322,6 +326,10 @@ function layout() {
   rig.style.setProperty('--glass', String(glassPx) + 'px');
   rig.style.setProperty('--bezel-w', String(bezelPx) + 'px');
   rig.style.setProperty('--u', String(glassPx / 100) + 'px');
+  // An OUTSIDE exists only where the viewport is wider than the puck: a
+  // browser or a television. On the device the puck is the whole screen.
+  var outsidePx = (window.innerWidth - (glassPx + 2 * bezelPx)) / 2;
+  root.setAttribute('data-outside', outsidePx >= 72 ? '1' : '0');
 }
 
 window.addEventListener('resize', layout);
@@ -481,7 +489,16 @@ function volumeBounds(output) {
   var volume = output.volume;
   var min = volume.min === null ? 0 : volume.min;
   var max = volume.max === null ? 100 : volume.max;
-  return { min: min, max: max, step: volume.step === null || volume.step === 0 ? 1 : volume.step };
+  /**
+   * ⚖️ ROON'S OWN LIMIT IS THE CEILING (Peter, 09-05: "Roon already provides a
+   * comprehensive max volume per zone — don't create a duplicate feature; say
+   * users should set it when the zone is first enabled"). Roon reports it as
+   * `soft_limit`; the deck carries it as softLimit. Nothing here duplicates it:
+   * the wheel cannot ask for more than it, and the scale shows where it lies.
+   */
+  var soft = typeof volume.softLimit === 'number' ? volume.softLimit : max;
+  var ceiling = soft < max && soft > min ? soft : max;
+  return { min: min, max: max, ceiling: ceiling, step: volume.step === null || volume.step === 0 ? 1 : volume.step };
 }
 
 function showTurning() {
@@ -496,6 +513,15 @@ function showTurning() {
 var volumeGate = createVolumeGate(function (steps) {
   var output = currentOutput();
   if (output === null || output.volume === null) return null;
+  // Up to Roon's limit and no further: a turn that would cross it is cut to
+  // reach it, and a turn already there sends nothing and says why.
+  var bounds = volumeBounds(output);
+  var at = output.volume.value;
+  if (steps > 0 && typeof at === 'number' && at + steps * bounds.step > bounds.ceiling) {
+    var room = Math.floor((bounds.ceiling - at) / bounds.step);
+    if (room <= 0) { flash("at the limit set in Roon"); return null; }
+    steps = room;
+  }
   return command({ action: 'volume', output: output.id, steps: steps });
 });
 
@@ -653,13 +679,15 @@ function paintVolume() {
   var bounds = volumeBounds(output);
   // The reading under the hand: Roon's number plus at most four unconfirmed
   // steps. A face may run a little ahead of the room; it may never run away.
-  var shown = Math.max(bounds.min, Math.min(bounds.max,
+  var shown = Math.max(bounds.min, Math.min(bounds.ceiling,
     volume.value + volumeGate.ahead() * bounds.step));
   var span = Math.max(1, bounds.max - bounds.min);
-  lightDetents((shown - bounds.min) / span, String(Math.round(shown)));
-  // The number always; "muted" is said beneath it, not instead of it.
+  lightDetents((shown - bounds.min) / span, String(Math.round(shown)), (bounds.ceiling - bounds.min) / span);
+  // The number always; "muted" is said beneath it, not instead of it — and so
+  // is Roon's limit, when the level has reached it.
+  var atLimit = bounds.ceiling < bounds.max && shown >= bounds.ceiling;
   volReadValue.textContent = String(Math.round(shown));
-  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : 'volume \u00b7 ') + output.name;
+  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (atLimit ? "at Roon's limit \u00b7 " : 'volume \u00b7 ')) + output.name;
   var muteShows = volume.muted ? 'speaker-muted' : 'speaker';
   if (btnMute.getAttribute('data-shows') !== muteShows) {
     btnMute.setAttribute('data-shows', muteShows);
@@ -671,11 +699,13 @@ function paintVolume() {
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
 var TICK_READ_R = 44.6;   // rig units: inside the ticks (46.4), on the bezel's inner band
 
-function lightDetents(fraction, label) {
+function lightDetents(fraction, label, ceiling) {
   var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * ticks.length);
+  // The ticks past Roon's limit are drawn dead: the wheel cannot go there.
+  var alive = typeof ceiling === 'number' ? Math.round(Math.max(0, Math.min(1, ceiling)) * ticks.length) : ticks.length;
   for (var i = 0; i < ticks.length; i += 1) {
     var major = i % 10 === 0;
-    ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : ''));
+    ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : '') + (i >= alive ? ' beyond' : ''));
   }
   if (fraction === null || label === undefined || label === null) { tickRead.style.display = 'none'; return; }
   var angle = ((lit / ticks.length) * 360 - 90) * Math.PI / 180;
@@ -785,6 +815,7 @@ var browse = createBrowse({
     render();
   },
   onAxis: function (dir) { axis(dir); },
+  onSwitch: function (room) { switchRoom(room); },
   // The rooms face reads the house from the store and acts through the deck.
   zones: function () { var s = store.snapshot(); return s === null ? [] : s.zones; },
   outputId: function () { var output = currentOutput(); return output === null ? null : output.id; },
@@ -996,15 +1027,31 @@ words.addEventListener('pointerup', function (event) { event.stopPropagation(); 
  * kept beside that memory, so a Face opened from the Wall afterwards does not
  * turn straight round.
  */
-function goHome() {
+function forgetPuckAsFace() {
   try {
     var before = localStorage.getItem('flightdeck.face.before.' + wantedZoneId) || 'presence';
     if (localStorage.getItem('flightdeck.face.' + wantedZoneId) === 'puck') {
       localStorage.setItem('flightdeck.face.' + wantedZoneId, before);
     }
   } catch (error) { /* private mode */ }
+}
+
+function goHome() {
+  forgetPuckAsFace();
   haptic(10);
   window.location.href = '/';
+}
+
+/**
+ * ⚖️ THE ZONE PICKER IS THE ROOMS RING (Peter, 09-05: "we need a zone picker,
+ * which can be part of the transfer interface"). The hub of the rooms ring
+ * chooses which room this puck controls: a tap on it goes to that room's own
+ * puck, by its durable output, keeping the size it was opened at.
+ */
+function switchRoom(room) {
+  haptic(10);
+  flash('now ' + room.title);
+  window.location.href = '/puck/' + encodeURIComponent(room.outputId) + (PINNED === null ? '' : '?px=' + String(PINNED));
 }
 /**
  * ⚖️ THE ROOM NAME OPENS THE ROOMS (Peter, 09-05: pull from · shift to on the
@@ -1014,8 +1061,17 @@ function goHome() {
  */
 room.addEventListener('click', function (event) { event.stopPropagation(); haptic(10); browse.open('rooms'); });
 homeMark.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
-homeMark.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
-homeMark.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+/**
+ * The "faces" door goes to this room's Face, where every face — this puck among
+ * them — is chosen. It forgets "puck" first, as goHome does, or the Face would
+ * turn straight round and come back here.
+ */
+faceDoor.addEventListener('click', function (event) {
+  event.stopPropagation();
+  forgetPuckAsFace();
+  var token = wantedSlug !== '' ? wantedSlug : (boundOutputId !== null ? boundOutputId : '');
+  window.location.href = token === '' ? '/face' : '/face/' + encodeURIComponent(token);
+});
 press(btnUp, function () { axis(-1); });
 press(btnDown, function () { axis(1); });
 room.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
@@ -1065,6 +1121,8 @@ function tapBezel(degrees) {
   var bounds = volumeBounds(output);
   var value = levelAtAngle(degrees, bounds.min, bounds.max, ticks.length);
   if (value === null) return;
+  // A tap past Roon's limit asks for the limit, never for more.
+  if (value > bounds.ceiling) value = bounds.ceiling;
   haptic(12);
   showTurning();
   command({ action: 'volume', output: output.id, value: value });
