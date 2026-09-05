@@ -858,6 +858,11 @@ body {
   -webkit-justify-content: center; justify-content: center;
 }
 .puck:not([data-spell="1"]) .spell-keys { display: none; }
+/* The row spans the glass so its keys centre; the ROW must not take the touch
+   meant for the letters beside it — measured: R at half past seven was under
+   the row's box and could not be tapped. Only the keys themselves take a tap. */
+.spell-keys { pointer-events: none; }
+.spell-keys .key { pointer-events: auto; }
 .key {
   width: calc(var(--u) * 9); height: calc(var(--u) * 9);
   margin: 0 calc(var(--u) * 1.3);

@@ -616,8 +616,14 @@ export function createBrowse(options) {
 
   /* ---------- modes: A–Z · recent · top · random, rotated on the label ---------- */
 
-  var MODES = ['az', 'recent', 'top', 'random'];
-  var MODE_WORD = { az: '', recent: 'RECENT ', top: 'TOP ', random: 'RANDOM ' };
+  /**
+   * ⚖️ AND SEARCH (Peter, 09-05: "an option to search should bring up the
+   * search function and alphabet wheel"): the last stop on the label opens the
+   * speller for this kind, and its results open straight into the matching
+   * category — tracks for Tracks, albums for Albums, artists for Artists.
+   */
+  var MODES = ['az', 'recent', 'top', 'random', 'search'];
+  var MODE_WORD = { az: '', recent: 'RECENT ', top: 'TOP ', random: 'RANDOM ', search: 'SEARCH ' };
 
   /** The three library lists that have modes; Roon names them, so the name is the key. */
   function levelKind(title) {
@@ -654,6 +660,7 @@ export function createBrowse(options) {
     tick();
     if (next === 'az') { view = base; draw(); return; }
     if (next === 'random') { view = base; randomPage(); return; }
+    if (next === 'search') { view = base; spell({ title: 'Search', input: { prompt: 'search ' + base.title.toLowerCase() } }, base.kind); return; }
     openLocal(base, next);
   }
 
@@ -1568,13 +1575,17 @@ export function createBrowse(options) {
 
   /* ---------- the speller: Search, spelt on the ring ---------- */
 
-  function spell(item) {
+  function spell(item, kind) {
     var parent = view;
     view = {
       hierarchy: parent.hierarchy, tier: 'alpha', title: item.title || 'Search', total: 0,
       items: [], base: 0, sel: 0, depth: parent.depth, letter: null, paging: false,
       letters: ALPHABET, probes: {},
-      spell: { query: '', prompt: (item.input && item.input.prompt) || 'Search', parent: parent },
+      // `kind` (tracks · albums · artists) when the speller was opened from a
+      // list's label: the results then open straight into that category — and
+      // the speller then sits in that list's territory, so its label says so.
+      spell: { query: '', prompt: (item.input && item.input.prompt) || 'Search', parent: parent, kind: kind || null },
+      parent: parent,
     };
     tick();
     draw();
@@ -1608,7 +1619,25 @@ export function createBrowse(options) {
         if (!current(mine)) return;
         if (result.isError === true) { flash(result.message || 'nothing found'); draw(); return; }
         spellReturn = { speller: speller, depth: speller.depth + 1 };
-        return present(result, speller.depth + 1, mine, 'search');
+        return present(result, speller.depth + 1, mine, 'search').then(function () {
+          if (!current(mine) || !speller.spell.kind) return;
+          // Opened from a list's label: straight into that list's category.
+          var want = { tracks: 'Tracks', albums: 'Albums', artists: 'Artists' }[speller.spell.kind];
+          var category = null;
+          for (var i = 0; i < view.items.length; i += 1) if (view.items[i].title === want) category = view.items[i];
+          if (category === null) { flash('no ' + want.toLowerCase() + ' for that'); return; }
+          var results = view;
+          busy = true;
+          return ask({ hierarchy: 'search', itemKey: category.itemKey })
+            .then(function (inner) {
+              busy = false;
+              if (!current(mine)) return;
+              if (inner.isError === true) return;
+              return present(inner, results.depth + 1, mine, 'search').then(function () {
+                if (current(mine)) { view.parent = results; view.roonLevel = true; }
+              });
+            });
+        });
       })
       .catch(function (error) {
         busy = false;

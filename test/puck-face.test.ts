@@ -498,7 +498,8 @@ test('Search is spelt on the ring, and asks Roon the way the Face does', () => {
   assert.match(BROWSE, /keys\.appendChild\(key\('\\u21b5', 'search'/);
   assert.match(BROWSE, /keys\.appendChild\(key\('\\u232b', 'delete the last letter'/);
   assert.match(BROWSE, /keys\.appendChild\(key\('\\u2715', 'clear'/);
-  assert.match(BROWSE, /letters: ALPHABET, probes: \{\},\s*spell: \{/, 'the ring is letters only');
+  assert.match(BROWSE, /letters: ALPHABET, probes: \{\},[\s\S]{0,320}spell: \{/, 'the ring is letters only');
+  assert.match(CSS, /\.spell-keys \{ pointer-events: none; \}\s*\.spell-keys \.key \{ pointer-events: auto; \}/, 'the keys row must not take the touch meant for the letters beside it (measured: R at half past seven)');
   assert.doesNotMatch(BROWSE, /var SPELL = /);
   assert.match(CSS, /\.puck:not\(\[data-spell="1"\]\) \.spell-keys \{ display: none; \}/);
   assert.match(BROWSE, /if \(item\.input !== null && item\.input !== undefined\) \{ spell\(item\); return; \}/,
@@ -964,7 +965,9 @@ test('the label rotates A-Z, recent, top and random; recent and top fold the led
   // the label
   assert.match(BROWSE, /var levelBack = el\('span', 'level-back', '‹'\);\s*var levelName = el\('span', 'level-name'\);/);
   assert.match(BROWSE, /levelName\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); cycleMode\(\); \}\);/, 'the name rotates the mode');
-  assert.match(BROWSE, /var MODES = \['az', 'recent', 'top', 'random'\];/);
+  assert.match(BROWSE, /var MODES = \['az', 'recent', 'top', 'random', 'search'\];/, 'and SEARCH, last: the speller for this kind (Peter, 09-05)');
+  assert.match(BROWSE, /if \(next === 'search'\) \{ view = base; spell\(\{ title: 'Search', input: \{ prompt: 'search ' \+ base\.title\.toLowerCase\(\) \} \}, base\.kind\); return; \}/);
+  assert.match(BROWSE, /var want = \{ tracks: 'Tracks', albums: 'Albums', artists: 'Artists' \}\[speller\.spell\.kind\];/, 'results open straight into the matching category');
   assert.match(BROWSE, /function levelKind\(title\) \{[\s\S]{0,200}t === 'artists' \|\| t === 'albums' \|\| t === 'tracks' \? t : null;/, 'the three library lists have modes');
   assert.match(BROWSE, /if \(base === null\) \{ back\(\); return; \}/, 'a level without modes: the name is the way up, as before');
   assert.match(BROWSE, /kind: levelKind\(list\.title\), mode: 'az',/);
