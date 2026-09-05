@@ -729,6 +729,8 @@ function render() {
     nowKey = playing;
     if (browse !== undefined) browse.reloadQueue();
   }
+  // The rooms face follows the house: any room starting, stopping or regrouping redraws it in place.
+  if (browse !== undefined) browse.refreshRooms();
   if (zone === null) {
     roomName.textContent = '';
     title.textContent = '';
@@ -783,6 +785,11 @@ var browse = createBrowse({
     render();
   },
   onAxis: function (dir) { axis(dir); },
+  // The rooms face reads the house from the store and acts through the deck.
+  zones: function () { var s = store.snapshot(); return s === null ? [] : s.zones; },
+  outputId: function () { var output = currentOutput(); return output === null ? null : output.id; },
+  fence: function () { var s = store.snapshot(); return s === null ? null : { generation: s.generation, revision: s.revision }; },
+  act: function (body) { return command(body).then(function (result) { return result === null; }); },
 });
 
 // The browse layer was appended last and would otherwise paint over the toast —
@@ -999,7 +1006,13 @@ function goHome() {
   haptic(10);
   window.location.href = '/';
 }
-room.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
+/**
+ * ⚖️ THE ROOM NAME OPENS THE ROOMS (Peter, 09-05: pull from · shift to on the
+ * puck). The name IS the room; a tap on it shows the other rooms, the way the
+ * credit is the door to the library. The way back to the house is the button
+ * beside it.
+ */
+room.addEventListener('click', function (event) { event.stopPropagation(); haptic(10); browse.open('rooms'); });
 homeMark.addEventListener('click', function (event) { event.stopPropagation(); goHome(); });
 homeMark.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
 homeMark.addEventListener('pointerup', function (event) { event.stopPropagation(); });

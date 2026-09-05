@@ -216,6 +216,10 @@ export function createBrowse(options) {
   var tick = options.tick || function () {};
   var onChange = options.onChange || function () {};
   var onAxis = options.onAxis || function () {};
+  var zones = options.zones || function () { return []; };
+  var outputId = options.outputId || function () { return null; };
+  var fence = options.fence || function () { return null; };
+  var act = options.act || function () { return Promise.resolve(false); };
   var session = 'puck-' + String(Math.floor(Math.random() * 1e6));
 
   /* ---------- the layer ---------- */
@@ -303,6 +307,24 @@ export function createBrowse(options) {
   chosen.addEventListener('click', function (event) { event.stopPropagation(); commit(); });
   chosen.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
   chosen.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+  /**
+   * ⚖️ ROOMS: PULL FROM · SHIFT TO (Peter, 09-05: "incorporating pull from and
+   * shift to on the puck could be useful if a simple interface is possible").
+   * The other rooms ring the face as the queue does — the name in each circle,
+   * the playing ones white-rimmed — and the hub carries the two verbs as two
+   * keys under the chosen room's name: PULL brings what that room plays here,
+   * SHIFT sends what plays here to it. Each is lit only when it can act.
+   */
+  var roomKeys = el('div', 'room-keys');
+  var pullKey = key('', 'pull from: bring what that room plays here', function () { if (view !== null && view.rooms) pullFrom(); });
+  pullKey.appendChild(glyph('pull'));
+  pullKey.className = 'key key-pull';
+  var shiftKey = key('', 'shift to: send what plays here to that room', function () { if (view !== null && view.rooms) shiftTo(); });
+  shiftKey.appendChild(glyph('shift'));
+  shiftKey.className = 'key key-shift';
+  roomKeys.appendChild(pullKey);
+  roomKeys.appendChild(shiftKey);
+  chosen.appendChild(roomKeys);
 
   keys.appendChild(key('\u232b', 'delete the last letter', function () { if (view && view.spell) spellStop(DELETE); }));
   keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
@@ -482,6 +504,7 @@ export function createBrowse(options) {
 
     if (view.tier === 'linear') drawPaged();
     else if (view.tier === 'queue') drawQueueRing();
+    else if (view.tier === 'rooms') drawRooms();
     else drawRing();
 
   }
@@ -503,7 +526,154 @@ export function createBrowse(options) {
     return where + (pick.subtitle ? ' \u00b7 ' + pick.subtitle : '');
   }
 
+  /* ---------- rooms: the other rooms, pull from · shift to ---------- */
+
+  /** This puck's own zone, as the house last reported it. */
+  function hereZone() {
+    var mine = zoneId();
+    var all = zones();
+    for (var i = 0; i < all.length; i += 1) if (all[i].id === mine) return all[i];
+    return null;
+  }
+
+  /** The other rooms as rows: the playing ones first, then by name. */
+  function roomRows() {
+    var mine = zoneId();
+    var all = zones();
+    var rows = [];
+    for (var i = 0; i < all.length; i += 1) {
+      var zone = all[i];
+      if (zone.id === mine || !zone.outputs || zone.outputs.length === 0) continue;
+      // LIVE has something to pull — a paused queue is still a queue (the
+      // deck's own rule); PLAYING is what earns the white rim and the front.
+      var live = zone.nowPlaying !== null && zone.nowPlaying !== undefined;
+      var playing = live && zone.state === 'playing';
+      var what = live ? zone.nowPlaying.title + (zone.nowPlaying.line2 ? ' · ' + zone.nowPlaying.line2 : '') : '';
+      rows.push({
+        title: zone.name, zoneId: zone.id, outputId: zone.outputs[0].id, hint: 'room',
+        subtitle: !live ? 'quiet' : (playing ? what : 'paused · ' + what),
+        live: live, playing: playing,
+      });
+    }
+    rows.sort(function (a, b) {
+      if (a.playing !== b.playing) return a.playing ? -1 : 1;
+      if (a.live !== b.live) return a.live ? -1 : 1;
+      return a.title < b.title ? -1 : (a.title > b.title ? 1 : 0);
+    });
+    return rows;
+  }
+
+  /** What the ring shows, as one string, so a snapshot that changes none of it redraws nothing. */
+  function roomsKey(rows) {
+    var parts = [];
+    for (var i = 0; i < rows.length; i += 1) parts.push(rows[i].zoneId + ':' + rows[i].title + ':' + rows[i].subtitle);
+    return parts.join('|');
+  }
+
+  function openRooms() {
+    var rows = roomRows();
+    epoch += 1;
+    view = {
+      hierarchy: 'rooms', tier: 'rooms', title: 'Rooms', total: rows.length,
+      items: rows, base: 0, sel: 0, depth: 0, letter: null, paging: false,
+      letters: null, probes: {}, plain: true, rooms: true, key: roomsKey(rows),
+    };
+    draw();
+    onChange(true);
+  }
+
+  /** The house moved — a room started, stopped or was grouped: redraw in place, keeping the chosen room. */
+  function refreshRooms() {
+    if (view === null || !view.rooms) return;
+    var rows = roomRows();
+    var key = roomsKey(rows);
+    if (key === view.key) return;
+    var held = view.items[view.sel] ? view.items[view.sel].zoneId : null;
+    view.items = rows;
+    view.total = rows.length;
+    view.key = key;
+    view.sel = 0;
+    for (var i = 0; i < rows.length; i += 1) if (rows[i].zoneId === held) { view.sel = i; break; }
+    draw();
+  }
+
+  function drawRooms() {
+    var n = view.total;
+    var size = tokenSize(n);
+    named = false;
+    for (var k = 0; k < n; k += 1) {
+      var item = view.items[k];
+      var angle = (k / n) * 2 * Math.PI - Math.PI / 2;
+      var node = el('div', (k === view.sel ? 'opt opt-on' : 'opt') + (item.playing ? ' opt-now' : ''));
+      var mine = k === view.sel ? size * 1.3 : size;
+      node.appendChild(titledToken(item.title, size, mine));
+      place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      bindChoose(node, k);
+      optWrap.appendChild(node);
+    }
+    var pick = itemAt(view.sel);
+    var here = hereZone();
+    chosenArt.style.display = 'none';
+    chosen.className = 'chosen';
+    chosenTitle.textContent = pick !== null ? pick.title : 'No other rooms';
+    chosenSub.textContent = pick === null ? '' : pick.subtitle;
+    // PULL needs that room playing; SHIFT needs this one playing.
+    pullKey.setAttribute('data-off', pick !== null && pick.live ? '0' : '1');
+    shiftKey.setAttribute('data-off', pick !== null && here !== null && here.nowPlaying ? '0' : '1');
+    root.setAttribute('data-named', '0');
+    linsub.textContent = '';
+    count.textContent = '';
+  }
+
+  /** Bring what the chosen room plays here — FlightDeck's pull, fenced by the snapshot it was chosen from. */
+  function pullFrom() {
+    var room = itemAt(view.sel);
+    var output = outputId();
+    var fenced = fence();
+    if (room === null || output === null || fenced === null) { flash('no room to pull into'); return; }
+    if (!room.live) { flash(room.title + ' is quiet'); return; }
+    var mine = epoch;
+    busy = true;
+    tick();
+    act({ action: 'pull', from: room.zoneId, output: output, generation: fenced.generation, revision: fenced.revision })
+      .then(function (ok) {
+        busy = false;
+        if (!current(mine)) return;
+        if (ok) { flash('pulling from ' + room.title); close(); }
+      });
+  }
+
+  /** Send what plays here to the chosen room — FlightDeck's transfer, to that room's durable output. */
+  function shiftTo() {
+    var room = itemAt(view.sel);
+    var here = hereZone();
+    if (room === null || here === null) return;
+    if (!here.nowPlaying) { flash('nothing playing here to shift'); return; }
+    var mine = epoch;
+    busy = true;
+    tick();
+    act({ action: 'transfer', zone: here.id, output: room.outputId })
+      .then(function (ok) {
+        busy = false;
+        if (!current(mine)) return;
+        if (ok) { flash('shifted to ' + room.title); close(); }
+      });
+  }
+
   /* ---------- the queue: a ring of circles, the title in each ---------- */
+
+  /** A circle carrying a title, set at the RING's type size whatever the circle's own. */
+  function titledToken(title, size, mine) {
+    var mark = el('div', 'tok tok-titled');
+    mark.appendChild(el('div', 'tok-title', title));
+    sizeToken(mark, mine);
+    // sizeToken's type is sized for an initial; a title is set much smaller —
+    // and at the ring's size in every circle, so the chosen one, a third
+    // larger, gains room for its words rather than larger words (measured:
+    // scaled with the circle, "I Miss You" ran to its rim).
+    mark.style.fontSize = 'calc(var(--u) * ' + String(size * 0.18) + ')';
+    return mark;
+  }
 
   /**
    * ⚖️ THE QUEUE IS CIRCLES, THE TITLE IN EACH (Peter, 09-04: "circles for each
@@ -530,16 +700,7 @@ export function createBrowse(options) {
       var angle = (k / m) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise: the playing row first
       var node = el('div', (index === view.sel ? 'opt opt-on' : 'opt') + (item.now === true ? ' opt-now' : ''));
       var mine = index === view.sel ? size * 1.3 : size;
-      var mark = el('div', 'tok tok-titled');
-      var words = el('div', 'tok-title', item.title);
-      mark.appendChild(words);
-      sizeToken(mark, mine);
-      // sizeToken's type is sized for an initial; a title is set much smaller —
-      // and at the RING's size in every circle, so the chosen one, a third
-      // larger, gains room for its words rather than larger words (measured:
-      // scaled with the circle, "I Miss You" ran to its rim).
-      mark.style.fontSize = 'calc(var(--u) * ' + String(size * 0.18) + ')';
-      node.appendChild(mark);
+      node.appendChild(titledToken(item.title, size, mine));
       place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
       bindChoose(node, index);
       optWrap.appendChild(node);
@@ -978,6 +1139,7 @@ export function createBrowse(options) {
   function open(hierarchy) {
     if (busy) return;
     if (hierarchy === 'queue') { if (view !== null && view.queue) return; park(); openQueue(); return; }
+    if (hierarchy === 'rooms') { if (view !== null && view.rooms) return; park(); openRooms(); return; }
     /**
      * ⚖️ THE LIBRARY KEEPS ITS PLACE ACROSS THE AXIS. A swipe from three levels
      * down in Genres to the queue and back should land on those three levels,
@@ -1034,7 +1196,7 @@ export function createBrowse(options) {
 
   /** The axis leaving a library level: set it aside to come back to. The queue is never kept. */
   function park() {
-    if (view !== null && !view.queue) parked = { view: view, spellReturn: spellReturn };
+    if (view !== null && !view.queue && !view.rooms) parked = { view: view, spellReturn: spellReturn };
     leave();
   }
 
@@ -1048,6 +1210,7 @@ export function createBrowse(options) {
     if (view.tier === 'alpha') { jump(view.letters[view.sel]); return; }
     var item = itemAt(view.sel);
     if (item === null) return;
+    if (view.rooms) return;   // the hub's two keys are the verbs here; the disc itself is not one
     if (view.queue) { playFrom(item); return; }
     if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;
@@ -1119,8 +1282,8 @@ export function createBrowse(options) {
         .catch(function () { busy = false; if (current(mine)) close(); });
       return;
     }
-    // The queue's title leaves the queue; it must not forget the library parked behind it.
-    if (view.queue) park(); else close();
+    // The queue's or the rooms' title leaves it; it must not forget the library parked behind it.
+    if (view.queue || view.rooms) park(); else close();
   }
 
   /* ---------- the speller: Search, spelt on the ring ---------- */
@@ -1343,8 +1506,9 @@ export function createBrowse(options) {
     commit: commit,
     move: move,
     reloadQueue: reloadQueue,
+    refreshRooms: refreshRooms,
     isOpen: function () { return view !== null; },
-    /** Which face is up: the music, the library, or the queue. */
-    at: function () { return view === null ? 'play' : (view.queue ? 'queue' : 'browse'); },
+    /** Which face is up: the music, the library, the queue, or the rooms (a side door off the music). */
+    at: function () { return view === null ? 'play' : (view.queue ? 'queue' : (view.rooms ? 'rooms' : 'browse')); },
   };
 }

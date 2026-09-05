@@ -420,7 +420,7 @@ test('the ring is drawn on evidence, and a stop that leads nowhere says so', () 
 });
 
 test('the axis is the same at every depth, and its own session key', () => {
-  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    if \(view\.queue\) park\(\); else close\(\);\n  \}/,
+  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    if \(view\.queue \|\| view\.rooms\) park\(\); else close\(\);\n  \}/,
     'up restores the parent view; with no parent it walks out (the queue, without forgetting a parked library)');
   assert.match(BROWSE, /popLevels: 1/);
   assert.match(BROWSE, /var session = 'puck-'/,
@@ -520,7 +520,7 @@ test('the puck is offered beside the faces, remembered, and has a way back', () 
     'the face being left is kept ONLY when the puck is chosen from the list, never on the remembered redirect');
   assert.doesNotMatch(FACE, /var FACES = \[[^\]]*'puck'/, 'never a face LAYOUT: face.css is a television\'s');
   assert.match(PAGES, /'aurora', 'puck'\] as const/, '?face=puck pins it like any face');
-  assert.match(JS, /room\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); goHome\(\); \}\);/,
+  assert.match(JS, /room\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); haptic\(10\); browse\.open\('rooms'\); \}\);/,
     'the room name goes home to the Wall, where every way of opening a room lives');
   assert.match(JS, /=== 'puck'\) \{\s*localStorage\.setItem\('flightdeck\.face\.' \+ wantedZoneId, before\);/,
     'and forgets puck as this screen\'s face on the way, restoring the one kept beside it');
@@ -763,9 +763,9 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(BROWSE, /level\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); back\(\); \}\);/, 'the title is still the way back a level');
   // the library keeps its place across the axis
   assert.match(BROWSE, /if \(hierarchy === 'browse' && parked !== null\) \{[\s\S]{0,400}view = parked\.view;/);
-  assert.match(BROWSE, /function park\(\) \{\s*if \(view !== null && !view\.queue\) parked = \{ view: view, spellReturn: spellReturn \};\s*leave\(\);/);
+  assert.match(BROWSE, /function park\(\) \{\s*if \(view !== null && !view\.queue && !view\.rooms\) parked = \{ view: view, spellReturn: spellReturn \};\s*leave\(\);/);
   assert.match(BROWSE, /function close\(\) \{\s*parked = null;\s*leave\(\);/, 'closing forgets; only the axis parks');
-  assert.match(BROWSE, /if \(view\.queue\) park\(\); else close\(\);/, "the queue's title leaves the queue without forgetting the parked library");
+  assert.match(BROWSE, /if \(view\.queue \|\| view\.rooms\) park\(\); else close\(\);/, "the queue's title leaves the queue without forgetting the parked library");
 });
 
 /**
@@ -812,7 +812,8 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(BROWSE, /else if \(view\.tier === 'queue'\) drawQueueRing\(\);/);
   assert.match(BROWSE, /var QUEUE_PAGE = 12;/, 'up to twelve ring the face at once; more are pages of twelve');
   assert.match(BROWSE, /var angle = \(k \/ m\) \* 2 \* Math\.PI - Math\.PI \/ 2;/, 'spread evenly round the whole face, whatever the page holds');
-  assert.match(BROWSE, /var mark = el\('div', 'tok tok-titled'\);\s*var words = el\('div', 'tok-title', item\.title\);/, 'the title in each circle, not the sleeve');
+  assert.match(BROWSE, /node\.appendChild\(titledToken\(item\.title, size, mine\)\);/, 'the title in each circle, not the sleeve');
+  assert.match(BROWSE, /function titledToken\(title, size, mine\) \{\s*var mark = el\('div', 'tok tok-titled'\);\s*mark\.appendChild\(el\('div', 'tok-title', title\)\);/);
   assert.match(BROWSE, /\(item\.now === true \? ' opt-now' : ''\)/, 'the playing row is marked on its rim');
   assert.match(BROWSE, /function bindChoose\(node, index\) \{[\s\S]{0,300}if \(view === null \|\| view\.sel === index\) return;\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a circle chooses; only the hub plays');
   assert.match(CSS, /\.tok-title \{[^\n]*-webkit-line-clamp: 3;/);
@@ -855,4 +856,35 @@ test('taps spell a prefix, judged in Roon\'s order, and the page seeks the first
   assert.match(BROWSE, /spelt: \{ prefix: letter, at: Date\.now\(\) \},/, 'the first letter, from the ring, can be spelt on from');
   assert.match(BROWSE, /if \(view\.spelt && pick !== null && prefixCompare\(pick\.title, view\.spelt\.prefix\) !== 0\) view\.spelt = null;/, 'what is spelt stays only while the highlight is under it');
   assert.match(BROWSE, /\(view\.spelt \? view\.spelt\.prefix : view\.letter\)\);/, 'what is spelt is written beside the count');
+});
+
+/**
+ * ⚖️ ROOMS: PULL FROM · SHIFT TO (Peter, 09-05: "if a simple interface is
+ * possible"). A tap on the room name shows the other rooms as titled circles,
+ * playing ones first and white-rimmed; the hub holds the chosen room, what it
+ * plays, and the two verbs as keys — pull (that room's music here) and shift
+ * (this room's music there) — through FlightDeck's own pull and transfer.
+ */
+test('the room name opens the rooms; pull and shift are two keys in the hub, each lit only when it can act', () => {
+  assert.match(JS, /room\.addEventListener\('click', function \(event\) \{ event\.stopPropagation\(\); haptic\(10\); browse\.open\('rooms'\); \}\);/);
+  assert.match(JS, /zones: function \(\) \{ var s = store\.snapshot\(\); return s === null \? \[\] : s\.zones; \},/);
+  assert.match(JS, /act: function \(body\) \{ return command\(body\)\.then\(function \(result\) \{ return result === null; \}\); \},/, 'success is the deck\'s null; a refusal was already flashed');
+  assert.match(JS, /if \(browse !== undefined\) browse\.refreshRooms\(\);/, 'the rooms follow the house');
+  assert.match(BROWSE, /if \(hierarchy === 'rooms'\) \{ if \(view !== null && view\.rooms\) return; park\(\); openRooms\(\); return; \}/);
+  assert.match(BROWSE, /if \(zone\.id === mine \|\| !zone\.outputs \|\| zone\.outputs\.length === 0\) continue;/, 'never this room, never a room with no speaker');
+  assert.match(BROWSE, /if \(a\.playing !== b\.playing\) return a\.playing \? -1 : 1;/, 'playing rooms first');
+  assert.match(BROWSE, /pullKey\.setAttribute\('data-off', pick !== null && pick\.live \? '0' : '1'\);/, 'pull needs that room to have something — a paused queue counts, as the deck rules');
+  assert.match(BROWSE, /var playing = live && zone\.state === 'playing';/, 'the white rim and the front of the ring are for rooms actually playing');
+  assert.match(BROWSE, /subtitle: !live \? 'quiet' : \(playing \? what : 'paused · ' \+ what\),/);
+  assert.match(BROWSE, /shiftKey\.setAttribute\('data-off', pick !== null && here !== null && here\.nowPlaying \? '0' : '1'\);/, 'shift needs this room playing');
+  assert.match(BROWSE, /act\(\{ action: 'pull', from: room\.zoneId, output: output, generation: fenced\.generation, revision: fenced\.revision \}\)/, 'pull is fenced by the snapshot it was chosen from');
+  assert.match(BROWSE, /act\(\{ action: 'transfer', zone: here\.id, output: room\.outputId \}\)/, 'shift goes to the room\'s durable output');
+  assert.match(BROWSE, /if \(ok\) \{ flash\('pulling from ' \+ room\.title\); close\(\); \}/);
+  assert.match(BROWSE, /if \(view\.rooms\) return;   \/\/ the hub's two keys are the verbs here/, 'the disc itself is not a verb in the rooms');
+  assert.match(BROWSE, /if \(view !== null && !view\.queue && !view\.rooms\) parked = /, 'the rooms are never parked as the library');
+  assert.match(BROWSE, /if \(view\.queue \|\| view\.rooms\) park\(\); else close\(\);/);
+  assert.match(BROWSE, /if \(key === view\.key\) return;/, 'a snapshot that changes nothing on the ring redraws nothing');
+  assert.ok(hasGlyph('pull') && hasGlyph('shift'));
+  assert.match(CSS, /\.puck\[data-tier="rooms"\] \.room-keys \{ display: -webkit-flex; display: flex; \}/);
+  assert.match(CSS, /\.key\[data-off="1"\] \{ color: rgba\(242, 238, 230, \.28\);/, 'a key that cannot act is dimmed, never hidden');
 });
