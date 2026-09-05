@@ -671,7 +671,8 @@ function setProgress(fraction, positionSec, lengthSec) {
   progBead.style.display = 'none';   // the circle IS the bead (Peter, 09-05: "two different places")
   progRead.textContent = formatTime(positionSec);
   progLength.textContent = formatTime(lengthSec);
-  progLength.style.display = 'block';
+  // The length yields its spot at twelve to the bead for the first and last few seconds.
+  progLength.style.display = clamped < 0.03 || clamped > 0.97 ? 'none' : 'block';
   // Always exactly at the arc's end: stepping aside near twelve made "two
   // different places" (Peter, 09-05). What sits near twelve — the mute, the
   // length, the room name — was moved out of its way instead.

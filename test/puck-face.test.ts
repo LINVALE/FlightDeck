@@ -704,11 +704,15 @@ test('the times ride the bead, the room name sits inside the ring, the wheel say
   // ⚖️ 09-05: the elapsed time IS the bead — a circle in the arc's tone at the arc's end — and the length sits above the room name
   assert.match(JS, /progRead\.textContent = formatTime\(positionSec\);\s*progLength\.textContent = formatTime\(lengthSec\);/);
   assert.match(JS, /var tagAngle = angle;\s*progRead\.style\.left/, 'always exactly at the arc\'s end: stepping aside made "two different places" (Peter, 09-05)');
+  assert.match(JS, /progLength\.style\.display = clamped < 0\.03 \|\| clamped > 0\.97 \? 'none' : 'block';/, 'the length yields its spot at twelve to the bead');
+  assert.match(CSS, /\.puck\[data-browse\] \.prog-length, \.puck\[data-chrome="1"\] \.prog-length \{ display: none !important; \}/, 'and to the mute while the cluster is up');
+  assert.match(CSS, /\.prog-length \{[\s\S]{0,400}text-shadow: 0 0 calc\(var\(--u\) \* 1\.4\) rgba\(6, 7, 10, \.95\)/, 'bone with a soft dark glow: no pill, no bullet');
+  assert.doesNotMatch(CSS, /\.prog-length \{[\s\S]{0,400}background: rgba/, 'no bullet behind the length');
   assert.match(JS, /progBead\.style\.display = 'none';   \/\/ the circle IS the bead/);
   assert.match(CSS, /\.room-name \{[\s\S]{0,200}background: rgba\(6, 7, 10, \.52\);/, 'the room name in a translucent pill, clearly over the art');
   assert.match(JS, /style\.setProperty\('--on-accent', onTone\(/, 'the number reads on the tone: ink on a light one, bone on a deep one');
   assert.match(CSS, /\.prog-read \{[\s\S]{0,300}border-radius: 50%;\s*background: var\(--accent\);/, 'a circle in the arc\'s own tone, not a white-on-black pill');
-  assert.match(CSS, /\.prog-length \{[\s\S]{0,160}top: calc\(var\(--u\) \* 4\.2\);/, 'the length in the band between the cog and the arc');
+  assert.match(CSS, /\.prog-length \{[\s\S]{0,160}top: calc\(var\(--u\) \* 2\.8\);/, 'the length exactly over the top of the arc, at twelve');
   assert.match(JS, /var READ_R = 42;/, 'on the arc, inside the glass at three and nine');
   assert.match(JS, /setProgress\(position \/ length, position, length\);/);
   assert.match(CSS, /\.prog-read \{[\s\S]{0,700}white-space: nowrap;[\s\S]{0,200}pointer-events: none;/);

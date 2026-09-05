@@ -221,24 +221,25 @@ body {
   display: none;
 }
 .puck[data-browse] .prog-read { display: none !important; }
-/* The length, once, in the band between the cog and the arc (Peter, 09-05:
-   "exactly between the volume cog and the progress bar"), at one o'clock —
-   the mute holds twelve. */
+/* ⚖️ The length, once, EXACTLY OVER THE TOP OF THE PROGRESS CIRCLE (Peter,
+   09-05): plain bone with a soft dark glow behind it — no pill, no bullet — in
+   the band between the cog and the arc, at twelve. It yields that spot to the
+   mute while the cluster is up, and to the bead for a track's first and last
+   seconds, when the bead itself is at twelve. */
 .prog-length {
-  position: absolute; left: calc(var(--u) * 54); width: calc(var(--u) * 16);
-  top: calc(var(--u) * 4.2);
+  position: absolute; left: calc(var(--u) * 40); width: calc(var(--u) * 20);
+  top: calc(var(--u) * 2.8);
   text-align: center;
   font-size: calc(var(--u) * 2.6);
   line-height: calc(var(--u) * 3.4);
+  font-weight: 600;
   letter-spacing: calc(var(--u) * .16);
   color: var(--ink);
-  /* the same quiet pill as the room name: a light sleeve's top swallowed it */
-  background: rgba(6, 7, 10, .45);
-  border-radius: calc(var(--u) * 1.7);
+  text-shadow: 0 0 calc(var(--u) * 1.4) rgba(6, 7, 10, .95), 0 0 calc(var(--u) * .5) rgba(6, 7, 10, .95);
   pointer-events: none;
   display: none;
 }
-.puck[data-browse] .prog-length { display: none !important; }
+.puck[data-browse] .prog-length, .puck[data-chrome="1"] .prog-length { display: none !important; }
 
 /* The wheel's own number, at the end of the lit run. */
 .tick-read { fill: var(--accent); font-size: 2.7px; font-weight: 700; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
