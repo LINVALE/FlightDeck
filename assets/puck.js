@@ -1150,10 +1150,16 @@ rig.addEventListener('pointermove', function (event) {
   while (Math.abs(turning.carried) >= DETENT_DEG) {
     var step = turning.carried > 0 ? 1 : -1;
     turning.carried -= step * DETENT_DEG;
-    // ⚖️ THE COG IS THE VOLUME, IN EVERY STATE (Peter, 09-04: "in browse mode let
-    // the outer cog still adjust volume — so it always serves that function
-    // alone"). The highlight moves by ‹ ›, swipes, taps and the outer letters.
-    turn(step);
+    /**
+     * ⚖️ IN A MENU THE COG MOVES THE HIGHLIGHT (Peter, 09-05: "use the outer cog
+     * to move rapidly through the 8 or so that are displayed" — superseding
+     * 09-04's "the cog is the volume in every state"). On the music face the
+     * cog is still the volume; a TAP on the scale still sets the level anywhere,
+     * a tap being no turn. On the device each detent will tick, and a fast spin
+     * will skip — firmware, later.
+     */
+    if (browse.isOpen()) browse.move(step);
+    else turn(step);
   }
 });
 
@@ -1183,10 +1189,12 @@ window.addEventListener('wheel', function (event) {
   if (event.deltaMode === 1) delta *= 33;
   else if (event.deltaMode === 2) delta *= 100;
   volumeGate.scroll(delta, function (dir) {
-    // The scroll wheel is the desk's cog, and the cog is the volume in every
-    // state. It is the one input with NO place — a scroll can land on an idle
-    // page from a hand that meant another window — so a sleeping face is only
-    // woken by it, and the next detent acts; the bezel and its scale never wait.
+    // The scroll wheel is the desk's cog: in a menu it moves the highlight
+    // (Peter, 09-05); on the music face it is the volume. There it is the one
+    // input with NO place — a scroll can land on an idle page from a hand that
+    // meant another window — so a sleeping face is only woken by it, and the
+    // next detent acts; the bezel and its scale never wait.
+    if (browse.isOpen()) { browse.move(dir); return; }
     if (wake()) { showTurning(); return; }
     turn(-dir);
   });

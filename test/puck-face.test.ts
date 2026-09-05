@@ -287,7 +287,7 @@ test('every path to a volume request goes through the gate', () => {
   // is asleep is only woken by the first of them.
   assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\)/);
   assert.match(JS, /if \(event\.deltaMode === 1\) delta \*= 33;/);
-  assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\) \{[\s\S]{0,420}if \(wake\(\)\) \{ showTurning\(\); return; \}/,
+  assert.match(JS, /volumeGate\.scroll\(delta, function \(dir\) \{[\s\S]{0,700}if \(wake\(\)\) \{ showTurning\(\); return; \}/,
     'a SCROLL that lands on an idle page only wakes it — the one input with no place');
   assert.match(JS, /function turn\(step\)[\s\S]{0,300}wake\(\);   \/\/ the bezel has a place/,
     'the bezel itself never waits');
@@ -675,7 +675,10 @@ test('the level shows large in the centre on a turn or a tap, then fades', () =>
  * alone"). The highlight moves by ‹ ›, swipes, taps and the outer letters; the
  * bezel, the glass's edge and the scroll wheel never touch it.
  */
-test('the cog is the volume in every state; the alphabet outside is reached by tap', () => {
+test('in a menu the cog moves the highlight, on the music face it is the volume; the alphabet outside is reached by tap', () => {
+  // ⚖️ Peter, 09-05: "use the outer cog to move rapidly through the 8 or so displayed" — supersedes 09-04's cog-is-always-volume
+  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.move\(step\);\s*else turn\(step\);/, 'the bezel: highlight in a menu, volume on the music');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dir\); return; \}\s*if \(wake\(\)\) \{ showTurning\(\); return; \}/, 'the desk\'s scroll wheel, the same');
   assert.doesNotMatch(JS, /browse\.turn\(/, 'the face never asks the menu what a turn means');
   assert.doesNotMatch(BROWSE, /function turn\(|stepLetter/);
   assert.match(JS, /function tapBezel\(degrees\) \{\s*var output = currentOutput\(\);/, 'a tap on the wheel sets the level in browse too');
