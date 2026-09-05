@@ -9,6 +9,7 @@ import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from '../src/http/server.ts';
 import { tierFor, sampleOffsets, letterOf, keyOf, prefixCompare, isAlphabetical, selectionComplete, queueRows, ledgerRows, firstArtist, ago } from '../assets/puck-browse.js';
 import { STOPS, nextStop } from '../assets/puck-axis.js';
+import { levelForDrag } from '../assets/volume-gate.js';
 import { iconNameFor, genreIconFor, hasGlyph } from '../assets/puck-icons.js';
 import { ZONES } from './fixtures/zones.ts';
 
@@ -227,7 +228,7 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
   // ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "bold the ticks up to
   // the level") — lit in the accent and thicker, in every state.
-  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.95; stroke-width: 1; \}/m,
+  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: 1; stroke-width: 1\.25; \}/m,
     'lit and bold, at rest as much as in control');
   assert.doesNotMatch(CSS, /\[data-chrome="1"\] \.tick\.is-lit/, 'no state gate on the level');
   assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
@@ -270,13 +271,13 @@ test('volume acts on the bound output and transport on the zone', () => {
  * replays the flood and gets twelve. This holds the face to USING it.
  */
 test('every path to a volume request goes through the gate', () => {
-  assert.match(JS, /import \{ createVolumeGate, levelAtAngle \} from '\.\/volume-gate\.js';/);
+  assert.match(JS, /import \{ createVolumeGate, levelAtAngle, levelForDrag \} from '\.\/volume-gate\.js';/);
   assert.match(JS, /var volumeGate = createVolumeGate\(function \(steps\) \{[\s\S]{0,900}command\(\{ action: 'volume', output: output\.id, steps: steps \}\)/,
     'the gate is the only thing that ever sends a volume step');
   // Exactly two places send a volume request: the gate's stepped batches, and a
   // TAP on a bezel dot — one press, one absolute level, which cannot repeat
   // itself and is throttled and wake-gated like every other touch.
-  assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 2, 'the gate, and the dot tap — nothing else');
+  assert.equal((JS.match(/action: 'volume'/g) ?? []).length, 3, 'the gate, the dot tap, and the dial\'s drag (absolute, throttled) — nothing else');
   assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}wake\(\);   \/\/ raise the readout; a dot has a place/,
     'a tap on a dot acts on the first touch');
   assert.match(JS, /if \(now - lastBezelTap < 300\) return;/, 'and never faster than one every 300 ms');
@@ -355,7 +356,7 @@ test('mute is on the cluster, and the readout keeps the number when muted', () =
   assert.match(CSS, /\.btn-mute\[data-on="1"\] \{\s*background: rgba\(216, 162, 74, \.5\); border-color: rgba\(216, 162, 74, \.75\); color: #f2eee6;/, 'muted = a subtler wash of FlightDeck\'s gold, never the sleeve\'s accent (grey on a monochrome sleeve)');
   assert.ok(hasGlyph('mute'));
   assert.match(JS, /press\(btnMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
-  assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(atLimit \? \"at Roon's limit \\u00b7 \" : 'volume \\u00b7 '\)\) \+ output\.name;/);
+  assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(over \? "above the limit set in Roon \\u00b7 " : \(atLimit \? "at Roon's limit \\u00b7 " : 'volume \\u00b7 '\)\)\) \+ output\.name;/);
   assert.match(CSS, /\.puck\[data-vol="none"\] \.btn-mute \{ display: none; \}/);
 });
 
@@ -677,7 +678,7 @@ test('the level shows large in the centre on a turn or a tap, then fades', () =>
  */
 test('in a menu the cog moves the highlight, on the music face it is the volume; the alphabet outside is reached by tap', () => {
   // ⚖️ Peter, 09-05: "use the outer cog to move rapidly through the 8 or so displayed" — supersedes 09-04's cog-is-always-volume
-  assert.match(JS, /if \(browse\.isOpen\(\)\) browse\.move\(step\);\s*else turn\(step\);/, 'the bezel: highlight in a menu, volume on the music');
+  assert.match(JS, /if \(browse\.isOpen\(\)\) \{\s*while \(Math\.abs\(turning\.carried\) >= DETENT_DEG\) \{[\s\S]{0,200}browse\.move\(step\);\s*\}\s*return;\s*\}\s*if \(turning\.moved >= DETENT_DEG \/ 2\) dragLevel\(now, false\);/, 'the bezel: highlight in a menu; on the music a drag is a dial');
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dir\); return; \}\s*if \(wake\(\)\) \{ showTurning\(\); return; \}/, 'the desk\'s scroll wheel, the same');
   assert.doesNotMatch(JS, /browse\.turn\(/, 'the face never asks the menu what a turn means');
   assert.doesNotMatch(BROWSE, /function turn\(|stepLetter/);
@@ -925,7 +926,10 @@ test('the wheel honours Roon\'s soft_limit and draws the scale past it dead', ()
   assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\), \(bounds\.ceiling - bounds\.min\) \/ span\);/);
   assert.match(JS, /\(i >= alive \? ' beyond' : ''\)/, 'the ticks past the limit are dead');
   assert.match(JS, /"at Roon's limit \\u00b7 "/, 'and the readout says so, beneath the number');
-  assert.match(CSS, /\.tick\.beyond, \.tick\.major\.beyond \{ stroke: rgba\(242, 238, 230, \.07\); stroke-width: \.3; \}/);
+  assert.match(CSS, /\.tick\.beyond, \.tick\.major\.beyond \{ display: none; \}/, 'Roon\'s way: only the ticks up to the comfort level are drawn');
+  assert.match(CSS, /\.tick\.beyond\.is-lit, \.tick\.major\.beyond\.is-lit \{ display: inline; stroke: rgb\(232, 84, 70\); stroke-opacity: 1; \}/, 'above it, only where the level is, and red');
+  assert.match(JS, /var over = volume\.value > bounds\.ceiling;/, 'a level set above the comfort level from Roon is shown where it is');
+  assert.match(JS, /"above the limit set in Roon \\u00b7 "/);
 });
 
 /**
@@ -997,3 +1001,34 @@ test('the label rotates A-Z, recent, top and random; recent and top fold the led
   assert.match(CSS, /\.puck\[data-mode\] \.level \{ font-size: calc\(var\(--u\) \* 3\.6\); \}/, 'a longer label is set smaller');
   assert.doesNotMatch(CSS, /\.level:before/, 'the ‹ is a real element now, with its own tap');
 });
+
+/**
+ * ⚖️ DRAGS WORK AS WELL AS TAPS (Peter, 09-05). On the volume scale a drag is a
+ * dial: the level is the tick under the finger, bounded by the comfort level,
+ * never flung across twelve, sent at most every 150 ms and once on release. On
+ * the progress ring a drag scrubs: the bead follows the finger, one seek goes
+ * when it lifts, and the room's own position waits until then.
+ */
+test('a drag on the scale is a dial: the tick under the finger, bounded, never flung across twelve', () => {
+  const bounds = { min: 0, max: 100, ceiling: 80, step: 1 };
+  assert.equal(levelForDrag(-90, bounds, null, 100), 0, 'twelve o\'clock is the bottom of the scale');
+  assert.equal(levelForDrag(0, bounds, null, 100), 25, 'three o\'clock is a quarter');
+  assert.equal(levelForDrag(90, bounds, 40, 100), 50, 'six o\'clock is half');
+  assert.equal(levelForDrag(170, bounds, 60, 100), 72, 'eight o\'clock, up from sixty');
+  assert.equal(levelForDrag(-100, bounds, 70, 100), 80, 'past the comfort level it asks for the comfort level');
+  assert.equal(levelForDrag(-88, bounds, 3, 100), 1, 'a small move near twelve is fine');
+  assert.equal(levelForDrag(-92, bounds, 3, 100), null, 'crossing twelve from three would fling to ninety-nine: refused, the level stays');
+  assert.equal(levelForDrag(-92, { min: 0, max: 100, step: 1 }, null, 100), 99, 'no ceiling, no last: the raw tick');
+  // the wiring
+  assert.match(JS, /function dragLevel\(degrees, final\) \{[\s\S]{0,500}var value = levelForDrag\(degrees, bounds, dragLast, ticks\.length\);/);
+  assert.match(JS, /if \(!force && Date\.now\(\) - dragSentAt < 150\) \{/, 'sent at most every 150 ms');
+  assert.match(JS, /if \(dragLast !== null\) \{ flushDrag\(true\); dragLast = null; \}/, 'and once more when the finger lifts');
+  assert.match(JS, /command\(\{ action: 'volume', output: send\.output, value: send\.value \}\);/, 'an absolute level, never a step: it cannot run away');
+  assert.match(JS, /if \(dragLast !== null && turning !== null\) return;/, 'a hand on the scale paints its own target; the room\'s answer waits');
+  // the scrub
+  assert.match(JS, /if \(radiusOf\(glassMetrics\(\), event\.clientX, event\.clientY\) >= SEEK_BAND && !browse\.isOpen\(\)\) \{\s*scrub = \{ moved: false \};/, 'a finger landing in the ring band may scrub; in a menu the rim belongs to nothing');
+  assert.match(JS, /setProgress\(fraction, fraction \* length, length\);\s*\}\);/, 'the bead and its time follow the finger');
+  assert.match(JS, /if \(was\.moved\) \{ wake\(\); seekTo\(event\.clientX, event\.clientY\); return; \}/, 'ONE seek, when the finger lifts');
+  assert.match(JS, /if \(scrubbing\) return;   \/\/ the bead is under a finger/, 'the room\'s own position waits');
+});
+

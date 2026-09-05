@@ -78,7 +78,7 @@ body {
  * is still set, just not heard.
  */
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-.tick { stroke: rgba(242, 238, 230, .16); stroke-width: .45; stroke-linecap: round; }
+.tick { stroke: rgba(242, 238, 230, .13); stroke-width: .45; stroke-linecap: round; }
 .tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
 /**
  * ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "we need the volume to be
@@ -90,12 +90,19 @@ body {
  * accent even unlit — one scheme, from the sleeve, on everything active.
  */
 .tick.major { stroke: var(--accent); stroke-opacity: .34; }
-.tick.is-lit { stroke: var(--accent); stroke-opacity: .95; stroke-width: 1; }
-.tick.major.is-lit { stroke-width: 1.4; }
+/* The lit run is stronger still (Peter, 09-05: "make the level clearer"). */
+.tick.is-lit { stroke: var(--accent); stroke-opacity: 1; stroke-width: 1.25; }
+.tick.major.is-lit { stroke-width: 1.7; }
 .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
 .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
-/* Past Roon's own volume limit the scale is dead: the wheel cannot go there. */
-.tick.beyond, .tick.major.beyond { stroke: rgba(242, 238, 230, .07); stroke-width: .3; }
+/* ⚖️ ROON'S WAY (Peter, 09-05: "Roon shows only 80 ticks when the limit is
+   set at that"): the scale is drawn only up to the comfort level, Roon's soft
+   limit — the ticks above it are simply not there. They appear only if the
+   level itself is up there (set from Roon's own app; the wheel never drives
+   into it), and then in RED, with the number. */
+.tick.beyond, .tick.major.beyond { display: none; }
+.tick.beyond.is-lit, .tick.major.beyond.is-lit { display: inline; stroke: rgb(232, 84, 70); stroke-opacity: 1; }
+.rig[data-over="1"] .tick-read { fill: rgb(232, 84, 70); }
 
 .glass {
   position: absolute;

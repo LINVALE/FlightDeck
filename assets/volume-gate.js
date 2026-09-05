@@ -127,6 +127,23 @@ export function createVolumeGate(send, options) {
  * then placed on the device's own range — and the top dot is the device's own
  * maximum, never a step past it.
  */
+/**
+ * ⚖️ A DRAG ON THE SCALE IS A DIAL (Peter, 09-05: "make drags on the progress
+ * circle and volume controls work as well as taps"): the level is the tick
+ * under the finger, as a tap sets it, continuously. Bounded by the comfort
+ * level (Roon's soft limit), and a finger that crosses twelve must not fling
+ * the level to the other end — a jump of more than a quarter of the scale in
+ * one move is refused, and the level stays where it was.
+ */
+export function levelForDrag(degrees, bounds, last, detents) {
+  var value = levelAtAngle(degrees, bounds.min, bounds.max, detents);
+  if (value === null) return null;
+  var ceiling = typeof bounds.ceiling === 'number' ? bounds.ceiling : bounds.max;
+  if (value > ceiling) value = ceiling;
+  if (typeof last === 'number' && Math.abs(value - last) > (bounds.max - bounds.min) / 4) return null;
+  return value;
+}
+
 export function levelAtAngle(degrees, min, max, detents) {
   if (typeof degrees !== 'number' || !isFinite(degrees)) return null;
   if (typeof min !== 'number' || typeof max !== 'number' || max <= min) return null;

@@ -6,7 +6,7 @@ import { createSeekIntentGate } from './seek-intent.js';
 import { createBrowse } from './puck-browse.js';
 import { nextStop } from './puck-axis.js';
 import { glyph } from './puck-icons.js';
-import { createVolumeGate, levelAtAngle } from './volume-gate.js';
+import { createVolumeGate, levelAtAngle, levelForDrag } from './volume-gate.js';
 import { readPalette, luminance } from './sleeve-palette.js';
 
 /**
@@ -715,15 +715,24 @@ function paintVolume() {
   var bounds = volumeBounds(output);
   // The reading under the hand: Roon's number plus at most four unconfirmed
   // steps. A face may run a little ahead of the room; it may never run away.
-  var shown = Math.max(bounds.min, Math.min(bounds.ceiling,
-    volume.value + volumeGate.ahead() * bounds.step));
+  // A hand on the scale paints its own target; the room's answer waits.
+  if (dragLast !== null && turning !== null) return;
+  /**
+   * ⚖️ ROON'S WAY (Peter, 09-05): above the comfort level — Roon's soft limit —
+   * the scale is RED. The wheel never drives into it, but a level set there
+   * from Roon's own app is shown where it is, lit in red, and named.
+   */
+  var over = volume.value > bounds.ceiling;
+  var shown = over ? Math.min(bounds.max, volume.value)
+    : Math.max(bounds.min, Math.min(bounds.ceiling, volume.value + volumeGate.ahead() * bounds.step));
+  if (over) rig.setAttribute('data-over', '1'); else rig.removeAttribute('data-over');
   var span = Math.max(1, bounds.max - bounds.min);
   lightDetents((shown - bounds.min) / span, String(Math.round(shown)), (bounds.ceiling - bounds.min) / span);
   // The number always; "muted" is said beneath it, not instead of it — and so
   // is Roon's limit, when the level has reached it.
   var atLimit = bounds.ceiling < bounds.max && shown >= bounds.ceiling;
   volReadValue.textContent = String(Math.round(shown));
-  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (atLimit ? "at Roon's limit \u00b7 " : 'volume \u00b7 ')) + output.name;
+  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (over ? "above the limit set in Roon \u00b7 " : (atLimit ? "at Roon's limit \u00b7 " : 'volume \u00b7 '))) + output.name;
   // The glyph never changes; the disc's fill is the state.
   if (volume.muted) { btnMute.setAttribute('data-on', '1'); btnMute.setAttribute('title', 'muted \u2014 tap to unmute'); }
   else { btnMute.removeAttribute('data-on'); btnMute.setAttribute('title', 'mute'); }
@@ -831,6 +840,7 @@ function render() {
   var position = store.positionSec(zone);
   var length = np.lengthSec;
   if (position === null || typeof length !== 'number' || length <= 0) { setProgress(null); return; }
+  if (scrubbing) return;   // the bead is under a finger
   setProgress(position / length, position, length);
 }
 
@@ -962,12 +972,50 @@ glass.addEventListener('pointerdown', function (event) {
     return;
   }
   touch = { x: event.clientX, y: event.clientY, at: Date.now() };
+  /**
+   * ⚖️ A DRAG ON THE PROGRESS RING SCRUBS (Peter, 09-05: "make drags on the
+   * progress circle work as well as taps"): a finger that lands in the ring
+   * band and moves carries the bead and its time with it, and ONE seek goes
+   * when it lifts — never a seek per move. While a menu is up the rim belongs
+   * to nothing, as before.
+   */
+  if (radiusOf(glassMetrics(), event.clientX, event.clientY) >= SEEK_BAND && !browse.isOpen()) {
+    scrub = { moved: false };
+  }
+});
+
+var scrub = null;       // a finger in the ring band, since it landed
+var scrubbing = false;  // the bead is under the finger; the room's own position waits
+
+glass.addEventListener('pointermove', function (event) {
+  if (scrub === null || touch === null) return;
+  var metrics = glassMetrics();
+  if (!scrub.moved) {
+    var dx = event.clientX - touch.x;
+    var dy = event.clientY - touch.y;
+    if (Math.abs(dx) <= metrics.size * TAP_SLOP && Math.abs(dy) <= metrics.size * TAP_SLOP) return;
+    scrub.moved = true;
+    scrubbing = true;
+  }
+  var zone = currentZone();
+  if (zone === null || zone.nowPlaying === null) return;
+  var length = zone.nowPlaying.lengthSec;
+  if (typeof length !== 'number' || length <= 0) return;
+  var angle = Math.atan2(event.clientY - metrics.y, event.clientX - metrics.x) + Math.PI / 2;
+  var fraction = ((angle / (2 * Math.PI)) % 1 + 1) % 1;
+  setProgress(fraction, fraction * length, length);
 });
 
 function lift(event) {
   if (touch === null) return;
   var start = touch;
   touch = null;
+  if (scrub !== null) {
+    var was = scrub;
+    scrub = null;
+    scrubbing = false;
+    if (was.moved) { wake(); seekTo(event.clientX, event.clientY); return; }
+  }
   var dx = event.clientX - start.x;
   var dy = event.clientY - start.y;
   var metrics = glassMetrics();
@@ -1124,6 +1172,7 @@ function angleAt(event) {
 /** A hand on the wheel — the bezel itself, or the glass's outer edge. */
 function beginTurn(event) {
   turning = { angle: angleAt(event), carried: 0, moved: 0, at: Date.now() };
+  dragLast = null;
   rig.className = 'rig is-turning';
   try { rig.setPointerCapture(event.pointerId); } catch (error) { /* mouse without capture */ }
 }
@@ -1171,21 +1220,61 @@ rig.addEventListener('pointermove', function (event) {
   turning.angle = now;
   turning.carried += delta;
   turning.moved += Math.abs(delta);
-  while (Math.abs(turning.carried) >= DETENT_DEG) {
-    var step = turning.carried > 0 ? 1 : -1;
-    turning.carried -= step * DETENT_DEG;
-    /**
-     * ⚖️ IN A MENU THE COG MOVES THE HIGHLIGHT (Peter, 09-05: "use the outer cog
-     * to move rapidly through the 8 or so that are displayed" — superseding
-     * 09-04's "the cog is the volume in every state"). On the music face the
-     * cog is still the volume; a TAP on the scale still sets the level anywhere,
-     * a tap being no turn. On the device each detent will tick, and a fast spin
-     * will skip — firmware, later.
-     */
-    if (browse.isOpen()) browse.move(step);
-    else turn(step);
+  /**
+   * ⚖️ IN A MENU THE COG MOVES THE HIGHLIGHT (Peter, 09-05: "use the outer cog
+   * to move rapidly through the 8 or so that are displayed"): a detent of the
+   * bezel steps the highlight. ON THE MUSIC FACE A DRAG IS A DIAL (Peter,
+   * 09-05: "make drags on the volume controls work as well as taps"): the
+   * level follows the tick under the finger, as a tap sets it — bounded by the
+   * comfort level, throttled, and never flung across twelve. The scroll wheel
+   * keeps its relative steps. On the device each detent will tick — firmware.
+   */
+  if (browse.isOpen()) {
+    while (Math.abs(turning.carried) >= DETENT_DEG) {
+      var step = turning.carried > 0 ? 1 : -1;
+      turning.carried -= step * DETENT_DEG;
+      browse.move(step);
+    }
+    return;
   }
+  if (turning.moved >= DETENT_DEG / 2) dragLevel(now, false);
 });
+
+var dragLast = null;      // the level the finger last asked for, while it is on the scale
+var dragPending = null;   // { output, value } not yet sent
+var dragSentAt = 0;
+var dragTimer = null;
+
+function dragLevel(degrees, final) {
+  var output = currentOutput();
+  if (output === null || output.volume === null) return;
+  var bounds = volumeBounds(output);
+  var value = levelForDrag(degrees, bounds, dragLast, ticks.length);
+  if (value === null) return;
+  dragLast = value;
+  dragPending = { output: output.id, value: value };
+  // The target, painted at once; the room's answer catches up.
+  var span = Math.max(1, bounds.max - bounds.min);
+  lightDetents((value - bounds.min) / span, String(Math.round(value)), (bounds.ceiling - bounds.min) / span);
+  volReadValue.textContent = String(Math.round(value));
+  showTurning();
+  flushDrag(final === true);
+}
+
+/** Sent at most every 150 ms, and once more when the finger lifts: an absolute level cannot run away. */
+function flushDrag(force) {
+  if (dragPending === null) return;
+  if (!force && Date.now() - dragSentAt < 150) {
+    if (dragTimer === null) dragTimer = setTimeout(function () { dragTimer = null; flushDrag(true); }, 150);
+    return;
+  }
+  if (dragTimer !== null) { clearTimeout(dragTimer); dragTimer = null; }
+  var send = dragPending;
+  dragPending = null;
+  dragSentAt = Date.now();
+  haptic(6);
+  command({ action: 'volume', output: send.output, value: send.value });
+}
 
 function endTurn(event) {
   if (turning === null) return;
@@ -1195,7 +1284,10 @@ function endTurn(event) {
   // Barely moved and quickly released: that was a tap on a dot, not a turn.
   if (event && event.type === 'pointerup' && was.moved < DETENT_DEG / 2 && Date.now() - was.at < 600) {
     tapBezel(angleAt(event));
+    return;
   }
+  // A drag on the music face: the last level the finger asked for goes now.
+  if (dragLast !== null) { flushDrag(true); dragLast = null; }
 }
 
 rig.addEventListener('pointerup', endTurn);
