@@ -122,7 +122,8 @@ export function sampleOffsets(total) {
  * The two outer bands are `#` (0x23, below `A`) and `~` (0x7E, above `Z`), so a
  * plain string compare of two stops is already Roon's own order.
  */
-export function letterOf(title) {
+/** The title as Roon files it: accents folded, a leading THE dropped, leading quotes and dots ignored, upper case. */
+export function keyOf(title) {
   var text = String(title === undefined || title === null ? '' : title);
   // Accents fold: Roon files `Édith Piaf` under E, and a bare code-point
   // comparison would exile her past Z with the CJK.
@@ -130,8 +131,11 @@ export function letterOf(title) {
     text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
   text = text.toUpperCase().replace(/^THE[\s\u2010-\u2015-]+/, '');
-  text = text.replace(/^[\u0022\u0027\u2018\u2019\u201c\u201d.\s]+/, '');
-  var first = text.charAt(0);
+  return text.replace(/^[\u0022\u0027\u2018\u2019\u201c\u201d.\s]+/, '');
+}
+
+export function letterOf(title) {
+  var first = keyOf(title).charAt(0);
   if (first >= 'A' && first <= 'Z') return first;
   // ASCII digits and the marks Roon does sort on, plus the general-punctuation
   // block (… – « ‘): a Latin title that merely opens with one.
@@ -146,6 +150,22 @@ export function letterOf(title) {
  * The bucket, not the title, is what the ring navigates by, so that is what has
  * to be non-decreasing.
  */
+/**
+ * Where a title stands against something SPELT — "MAR" — in Roon's order: the
+ * ring's band first, so `#` and the other scripts keep their ends, then the
+ * rest of the key letter by letter. Zero means the title is under the prefix.
+ */
+export function prefixCompare(title, prefix) {
+  var band = letterOf(title);
+  var head = prefix.charAt(0);
+  if (band !== head) return band < head ? -1 : 1;
+  if (prefix.length === 1) return 0;
+  var rest = keyOf(title).slice(1, prefix.length);
+  var want = prefix.slice(1);
+  if (rest === want) return 0;
+  return rest < want ? -1 : 1;
+}
+
 export function isAlphabetical(items) {
   for (var i = 1; i < items.length; i += 1) {
     if (letterOf(items[i].title) < letterOf(items[i - 1].title)) return false;
@@ -752,6 +772,8 @@ export function createBrowse(options) {
     var pick = itemAt(view.sel);
     // Walking ‹ › across a letter boundary moves the outer highlight with it.
     if (view.letters !== null && pick !== null) view.letter = letterOf(pick.title);
+    // What is spelt stays only while the highlight is still under it.
+    if (view.spelt && pick !== null && prefixCompare(pick.title, view.spelt.prefix) !== 0) view.spelt = null;
     if (view.letters !== null && view.letter !== null) {
       drawAlphabetOutside();
       root.setAttribute('data-lettered', '1');
@@ -765,7 +787,7 @@ export function createBrowse(options) {
     linsub.textContent = '';
     root.setAttribute('data-named', '1');
     count.textContent = String(view.sel + 1) + ' / ' + String(view.total)
-      + (view.letter === null ? '' : '  \u00b7  ' + view.letter);
+      + (view.letter === null ? '' : '  \u00b7  ' + (view.spelt ? view.spelt.prefix : view.letter));
   }
 
   /**
@@ -926,7 +948,7 @@ export function createBrowse(options) {
       hierarchy: hierarchy, tier: wanted === 'alpha' ? 'linear' : wanted,
       title: list.title || 'Browse', total: total, parentTitle: parentTitle,
       items: [], base: 0, sel: 0, depth: depth, letter: null, paging: false,
-      letters: null, probes: {},
+      letters: null, probes: {}, spelt: null,
     };
     // The two small tiers are read WHOLE; a big one takes a page and is sampled.
     var take = wanted === 'radial' ? RADIAL_MAX : (wanted === 'linear' ? WHOLE_MAX : PAGE);
@@ -1178,7 +1200,7 @@ export function createBrowse(options) {
    * was ever drawn. On an unordered level this returns nonsense confidently,
    * which is exactly what it did to Genres on 09-03.
    */
-  function findLetter(hierarchy, letter, total, mine, probes, done) {
+  function findLetter(hierarchy, prefix, total, mine, probes, done) {
     var low = 0;
     var high = Math.max(0, total - 1);
     var best = null;
@@ -1191,7 +1213,7 @@ export function createBrowse(options) {
       probe(hierarchy, mid, probes).then(function (title) {
         if (!current(mine)) return;
         if (title === null) { high = mid - 1; step(); return; }
-        if (letterOf(title) >= letter) { best = mid; high = mid - 1; } else { low = mid + 1; }
+        if (prefixCompare(title, prefix) >= 0) { best = mid; high = mid - 1; } else { low = mid + 1; }
         step();
       }).catch(function () { done(best); });
     };
@@ -1235,6 +1257,7 @@ export function createBrowse(options) {
             letter: letter, paging: false, probes: alpha.probes,
             // the alphabet rides round the OUTSIDE of this page, for the wheel
             letters: alpha.letters, parent: alpha, roonLevel: false,
+            spelt: { prefix: letter, at: Date.now() },   // the next tap may spell on from here
           };
           tick();
           draw();
@@ -1247,34 +1270,65 @@ export function createBrowse(options) {
    * THE ALPHABET ROUND THE OUTSIDE; ‹ › WALK THE ARTISTS. On a letter's page a
    * tap on a letter moves to it in the same view; the parent stays the
    * alphabet. (The cog itself is the volume, in every state — Peter, 09-04.)
+   *
+   * ⚖️ TAPS SPELL (Peter, 09-04: "clicking a second or third letter should
+   * spell out the search until located and selected"). A tap within a few
+   * seconds of the last extends what is spelt — M, then MA, then MAR — and the
+   * highlight jumps to the first title under it, by the same bisection that
+   * found the letter, over the same cached probes. What is spelt is written
+   * beside the count. A letter that spells nothing ("MARZ") starts over with
+   * that letter alone, and so does a pause.
    */
+  var SPELL_MS = 6000;   // taps this close together spell one name
+
   function jumpWithin(letter, done) {
     if (view === null || busy || view.letters === null) { if (done) done(false); return; }
     var page = view;
+    var spelt = page.spelt;
+    var extend = spelt !== null && spelt !== undefined && Date.now() - spelt.at <= SPELL_MS
+      && /^[A-Z]/.test(spelt.prefix) && /^[A-Z]$/.test(letter);
+    var wanted = extend ? spelt.prefix + letter : letter;
+    seek(page, wanted, extend, function (found) {
+      if (found || !extend) { if (done) done(found); return; }
+      // Nothing spells that far: the tap meant a fresh letter.
+      seek(page, letter, false, function (again) { if (done) done(again); });
+    });
+  }
+
+  /**
+   * Move a letter's page to the first title under `prefix`, if there is one.
+   * A failed EXTENSION is quiet — the fresh letter that follows it says where
+   * the page went — where a letter the library simply lacks is said out loud.
+   */
+  function seek(page, prefix, quiet, done) {
     var mine = epoch;
     busy = true;
-    findLetter(page.hierarchy, letter, page.total, mine, page.probes, function (offset) {
-      if (!current(mine) || view !== page) { busy = false; if (done) done(false); return; }
+    level.textContent = 'finding ' + prefix + '…';
+    findLetter(page.hierarchy, prefix, page.total, mine, page.probes, function (offset) {
+      if (!current(mine) || view !== page) { busy = false; done(false); return; }
       var landed = offset === null ? null : page.probes[offset];
-      if (offset === null || landed === null || landed === undefined || letterOf(landed) !== letter) {
+      if (offset === null || landed === null || landed === undefined || prefixCompare(landed, prefix) !== 0) {
         busy = false;
-        if (done) done(false);
+        draw();
+        if (!quiet) flash('nothing under ' + prefix);
+        done(false);
         return;
       }
       var from = Math.floor(offset / SLOTS) * SLOTS;
       ask({ hierarchy: page.hierarchy, load: true, count: PAGE, offset: from })
         .then(function (data) {
           busy = false;
-          if (!current(mine) || view !== page) { if (done) done(false); return; }
+          if (!current(mine) || view !== page) { done(false); return; }
           page.items = data.items || [];
           page.base = from;
           page.sel = offset;
-          page.letter = letter;
+          page.letter = prefix.charAt(0);
+          page.spelt = { prefix: prefix, at: Date.now() };
           tick();
           draw();
-          if (done) done(true);
+          done(true);
         })
-        .catch(function () { busy = false; if (done) done(false); });
+        .catch(function () { busy = false; if (current(mine)) draw(); done(false); });
     });
   }
 

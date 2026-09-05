@@ -7,7 +7,7 @@ import { EventHub } from '../src/http/events.ts';
 import { RecentLedger } from '../src/ledger/recent.ts';
 import { buildSnapshot } from '../src/model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from '../src/http/server.ts';
-import { tierFor, sampleOffsets, letterOf, isAlphabetical, selectionComplete, queueRows } from '../assets/puck-browse.js';
+import { tierFor, sampleOffsets, letterOf, keyOf, prefixCompare, isAlphabetical, selectionComplete, queueRows } from '../assets/puck-browse.js';
 import { STOPS, nextStop } from '../assets/puck-axis.js';
 import { iconNameFor, genreIconFor, hasGlyph } from '../assets/puck-icons.js';
 import { ZONES } from './fixtures/zones.ts';
@@ -821,4 +821,38 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-up \{ top: calc\(var\(--u\) \* 38\.8\); \}\s*\.puck\[data-tier="queue"\] \.nav-keys \.key-down \{ top: calc\(var\(--u\) \* 61\.2\); \}/, 'the hub\'s keys sit on its rim so two lines of title fit between them');
   assert.doesNotMatch(BROWSE, /drawSpokes|spokeTitle|bindSpoke|SPOKE_/, 'the spokes are gone (rejected 09-04)');
   assert.doesNotMatch(CSS, /data-tier="spokes"|\.spoke/);
+});
+
+/**
+ * ⚖️ TAPS SPELL (Peter, 09-04: "clicking a second or third letter should spell
+ * out the search until located and selected"). On a letter's page the next tap
+ * extends what is spelt — M, MA, MAR — and the same bisection lands on the
+ * first title under it, judged in Roon's own order: the band first (# · A–Z ·
+ * other scripts), then the key letter by letter.
+ */
+test('taps spell a prefix, judged in Roon\'s order, and the page seeks the first title under it', () => {
+  assert.equal(keyOf('The Real McCoy'), 'REAL MCCOY');
+  assert.equal(keyOf('Édith Piaf'), 'EDITH PIAF');
+  assert.equal(keyOf("'Round About Midnight"), 'ROUND ABOUT MIDNIGHT');
+  assert.equal(prefixCompare('Marvin Gaye', 'M'), 0);
+  assert.equal(prefixCompare('Marvin Gaye', 'MAR'), 0);
+  assert.equal(prefixCompare('Marvin Gaye', 'MARV'), 0);
+  assert.equal(prefixCompare('Mars Volta', 'MARV'), -1, 'MARS is before MARV');
+  assert.equal(prefixCompare('Masekela', 'MAR'), 1, 'MAS is after MAR');
+  assert.equal(prefixCompare('Ma', 'MAR'), -1, 'a title shorter than the prefix sorts before it');
+  assert.equal(prefixCompare('Lyle Lovett', 'MA'), -1);
+  assert.equal(prefixCompare('思い出のパリ', 'M'), 1, 'other scripts keep their end past Z');
+  assert.equal(prefixCompare("(What's The Story) Morning Glory?", 'A'), -1, 'brackets keep their end before A');
+  assert.equal(prefixCompare('The Real McCoy', 'RE'), 0, 'THE is dropped, as Roon files it');
+  // the machinery: one bisection for a letter or a spelt prefix alike, over the same probes
+  assert.match(BROWSE, /function findLetter\(hierarchy, prefix, total, mine, probes, done\)/);
+  assert.match(BROWSE, /if \(prefixCompare\(title, prefix\) >= 0\) \{ best = mid; high = mid - 1; \} else \{ low = mid \+ 1; \}/);
+  assert.match(BROWSE, /var SPELL_MS = 6000;/, 'taps this close together spell one name');
+  assert.match(BROWSE, /var wanted = extend \? spelt\.prefix \+ letter : letter;/);
+  assert.match(BROWSE, /if \(found \|\| !extend\) \{ if \(done\) done\(found\); return; \}\s*\/\/ Nothing spells that far[^\n]*\n\s*seek\(page, letter, false,/, 'a letter that spells nothing starts over');
+  assert.match(BROWSE, /function seek\(page, prefix, quiet, done\) \{[\s\S]{0,700}if \(!quiet\) flash\('nothing under ' \+ prefix\);/, 'a failed extension is quiet; a letter the library lacks is said');
+  assert.match(BROWSE, /page\.spelt = \{ prefix: prefix, at: Date\.now\(\) \};/);
+  assert.match(BROWSE, /spelt: \{ prefix: letter, at: Date\.now\(\) \},/, 'the first letter, from the ring, can be spelt on from');
+  assert.match(BROWSE, /if \(view\.spelt && pick !== null && prefixCompare\(pick\.title, view\.spelt\.prefix\) !== 0\) view\.spelt = null;/, 'what is spelt stays only while the highlight is under it');
+  assert.match(BROWSE, /\(view\.spelt \? view\.spelt\.prefix : view\.letter\)\);/, 'what is spelt is written beside the count');
 });
