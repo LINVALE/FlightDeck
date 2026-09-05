@@ -175,7 +175,21 @@ body { min-height: 100vh; }
 .reach-note { font-size: 0.8vw; color: var(--dim); margin-left: 1.2vw; }
 .reach-note code { color: var(--ash); }
 
-.empty { padding: 8vh 0; text-align: center; color: var(--dim); font-size: 1.3vw; }
+/* ⚖️ THE RESTING SCREEN (Peter, 09-05): centred in the whole grid — the mark,
+   the wordmark, the fact, and what to do about it. */
+.empty {
+  grid-column: 1 / -1; grid-row: 1 / 5;
+  display: -webkit-flex; display: flex;
+  -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+  -webkit-justify-content: center; justify-content: center;
+  text-align: center; color: var(--dim);
+}
+.empty-mark { width: 16vh; height: 16vh; display: block; margin-bottom: 3vh; }
+.empty-brand { margin-bottom: 2.2vh; font-size: 1.3vw; font-weight: 700; letter-spacing: .34em; color: var(--dim); }
+.empty-brand span { color: var(--accent); }
+.empty-title { font-size: 1.1vw; letter-spacing: .18em; text-transform: uppercase; color: var(--bone); }
+.empty-copy { margin-top: .8vh; font-size: .8vw; letter-spacing: .06em; color: var(--dim); }
 @media (max-width: 900px) {
   .tile { width: 100%; }
   .tile.is-live .tile-art { width: 18vw; height: 18vw; }

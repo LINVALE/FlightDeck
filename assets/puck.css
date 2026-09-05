@@ -474,8 +474,8 @@ body {
 /* ↑ above play and ↓ in the shoulder row's centre: the axis, where the disc
    wears it in browse (Peter, 09-04). Below the shoulder row is the credit, which
    the overlay keeps whole (Peter, 09-03: all three lines) — so ↓ took the
-   centre of that row and mute moved up beside ↑. A 3×3 grid: 33 · 50 · 67 across,
-   24 · 39 · 56 down; the top-left cell is the way back, and is never hidden. */
+   centre of that row. ↑ sits alone at 24; mute is at the top centre, between
+   the scale and the ring (Peter, 09-05). */
 .btn-up, .btn-down {
   left: 50%;
   width: calc(var(--u) * 8); height: calc(var(--u) * 8);
@@ -485,12 +485,15 @@ body {
 .btn-down { top: calc(var(--u) * 56); }
 .key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
 
-/* mute, top-right above shuffle: the speaker shows the state, a tap flips it.
-   The grid: back · ↑ · mute / ‹ ▶ › / repeat · ↓ · shuffle. */
+/* ⚖️ MUTE AT THE TOP CENTRE, BETWEEN THE VOLUME SCALE AND THE PROGRESS RING
+   (Peter, 09-05): the band inside the glass's edge and outside the ring at 42
+   is 8 units deep at twelve; a 5.6 button at 4.4 sits in it, 0.8 clear of the
+   ring. The speaker shows the state, a tap flips it. The times tag, which
+   rides the bead in that same band, steps aside when the bead is near twelve. */
 .btn-mute {
-  left: calc(var(--u) * 67); top: calc(var(--u) * 24);
-  width: calc(var(--u) * 9); height: calc(var(--u) * 9);
-  margin-left: calc(var(--u) * -4.5); margin-top: calc(var(--u) * -4.5);
+  left: 50%; top: calc(var(--u) * 4.4);
+  width: calc(var(--u) * 5.6); height: calc(var(--u) * 5.6);
+  margin-left: calc(var(--u) * -2.8); margin-top: calc(var(--u) * -2.8);
 }
 .puck[data-vol="none"] .btn-mute { display: none; }
 

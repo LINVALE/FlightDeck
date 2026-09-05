@@ -745,7 +745,8 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.match(JS, /var btnUp = button\('up', 'btn-up'\);\s*var btnDown = button\('down', 'btn-down'\);/);
   assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
   assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
-  assert.match(CSS, /\.btn-mute \{\s*left: calc\(var\(--u\) \* 67\); top: calc\(var\(--u\) \* 24\);/, 'mute top-right, above shuffle; the way back holds the top-left');
+  assert.match(CSS, /\.btn-mute \{\s*left: 50%; top: calc\(var\(--u\) \* 4\.4\);\s*width: calc\(var\(--u\) \* 5\.6\);/, 'mute at the top centre, between the volume scale and the progress ring (Peter, 09-05)');
+  assert.match(JS, /if \(clamped < 0\.03\) tagAngle \+= 18 \* Math\.PI \/ 180;\s*else if \(clamped > 0\.97\) tagAngle -= 18 \* Math\.PI \/ 180;/, 'the times tag steps aside near twelve, where mute lives');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);
   assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');

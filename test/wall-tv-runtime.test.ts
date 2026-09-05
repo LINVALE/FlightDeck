@@ -324,3 +324,19 @@ test('a wall of fewer than four rooms is capped at a quarter each and centred', 
   assert.doesNotMatch(WALL, /' solo'/);
   assert.doesNotMatch(CSS, /\.tile\.solo \{/);
 });
+
+/**
+ * ⚖️ THE RESTING SCREEN (Peter, 09-05: "centre the information and design a
+ * nice logo for the centre"). FlightDeck's own dial mark, drawn as line-work,
+ * then the wordmark, the fact, and what to do about it — centred in the grid.
+ */
+test('the empty Wall centres its mark, wordmark and the one fact it has to say', () => {
+  assert.match(WALL, /grid\.replaceChildren\(emptyState\(\)\);/);
+  assert.match(WALL, /function flightDeckMark\(\) \{[\s\S]{0,900}arc\.setAttribute\('d', 'M 24\.5 24\.5 A 36 36 0 1 1 68 81\.2'\);/, 'the app icon\'s arc: half past ten round to five');
+  assert.match(WALL, /hub\.setAttribute\('r', '17'\); hub\.setAttribute\('fill', '#e8c77a'\);/);
+  assert.match(WALL, /el\('div', 'empty-title', 'No Roon zones yet'\)/);
+  assert.match(WALL, /el\('div', 'empty-copy', 'Enable a zone in Roon and it will appear here\.'\)/);
+  assert.match(CSS, /\.empty \{\s*grid-column: 1 \/ -1; grid-row: 1 \/ 5;[\s\S]{0,300}justify-content: center;/, 'centred in the whole grid');
+  assert.match(CSS, /\.empty-mark \{ width: 16vh; height: 16vh;/);
+});
+

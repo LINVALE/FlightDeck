@@ -194,6 +194,51 @@ function renameIsland(island, node) {
   input.focus();
 }
 
+/**
+ * ⚖️ THE RESTING SCREEN (Peter, 09-05: "centre the information and design a
+ * nice logo for the centre — simple, elegant, in keeping with Roon / Rheos
+ * branding"). The mark is FlightDeck's own — the dial the app icon already
+ * wears: a dark disc, a gold three-quarter arc from half past ten round to
+ * five, and the gold hub with its dark centre — drawn as line-work so it is
+ * crisp at any size, in the Wall's own ink and accent. Under it the wordmark,
+ * then the one fact this screen exists to say, and what to do about it.
+ */
+function flightDeckMark() {
+  var ns = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('class', 'empty-mark');
+  svg.setAttribute('aria-hidden', 'true');
+  var disc = document.createElementNS(ns, 'circle');
+  disc.setAttribute('cx', '50'); disc.setAttribute('cy', '50'); disc.setAttribute('r', '48');
+  disc.setAttribute('fill', '#0b0c0e'); disc.setAttribute('stroke', 'rgba(232,227,216,.10)'); disc.setAttribute('stroke-width', '1');
+  svg.appendChild(disc);
+  var arc = document.createElementNS(ns, 'path');
+  // half past ten, clockwise over the top and down the right, to five o'clock
+  arc.setAttribute('d', 'M 24.5 24.5 A 36 36 0 1 1 68 81.2');
+  arc.setAttribute('fill', 'none'); arc.setAttribute('stroke', '#d8a24a'); arc.setAttribute('stroke-width', '9');
+  svg.appendChild(arc);
+  var hub = document.createElementNS(ns, 'circle');
+  hub.setAttribute('cx', '50'); hub.setAttribute('cy', '50'); hub.setAttribute('r', '17'); hub.setAttribute('fill', '#e8c77a');
+  svg.appendChild(hub);
+  var eye = document.createElementNS(ns, 'circle');
+  eye.setAttribute('cx', '50'); eye.setAttribute('cy', '50'); eye.setAttribute('r', '5.5'); eye.setAttribute('fill', '#0b0c0e');
+  svg.appendChild(eye);
+  return svg;
+}
+
+function emptyState() {
+  var node = el('div', 'empty');
+  node.setAttribute('role', 'status');
+  node.appendChild(flightDeckMark());
+  var brand = el('div', 'empty-brand', 'FLIGHT');
+  brand.appendChild(el('span', '', 'DECK'));
+  node.appendChild(brand);
+  node.appendChild(el('div', 'empty-title', 'No Roon zones yet'));
+  node.appendChild(el('div', 'empty-copy', 'Enable a zone in Roon and it will appear here.'));
+  return node;
+}
+
 function drawTabs(islands, total, hiddenCount) {
   var key = islands.map(function (i) { return i.id + ':' + String(i.count) + ':' + i.label; }).join('|')
     + '#' + activeIsland + '#' + String(hiddenCount) + '#' + String(showHiddenMode);
@@ -981,7 +1026,7 @@ function render(snapshot, kind) {
       groupAllBtn.hidden = true;
       ungroupAllBtn.hidden = true;
       root.style.setProperty('--accent', '#d8a24a');
-      grid.replaceChildren(el('div', 'empty', 'No Roon zones yet.'));
+      grid.replaceChildren(emptyState());
       resetWallOrder();
       prepareStartup([]);
       return;

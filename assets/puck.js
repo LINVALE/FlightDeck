@@ -641,8 +641,13 @@ function setProgress(fraction, positionSec, lengthSec) {
   progBead.setAttribute('cy', String(50 + PROG_R * Math.sin(angle)));
   progBead.style.display = '';
   progRead.textContent = formatTime(positionSec) + ' / ' + formatTime(lengthSec);
-  progRead.style.left = String(50 + READ_R * Math.cos(angle)) + '%';
-  progRead.style.top = String(50 + READ_R * Math.sin(angle)) + '%';
+  // The tag steps aside near twelve, where the mute button lives (Peter,
+  // 09-05): within the first or last few percent it trails the bead by 18°.
+  var tagAngle = angle;
+  if (clamped < 0.03) tagAngle += 18 * Math.PI / 180;
+  else if (clamped > 0.97) tagAngle -= 18 * Math.PI / 180;
+  progRead.style.left = String(50 + READ_R * Math.cos(tagAngle)) + '%';
+  progRead.style.top = String(50 + READ_R * Math.sin(tagAngle)) + '%';
   progRead.style.display = 'block';   // the stylesheet hides it; '' would only defer to that
 }
 
