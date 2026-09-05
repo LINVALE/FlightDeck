@@ -668,17 +668,14 @@ function setProgress(fraction, positionSec, lengthSec) {
   var angle = (clamped * 2 * Math.PI) - (Math.PI / 2);
   progBead.setAttribute('cx', String(50 + PROG_R * Math.cos(angle)));
   progBead.setAttribute('cy', String(50 + PROG_R * Math.sin(angle)));
-  progBead.style.display = '';
+  progBead.style.display = 'none';   // the circle IS the bead (Peter, 09-05: "two different places")
   progRead.textContent = formatTime(positionSec);
   progLength.textContent = formatTime(lengthSec);
   progLength.style.display = 'block';
-  // The circle steps aside near twelve, where the mute, the length and the
-  // room name live (Peter, 09-05): within the first or last few percent it
-  // trails the bead by 40°, clear of all three (measured at 0:19 on the Study:
-  // 28° still sat on the room's last letter).
+  // Always exactly at the arc's end: stepping aside near twelve made "two
+  // different places" (Peter, 09-05). What sits near twelve — the mute, the
+  // length, the room name — was moved out of its way instead.
   var tagAngle = angle;
-  if (clamped < 0.03) tagAngle += 40 * Math.PI / 180;
-  else if (clamped > 0.97) tagAngle -= 40 * Math.PI / 180;
   progRead.style.left = String(50 + READ_R * Math.cos(tagAngle)) + '%';
   progRead.style.top = String(50 + READ_R * Math.sin(tagAngle)) + '%';
   progRead.style.display = 'block';   // the stylesheet hides it; '' would only defer to that
