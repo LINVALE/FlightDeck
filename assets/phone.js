@@ -51,6 +51,9 @@ function glyph(name) {
     return svg;
   }
   var strokes = {
+    search: ['M10.5 4.8a5.7 5.7 0 1 1 0 11.4a5.7 5.7 0 0 1 0-11.4', 'M14.8 14.8 19.3 19.3'],
+    queue: ['M5 7h14', 'M5 12h14', 'M5 17h9'],
+    back: ['M14.5 6 8.5 12l6 6'],
     shuffle: [
       'M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
       'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
@@ -224,8 +227,26 @@ runway.appendChild(lamps); runway.appendChild(times);
 var deck = el('div', 'deck');
 var volHost = el('div', 'vol');
 var roombar = el('div', 'roombar');
+/**
+ * ⚖️ THE WAYS IN (Peter, 09-06: "neither are connecting to browse or queue
+ * screens"). Beside the room: a way into Roon's library and a way into the
+ * queue. Both are sheets, like the rooms — lists, which is what a phone is
+ * good at and what Roon's Browse API is shaped as.
+ */
+var ways = el('div', 'ways');
+var browseWay = el('span', 'way');
+browseWay.setAttribute('role', 'button');
+browseWay.setAttribute('aria-label', 'browse Roon');
+browseWay.appendChild(glyph('search'));
+browseWay.addEventListener('click', function () { openSheet('browse'); });
+var queueWay = el('span', 'way');
+queueWay.setAttribute('role', 'button');
+queueWay.setAttribute('aria-label', 'the queue');
+queueWay.appendChild(glyph('queue'));
+queueWay.addEventListener('click', function () { openSheet('queue'); });
+ways.appendChild(roombar); ways.appendChild(browseWay); ways.appendChild(queueWay);
 var controlsHost = el('div', 'controls');
-deck.appendChild(volHost); deck.appendChild(roombar); deck.appendChild(controlsHost);
+deck.appendChild(volHost); deck.appendChild(ways); deck.appendChild(controlsHost);
 
 safe.appendChild(head);
 safe.appendChild(art);
@@ -696,6 +717,239 @@ function roomRow(zone, marked, right, onPress) {
   return row;
 }
 
+/* ---------- browse: Roon's library as a list, a level at a time ---------- */
+
+/**
+ * The same Browse plane the Face and the puck use (/api/v1/browse): browse
+ * INTO an item, then LOAD the level's rows; back is popLevels; the root is
+ * popAll; search is its own hierarchy. A session key of this page's own, so
+ * no other screen's position moves under this thumb.
+ */
+var browse = {
+  session: 'phone-' + String(Date.now()).slice(-8) + Math.random().toString(36).slice(2, 8),
+  hierarchy: 'browse', list: null, items: [], loading: false, error: null,
+};
+var BROWSE_PAGE = 60;
+
+function ask(body) {
+  body.sessionKey = browse.session;
+  var zone = currentZone();
+  if (zone !== null && body.load !== true) body.zoneId = zone.id;
+  return fetch('/api/v1/browse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then(function (response) {
+    return response.json().catch(function () { return {}; }).then(function (data) {
+      if (!response.ok) throw new Error(data.error || ('browse failed ' + String(response.status)));
+      return data;
+    });
+  });
+}
+
+function repaintSheet() { if (sheetMode === 'browse' || sheetMode === 'queue') buildSheet(); }
+
+function browseTitle() {
+  if (browse.list !== null && browse.list.level > 0) return browse.list.title;
+  return browse.hierarchy === 'search' ? 'Search' : 'Browse';
+}
+function browseCanBack() { return browse.hierarchy === 'search' || (browse.list !== null && browse.list.level > 0); }
+
+function browseShow() {
+  return ask({ hierarchy: browse.hierarchy, load: true, offset: 0, count: BROWSE_PAGE }).then(function (loaded) {
+    browse.list = loaded.list || null;
+    browse.items = loaded.items || [];
+    browse.loading = false;
+    browse.error = null;
+    repaintSheet();
+  });
+}
+function browseFailed(error) {
+  browse.loading = false;
+  browse.error = String(error && error.message ? error.message : error);
+  repaintSheet();
+}
+function browseBegin() { browse.loading = true; browse.error = null; repaintSheet(); }
+function browseRoot() {
+  browse.hierarchy = 'browse';
+  browseBegin();
+  return ask({ hierarchy: 'browse', popAll: true }).then(browseShow).catch(browseFailed);
+}
+function browseInto(item) {
+  browseBegin();
+  return ask({ hierarchy: browse.hierarchy, itemKey: item.itemKey }).then(function (result) {
+    // An ACTION (Play Now, Add Next, Queue, Start Radio) is done the moment it
+    // is browsed into; Roon answers with nothing to list.
+    if (item.hint === 'action' || result.action === 'none' || result.action === 'message') {
+      browse.loading = false;
+      flash(result.message || item.title);
+      closeSheet();
+      return null;
+    }
+    return browseShow();
+  }).catch(browseFailed);
+}
+function browseBack() {
+  if (browse.hierarchy === 'search' && (browse.list === null || browse.list.level === 0)) return browseRoot();
+  browseBegin();
+  return ask({ hierarchy: browse.hierarchy, popLevels: 1 }).then(browseShow).catch(browseFailed);
+}
+function browseSearch(query) {
+  if (query.trim() === '') return null;
+  browse.hierarchy = 'search';
+  browseBegin();
+  return ask({ hierarchy: 'search', popAll: true, input: query.trim() }).then(browseShow).catch(browseFailed);
+}
+function browseMore() {
+  return ask({ hierarchy: browse.hierarchy, load: true, offset: browse.items.length, count: BROWSE_PAGE }).then(function (loaded) {
+    browse.items = browse.items.concat(loaded.items || []);
+    repaintSheet();
+  }).catch(browseFailed);
+}
+
+/** A row of the library: art if it has any, the words, a mark for what a tap does. */
+function browseRow(item) {
+  var goes = item.hint === 'list' || item.hint === 'action_list';
+  var acts = item.hint === 'action';
+  var row = el('div', 'brow' + (acts ? ' act' : '') + (!goes && !acts ? ' head' : ''));
+  row.setAttribute('data-hint', item.hint || '');
+  if (item.art) {
+    var artBox = el('span', 'brow-art');
+    var img = document.createElement('img');
+    img.alt = '';
+    img.src = item.art;
+    artBox.appendChild(img);
+    row.appendChild(artBox);
+  }
+  var text = el('span', 'brow-text');
+  text.appendChild(el('span', 'brow-title', item.title));
+  if (item.subtitle) text.appendChild(el('span', 'brow-sub', item.subtitle));
+  row.appendChild(text);
+  if (goes) row.appendChild(el('span', 'brow-go', '›'));
+  if (goes || acts) row.addEventListener('click', function () { if (!browse.loading) browseInto(item); });
+  return row;
+}
+
+function buildBrowse(body, headRow) {
+  if (browseCanBack()) {
+    var back = el('span', 'sheet-back');
+    back.setAttribute('role', 'button');
+    back.setAttribute('aria-label', 'back');
+    back.appendChild(glyph('back'));
+    back.addEventListener('click', function () { if (!browse.loading) browseBack(); });
+    headRow.insertBefore(back, headRow.firstChild);
+  }
+  var form = el('div', 'sheet-search');
+  var input = document.createElement('input');
+  input.type = 'search';
+  input.placeholder = 'search Roon';
+  input.setAttribute('aria-label', 'search Roon');
+  input.setAttribute('autocomplete', 'off');
+  var go = el('span', 'sheet-go', 'go');
+  go.setAttribute('role', 'button');
+  go.addEventListener('click', function () { browseSearch(input.value); input.blur(); });
+  input.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') { browseSearch(input.value); input.blur(); }
+  });
+  form.appendChild(input);
+  form.appendChild(go);
+  body.appendChild(form);
+  if (browse.error !== null) body.appendChild(el('div', 'sheet-note', browse.error));
+  else if (browse.loading) body.appendChild(el('div', 'sheet-note', 'loading…'));
+  else {
+    for (var i = 0; i < browse.items.length; i += 1) body.appendChild(browseRow(browse.items[i]));
+    if (browse.items.length === 0) body.appendChild(el('div', 'sheet-note', 'nothing here'));
+    if (browse.list !== null && browse.list.count > browse.items.length) {
+      var more = el('div', 'brow-more', 'more · ' + String(browse.items.length) + ' of ' + String(browse.list.count));
+      more.addEventListener('click', function () { browseMore(); });
+      body.appendChild(more);
+    }
+  }
+}
+
+/* ---------- the queue: what is playing and what comes next ---------- */
+
+/**
+ * The deck's own queue mirror (/api/v1/queue), read as rows; a tap on a row
+ * PLAYS FROM THERE — Roon's play_from_here, fenced by the screen generation
+ * and the queue revision the rows were read at, so a queue that moved under
+ * the thumb is read again, never guessed at.
+ */
+var queue = { data: null, loading: false, error: null, seenTitle: null };
+
+function loadQueue(attempt) {
+  var zone = currentZone();
+  if (zone === null) return;
+  queue.loading = true;
+  queue.error = null;
+  repaintSheet();
+  fetch('/api/v1/queue?zone=' + encodeURIComponent(zone.id), { cache: 'no-store' }).then(function (response) {
+    return response.json().catch(function () { return {}; }).then(function (data) {
+      if (!response.ok) throw new Error(data.error || ('queue unavailable (' + String(response.status) + ')'));
+      return data;
+    });
+  }).then(function (data) {
+    if (data.ready !== true && attempt < 8) { setTimeout(function () { loadQueue(attempt + 1); }, 700); return; }
+    queue.data = data;
+    queue.loading = false;
+    repaintSheet();
+  }).catch(function (error) {
+    queue.loading = false;
+    queue.error = String(error && error.message ? error.message : error);
+    repaintSheet();
+  });
+}
+
+function playFromQueue(item, index) {
+  if (index === 0) { flash('already playing'); return; }
+  var zone = currentZone();
+  if (zone === null || queue.data === null) return;
+  fetch('/api/v1/queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ zone: zone.id, itemId: item.id, generation: queue.data.generation, queueRevision: queue.data.revision }),
+  }).then(function (response) {
+    return response.json().catch(function () { return {}; }).then(function (data) {
+      if (response.ok) { flash('playing ' + item.title); closeSheet(); return; }
+      if (data.code === 'stale' || data.code === 'current') { flash(data.error || 'the queue moved'); loadQueue(0); return; }
+      flash(data.error || ('could not play from the queue (' + String(response.status) + ')'));
+    });
+  }).catch(function () { flash('could not reach FlightDeck'); });
+}
+
+function buildQueue(body) {
+  if (queue.error !== null) { body.appendChild(el('div', 'sheet-note', queue.error)); return; }
+  if (queue.loading || queue.data === null) { body.appendChild(el('div', 'sheet-note', 'loading…')); return; }
+  var items = queue.data.items || [];
+  if (items.length === 0) { body.appendChild(el('div', 'sheet-note', 'the queue is empty')); return; }
+  for (var i = 0; i < items.length; i += 1) {
+    (function (item, index) {
+      var row = el('div', 'brow' + (index === 0 ? ' now' : ''));
+      if (item.art) {
+        var artBox = el('span', 'brow-art');
+        var img = document.createElement('img');
+        img.alt = '';
+        img.src = item.art;
+        artBox.appendChild(img);
+        row.appendChild(artBox);
+      }
+      var text = el('span', 'brow-text');
+      text.appendChild(el('span', 'brow-title', item.title));
+      var sub = (item.artist || '') + (item.lengthSec !== null && item.lengthSec !== undefined ? (item.artist ? ' · ' : '') + formatTime(item.lengthSec) : '');
+      if (sub !== '') text.appendChild(el('span', 'brow-sub', sub));
+      row.appendChild(text);
+      if (index === 0) {
+        var mark = glyph('play');
+        mark.setAttribute('class', 'glyph brow-now');
+        row.appendChild(mark);
+      }
+      row.addEventListener('click', function () { playFromQueue(item, index); });
+      body.appendChild(row);
+    })(items[i], i);
+  }
+  if (queue.data.atLimit === true) body.appendChild(el('div', 'sheet-note', 'and more beyond what the deck holds'));
+}
+
 function buildSheet() {
   var snapshot = store.snapshot();
   var zones = snapshot === null ? [] : snapshot.zones;
@@ -703,7 +957,7 @@ function buildSheet() {
   var nodes = [el('div', 'sheet-grip')];
 
   var headRow = el('div', 'sheet-head');
-  var titles = { rooms: 'Rooms', group: here === null ? 'Group' : 'Group with ' + here.name, transfer: 'Send the music to…' };
+  var titles = { rooms: 'Rooms', group: here === null ? 'Group' : 'Group with ' + here.name, transfer: 'Send the music to…', browse: browseTitle(), queue: 'Queue' };
   headRow.appendChild(el('span', 'sheet-title', titles[sheetMode] || 'Rooms'));
   var close = el('span', 'sheet-close', '×');
   close.setAttribute('aria-label', 'close');
@@ -712,6 +966,9 @@ function buildSheet() {
   nodes.push(headRow);
 
   var body = el('div', 'sheet-body');
+
+  if (sheetMode === 'browse') buildBrowse(body, headRow);
+  if (sheetMode === 'queue') buildQueue(body);
 
   if (sheetMode === 'rooms') {
     /**
@@ -747,8 +1004,8 @@ function buildSheet() {
         }));
       })(zones[r]);
     }
-    var wall = el('div', 'walllink', 'the house wall →');
-    wall.addEventListener('click', function () { location.href = '/'; });
+    var wall = el('div', 'walllink', 'all rooms →');
+    wall.addEventListener('click', function () { location.href = '/phone'; });
     body.appendChild(wall);
   }
 
@@ -824,6 +1081,12 @@ function buildSheet() {
 
 function openSheet(mode) {
   sheetMode = mode;
+  if (mode === 'queue') {
+    var here = currentZone();
+    queue.seenTitle = here !== null && here.nowPlaying !== null ? here.nowPlaying.title : null;
+    loadQueue(0);
+  }
+  if (mode === 'browse' && browse.list === null && !browse.loading) browseRoot();
   buildSheet();
   scrim.hidden = false;
   sheet.hidden = false;
@@ -881,6 +1144,11 @@ function paint(kind) {
   var snapshot = store.snapshot();
   if (snapshot === null) return;
   var zone = pickZone(snapshot);
+  // An open queue is re-read when the music moves on (never while a read is in flight).
+  if (sheetMode === 'queue' && zone !== null) {
+    var nowTitle = zone.nowPlaying === null ? null : zone.nowPlaying.title;
+    if (nowTitle !== queue.seenTitle) { queue.seenTitle = nowTitle; if (!queue.loading) loadQueue(0); }
+  }
   if (zone === null) {
     root.setAttribute('data-state', 'stopped');
     title.textContent = 'No rooms yet';

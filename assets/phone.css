@@ -348,6 +348,54 @@ body {
   .sheet, .scrim, .bg canvas { -webkit-transition: none; transition: none; }
 }
 
+/* ---- the ways in: the room (the bar), browse, queue ---- */
+.ways { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; margin: 4px 0; }
+.ways .roombar { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; margin: 0; }
+.way {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; width: 44px; height: 44px; margin-left: 8px;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,0.22); border-radius: 8px; color: var(--bone); cursor: pointer;
+}
+.way:active { background: rgba(242,238,230,0.16); }
+.way .glyph { width: 20px; height: 20px; }
+
+/* ---- browse and queue: rows in the sheet ---- */
+.sheet-back {
+  width: 32px; height: 32px; margin-right: 6px; cursor: pointer; color: var(--bone);
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+}
+.sheet-back .glyph { width: 20px; height: 20px; }
+.sheet-search { display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; padding: 4px 0 8px; }
+.sheet-search input {
+  -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; height: 40px; padding: 0 12px;
+  border-radius: 8px; border: 1px solid rgba(242,238,230,0.22); background: rgba(242,238,230,0.06);
+  color: var(--bone); font-size: 16px; -webkit-appearance: none; appearance: none; outline: none;
+}
+.sheet-go {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto; margin-left: 8px; height: 40px; padding: 0 14px;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  border-radius: 8px; border: 1px solid rgba(242,238,230,0.22);
+  font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bone); cursor: pointer;
+}
+.brow {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  min-height: 52px; padding: 6px 4px; border-bottom: 1px solid rgba(242,238,230,0.07); cursor: pointer;
+}
+.brow:active { background: rgba(242,238,230,0.08); }
+.brow.head { cursor: default; }
+.brow.head .brow-title { color: var(--smoke); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; }
+.brow-art { width: 40px; height: 40px; border-radius: 2px; overflow: hidden; background: #17191d; -webkit-flex: 0 0 auto; flex: 0 0 auto; margin-right: 12px; }
+.brow-art img { display: block; width: 100%; height: 100%; }
+.brow-text { min-width: 0; -webkit-flex: 1 1 auto; flex: 1 1 auto; }
+.brow-title { display: block; font-size: 15px; color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--ash); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brow-go { margin-left: 10px; color: var(--smoke); font-size: 20px; -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.brow.act .brow-title { color: var(--accent); }
+.brow.now .brow-title { color: var(--accent); }
+.brow-now { width: 14px; height: 14px; margin-left: 10px; color: var(--accent); -webkit-flex: 0 0 auto; flex: 0 0 auto; }
+.brow-more { padding: 14px; text-align: center; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); cursor: pointer; }
+.sheet-note { padding: 18px 4px; text-align: center; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
+
 /* ═══ LYING DOWN (Peter, 09-06: "the face needs to fit the landscape screen").
    A phone on its side gives the page 300–390px of height — less once the
    browser's own bar is showing, which it is until the page is on the Home
@@ -355,7 +403,9 @@ body {
    measured). Held this way the page is two columns on a grid: the sleeve on
    the left, sized by the HEIGHT it has, and on the right the words, the
    runway, and the deck at the foot where the thumb is. Same nodes, same
-   order; only the grid. The runway's row is the one that gives (minmax 0),
+   order; only the grid. The words keep company with the controls — the
+   slack sits ABOVE them (Peter: "metadata separated from controls, at the
+   top of the viewport, looks odd"), and it is that row which gives (minmax 0),
    and below 340px the rows tighten again and the album line steps aside, so
    nothing is ever pushed past the edge. Kept to the short side, so a tablet
    lying down keeps the portrait column. ═══ */
@@ -363,8 +413,8 @@ body {
   .safe {
     display: -ms-grid; display: grid;
     grid-template-columns: 60vh 1fr;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    grid-template-areas: "head head" "art copy" "art runway" "art deck";
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "head head" "art ." "art copy" "art runway" "art deck";
     grid-column-gap: 20px; -webkit-column-gap: 20px; column-gap: 20px;
     padding: 6px 16px 6px;
     padding: calc(env(safe-area-inset-top) + 4px) calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 6px) calc(env(safe-area-inset-left) + 14px);
@@ -376,7 +426,7 @@ body {
   .title { margin: 0; max-width: 100%; font-size: 17px; -webkit-line-clamp: 1; }
   .line2 { margin: 2px 0 0; max-width: 100%; }
   .line3 { margin: 1px 0 0; max-width: 100%; }
-  .runway { grid-area: runway; margin: 4px 0 0; padding: 4px 0; min-height: 0; -webkit-align-self: start; align-self: start; }
+  .runway { grid-area: runway; margin: 4px 0 0; padding: 4px 0; min-height: 0; }
   .lamps { height: 10px; }
   .times { margin-top: 4px; }
   .deck { grid-area: deck; margin-top: 0; -webkit-align-self: end; align-self: end; }
@@ -384,8 +434,10 @@ body {
   .vol-row { min-height: 36px; padding: 0; }
   .vol-mute { width: 36px; height: 36px; }
   .vol-scale b { height: 12px; }
-  .roombar { min-height: 40px; margin: 3px 0; padding: 3px 8px; }
+  .ways { margin: 3px 0; }
+  .roombar { min-height: 40px; padding: 3px 8px; }
   .roombar-art { width: 30px; height: 30px; }
+  .way { width: 40px; height: 40px; }
   .controls { min-height: 56px; margin-top: 2px; }
   .ctl.main { width: 52px; height: 52px; }
   .ctl.main .glyph { width: 24px; height: 24px; }
@@ -399,8 +451,10 @@ body {
   .times { margin-top: 2px; }
   .vol-row { min-height: 32px; }
   .vol-mute { width: 32px; height: 32px; }
-  .roombar { min-height: 36px; margin: 2px 0; }
+  .ways { margin: 2px 0; }
+  .roombar { min-height: 36px; }
   .roombar-art { width: 26px; height: 26px; }
+  .way { width: 36px; height: 36px; }
   .controls { min-height: 48px; margin-top: 0; }
   .ctl.main { width: 46px; height: 46px; }
   .ctl.main .glyph { width: 22px; height: 22px; }
