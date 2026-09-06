@@ -719,12 +719,20 @@ function placeDrawer(tile, drawer) {
   // Measured as it will open, downward: the hover style may not have landed
   // yet when mouseenter fires, so the drawer is shown for the measurement.
   tile.classList.remove('open-up');
+  tile.style.removeProperty('--rise');
   var forced = getComputedStyle(drawer).display === 'none';
   if (forced) drawer.style.display = 'block';
   var below = drawer.getBoundingClientRect();
   if (forced) drawer.style.display = '';
   if (below.height === 0) return;
-  if (below.bottom > wall.bottom - 2) tile.classList.add('open-up');
+  // When the wall ends under the card, the card RISES by what the drawer would
+  // overrun and the drawer fills the place it left — the same orientation as
+  // every other row, words above controls (Peter, 09-06: "the controls expand
+  // from below and the metadata shifts up").
+  if (below.bottom > wall.bottom - 2) {
+    tile.style.setProperty('--rise', '-' + Math.ceil(below.bottom - wall.bottom + 2) + 'px');
+    tile.classList.add('open-up');
+  }
 }
 
 function openCard(tile, drawer) {

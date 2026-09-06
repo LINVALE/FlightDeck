@@ -352,11 +352,12 @@ test('the controls live in a drawer that opens under the pointer, a tap or focus
   assert.match(WALL, /copy\.appendChild\(title\); copy\.appendChild\(line2\);\n/, 'the transport no longer sits beside the words');
   assert.match(WALL, /var drawer = el\('div', 'tile-drawer'\);\s*drawer\.appendChild\(transport\); drawer\.appendChild\(volLine\);\s*drawer\.appendChild\(actions\); drawer\.appendChild\(openAs\); drawer\.appendChild\(detail\);/);
   assert.match(WALL, /body\.appendChild\(now\); body\.appendChild\(progress\);\s*tile\.appendChild\(head\); tile\.appendChild\(body\); tile\.appendChild\(drawer\);/, 'the card keeps the music and its position');
-  assert.match(WALL, /if \(below\.bottom > wall\.bottom - 2\) tile\.classList\.add\('open-up'\);/, 'a drawer that would run off the wall opens upward');
+  assert.match(WALL, /if \(below\.bottom > wall\.bottom - 2\) \{\s*tile\.style\.setProperty\('--rise', '-' \+ Math\.ceil\(below\.bottom - wall\.bottom \+ 2\) \+ 'px'\);\s*tile\.classList\.add\('open-up'\);/, 'a drawer that would run off the wall lifts the card by the overrun instead');
   assert.match(WALL, /if \(fromFinger && !tile\.classList\.contains\('is-open'\)\) \{\s*event\.preventDefault\(\); event\.stopPropagation\(\);\s*openCard\(tile, drawer\);/, 'a finger\'s first tap opens, never leaves');
   assert.match(CSS, /\.tile-drawer \{\s*display: none;\s*position: absolute; left: -1px; right: -1px; top: 100%; z-index: 7;/);
   assert.match(CSS, /\.grid > \.tile:hover \.tile-drawer,\s*\.grid > \.tile:focus-within \.tile-drawer,\s*\.grid > \.tile\.is-open \.tile-drawer \{ display: block; \}/);
-  assert.match(CSS, /\.grid > \.tile\.open-up \.tile-drawer \{\s*top: auto; bottom: 100%;/);
+  assert.match(CSS, /\.grid > \.tile\.open-up:hover, \.grid > \.tile\.open-up:focus-within, \.grid > \.tile\.open-up\.is-open \{\s*top: var\(--rise, 0\);/, 'the risen card keeps words above controls, like every other row');
+  assert.doesNotMatch(CSS, /bottom: 100%/, 'no drawer opens upward any more');
   assert.match(CSS, /\.tile-drawer \.tt \{ width: 3vw; height: 3vw; \}/, 'a size a finger can take');
   assert.match(CSS, /\.wall\[data-rows\] \.grid > \.tile \.tile-title \{ -webkit-line-clamp: 2; font-size: 1\.15vw; \}/, 'the words get the room the transport took');
   assert.doesNotMatch(CSS, /\.tile-drawer[^\n]*transform/, 'the cover is sacred: the drawer is laid over, never scaled');

@@ -927,8 +927,9 @@ body { min-height: 100vh; }
    position — no controls. The transport, the volume, the actions, the ways in
    and the details sit in a drawer under the card that opens under the pointer,
    under a finger's first tap, or under keyboard focus, and closes when the
-   pointer leaves or a tap lands elsewhere. It is laid over the row below (or
-   above, when the wall ends under it), so nothing else on the wall moves, and
+   pointer leaves or a tap lands elsewhere. It is laid over the row below (the
+   card rises to make room when the wall ends under it), so nothing else on the
+   wall moves, and
    its controls are a size a finger can take: they no longer share the card's
    191 pixels with the words. The card's box is never scaled: the cover is sacred. */
 .tile-drawer {
@@ -947,15 +948,11 @@ body { min-height: 100vh; }
   overflow: visible; z-index: 6;
   border-bottom-left-radius: 0; border-bottom-right-radius: 0;
 }
-/* when the wall ends under the card, the drawer opens upward */
-.grid > .tile.open-up .tile-drawer {
-  top: auto; bottom: 100%;
-  border-top: 1px solid var(--tile-frame); border-bottom: 0;
-  border-radius: 10px 10px 0 0;
-  box-shadow: 0 -1.1vw 2.6vw rgba(0,0,0,.72);
-}
+/* When the wall ends under the card, the card RISES by what the drawer would
+   overrun (wall.js measures it into --rise) and the drawer fills the place it
+   left: the same orientation as every other row, words above controls. */
 .grid > .tile.open-up:hover, .grid > .tile.open-up:focus-within, .grid > .tile.open-up.is-open {
-  border-radius: 0 0 10px 10px;
+  top: var(--rise, 0);
 }
 /* the controls, at a size a finger can take */
 .tile-drawer .tile-transport { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: .2vh; }
