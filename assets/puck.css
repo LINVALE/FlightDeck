@@ -971,6 +971,14 @@ body {
  * that acts on it — the largest of the four and in the accent.
  */
 .puck[data-tier="alpha"] .chosen-title { font-size: calc(var(--u) * 13); line-height: 1; max-height: none; font-weight: 800; color: #f2eee6; }
-.puck[data-spell="1"] .chosen-title { font-size: calc(var(--u) * 8); line-height: 1.05; font-weight: 800; color: #f2eee6; }
+/* The query at 6 units — "Search" (the prompt) and six capitals fill the disc's
+   21.6-unit inner width at that size; longer queries break onto a second line
+   rather than clip mid-word (measured: 8 units cut "Search" to "Searc"). */
+.puck[data-spell="1"] .chosen-title { font-size: calc(var(--u) * 6); line-height: 1.05; font-weight: 800; color: #f2eee6; word-break: break-all; }
 .puck[data-spell="1"] .chosen-sub { color: rgba(242, 238, 230, .78); }
-.spell-keys .key:last-child { width: calc(var(--u) * 11); height: calc(var(--u) * 11); line-height: calc(var(--u) * 11); font-size: calc(var(--u) * 5.4); border-color: var(--accent); color: var(--accent); background: rgba(10, 11, 14, .9); }
+/* The search key, third of four and under the disc's centre, at 11 units in
+   the accent (the others are 9). The row rises to 63.5, just under the disc,
+   so the big key ends at 74.5 — above the six o'clock letters at 75 — where
+   at the row's end and the old 66 it sat on the K at five o'clock (measured). */
+.puck[data-spell="1"] .spell-keys { top: calc(var(--u) * 63.5); -webkit-align-items: center; align-items: center; }
+.spell-keys .key:nth-child(3) { width: calc(var(--u) * 11); height: calc(var(--u) * 11); line-height: calc(var(--u) * 11); font-size: calc(var(--u) * 5.4); border-color: var(--accent); color: var(--accent); background: rgba(10, 11, 14, .9); }

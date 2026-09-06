@@ -1049,5 +1049,6 @@ test('the verbs read by colour and leave when inert; the letter ring and the spe
   assert.match(CSS, /\.nav-keys \.key\[data-off="1"\] \{ display: none; \}/, 'absent, not dimmed');
   assert.match(CSS, /\.nav-keys \.key-up, \.nav-keys \.key-down \{ border-color: var\(--accent\); color: var\(--accent\); \}/, 'the axis wears the accent');
   assert.match(CSS, /\.puck\[data-tier="alpha"\] \.chosen-title \{ font-size: calc\(var\(--u\) \* 13\);/, 'the letter, large');
-  assert.match(CSS, /\.spell-keys \.key:last-child \{ width: calc\(var\(--u\) \* 11\);[^}]*border-color: var\(--accent\);/, 'the search key, largest and in the accent');
+  assert.match(CSS, /\.spell-keys \.key:nth-child\(3\) \{ width: calc\(var\(--u\) \* 11\);[^}]*border-color: var\(--accent\);/, 'the search key, largest and in the accent, under the disc\'s centre');
+  assert.match(BROWSE, /key\('\\u2423', 'space'[\s\S]{0,200}key\('\\u21b5', 'search'[\s\S]{0,200}key\('\\u2715', 'clear'/, 'the search key sits third of four');
 });

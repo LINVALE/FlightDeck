@@ -413,10 +413,15 @@ export function createBrowse(options) {
   roomKeys.appendChild(shiftKey);
   chosen.appendChild(roomKeys);
 
+  // ⚖️ THE SEARCH KEY IS THE BIG ONE, IN THE MIDDLE (Peter, 09-06: "the select
+  // once the letters are entered is very small and dim"). The disc adds the
+  // highlighted letter — the wheel's idiom — so the key that ACTS on the letters
+  // is the one to grow; it sits third of four, under the disc's centre, where
+  // the six o'clock letters leave room (at the row's end it sat on the K).
   keys.appendChild(key('\u232b', 'delete the last letter', function () { if (view && view.spell) spellStop(DELETE); }));
-  keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
   keys.appendChild(key('\u2423', 'space', function () { if (view && view.spell) spellStop(SPACE); }));
   keys.appendChild(key('\u21b5', 'search', function () { if (view && view.spell) spellStop(GO); }));
+  keys.appendChild(key('\u2715', 'clear', function () { if (view && view.spell) { view.spell.query = ''; tick(); draw(); } }));
   layer.appendChild(veil);
   layer.appendChild(level);
   layer.appendChild(optWrap);
