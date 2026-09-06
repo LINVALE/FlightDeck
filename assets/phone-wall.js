@@ -2,6 +2,10 @@ import './compat.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { uiOverride } from './screen-shape.js';
+import { limitsOf, bandOf, askedSteps, createDoubleTap } from './volume-limits.js';
+
+/** A second press on the same room's key inside the window: the thumb means above comfort. */
+var volumeTaps = createDoubleTap(700);
 
 /**
  * THE PHONE WALL. The house in one column, for a thumb (Peter, 09-06: "a
@@ -181,12 +185,21 @@ function buildCard(zoneId) {
   });
   // ⚖️ One tap, one step, sent as the remote sends it — never a repeat, never
   // a hold, so no flood can leave this page (feedback_volume_paths_need_a_gate).
+  // ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a step up is held at the comfort level;
+  // a second press inside the window passes it; none passes safety.
   var step = function (delta) {
     return function (event) {
       event.stopPropagation();
       var out = levelOutput(zoneOf(zoneId));
       if (out === null) return;
-      command({ action: 'volume', output: out.id, steps: delta });
+      var limits = limitsOf(out.volume);
+      var twice = delta > 0 && volumeTaps.press(out.id, Date.now());
+      var stepped = askedSteps(out.volume.value, delta, limits, twice);
+      if (stepped.steps === 0) {
+        flash(stepped.held === 'safety' ? 'at the safety limit set in Roon' : "at Roon's comfort level \u2014 tap twice to go louder");
+        return;
+      }
+      command({ action: 'volume', output: out.id, steps: stepped.steps, override: twice });
     };
   };
   minus.addEventListener('click', step(-1));
@@ -271,6 +284,10 @@ function paintCard(snapshot, zone, card) {
     var numText = String(Math.round(out.volume.value));
     if (card.num.textContent !== numText) card.num.textContent = numText;
     card.level.classList.toggle('is-muted', muted);
+    // the number wears its band: amber above Roon's comfort level, red above safety
+    var band = bandOf(out.volume.value, limitsOf(out.volume));
+    card.level.classList.toggle('is-comfort', band === 'comfort');
+    card.level.classList.toggle('is-danger', band === 'danger');
   }
 }
 

@@ -63,6 +63,8 @@ export interface OutputVolume {
    * did not say.
    */
   readonly softLimit: number | null;
+  /** Roon's SAFETY level (`hard_limit_max`): nothing passes it; softLimit is the COMFORT level a double tap may pass. */
+  readonly hardLimitMax: number | null;
 }
 
 /**

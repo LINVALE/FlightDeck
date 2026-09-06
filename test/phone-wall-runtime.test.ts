@@ -20,7 +20,8 @@ test('the phone wall is a fourth page on the same organs: one card per room, reu
 test('the words open the remote; play and the level act here, one tap one step', () => {
   assert.match(JS, /var open = function \(\) \{ location\.href = '\/phone\/' \+ encodeURIComponent\(zoneId\); \};/);
   assert.match(JS, /command\(\{ action: 'playpause', zone: z\.id \}\);/);
-  assert.match(JS, /command\(\{ action: 'volume', output: out\.id, steps: delta \}\);/, 'the remote\'s own proven path: steps, never a raw value');
+  assert.match(JS, /command\(\{ action: 'volume', output: out\.id, steps: stepped\.steps, override: twice \}\);/, 'the remote\'s own proven path: steps, never a raw value — held to Roon\'s limits (Peter 09-06)');
+  assert.match(JS, /var stepped = askedSteps\(out\.volume\.value, delta, limits, twice\);\s*if \(stepped\.steps === 0\) \{/, 'a step at comfort is held unless pressed twice; none passes safety');
   assert.match(JS, /minus\.addEventListener\('click', step\(-1\)\);\s*plus\.addEventListener\('click', step\(1\)\);/, 'one tap, one step');
   assert.doesNotMatch(JS, /setInterval\([^)]*step/, 'no repeat while held');
   assert.match(JS, /event\.stopPropagation\(\);/, 'a button press never also opens the remote');

@@ -282,4 +282,12 @@ test('an output\'s soft_limit is carried as softLimit, null when Roon did not sa
   } as unknown as Parameters<typeof projectZone>[0];
   const zone = projectZone(limited, art, noRecency, AT);
   assert.equal(zone?.outputs[0].volume?.softLimit, 60);
+  // Peter 09-06: the SAFETY level (hard_limit_max) rides beside the comfort level
+  const bothLimited = {
+    ...(ZONES[0] as unknown as Record<string, unknown>),
+    outputs: [{ ...raw.outputs[0], volume: { ...(raw.outputs[0].volume ?? {}), soft_limit: 60, hard_limit_max: 85 } }, ...raw.outputs.slice(1)],
+  } as unknown as Parameters<typeof projectZone>[0];
+  const both = projectZone(bothLimited, art, noRecency, AT);
+  assert.equal(both?.outputs[0].volume?.hardLimitMax, 85);
+  assert.equal(zone?.outputs[0].volume?.hardLimitMax, null, 'null when Roon did not say');
 });

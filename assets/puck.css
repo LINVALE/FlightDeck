@@ -100,9 +100,15 @@ body {
    limit — the ticks above it are simply not there. They appear only if the
    level itself is up there (set from Roon's own app; the wheel never drives
    into it), and then in RED, with the number. */
-.tick.beyond, .tick.major.beyond { display: none; }
-.tick.beyond.is-lit, .tick.major.beyond.is-lit { display: inline; stroke: rgb(232, 84, 70); stroke-opacity: 1; }
-.rig[data-over="1"] .tick-read { fill: rgb(232, 84, 70); }
+/* ⚖️ ROON'S TWO LIMITS, DRAWN TO THE TOP (Peter, 09-06, superseding the hidden
+   ticks): amber from the comfort level to the safety level, red beyond; lit
+   in full, unlit as a tint. The reading wears the band the level stands in. */
+.tick.comfort, .tick.major.comfort { stroke: rgba(201, 144, 46, .38); }
+.tick.comfort.is-lit, .tick.major.comfort.is-lit { stroke: #c9902e; stroke-opacity: 1; }
+.tick.danger, .tick.major.danger { stroke: rgba(232, 84, 70, .38); }
+.tick.danger.is-lit, .tick.major.danger.is-lit { stroke: rgb(232, 84, 70); stroke-opacity: 1; }
+.rig[data-band="comfort"] .tick-read { fill: #c9902e; }
+.rig[data-band="danger"] .tick-read { fill: rgb(232, 84, 70); }
 
 .glass {
   position: absolute;

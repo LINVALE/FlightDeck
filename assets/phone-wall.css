@@ -122,3 +122,8 @@ body {
 
 /* Lying down it is still one column (Peter, 09-06: "keep just one column of
    cards"): a thumb scrolls one list, whichever way the phone is held. */
+
+/* ⚖️ ROON'S TWO LIMITS (Peter, 09-06): the level reads amber above the comfort
+   level and red above safety, as every scale is banded. */
+.card-level.is-comfort .num { color: #c9902e; }
+.card-level.is-danger .num { color: rgb(232, 84, 70); }

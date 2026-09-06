@@ -1047,3 +1047,15 @@ test('a phone is sent to the room\'s remote by shape, and the Face reports its s
   assert.match(FACE, /location\.replace\('\/phone' \+ \(phoneToken === '' \? '' : '\/' \+ encodeURIComponent\(phoneToken\)\)\);/);
   assert.match(FACE, /screen: screenReport\(window, 'face', screenShape\)/, 'the hello carries width, height, agent, page and shape');
 });
+
+// Peter 09-06: volume limits, the same on every face
+test('the Face\'s scale is drawn to the top in Roon\'s bands; a press or step is held at comfort, a second passes it, none passes safety', () => {
+  const FACE_CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.css'), 'utf8');
+  assert.match(FACE, /import \{ limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap \} from '\.\/volume-limits\.js';/);
+  assert.match(FACE, /var asked = askedLevel\(min \+ fraction \* span, limits, twice\);\s*if \(asked === null\) \{ flash\('above the safety limit set in Roon'\); return; \}/);
+  assert.match(FACE, /command\(\{ action: 'volume', output: output\.id, value: asked\.value, override: twice \}\);/);
+  assert.match(FACE, /var stepped = askedSteps\(output\.volume\.value, steps, limits, twice\);\s*if \(stepped\.steps === 0\) \{/, 'a step at comfort is held unless pressed twice');
+  assert.match(FACE, /var band = bands \? bandAtFraction\(i \/ segs\.length, bands\) : 'ok';/);
+  assert.match(FACE_CSS, /\.vol-scale b\.comfort\.on \{ background: #c9902e; \}/);
+  assert.match(FACE_CSS, /\.vol-scale b\.danger\.on \{ background: rgb\(232, 84, 70\); \}/);
+});

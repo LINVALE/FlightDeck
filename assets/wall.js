@@ -4,6 +4,10 @@ import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
 import { decideUi } from './screen-shape.js';
+import { limitsOf, bandsOf, bandAtFraction, askedLevel, createDoubleTap } from './volume-limits.js';
+
+/** A second press on the same room's scale inside the window: the hand means above comfort. */
+var volumeTaps = createDoubleTap(700);
 
 /**
  * ⚖️ A PHONE GETS THE PHONE WALL (Peter, 09-06). This page is a television's:
@@ -574,10 +578,16 @@ function buildTile(zone) {
     var box = volBar.getBoundingClientRect();
     if (box.width <= 0) return;
     var want = Math.max(0, Math.min(1, (event.clientX - box.left) / box.width));
-    paintVolumeSegments(volSegments, want, false);            // answer the press at once
-    volNum.textContent = String(Math.round(want * 100));
+    // ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a press is held at the comfort level;
+    // a second press inside the window passes it; nothing passes safety.
+    var twice = volumeTaps.press(zoneId, Date.now());
+    var asked = volumeCommand(zoneId, want, twice);
+    if (asked === null) return;                                // above safety: the room does not respond
+    var vl = volumeLevel(zoneOf(zoneId) || { outputs: [] });
+    paintVolumeSegments(volSegments, asked.shown, false, vl === null ? null : vl.bands);   // answer the press at once
+    volNum.textContent = String(Math.round(asked.shown * 100));
     // ⚖️ Press to position, never drag (Peter, 08-28). One grammar with the Face.
-    post(volumeCommand(zoneId, want));
+    post(asked.body);
   });
   volLine.appendChild(volMark); volLine.appendChild(volBar); volLine.appendChild(volNum);
 
@@ -942,13 +952,19 @@ function islandName(id) {
   return '';
 }
 
-function paintVolumeSegments(nodes, level, muted) {
+/**
+ * ⚖️ THE SCALE IS DRAWN TO THE TOP, IN BANDS (Peter, 09-06): plain up to Roon's
+ * comfort level, amber from there to its safety level, red beyond — on every
+ * face alike (volume-limits.js).
+ */
+function paintVolumeSegments(nodes, level, muted, bands) {
   var exact = muted || level === null ? 0 : level * nodes.length;
   var whole = Math.floor(exact);
   var part = exact - whole;
   for (var i = 0; i < nodes.length; i += 1) {
     var on = i < whole || (i === whole && part > .04);
-    nodes[i].className = on ? 'on' : '';
+    var band = bands ? bandAtFraction(i / nodes.length, bands) : 'ok';
+    nodes[i].className = (on ? 'on' : '') + (band === 'ok' ? '' : ' ' + band);
     nodes[i].style.opacity = on && i === whole && part > .04 ? String(.25 + part * .75) : '';
   }
 }
@@ -974,9 +990,15 @@ function muteCommand(zoneId) {
   return { action: 'mute', output: zone.outputs[0].id, muted: !zone.outputs[0].volume.muted };
 }
 
-function volumeCommand(zoneId, level) {
+/**
+ * What a press on the scale asks for: `{ body, shown }` — the request, and the
+ * fraction the card should show at once — or null when the press was above
+ * Roon's safety level and nothing is asked. A group asks by level and each
+ * room is held to its own limits on the deck.
+ */
+function volumeCommand(zoneId, level, override) {
   var zone = zoneOf(zoneId);
-  if (zone === null) return { action: 'group-volume', zone: zoneId, level: level };
+  if (zone === null) return { body: { action: 'group-volume', zone: zoneId, level: level, override: override === true }, shown: level };
   var movable = [];
   for (var i = 0; i < zone.outputs.length; i += 1) {
     var o = zone.outputs[i];
@@ -984,25 +1006,30 @@ function volumeCommand(zoneId, level) {
         && o.volume.type !== 'incremental') movable.push(o);
   }
   if (movable.length === 1) {
-    var v = movable[0].volume;
-    var mn = v.min === null ? 0 : v.min;
-    return { action: 'volume', output: movable[0].id, value: Math.round(mn + level * Math.max(1, v.max - mn)) };
+    var limits = limitsOf(movable[0].volume);
+    var asked = askedLevel(limits.min + level * (limits.max - limits.min), limits, override === true);
+    if (asked === null) return null;
+    return {
+      body: { action: 'volume', output: movable[0].id, value: asked.value, override: override === true },
+      shown: (asked.value - limits.min) / Math.max(1, limits.max - limits.min),
+    };
   }
-  return { action: 'group-volume', zone: zoneId, level: level };
+  return { body: { action: 'group-volume', zone: zoneId, level: level, override: override === true }, shown: level };
 }
 
 /** The level a card shows: one room's own, or the average across a group. */
 function volumeLevel(zone) {
-  var sum = 0, n = 0, muted = true;
+  var sum = 0, n = 0, muted = true, bands = null;
   for (var i = 0; i < zone.outputs.length; i += 1) {
     var v = zone.outputs[i].volume;
     if (v === null || v.value === null || v.max === null) continue;
     var mn = v.min === null ? 0 : v.min;
     sum += Math.max(0, Math.min(1, (v.value - mn) / Math.max(1, v.max - mn)));
     if (!v.muted) muted = false;
+    if (bands === null) bands = bandsOf(limitsOf(v));   // a group's scale wears its first room's bands
     n += 1;
   }
-  return n === 0 ? null : { level: sum / n, muted: muted, rooms: n };
+  return n === 0 ? null : { level: sum / n, muted: muted, rooms: n, bands: bands };
 }
 
 var overflowEl = null;
@@ -1335,7 +1362,7 @@ function render(snapshot, kind) {
       // something is genuinely in flight.
       tile.state.textContent = zone.state === 'loading' ? 'loading' : '';
       var vl = volumeLevel(zone);
-      paintVolumeSegments(tile.volSegments, vl === null ? null : vl.level, vl !== null && vl.muted);
+      paintVolumeSegments(tile.volSegments, vl === null ? null : vl.level, vl !== null && vl.muted, vl === null ? null : vl.bands);
       tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
       var muted = muteState(zone);
       tile.volMark.className = muted === null ? 'tile-vol-mark off'

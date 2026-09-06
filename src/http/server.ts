@@ -8,6 +8,7 @@ import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
 import { renderDocPage, renderFacePage, renderPhonePage, renderPhoneWallPage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 import { normaliseScreen, type DisplayScreen } from '../displays/registry.ts';
+import { limitsOf, askedLevel, askedSteps } from '../model/volume-limits.ts';
 import { PullError, type PullOutcome, type PullRequest } from '../control/pull.ts';
 import { QUEUE_MAX_ITEMS, QueueError, type QueueSnapshot } from '../roon/queue.ts';
 
@@ -1018,10 +1019,16 @@ async function handleControl(
        * device has already re-based on another. Sequential is slower by a few
        * milliseconds and is the only version that lands what it says.
        */
+      const override = body.override === true;
       for (let index = 0; index < movable.length; index += 1) {
         const o = movable[index];
         const target = Math.max(0, Math.min(1, levels[index] + delta));
-        const value = Math.round((o.volume!.min ?? 0) + target * span(o));
+        const wantedValue = Math.round((o.volume!.min ?? 0) + target * span(o));
+        // Each room is held to ITS OWN comfort and safety (Peter, 09-06): a
+        // group move never carries one room past its limits to satisfy the average.
+        const limits = limitsOf(o.volume!);
+        const asked = askedLevel(wantedValue, limits, override);
+        const value = asked === null ? limits.safety : asked.value;
         await commands.setVolume(o.id, value);
       }
       log('group volume ' + zone.name + ' -> ' + String(Math.round(wanted * 100)) + '%');
@@ -1091,25 +1098,44 @@ async function handleControl(
         json(response, 200, { ok: true });
         return;
       }
-      // An exact level, for a scale that is pressed rather than stepped. Clamped to
-      // what the device says it accepts, so a mis-scaled UI cannot shout.
+      /**
+       * ⚖️ ROON'S TWO LIMITS, HELD HERE FOR EVERY HAND (Peter, 09-06). The
+       * comfort level (soft_limit) is a stop: a level or a step past it is held
+       * to it unless the hand said `override` — a double tap on the face. The
+       * safety level (hard_limit_max) is a wall: nothing past it is sent, and
+       * the room does not respond. Every face holds itself to the same rule
+       * (assets/volume-limits.js); this is the one place it cannot be skipped.
+       */
+      const limits = limitsOf(output.volume);
+      const override = body.override === true;
+      // An exact level, for a scale that is pressed rather than stepped.
       if (typeof body.value === 'number') {
-        const min = output.volume.min ?? 0;
-        const max = output.volume.max ?? 100;
-        const value = Math.max(min, Math.min(max, Math.round(body.value)));
-        await commands.setVolume(outputId, value);
-        log('volume = ' + String(value) + ' -> ' + output.name);
-        json(response, 200, { ok: true });
+        const asked = askedLevel(body.value, limits, override);
+        if (asked === null) {
+          json(response, 409, { error: 'above the safety limit set in Roon', code: 'safety', safety: limits.safety });
+          return;
+        }
+        await commands.setVolume(outputId, asked.value);
+        log('volume = ' + String(asked.value) + (asked.held === 'comfort' ? ' (held at comfort)' : '') + ' -> ' + output.name);
+        json(response, 200, { ok: true, value: asked.value, held: asked.held, comfort: limits.comfort, safety: limits.safety });
         return;
       }
       const raw = typeof body.steps === 'number' ? body.steps : 0;
       if (raw === 0) { json(response, 400, { error: 'steps required' }); return; }
       // Bounded hard: a stuck key or a repeated tap must never send the room to
       // maximum. One press is one step.
-      const steps = Math.max(-4, Math.min(4, Math.round(raw)));
-      await commands.changeVolume(outputId, steps, output.volume.type === 'incremental');
-      log('volume ' + (steps > 0 ? '+' : '') + String(steps) + ' -> ' + output.name);
-      json(response, 200, { ok: true });
+      const bounded = Math.max(-4, Math.min(4, Math.round(raw)));
+      const stepped = output.volume.type === 'incremental'
+        ? { steps: bounded, held: 'none' as const }
+        : askedSteps(output.volume.value, bounded, limits, override);
+      if (stepped.steps === 0) {
+        log('volume ' + (bounded > 0 ? '+' : '') + String(bounded) + ' held at ' + stepped.held + ' -> ' + output.name);
+        json(response, 200, { ok: true, steps: 0, held: stepped.held, comfort: limits.comfort, safety: limits.safety });
+        return;
+      }
+      await commands.changeVolume(outputId, stepped.steps, output.volume.type === 'incremental');
+      log('volume ' + (stepped.steps > 0 ? '+' : '') + String(stepped.steps) + ' -> ' + output.name);
+      json(response, 200, { ok: true, steps: stepped.steps, held: stepped.held, comfort: limits.comfort, safety: limits.safety });
       return;
     }
 

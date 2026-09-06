@@ -17,7 +17,7 @@ const DOCS = resolve(fileURLToPath(import.meta.url), '..', '..', 'docs');
 const ZONES: unknown[] = [
   {
     zone_id: 'zPlay', display_name: 'Study', state: 'playing',
-    outputs: [{ output_id: 'oStudy', display_name: 'Study', can_group_with_output_ids: ['oStudy', 'oPeer'], volume: { type: 'number', min: 0, max: 100, value: 40, step: 1, is_muted: false } }],
+    outputs: [{ output_id: 'oStudy', display_name: 'Study', can_group_with_output_ids: ['oStudy', 'oPeer'], volume: { type: 'number', min: 0, max: 100, value: 40, step: 1, is_muted: false, soft_limit: 80, hard_limit_max: 90 } }],
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
     now_playing: { seek_position: 10, length: 200, image_key: 'k1', three_line: { line1: 'A Track', line2: 'An Artist', line3: 'An Album' } },
     settings: { shuffle: true, loop: 'loop', auto_radio: false },
@@ -43,6 +43,14 @@ const ZONES: unknown[] = [
     ],
     is_play_allowed: false, is_pause_allowed: true, is_next_allowed: true, is_previous_allowed: true, is_seek_allowed: true,
     now_playing: { seek_position: 5, length: 100, image_key: 'k3', three_line: { line1: 'T', line2: 'A', line3: 'B' } },
+  },
+  {
+    // Peter 09-06: a room standing exactly at Roon's comfort level, alone on its island
+    zone_id: 'zLimit', display_name: 'Porch', state: 'paused',
+    outputs: [{ output_id: 'oLimit', display_name: 'Porch', can_group_with_output_ids: ['oLimit'],
+      volume: { type: 'number', min: 0, max: 100, value: 80, step: 1, is_muted: false, soft_limit: 80, hard_limit_max: 90 } }],
+    is_play_allowed: true, is_pause_allowed: false, is_next_allowed: false, is_previous_allowed: false, is_seek_allowed: false,
+    now_playing: { seek_position: 0, length: 100, image_key: 'k9', three_line: { line1: 'Q', line2: 'W', line3: 'E' } },
   },
   {
     // same island as Study, and silent: the room a group would be formed with
@@ -281,15 +289,41 @@ test('seek is refused where Roon says it is not allowed, and clamped to the trac
   assert.equal(sent.length, 2, 'only the valid and safely adjusted seeks reached the Core');
 });
 
-test('an absolute volume is clamped to what the device accepts', async (t) => {
+test('an absolute volume is held to Roon\'s comfort level, passes it only with an override, and never passes safety', async (t) => {
   const { post, sent } = await serve(t);
-  await post({ action: 'volume', output: 'oStudy', value: 55 });
+  // oStudy: comfort 80, safety 90
+  const fine = await post({ action: 'volume', output: 'oStudy', value: 55 });
+  assert.equal(fine.status, 200);
   assert.deepEqual(sent[0], { kind: 'setVolume', a: 'oStudy', b: 55 });
-  // the output reports min 0 max 100
-  await post({ action: 'volume', output: 'oStudy', value: 5000 });
-  assert.equal(sent[1].b, 100, 'clamped to max');
+  const held = await post({ action: 'volume', output: 'oStudy', value: 85 });
+  assert.equal(sent[1].b, 80, 'held at comfort');
+  assert.equal((await held.json() as { held: string }).held, 'comfort', 'and says so');
+  const passed = await post({ action: 'volume', output: 'oStudy', value: 85, override: true });
+  assert.equal(sent[2].b, 85, 'a double tap passes comfort');
+  assert.equal((await passed.json() as { held: string }).held, 'none');
+  const refused = await post({ action: 'volume', output: 'oStudy', value: 95, override: true });
+  assert.equal(refused.status, 409, 'nothing passes safety');
+  assert.equal((await refused.json() as { code: string }).code, 'safety');
+  assert.equal(sent.length, 3, 'and nothing was sent for it');
   await post({ action: 'volume', output: 'oStudy', value: -40 });
-  assert.equal(sent[2].b, 0, 'clamped to min');
+  assert.equal(sent[3].b, 0, 'clamped to min');
+});
+
+test('steps are held the same way: room to comfort, more with an override, none past safety, down always free', async (t) => {
+  const { post, sent } = await serve(t);
+  // oLimit stands at 80 = its comfort level
+  const atComfort = await post({ action: 'volume', output: 'oLimit', steps: 1 });
+  assert.equal(atComfort.status, 200);
+  assert.deepEqual(await atComfort.json(), { ok: true, steps: 0, held: 'comfort', comfort: 80, safety: 90 });
+  assert.equal(sent.length, 0, 'a single press at comfort sends nothing');
+  const above = await post({ action: 'volume', output: 'oLimit', steps: 4, override: true });
+  assert.deepEqual(sent[0], { kind: 'volume', a: 'oLimit', b: 4, c: false }, 'a double press may take the room to safety (four steps of ten)');
+  assert.equal((await above.json() as { held: string }).held, 'none');
+  await post({ action: 'volume', output: 'oLimit', steps: -1 });
+  assert.deepEqual(sent[1], { kind: 'volume', a: 'oLimit', b: -1, c: false }, 'down is free');
+  // oStudy at 40 with comfort 80: four steps fit
+  await post({ action: 'volume', output: 'oStudy', steps: 4 });
+  assert.deepEqual(sent[2], { kind: 'volume', a: 'oStudy', b: 4, c: false });
 });
 
 /**

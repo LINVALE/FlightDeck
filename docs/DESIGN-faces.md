@@ -324,15 +324,36 @@ a RheoStat hand-off link (never an iframe — `frame-ancestors 'none'`).
 run inline after the run hit the account's monthly spend limit). Gallery:
 `claude.ai/code/artifact/451ce2cc-e537-4bda-99d2-ff2f166b4cfd`. Mocks + 1080p renders: session scratchpad `faces/`.
 
-## 9. Volume limits — Roon's, not ours (⚖️ Peter 2026-09-05)
+## 9. Volume limits — Roon's two, the same on every face (⚖️ Peter 2026-09-05 · 09-06)
 
-Roon keeps a **Volume Limit per zone** in its own zone settings, and the transport
-API reports it on every output's volume as `soft_limit` (measured on the Core's
-wire: `min 0, max 100, soft_limit 100` when unset). FlightDeck does **not** build a
-second limit. It carries Roon's as `softLimit`, the puck's wheel cannot ask past
-it, and the scale draws the ticks beyond it dead. **Set the limit in Roon when a
-zone is first enabled** — that is the one place it lives, and every screen,
-knob and remote in the house then respects it.
+Roon keeps **two limits per output** in its own zone settings and reports both on
+the transport wire: `soft_limit` is the **comfort level** (Roon's own app stops
+there and asks before going on) and `hard_limit_max` is the **safety level**
+(nothing goes past it). Measured on the Core: `min 0, max 100, soft_limit 100,
+hard_limit_max 100` when neither is set. FlightDeck builds **no limit of its
+own** — it carries Roon's as `softLimit` and `hardLimitMax` — and **set them in
+Roon when a zone is first enabled**: that is the one place they live.
+
+One reading of them, on every face (`assets/volume-limits.js`, mirrored by
+`src/model/volume-limits.ts` and kept in step by test):
+
+- **The scale is drawn to the top**, whatever the limits: plain up to comfort,
+  **amber** (`#c9902e`) from comfort to safety, **red** (`rgb(232,84,70)`)
+  beyond — on the Wall's rule, the Face's rail, the phone's scale, the puck's
+  bezel of a hundred ticks alike. (09-05 hid the puck's ticks past comfort;
+  09-06 supersedes that: hidden ticks said nothing about *where* the limit was.)
+- **A drag, a turn, a press or a step goes up to comfort and stops there.**
+- **A second press inside 700ms on the same control passes comfort** — the
+  request carries `override: true` — up to safety.
+- **Nothing passes safety.** A press there is not sent; the room does not
+  respond, and the face says why.
+- **The deck holds every hand to the same rule** (`/api/v1/control`): a level
+  above comfort without `override` is held to comfort and the reply says
+  `held: 'comfort'`; a level above safety is refused (`409`, `code: 'safety'`);
+  steps are cut to reach comfort (or safety, with `override`) and a press with
+  no room to move sends nothing to the Core. A group move holds each room to
+  **its own** limits rather than carrying one room past them to satisfy the
+  average.
 
 ## Sources (Roon Display facts)
 

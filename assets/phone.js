@@ -3,6 +3,10 @@ import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
+import { limitsOf, bandsOf, bandAtFraction, bandOf, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
+
+/** A second press on the same control inside the window: the thumb means above comfort. */
+var volumeTaps = createDoubleTap(700);
 
 /**
  * The Phone. FlightDeck as a REMOTE rather than a display: the same snapshot,
@@ -500,7 +504,7 @@ var volRows = [];      // [{ outputId, row, speaker, scale, pct }]
 var volKey = null;
 var volDragging = false;
 
-function paintScale(scale, level, muted) {
+function paintScale(scale, level, muted, bands) {
   var segs = scale.childNodes;
   var exact = level * segs.length;
   var whole = Math.floor(exact);
@@ -512,6 +516,9 @@ function paintScale(scale, level, muted) {
       if (i < whole) cls = 'on';
       else if (i === whole && part > 0.04) { cls = 'on'; alpha = String(0.25 + part * 0.75); }
     }
+    // ⚖️ Drawn to the top, in Roon's bands (Peter, 09-06): amber from comfort to safety, red beyond.
+    var band = bands ? bandAtFraction(i / segs.length, bands) : 'ok';
+    if (band !== 'ok') cls = (cls === '' ? '' : cls + ' ') + band;
     if (segs[i].className !== cls) segs[i].className = cls;
     if (segs[i].style.opacity !== alpha) segs[i].style.opacity = alpha;
   }
@@ -527,32 +534,52 @@ function outputById(id) {
 function volumeScale(outputId) {
   var scale = el('span', 'vol-scale');
   for (var i = 0; i < SEGMENTS; i += 1) scale.appendChild(el('b'));
-  var setFrom = function (clientX) {
+  /**
+   * ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a DRAG is held at the comfort level;
+   * a TAP is too, unless it is the second inside the window, which passes it;
+   * nothing passes safety and the room does not respond.
+   */
+  var setFrom = function (clientX, kind) {
     var output = outputById(outputId);
     if (output === null || output.volume === null || output.volume.max === null) return;
     var box = scale.getBoundingClientRect();
     if (box.width <= 0) return;
-    var min = output.volume.min === null ? 0 : output.volume.min;
-    var span = Math.max(1, output.volume.max - min);
+    var limits = limitsOf(output.volume);
+    var span = Math.max(1, limits.max - limits.min);
     var fraction = Math.max(0, Math.min(1, (clientX - box.left) / box.width));
-    paintScale(scale, fraction, false);      // answer the thumb NOW; the snapshot confirms
-    command({ action: 'volume', output: outputId, value: Math.round(min + fraction * span) });
+    var twice = kind === 'tap' && volumeTaps.press('scale:' + outputId, Date.now());
+    var asked = askedLevel(limits.min + fraction * span, limits, twice);
+    if (asked === null) { if (kind === 'tap') flash('above the safety limit set in Roon'); return; }
+    if (asked.held === 'comfort' && kind === 'tap') flash("at Roon's comfort level \u2014 tap again to go above");
+    paintScale(scale, (asked.value - limits.min) / span, false, bandsOf(limits));   // answer the thumb NOW; the snapshot confirms
+    command({ action: 'volume', output: outputId, value: asked.value, override: twice });
   };
+  // A press remembers where it began; a move is a DRAG (held at comfort); a
+  // lift that never moved is a TAP, which is what the double-tap gate counts.
+  var pressX = null, moved = false;
   scale.addEventListener('pointerdown', function (event) {
-    volDragging = true;
-    setFrom(event.clientX);
+    volDragging = true; pressX = event.clientX; moved = false;
     if (scale.setPointerCapture && event.pointerId !== undefined) {
       try { scale.setPointerCapture(event.pointerId); } catch (error) { /* fine */ }
     }
     event.preventDefault();
   });
   scale.addEventListener('pointermove', function (event) {
-    if (volDragging) { setFrom(event.clientX); event.preventDefault(); }
+    if (!volDragging) return;
+    if (pressX !== null && Math.abs(event.clientX - pressX) > 6) moved = true;
+    if (moved) { setFrom(event.clientX, 'drag'); event.preventDefault(); }
   });
-  var stop = function () { volDragging = false; };
-  scale.addEventListener('pointerup', stop);
-  scale.addEventListener('pointercancel', stop);
-  scale.addEventListener('click', function (event) { setFrom(event.clientX); });
+  scale.addEventListener('pointerup', function (event) {
+    if (!volDragging) return;
+    volDragging = false;
+    setFrom(event.clientX, moved ? 'drag' : 'tap');
+  });
+  scale.addEventListener('pointercancel', function () { volDragging = false; });
+  // Devices without pointer events still get press-to-position.
+  scale.addEventListener('click', function (event) {
+    if (typeof window.PointerEvent !== 'undefined') return;
+    setFrom(event.clientX, 'tap');
+  });
   return scale;
 }
 
@@ -586,7 +613,20 @@ function buildVolume(zone) {
           var b = el('span', 'vol-step');
           b.appendChild(glyph(name));
           b.setAttribute('aria-label', label + ' · ' + output.name);
-          b.addEventListener('click', function () { command({ action: 'volume', output: output.id, steps: delta }); });
+          b.addEventListener('click', function () {
+            // ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a step up is held at comfort; a
+            // second press inside the window passes it; none passes safety.
+            var live = outputById(output.id);
+            var vol = live !== null && live.volume ? live.volume : output.volume;
+            var limits = limitsOf(vol);
+            var twice = delta > 0 && volumeTaps.press('step:' + output.id, Date.now());
+            var stepped = askedSteps(vol.value, delta, limits, twice);
+            if (stepped.steps === 0) {
+              flash(stepped.held === 'safety' ? 'at the safety limit set in Roon' : "at Roon's comfort level \u2014 tap again to go above");
+              return;
+            }
+            command({ action: 'volume', output: output.id, steps: stepped.steps, override: twice });
+          });
           return b;
         };
         row.appendChild(step('minus', -1, 'quieter'));
@@ -627,7 +667,7 @@ function paintVolumeRows() {
     }
     var wantMuteCls = 'vol-mute' + (muted ? ' is-muted' : '');
     if (ref.speaker.className !== wantMuteCls) ref.speaker.className = wantMuteCls;
-    if (ref.scale !== null && !volDragging) paintScale(ref.scale, level, muted);
+    if (ref.scale !== null && !volDragging) paintScale(ref.scale, level, muted, bandsOf(limitsOf(output.volume)));
     if (ref.pct !== null) ref.pct.textContent = vol.value === null ? '' : String(Math.round(level * 100));
   }
 }

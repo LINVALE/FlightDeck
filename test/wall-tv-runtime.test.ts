@@ -187,7 +187,7 @@ test('Wall 2 Pull From chooses a durable destination then a source with content'
 test('Wall 2 volume is segmented, aligned, and the speaker owns mute', () => {
   assert.match(WALL, /for \(var vs = 0; vs < 44; vs \+= 1\)/,
     'the Wall uses the same fine-grained runway scale as Presence');
-  assert.match(WALL, /paintVolumeSegments\(tile\.volSegments, vl === null \? null : vl\.level, vl !== null && vl\.muted\)/);
+  assert.match(WALL, /paintVolumeSegments\(tile\.volSegments, vl === null \? null : vl\.level, vl !== null && vl\.muted, vl === null \? null : vl\.bands\)/);
   assert.doesNotMatch(WALL, /volFill/,
     'render cannot abort by referring to the removed continuous volume fill');
   assert.match(WALL, /quiet\(volMark, function \(\) \{[\s\S]{0,120}muteCommand\(zoneId\)[\s\S]{0,80}post\(body\)/,
@@ -387,4 +387,14 @@ test('a phone is sent to the phone wall by shape, never by user agent; the Wall 
   assert.doesNotMatch(WALL, /userAgent/, 'the Wall never reads the user agent');
   assert.doesNotMatch(CSS, /\.tile\.is-live \.tile-art \{ width: 18vw/, 'the single-column box rules are gone');
   assert.doesNotMatch(CSS, /@media \(max-width: 900px\) \{\s*\.tile \{ width: 100%; \}/);
+});
+
+// Peter 09-06: volume limits, the same on every face
+test('the Wall\'s scale is drawn to the top in Roon\'s bands; a press is held at comfort, a second press passes it, none passes safety', () => {
+  assert.match(WALL, /import \{ limitsOf, bandsOf, bandAtFraction, askedLevel, createDoubleTap \} from '\.\/volume-limits\.js';/);
+  assert.match(WALL, /var twice = volumeTaps\.press\(zoneId, Date\.now\(\)\);\s*var asked = volumeCommand\(zoneId, want, twice\);\s*if \(asked === null\) return;/, 'above safety the room does not respond');
+  assert.match(WALL, /var asked = askedLevel\(limits\.min \+ level \* \(limits\.max - limits\.min\), limits, override === true\);/);
+  assert.match(WALL, /nodes\[i\]\.className = \(on \? 'on' : ''\) \+ \(band === 'ok' \? '' : ' ' \+ band\);/, 'segments wear their band');
+  assert.match(CSS, /\.tile-rule\.vol i\.comfort\.on \{ background: #c9902e; \}/);
+  assert.match(CSS, /\.tile-rule\.vol i\.danger\.on \{ background: rgb\(232, 84, 70\); \}/);
 });

@@ -9,6 +9,10 @@ import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle, levelForDrag } from './volume-gate.js';
 import { readPalette, luminance } from './sleeve-palette.js';
 import { decideUi } from './screen-shape.js';
+import { limitsOf, bandOf, askedLevel, createDoubleTap } from './volume-limits.js';
+
+/** A second tap on the scale inside the window: the hand means above comfort. */
+var bezelTaps = createDoubleTap(700);
 
 /**
  * THE PUCK — one face at two sizes.
@@ -539,9 +543,10 @@ function volumeBounds(output) {
    * `soft_limit`; the deck carries it as softLimit. Nothing here duplicates it:
    * the wheel cannot ask for more than it, and the scale shows where it lies.
    */
-  var soft = typeof volume.softLimit === 'number' ? volume.softLimit : max;
-  var ceiling = soft < max && soft > min ? soft : max;
-  return { min: min, max: max, ceiling: ceiling, step: volume.step === null || volume.step === 0 ? 1 : volume.step };
+  // 09-06: the same reading as every other face (volume-limits.js) — comfort
+  // is the ceiling a turn or a drag may reach, safety the wall nothing passes.
+  var limits = limitsOf(volume);
+  return { min: limits.min, max: limits.max, ceiling: limits.comfort, safety: limits.safety, step: limits.step };
 }
 
 function showTurning() {
@@ -562,7 +567,7 @@ var volumeGate = createVolumeGate(function (steps) {
   var at = output.volume.value;
   if (steps > 0 && typeof at === 'number' && at + steps * bounds.step > bounds.ceiling) {
     var room = Math.floor((bounds.ceiling - at) / bounds.step);
-    if (room <= 0) { flash("at the limit set in Roon"); return null; }
+    if (room <= 0) { flash("at Roon's comfort level"); return null; }
     steps = room;
   }
   return command({ action: 'volume', output: output.id, steps: steps });
@@ -745,21 +750,24 @@ function paintVolume() {
   // A hand on the scale paints its own target; the room's answer waits.
   if (dragLast !== null && turning !== null) return;
   /**
-   * ⚖️ ROON'S WAY (Peter, 09-05): above the comfort level — Roon's soft limit —
-   * the scale is RED. The wheel never drives into it, but a level set there
-   * from Roon's own app is shown where it is, lit in red, and named.
+   * ⚖️ ROON'S TWO LIMITS, THE SAME ON EVERY FACE (Peter, 09-06, superseding the
+   * 09-05 hidden ticks): the scale is drawn to the top; amber from the comfort
+   * level to the safety level, red beyond. The wheel and a drag stop at
+   * comfort; a level above it — by a double tap, or set from Roon's own app —
+   * is shown where it is, in its band, and named.
    */
   var over = volume.value > bounds.ceiling;
   var shown = over ? Math.min(bounds.max, volume.value)
     : Math.max(bounds.min, Math.min(bounds.ceiling, volume.value + volumeGate.ahead() * bounds.step));
-  if (over) rig.setAttribute('data-over', '1'); else rig.removeAttribute('data-over');
+  var band = bandOf(shown, { comfort: bounds.ceiling, safety: bounds.safety });
+  rig.setAttribute('data-band', band);
   var span = Math.max(1, bounds.max - bounds.min);
-  lightDetents((shown - bounds.min) / span, String(Math.round(shown)), (bounds.ceiling - bounds.min) / span);
+  lightDetents((shown - bounds.min) / span, String(Math.round(shown)), (bounds.ceiling - bounds.min) / span, (bounds.safety - bounds.min) / span);
   // The number always; "muted" is said beneath it, not instead of it — and so
-  // is Roon's limit, when the level has reached it.
+  // is Roon's limit, when the level has reached or passed it.
   var atLimit = bounds.ceiling < bounds.max && shown >= bounds.ceiling;
   volReadValue.textContent = String(Math.round(shown));
-  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (over ? "above the limit set in Roon \u00b7 " : (atLimit ? "at Roon's limit \u00b7 " : 'volume \u00b7 '))) + output.name;
+  volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (band === 'danger' ? 'above the safety limit set in Roon \u00b7 ' : (over ? "above Roon's comfort level \u00b7 " : (atLimit ? "at Roon's comfort level \u00b7 " : 'volume \u00b7 ')))) + output.name;
   // The glyph never changes; the disc's fill is the state.
   if (volume.muted) { btnMute.setAttribute('data-on', '1'); btnMute.setAttribute('title', 'muted \u2014 tap to unmute'); }
   else { btnMute.removeAttribute('data-on'); btnMute.setAttribute('title', 'mute'); }
@@ -768,13 +776,16 @@ function paintVolume() {
 /** The dots up to the level are lit, from twelve o'clock clockwise. */
 var TICK_READ_R = 44.6;   // rig units: inside the ticks (46.4), on the bezel's inner band
 
-function lightDetents(fraction, label, ceiling) {
+function lightDetents(fraction, label, ceiling, safety) {
   var lit = fraction === null ? 0 : Math.round(Math.max(0, Math.min(1, fraction)) * ticks.length);
-  // The ticks past Roon's limit are drawn dead: the wheel cannot go there.
-  var alive = typeof ceiling === 'number' ? Math.round(Math.max(0, Math.min(1, ceiling)) * ticks.length) : ticks.length;
+  // Every tick is drawn (Peter, 09-06): those past Roon's comfort level in
+  // amber, those past its safety level in red — lit or not.
+  var comfortAt = typeof ceiling === 'number' ? Math.round(Math.max(0, Math.min(1, ceiling)) * ticks.length) : ticks.length;
+  var safetyAt = typeof safety === 'number' ? Math.round(Math.max(0, Math.min(1, safety)) * ticks.length) : ticks.length;
   for (var i = 0; i < ticks.length; i += 1) {
     var major = i % 10 === 0;
-    ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : '') + (i >= alive ? ' beyond' : ''));
+    var band = i >= safetyAt && safetyAt < ticks.length ? ' danger' : (i >= comfortAt && comfortAt < safetyAt ? ' comfort' : '');
+    ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : '') + band);
   }
   if (fraction === null || label === undefined || label === null) { tickRead.style.display = 'none'; return; }
   var angle = ((lit / ticks.length) * 360 - 90) * Math.PI / 180;
@@ -1235,16 +1246,26 @@ function tapBezel(degrees) {
   if (output.volume === null) { flash(output.name + ' has no volume control'); return; }
   wake();   // raise the readout; a dot has a place, so the tap itself acts
   var now = Date.now();
-  if (now - lastBezelTap < 300) return;
-  lastBezelTap = now;
   var bounds = volumeBounds(output);
   var value = levelAtAngle(degrees, bounds.min, bounds.max, ticks.length);
   if (value === null) return;
-  // A tap past Roon's limit asks for the limit, never for more.
-  if (value > bounds.ceiling) value = bounds.ceiling;
+  // ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a tap above the comfort level asks for
+  // the comfort level; a SECOND tap inside the window asks for what it touched;
+  // above the safety level nothing is asked and the scale does not respond.
+  // The double-tap window replaces the old 300ms debounce there; below comfort
+  // the debounce stands.
+  var limits = { min: bounds.min, comfort: bounds.ceiling, safety: bounds.safety };
+  var twice = value > bounds.ceiling && bezelTaps.press('scale', now);
+  if (!twice) {
+    if (now - lastBezelTap < 300 && value <= bounds.ceiling) return;
+    lastBezelTap = now;
+  }
+  var asked = askedLevel(value, limits, twice);
+  if (asked === null) { flash('above the safety limit set in Roon'); return; }
+  if (asked.held === 'comfort') flash("at Roon's comfort level \u2014 tap again to go above");
   haptic(12);
   showTurning();
-  command({ action: 'volume', output: output.id, value: value });
+  command({ action: 'volume', output: output.id, value: asked.value, override: twice });
 }
 
 rig.addEventListener('pointermove', function (event) {

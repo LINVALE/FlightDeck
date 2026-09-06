@@ -970,3 +970,10 @@ body { min-height: 100vh; }
 .wall[data-drawer] .grid > .tile .tile-t { font-size: .72vw; }
 .wall[data-drawer] .grid > .tile:hover .tile-title, .wall[data-drawer] .grid > .tile.is-open .tile-title { -webkit-line-clamp: 3; }
 
+
+/* ⚖️ ROON'S TWO LIMITS ON THE SCALE (Peter, 09-06): amber from the comfort
+   level to the safety level, red beyond — the same on every face. */
+.tile-rule.vol i.comfort { background: rgba(201, 144, 46, .30); }
+.tile-rule.vol i.comfort.on { background: #c9902e; }
+.tile-rule.vol i.danger { background: rgba(232, 84, 70, .30); }
+.tile-rule.vol i.danger.on { background: rgb(232, 84, 70); }

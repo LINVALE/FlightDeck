@@ -2878,3 +2878,10 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
    choice that changes nothing. The badge goes; the face is still whatever the
    screen it belongs to is set to. */
 .face[data-size="phone"] .cog { display: none; }
+
+/* ⚖️ ROON'S TWO LIMITS ON THE SCALE (Peter, 09-06): amber from the comfort
+   level to the safety level, red beyond — the same on every face. */
+.vol-scale b.comfort { background: rgba(201, 144, 46, .30); }
+.vol-scale b.comfort.on { background: #c9902e; }
+.vol-scale b.danger { background: rgba(232, 84, 70, .30); }
+.vol-scale b.danger.on { background: rgb(232, 84, 70); }
