@@ -409,6 +409,7 @@ body { min-height: 100vh; }
   display: -webkit-flex; display: flex;
   -webkit-flex-direction: column; flex-direction: column;
   margin: .32vw;
+  min-width: 0; /* an open card (overflow visible) must not widen its column */
   padding: .9vh 1vw;
   background: #131519;
   border: 1px solid var(--tile-frame);
@@ -620,9 +621,10 @@ body { min-height: 100vh; }
 }
 .grid > .tile .tile-title { -webkit-line-clamp: 1; }
 
+/* The drawer is the card's expansion now; the card itself stays exactly where
+   it is (the old negative-margin lift made it jump 11px as the drawer arrived). */
 .grid > .tile:hover, .grid > .tile:focus-within {
   z-index: 5;
-  margin: -0.55vw;
   background: #171a1f;
   box-shadow: 0 1.1vw 2.6vw rgba(0,0,0,.72);
 }
@@ -919,3 +921,58 @@ body { min-height: 100vh; }
   cursor: pointer; white-space: nowrap;
 }
 .oa:hover { color: var(--ink); border-color: rgba(242,238,230,.42); }
+
+/* ══ THE DRAWER ══════════════════════════════════════════════════════════════
+   ⚖️ Peter, 09-06: at rest a card shows the room, the music, its state and
+   position — no controls. The transport, the volume, the actions, the ways in
+   and the details sit in a drawer under the card that opens under the pointer,
+   under a finger's first tap, or under keyboard focus, and closes when the
+   pointer leaves or a tap lands elsewhere. It is laid over the row below (or
+   above, when the wall ends under it), so nothing else on the wall moves, and
+   its controls are a size a finger can take: they no longer share the card's
+   191 pixels with the words. The card's box is never scaled: the cover is sacred. */
+.tile-drawer {
+  display: none;
+  position: absolute; left: -1px; right: -1px; top: 100%; z-index: 7;
+  background: #171a1f;
+  border: 1px solid var(--tile-frame); border-top: 0;
+  border-radius: 0 0 10px 10px;
+  padding: .5vh 1vw 1vh;
+  box-shadow: 0 1.1vw 2.6vw rgba(0,0,0,.72);
+}
+.grid > .tile:hover .tile-drawer,
+.grid > .tile:focus-within .tile-drawer,
+.grid > .tile.is-open .tile-drawer { display: block; }
+.grid > .tile:hover, .grid > .tile:focus-within, .grid > .tile.is-open {
+  overflow: visible; z-index: 6;
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+}
+/* when the wall ends under the card, the drawer opens upward */
+.grid > .tile.open-up .tile-drawer {
+  top: auto; bottom: 100%;
+  border-top: 1px solid var(--tile-frame); border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  box-shadow: 0 -1.1vw 2.6vw rgba(0,0,0,.72);
+}
+.grid > .tile.open-up:hover, .grid > .tile.open-up:focus-within, .grid > .tile.open-up.is-open {
+  border-radius: 0 0 10px 10px;
+}
+/* the controls, at a size a finger can take */
+.tile-drawer .tile-transport { display: -webkit-flex; display: flex; -webkit-justify-content: center; justify-content: center; margin-top: .2vh; }
+.tile-drawer .tt { width: 3vw; height: 3vw; }
+.tile-drawer .tt-glyph { width: 1.25vw; height: 1.25vw; }
+.tile-drawer .ta { width: 2.5vw; height: 2.5vw; }
+.tile-drawer .ta .tt-glyph { width: 1.1vw; height: 1.1vw; }
+.tile-drawer .tile-rule.vol { height: 7px; }
+.tile-drawer .tile-vol-mark .tt-glyph { width: 1vw; height: 1vw; }
+.tile-drawer .tile-t { font-size: .8vw; }
+.tile-drawer .tile-state { font-size: .78vw; }
+.tile-drawer .tile-detail { font-size: .78vw; white-space: normal; }
+/* and the card at rest, with the room the transport used to take: the words, and the art */
+.wall[data-rows] .grid > .tile .tile-art { width: 9vh; height: 9vh; }
+.wall[data-rows] .grid > .tile .tile-title { -webkit-line-clamp: 2; font-size: 1.15vw; }
+.wall[data-rows] .grid > .tile .tile-line2 { font-size: .82vw; }
+.wall[data-rows] .grid > .tile .tile-zone { font-size: .82vw; }
+.wall[data-rows] .grid > .tile .tile-t { font-size: .72vw; }
+.wall[data-rows] .grid > .tile:hover .tile-title, .wall[data-rows] .grid > .tile.is-open .tile-title { -webkit-line-clamp: 3; }
+

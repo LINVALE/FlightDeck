@@ -515,7 +515,7 @@ function buildTile(zone) {
   var repB = act('repeat', 'repeat', 'repeat');
   transport.appendChild(shufB); transport.appendChild(prevB); transport.appendChild(playB);
   transport.appendChild(nextB); transport.appendChild(repB);
-  copy.appendChild(title); copy.appendChild(line2); copy.appendChild(transport);
+  copy.appendChild(title); copy.appendChild(line2);
   now.appendChild(art); now.appendChild(copy);
 
   /* ── two bars, each the full width of the card, each with its reading ───── */
@@ -637,9 +637,45 @@ function buildTile(zone) {
   actions.appendChild(openB); actions.appendChild(infoB);
 
   var body = el('div', 'tile-body');
-  body.appendChild(now); body.appendChild(progress); body.appendChild(volLine);
-  body.appendChild(actions); body.appendChild(openAs); body.appendChild(detail);
-  tile.appendChild(head); tile.appendChild(body);
+  /**
+   * ⚖️ A CARD AT REST READS; A CARD REACHED FOR OPENS (Peter, 09-06: "with four
+   * rows the metadata lines become totally compressed and unreadable — in the
+   * compressed state that is more important than the bottom line; on hovering
+   * expand the card so all controls can be seen and touched easily; the rest
+   * of the time just show metadata, playing state and position, no controls").
+   * The card carries the room, the music and the position. The transport, the
+   * volume, the actions, the ways in and the details live in a DRAWER that
+   * opens under the pointer, under a finger's first tap, or under keyboard
+   * focus — larger than they ever were on the card, since they no longer share
+   * its height. A drawer that would run off the wall opens upward instead. The
+   * card's box is never scaled: the cover is sacred.
+   */
+  var drawer = el('div', 'tile-drawer');
+  drawer.appendChild(transport); drawer.appendChild(volLine);
+  drawer.appendChild(actions); drawer.appendChild(openAs); drawer.appendChild(detail);
+  body.appendChild(now); body.appendChild(progress);
+  tile.appendChild(head); tile.appendChild(body); tile.appendChild(drawer);
+  // Placed on every way in — a pointer, a mouse, a finger's tap, the keyboard —
+  // because a pointer entering under some drivers raises only one of these.
+  var place = function () { placeDrawer(tile, drawer); };
+  tile.addEventListener('pointerenter', place);
+  tile.addEventListener('mouseenter', place);
+  tile.addEventListener('mouseover', function (event) { if (!tile.classList.contains('placed')) { tile.classList.add('placed'); place(); } });
+  tile.addEventListener('mouseleave', function () { tile.classList.remove('placed'); });
+  tile.addEventListener('focusin', place);
+  // A finger has no hover: its first tap opens the drawer; a second tap on the
+  // open card leaves for the Face, as a click does.
+  var lastTouchAt = 0;
+  tile.addEventListener('touchstart', function () { lastTouchAt = Date.now(); }, { passive: true });
+  tile.addEventListener('click', function (event) {
+    // The browser says whether a click came from a finger; the touch's own
+    // timing is the fallback for an engine that does not.
+    var fromFinger = event.sourceCapabilities ? event.sourceCapabilities.firesTouchEvents === true : Date.now() - lastTouchAt < 700;
+    if (fromFinger && !tile.classList.contains('is-open')) {
+      event.preventDefault(); event.stopPropagation();
+      openCard(tile, drawer);
+    }
+  });
   return {
     node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
     line2: line2, fill: fill, stamp: stamp, hideB: hideB, state: state, check: check,
@@ -676,6 +712,38 @@ function stopPullPick() {
   pendingPull = null;
   root.classList.remove('is-pulling');
 }
+
+/** Which way the drawer opens: down, unless it would run off the wall, then up. */
+function placeDrawer(tile, drawer) {
+  var wall = grid.getBoundingClientRect();
+  // Measured as it will open, downward: the hover style may not have landed
+  // yet when mouseenter fires, so the drawer is shown for the measurement.
+  tile.classList.remove('open-up');
+  var forced = getComputedStyle(drawer).display === 'none';
+  if (forced) drawer.style.display = 'block';
+  var below = drawer.getBoundingClientRect();
+  if (forced) drawer.style.display = '';
+  if (below.height === 0) return;
+  if (below.bottom > wall.bottom - 2) tile.classList.add('open-up');
+}
+
+function openCard(tile, drawer) {
+  closeOpenCards(tile);
+  tile.classList.add('is-open');
+  placeDrawer(tile, drawer);
+}
+
+function closeOpenCards(except) {
+  var open = grid.querySelectorAll('.tile.is-open');
+  for (var i = 0; i < open.length; i += 1) if (open[i] !== except) open[i].classList.remove('is-open');
+}
+
+// A tap anywhere else on the wall closes an open card.
+document.addEventListener('click', function (event) {
+  var node = event.target;
+  while (node && node !== document.body) { if (node.classList && node.classList.contains('is-open')) return; node = node.parentNode; }
+  closeOpenCards(null);
+}, true);
 
 function activateTile(zoneId) {
   if (showHiddenMode) { toggleHidden(zoneId); return true; }
@@ -1167,7 +1235,11 @@ function render(snapshot, kind) {
       var tile = tiles[zone.id];
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
-      tile.node.className = classFor(zone, isHero);
+      // A paint rewrites the state classes; the classes a hand put there — a
+      // card opened by a finger, a drawer turned upward — must survive it.
+      var kept = (tile.node.classList.contains('is-open') ? ' is-open' : '')
+        + (tile.node.classList.contains('open-up') ? ' open-up' : '');
+      tile.node.className = classFor(zone, isHero) + kept;
       var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zone.id;
       tile.node.href = '/face/' + encodeURIComponent(faceId);
       tile.node.setAttribute('data-zone', zone.id);
