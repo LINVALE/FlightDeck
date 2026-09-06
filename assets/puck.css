@@ -293,6 +293,13 @@ body {
   pointer-events: none;
 }
 .puck[data-outside="1"] .outside { display: -webkit-flex; display: flex; }
+/* On a phone held upright the outside is BELOW the circle, and its marks are
+   sized in px — a phone's vh is a very small unit lying down. */
+.puck[data-outside="2"] .outside { display: -webkit-flex; display: flex; top: auto; bottom: 16px; bottom: calc(env(safe-area-inset-bottom) + 16px); left: 16px; right: 16px; }
+.puck[data-phone="1"] .outside .homemark, .puck[data-phone="1"] .outside .cog {
+  padding: 10px 14px; min-height: 24px; font-size: 12px;
+}
+.puck[data-phone="1"] .outside .homemark .glyph { width: 20px; height: 20px; }
 .outside .homemark, .outside .cog {
   pointer-events: auto;
   display: -webkit-inline-flex; display: inline-flex;

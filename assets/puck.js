@@ -8,6 +8,7 @@ import { nextStop } from './puck-axis.js';
 import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle, levelForDrag } from './volume-gate.js';
 import { readPalette, luminance } from './sleeve-palette.js';
+import { decideUi } from './screen-shape.js';
 
 /**
  * THE PUCK — one face at two sizes.
@@ -219,13 +220,28 @@ room.appendChild(roomName);
  * is an outside (a browser, a television), never on the device, and never
  * repeating a control the puck already has.
  */
+/**
+ * ⚖️ THE PUCK ON A PHONE (Peter, 09-06: "the puck interface should also work
+ * on the phone screen — an option; not fully refined yet but close, and it
+ * will help planning for actual puck use"). The glass already sizes itself
+ * from the short side; what a phone needs is a way in (the remote's rooms
+ * sheet) and a way back. On a phone the outside chrome sits BELOW the circle
+ * — there is no room beside it — and reads "← all rooms" and "remote",
+ * because a phone's home is the phone wall and its other view of this room
+ * is the remote, not a television's faces.
+ */
+var uiStorage = null;
+try { uiStorage = window.localStorage; } catch (e) { uiStorage = null; }
+var ON_PHONE = decideUi(window, location.search, uiStorage) === 'phone';
+if (ON_PHONE) root.setAttribute('data-phone', '1');
+
 var outside = el('div', 'outside');
 var homeMark = el('span', 'homemark');
 homeMark.appendChild(glyph('back'));
-homeMark.setAttribute('title', 'back to every room');
-homeMark.setAttribute('aria-label', 'go to the whole house');
-var faceDoor = el('span', 'cog', 'faces');
-faceDoor.setAttribute('title', 'this room on the screen, and its other faces');
+homeMark.setAttribute('title', ON_PHONE ? 'all rooms' : 'back to every room');
+homeMark.setAttribute('aria-label', ON_PHONE ? 'all rooms' : 'go to the whole house');
+var faceDoor = el('span', 'cog', ON_PHONE ? 'remote' : 'faces');
+faceDoor.setAttribute('title', ON_PHONE ? 'this room as the remote' : 'this room on the screen, and its other faces');
 outside.appendChild(homeMark);
 outside.appendChild(faceDoor);
 /**
@@ -342,10 +358,13 @@ function layout() {
   rig.style.setProperty('--glass', String(glassPx) + 'px');
   rig.style.setProperty('--bezel-w', String(bezelPx) + 'px');
   rig.style.setProperty('--u', String(glassPx / 100) + 'px');
-  // An OUTSIDE exists only where the viewport is wider than the puck: a
-  // browser or a television. On the device the puck is the whole screen.
-  var outsidePx = (window.innerWidth - (glassPx + 2 * bezelPx)) / 2;
-  root.setAttribute('data-outside', outsidePx >= 72 ? '1' : '0');
+  // An OUTSIDE exists only where the viewport is wider than the puck (a
+  // browser, a television: chrome beside it) or, on a phone held upright,
+  // taller than it (chrome below it). On the device the puck is the whole screen.
+  var rigNow = glassPx + 2 * bezelPx;
+  var outsidePx = (window.innerWidth - rigNow) / 2;
+  var belowPx = (window.innerHeight - rigNow) / 2;
+  root.setAttribute('data-outside', outsidePx >= 72 ? '1' : (ON_PHONE && belowPx >= 48 ? '2' : '0'));
 }
 
 window.addEventListener('resize', layout);
@@ -1120,7 +1139,8 @@ function forgetPuckAsFace() {
 function goHome() {
   forgetPuckAsFace();
   haptic(10);
-  window.location.href = '/';
+  // A phone's home is the phone wall; a screen's is the Wall.
+  window.location.href = ON_PHONE ? '/phone' : '/';
 }
 
 /**
@@ -1151,6 +1171,15 @@ faceDoor.addEventListener('click', function (event) {
   event.stopPropagation();
   forgetPuckAsFace();
   var token = wantedSlug !== '' ? wantedSlug : (boundOutputId !== null ? boundOutputId : '');
+  // On a phone the door leads to this room's remote, not to a television's
+  // faces — by the ZONE the puck is showing, which is what the remote resolves
+  // (an output id is not).
+  if (ON_PHONE) {
+    var here = currentZone();
+    var room = here !== null ? here.id : wantedSlug;
+    window.location.href = '/phone' + (room === '' ? '' : '/' + encodeURIComponent(room));
+    return;
+  }
   window.location.href = token === '' ? '/face' : '/face/' + encodeURIComponent(token);
 });
 press(btnUp, function () { axis(-1); });

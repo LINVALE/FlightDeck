@@ -56,3 +56,15 @@ test('the remote has ways into the library and the queue, as sheets, on the same
   assert.doesNotMatch(PHONE, /if \(sheetMode !== null\) buildSheet\(\);/);
   assert.match(PHONE, /input\.value = browse\.query;/, 'the query survives the redraw that brings its results');
 });
+
+// Peter 09-06: "the puck interface should also work on the phone screen — an option"
+test('the puck is an option on a phone: a way in from the remote, and a way back below the circle', () => {
+  const PUCK = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'puck.js'), 'utf8');
+  const PUCK_CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'puck.css'), 'utf8');
+  assert.match(PHONE, /acts\.appendChild\(act\('puck', 'puck', here !== null, function \(\) \{\s*var output = here\.outputs\.length > 0 \? here\.outputs\[0\]\.id : here\.id;\s*location\.href = '\/puck\/' \+ encodeURIComponent\(output\);/, 'the rooms sheet opens this room as the puck, by its durable output');
+  assert.match(PUCK, /var ON_PHONE = decideUi\(window, location\.search, uiStorage\) === 'phone';/);
+  assert.match(PUCK, /root\.setAttribute\('data-outside', outsidePx >= 72 \? '1' : \(ON_PHONE && belowPx >= 48 \? '2' : '0'\)\);/, 'on a phone held upright the outside is below the circle');
+  assert.match(PUCK, /window\.location\.href = ON_PHONE \? '\/phone' : '\/';/, 'a phone\'s home is the phone wall');
+  assert.match(PUCK, /if \(ON_PHONE\) \{\s*var here = currentZone\(\);\s*var room = here !== null \? here\.id : wantedSlug;\s*window\.location\.href = '\/phone' \+ \(room === '' \? '' : '\/' \+ encodeURIComponent\(room\)\);/, 'the door leads to the remote by the ZONE, which the remote resolves');
+  assert.match(PUCK_CSS, /\.puck\[data-outside="2"\] \.outside \{ display: -webkit-flex; display: flex; top: auto; bottom: 16px;/);
+});

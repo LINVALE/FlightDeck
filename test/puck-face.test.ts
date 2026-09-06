@@ -601,15 +601,16 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   // ⚖️ NOTHING ON THE PUCK GOES BACK TO THE WALL (Peter, 09-05): the return and the face options live OUTSIDE it
   assert.doesNotMatch(JS, /btnHome|glyph\('return'\)|btn-home/, 'no way back on the puck itself');
   assert.match(JS, /var outside = el\('div', 'outside'\);\s*var homeMark = el\('span', 'homemark'\);\s*homeMark\.appendChild\(glyph\('back'\)\);/, 'the Face\'s own mark, in the page\'s chrome');
-  assert.match(JS, /var faceDoor = el\('span', 'cog', 'faces'\);/, 'and its faces door');
+  assert.match(JS, /var faceDoor = el\('span', 'cog', ON_PHONE \? 'remote' : 'faces'\);/, 'and its faces door');
   assert.match(JS, /root\.appendChild\(rig\);\s*root\.appendChild\(outside\);/, 'outside the rig, not on the glass');
-  assert.match(JS, /root\.setAttribute\('data-outside', outsidePx >= 72 \? '1' : '0'\);/, 'only where the viewport is wider than the puck');
+  assert.match(JS, /root\.setAttribute\('data-outside', outsidePx >= 72 \? '1' : \(ON_PHONE && belowPx >= 48 \? '2' : '0'\)\);/,
+    'only where the viewport is wider than the puck — or, on a phone held upright, taller than it');
   assert.match(JS, /faceDoor\.addEventListener\('click', function \(event\) \{\s*event\.stopPropagation\(\);\s*forgetPuckAsFace\(\);/, 'the Face must not turn straight round');
   assert.match(CSS, /\.puck\[data-outside="1"\] \.outside \{ display: -webkit-flex; display: flex; \}/);
   assert.doesNotMatch(CSS, /\.btn-home/);
   assert.ok(hasGlyph('back'));
   assert.match(JS, /roomName\.textContent = zone\.name;/);
-  assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = '\/';/);
+  assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = ON_PHONE \? '\/phone' : '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
   assert.ok(hasGlyph('return'));
   assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\.5\); \}/);

@@ -54,6 +54,7 @@ function glyph(name) {
     search: ['M10.5 4.8a5.7 5.7 0 1 1 0 11.4a5.7 5.7 0 0 1 0-11.4', 'M14.8 14.8 19.3 19.3'],
     queue: ['M5 7h14', 'M5 12h14', 'M5 17h9'],
     back: ['M14.5 6 8.5 12l6 6'],
+    puck: ['M12 3.5a8.5 8.5 0 1 1 0 17a8.5 8.5 0 0 1 0-17', 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 0 1 0-7'],
     shuffle: [
       'M3.6 7.5h2.7c1.8 0 2.9 1.2 3.9 2.8l2.2 3.4c1 1.6 2.1 2.8 3.9 2.8h3.2',
       'M3.6 16.5h2.7c1.8 0 2.9-1.2 3.9-2.8l2.2-3.4c1-1.6 2.1-2.8 3.9-2.8h3.2',
@@ -994,6 +995,12 @@ function buildSheet() {
     }));
     acts.appendChild(act('send-to', 'send to…', here !== null && here.nowPlaying !== null,
       function () { openSheet('transfer'); }));
+    // ⚖️ THE PUCK AS AN OPTION (Peter, 09-06): this room as the knob, by its
+    // durable output, the way the Wall opens one.
+    acts.appendChild(act('puck', 'puck', here !== null, function () {
+      var output = here.outputs.length > 0 ? here.outputs[0].id : here.id;
+      location.href = '/puck/' + encodeURIComponent(output);
+    }));
     nodes.push(acts);
 
     for (var r = 0; r < zones.length; r += 1) {
