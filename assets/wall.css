@@ -808,18 +808,14 @@ body { min-height: 100vh; }
    back into it. Four rows is the crowded case the small sizes were tuned for. */
 .wall[data-rows="3"] .grid > .tile .tile-art { width: 10.5vh; height: 10.5vh; }
 .wall[data-rows="2"] .grid > .tile .tile-art { width: 17vh; height: 17vh; }
-.wall[data-rows="1"] .grid > .tile .tile-art { width: 30vh; height: 30vh; }
 .wall[data-rows="3"] .grid > .tile .tile-title { font-size: 1.1vw; }
 .wall[data-rows="2"] .grid > .tile .tile-title { font-size: 1.35vw; }
-.wall[data-rows="1"] .grid > .tile .tile-title { font-size: 1.7vw; }
 .tt, .ta { width: 1.75vw; height: 1.75vw; }
 .tt-glyph, .ta .tt-glyph { width: .8vw; height: .8vw; }
 .wall[data-rows="3"] .tt, .wall[data-rows="3"] .ta { width: 1.95vw; height: 1.95vw; }
 .wall[data-rows="2"] .tt, .wall[data-rows="2"] .ta { width: 2.3vw; height: 2.3vw; }
-.wall[data-rows="1"] .tt, .wall[data-rows="1"] .ta { width: 2.85vw; height: 2.85vw; }
 .wall[data-rows="3"] .tt-glyph, .wall[data-rows="3"] .ta .tt-glyph { width: .9vw; height: .9vw; }
 .wall[data-rows="2"] .tt-glyph, .wall[data-rows="2"] .ta .tt-glyph { width: 1.05vw; height: 1.05vw; }
-.wall[data-rows="1"] .tt-glyph, .wall[data-rows="1"] .ta .tt-glyph { width: 1.3vw; height: 1.3vw; }
 
 /* With three rows the card has 240px, not 177, so the sleeve takes the height
    back rather than leaving it pooled above the foot as a void. The music block
@@ -829,7 +825,7 @@ body { min-height: 100vh; }
    long title but never grows past the art. That is what puts the transport on
    the sleeve's baseline — stretched to a block that had grown, the words column
    was 21-31px taller than the picture and the controls hung below it. */
-.wall[data-rows="1"] .tile-now, .wall[data-rows="2"] .tile-now, .wall[data-rows="3"] .tile-now {
+.wall[data-rows="2"] .tile-now, .wall[data-rows="3"] .tile-now {
   -webkit-flex: 0 1 auto; flex: 0 1 auto;
 }
 /* The room strip remains the card's fixed top line. A body beneath it owns the
@@ -840,7 +836,6 @@ body { min-height: 100vh; }
   -webkit-flex-direction: column; flex-direction: column;
   -webkit-flex: 1 1 auto; flex: 1 1 auto; min-height: 0;
 }
-.wall[data-rows="1"] .tile-body,
 .wall[data-rows="2"] .tile-body,
 .wall[data-rows="3"] .tile-body {
   -webkit-justify-content: center; justify-content: center;
@@ -897,8 +892,6 @@ body { min-height: 100vh; }
 .wall[data-rows="3"] .tt.play .tt-glyph { width: 1.08vw; height: 1.08vw; }
 .wall[data-rows="2"] .tt.play { width: 2.75vw; height: 2.75vw; }
 .wall[data-rows="2"] .tt.play .tt-glyph { width: 1.28vw; height: 1.28vw; }
-.wall[data-rows="1"] .tt.play { width: 3.35vw; height: 3.35vw; }
-.wall[data-rows="1"] .tt.play .tt-glyph { width: 1.58vw; height: 1.58vw; }
 
 /* ══ OPEN AS ═════════════════════════════════════════════════════════════════
    The other two clients have no entry point anywhere else: /phone shipped and
@@ -941,17 +934,20 @@ body { min-height: 100vh; }
   padding: .5vh 1vw 1vh;
   box-shadow: 0 1.1vw 2.6vw rgba(0,0,0,.72);
 }
-.grid > .tile:hover .tile-drawer,
-.grid > .tile:focus-within .tile-drawer,
-.grid > .tile.is-open .tile-drawer { display: block; }
-.grid > .tile:hover, .grid > .tile:focus-within, .grid > .tile.is-open {
+/* ⚖️ Only a wall of three rows or more has a drawer (`data-drawer`, set by
+   wall.js from the size class). At two rows or fewer the controls sit in the
+   card as they always did and nothing opens. */
+.wall[data-drawer] .grid > .tile:hover .tile-drawer,
+.wall[data-drawer] .grid > .tile:focus-within .tile-drawer,
+.wall[data-drawer] .grid > .tile.is-open .tile-drawer { display: block; }
+.wall[data-drawer] .grid > .tile:hover, .wall[data-drawer] .grid > .tile:focus-within, .wall[data-drawer] .grid > .tile.is-open {
   overflow: visible; z-index: 6;
   border-bottom-left-radius: 0; border-bottom-right-radius: 0;
 }
 /* When the wall ends under the card, the card RISES by what the drawer would
    overrun (wall.js measures it into --rise) and the drawer fills the place it
    left: the same orientation as every other row, words above controls. */
-.grid > .tile.open-up:hover, .grid > .tile.open-up:focus-within, .grid > .tile.open-up.is-open {
+.wall[data-drawer] .grid > .tile.open-up:hover, .wall[data-drawer] .grid > .tile.open-up:focus-within, .wall[data-drawer] .grid > .tile.open-up.is-open {
   top: var(--rise, 0);
 }
 /* the controls, at a size a finger can take */
@@ -966,10 +962,10 @@ body { min-height: 100vh; }
 .tile-drawer .tile-state { font-size: .78vw; }
 .tile-drawer .tile-detail { font-size: .78vw; white-space: normal; }
 /* and the card at rest, with the room the transport used to take: the words, and the art */
-.wall[data-rows] .grid > .tile .tile-art { width: 9vh; height: 9vh; }
-.wall[data-rows] .grid > .tile .tile-title { -webkit-line-clamp: 2; font-size: 1.15vw; }
-.wall[data-rows] .grid > .tile .tile-line2 { font-size: .82vw; }
-.wall[data-rows] .grid > .tile .tile-zone { font-size: .82vw; }
-.wall[data-rows] .grid > .tile .tile-t { font-size: .72vw; }
-.wall[data-rows] .grid > .tile:hover .tile-title, .wall[data-rows] .grid > .tile.is-open .tile-title { -webkit-line-clamp: 3; }
+.wall[data-drawer] .grid > .tile .tile-art { width: 9vh; height: 9vh; }
+.wall[data-drawer] .grid > .tile .tile-title { -webkit-line-clamp: 2; font-size: 1.15vw; }
+.wall[data-drawer] .grid > .tile .tile-line2 { font-size: .82vw; }
+.wall[data-drawer] .grid > .tile .tile-zone { font-size: .82vw; }
+.wall[data-drawer] .grid > .tile .tile-t { font-size: .72vw; }
+.wall[data-drawer] .grid > .tile:hover .tile-title, .wall[data-drawer] .grid > .tile.is-open .tile-title { -webkit-line-clamp: 3; }
 

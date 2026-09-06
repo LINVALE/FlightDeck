@@ -671,7 +671,7 @@ function buildTile(zone) {
     // The browser says whether a click came from a finger; the touch's own
     // timing is the fallback for an engine that does not.
     var fromFinger = event.sourceCapabilities ? event.sourceCapabilities.firesTouchEvents === true : Date.now() - lastTouchAt < 700;
-    if (fromFinger && !tile.classList.contains('is-open')) {
+    if (fromFinger && root.hasAttribute('data-drawer') && !tile.classList.contains('is-open')) {
       event.preventDefault(); event.stopPropagation();
       openCard(tile, drawer);
     }
@@ -685,8 +685,33 @@ function buildTile(zone) {
     ungroupB: ungroupB,
     shufB: shufB, repB: repB,
     detail: detail,
+    copy: copy, body: body, drawer: drawer, transport: transport, volLine: volLine, actions: actions, openAs: openAs,
+    housed: null,
     artKey: null, artPath: null, artReady: false, chips: []
   };
+}
+
+/**
+ * ⚖️ TWO HOMES FOR THE CONTROLS (Peter, 09-06: "two rows or less look too
+ * spread out — keep the old layout for that"). At three rows or more the words
+ * need the whole card, so the transport, the level, the actions and the details
+ * live in the drawer that opens under the pointer. At two rows or fewer the card
+ * has room for all of it and a drawer only spread the wall out — so the controls
+ * sit in the card as they always did: the transport under the credit beside the
+ * sleeve, the rest below the progress bar.
+ */
+function houseControls(t, drawerMode) {
+  if (t.housed === drawerMode) return;
+  t.housed = drawerMode;
+  if (drawerMode) {
+    t.drawer.appendChild(t.transport); t.drawer.appendChild(t.volLine);
+    t.drawer.appendChild(t.actions); t.drawer.appendChild(t.openAs); t.drawer.appendChild(t.detail);
+  } else {
+    t.node.classList.remove('is-open'); t.node.classList.remove('open-up'); t.node.style.removeProperty('--rise');
+    t.copy.appendChild(t.transport);
+    t.body.appendChild(t.volLine); t.body.appendChild(t.actions);
+    t.body.appendChild(t.openAs); t.body.appendChild(t.detail);
+  }
 }
 
 /** Where a level press goes: one room sets its own, a group moves as one. */
@@ -760,6 +785,17 @@ function activateTile(zoneId) {
   if (pendingSend !== null) { finishSend(zoneId); return true; }
   if (selectMode) { tapToggle(zoneId); return true; }
   return false;
+}
+
+function unhideAll() {
+  if (hiddenSlots.length === 0) return;
+  hiddenSlots = [];
+  persistHidden();
+  showHiddenMode = false;
+  tabsKey = '';
+  resetWallOrder();
+  var snapshot = store.snapshot();
+  if (snapshot !== null) render(snapshot, 'snapshot');
 }
 
 function toggleHidden(zoneId) {
@@ -1174,6 +1210,7 @@ function render(snapshot, kind) {
     reorderBtn.hidden = selectMode || showHiddenMode || inTab.length < 2;
     groupAllBtn.hidden = selectMode || reorderMode || showHiddenMode || familyZones.length < 2;
     ungroupAllBtn.hidden = selectMode || reorderMode || showHiddenMode || familyGroups === 0;
+    unhideAllBtn.hidden = !showHiddenMode;
     var held = holdOrder(inTab);
     // A TV cannot scroll, so density scales with what is on the page.
     var shown = MAX_TILES === 0 ? held : held.slice(0, MAX_TILES);
@@ -1222,16 +1259,23 @@ function render(snapshot, kind) {
      * inside it stays the size it is on a full wall.
      */
     var capped = count < 4;
+    // ⚖️ A ONE-ROW WALL KEEPS THE HALF-HEIGHT CARD (Peter, 09-06: "with one row
+    // don't expand the card — keep to the same height, half the view height").
+    var half = capped || rows === 1;
     var colPct = capped ? Math.min(100 / cols, 100 / 3) : 100 / cols;
     grid.style.gridTemplateColumns = capped
       ? 'repeat(' + cols + ', ' + colPct.toFixed(4) + '%)'
       : 'repeat(' + cols + ', 1fr)';
-    grid.style.gridAutoRows = (capped ? 50 : 100 / rows).toFixed(4) + '%';
-    // Centred only while the cards are capped: the full wall fills its tracks,
-    // and centring a grid that SCROLLS can put its first row out of reach.
+    grid.style.gridAutoRows = (half ? 50 : 100 / rows).toFixed(4) + '%';
+    // Centred only while the cards are short of the wall: the full wall fills its
+    // tracks, and centring a grid that SCROLLS can put its first row out of reach.
     grid.style.justifyContent = capped ? 'center' : '';
-    grid.style.alignContent = capped ? 'center' : '';
-    root.setAttribute('data-rows', String(capped ? 2 : rows));
+    grid.style.alignContent = half ? 'center' : '';
+    var rowsClass = half ? 2 : rows;
+    root.setAttribute('data-rows', String(rowsClass));
+    // ⚖️ THE DRAWER IS FOR THREE ROWS OR MORE; two or fewer keep the old card.
+    var drawerMode = rowsClass >= 3;
+    if (drawerMode) root.setAttribute('data-drawer', '1'); else root.removeAttribute('data-drawer');
     // Density follows what is ON THE PAGE, which is now a family rather than the
     // house: three rooms in a tab should look like three rooms, not like a corner
     // of twenty-two.
@@ -1242,6 +1286,7 @@ function render(snapshot, kind) {
       var zone = shown[i];
       var tile = tiles[zone.id];
       if (tile === undefined) { tile = buildTile(zone); tiles[zone.id] = tile; }
+      houseControls(tile, drawerMode);
       var isHero = i === 0 && (zone.state === 'playing' || zone.state === 'loading');
       // A paint rewrites the state classes; the classes a hand put there — a
       // card opened by a finger, a drawer turned upward — must survive it.
@@ -1525,6 +1570,14 @@ ungroupAllBtn.hidden = true;
 ungroupAllBtn.setAttribute('title', 'ungroup every group in this device family');
 ungroupAllBtn.setAttribute('aria-label', 'ungroup every group in this device family');
 tap(ungroupAllBtn, beginUngroupAll);
+/** On the hidden-cards page: every hidden room back on the wall in one press (Peter, 09-06). */
+var unhideAllBtn = el('span', 'wall-act');
+unhideAllBtn.appendChild(glyph('restore'));
+unhideAllBtn.appendChild(el('span', 'wall-act-label', 'unhide all'));
+unhideAllBtn.hidden = true;
+unhideAllBtn.setAttribute('title', 'put every hidden room card back on the wall');
+unhideAllBtn.setAttribute('aria-label', 'put every hidden room card back on the wall');
+tap(unhideAllBtn, unhideAll);
 var pauseAllBtn = el('span', 'wall-act wall-pause-all');
 pauseAllBtn.appendChild(glyph('pause'));
 pauseAllBtn.appendChild(el('span', 'wall-act-label', 'pause all'));
@@ -1561,6 +1614,7 @@ tap(pauseAllBtn, pauseAllOnWall);
     cluster.appendChild(groupBtn);
     cluster.appendChild(groupAllBtn);
     cluster.appendChild(ungroupAllBtn);
+cluster.appendChild(unhideAllBtn);
     head.appendChild(cluster);
   }
 })();
