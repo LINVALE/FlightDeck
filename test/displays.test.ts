@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { DisplayRegistry, IDLE_DELAY_MINUTES } from '../src/displays/registry.ts';
+import { DisplayRegistry, IDLE_DELAY_MINUTES, normaliseScreen } from '../src/displays/registry.ts';
 
 const AT = '2026-08-26T20:00:00.000Z';
 const NOW = Date.parse(AT);
@@ -87,4 +87,33 @@ test('an id that is absurd is refused, so a stray request cannot fill the regist
   const store = new DisplayRegistry(null);
   assert.equal(store.see('', 'x', AT), null);
   assert.equal(store.see('x'.repeat(200), 'x', AT), null);
+});
+
+// Peter 09-06: a Fire TV fell into the phone layout and nothing could say what
+// its browser had reported. Now the hello carries the screen's own account.
+test('a screen\'s report is kept across restarts and across heartbeats that carry none', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fd-display-screen-'));
+  const first = new DisplayRegistry(dir);
+  const silk = { width: 960, height: 540, agent: 'Mozilla/5.0 (Linux; Android 9; AFTKA) Silk/120', page: 'face', shape: 'tv' };
+  assert.equal(first.see('tv1', 'theater', AT, silk)?.screen?.width, 960);
+  const quiet = first.see('tv1', 'theater', AT);            // a plain heartbeat
+  assert.equal(quiet?.screen?.agent, silk.agent, 'a hello with no report keeps the last one');
+
+  const second = new DisplayRegistry(dir);
+  assert.deepEqual(second.get('tv1')?.screen, silk, 'the report survives a restart');
+  const phone = { width: 390, height: 844, agent: 'iPhone', page: 'phone', shape: 'phone' };
+  assert.equal(second.see('tv1', 'theater', AT, phone)?.screen?.shape, 'phone', 'a new report replaces the old');
+  assert.equal(new DisplayRegistry(dir).get('tv1')?.screen?.width, 390, 'and is written on change');
+});
+
+test('a screen report from the wire is bounded, and nonsense is no report at all', () => {
+  assert.equal(normaliseScreen(null), null);
+  assert.equal(normaliseScreen({ width: 'wide', height: 3 }), null, 'no width, no report');
+  assert.equal(normaliseScreen({ width: 0, height: 100 }), null);
+  const long = normaliseScreen({ width: 1920.4, height: 1080, agent: 'x'.repeat(500), page: 'tablet', shape: 'fridge' });
+  assert.equal(long?.width, 1920);
+  assert.equal(long?.agent.length, 160, 'the agent string is trimmed');
+  assert.equal(long?.page, '', 'an unknown page is no page');
+  assert.equal(long?.shape, '', 'an unknown shape is no shape');
+  assert.equal(normaliseScreen({ width: 1, height: 1, page: 'wall', shape: 'tv' })?.page, 'wall');
 });

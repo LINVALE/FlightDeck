@@ -6,7 +6,8 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderPhonePage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { renderDocPage, renderFacePage, renderPhonePage, renderPhoneWallPage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { normaliseScreen, type DisplayScreen } from '../displays/registry.ts';
 import { PullError, type PullOutcome, type PullRequest } from '../control/pull.ts';
 import { QUEUE_MAX_ITEMS, QueueError, type QueueSnapshot } from '../roon/queue.ts';
 
@@ -82,7 +83,7 @@ export interface ServerDeps {
   readonly onIslandLabelled?: () => void;
   /** The screens on record, and what each is locked to. */
   readonly displays?: {
-    see(id: string, name: string, at: string): {
+    see(id: string, name: string, at: string, screen?: DisplayScreen | null): {
       id: string;
       name: string;
       outputId: string | null;
@@ -277,7 +278,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       void readJson(request).then((body) => {
         const id = typeof body?.id === 'string' ? body.id : '';
         const name = typeof body?.name === 'string' ? body.name : '';
-        const record = registry.see(id, name, new Date().toISOString());
+        const record = registry.see(id, name, new Date().toISOString(), normaliseScreen(body?.screen));
         json(response, record === null ? 400 : 200,
           record === null ? { error: 'display not accepted' } : {
             output: record.outputId,
@@ -432,10 +433,16 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       html(response, 200, renderWallPage(nonce, deps.urls(), assetVersion(deps.assetDir, 'wall')), nonce);
       return;
     }
-    // The PHONE: the remote in a pocket. /phone holds what it last held;
-    // /phone/study pins it to a room by name, same resolution as /face/.
-    if (path === '/phone' || path === '/phone/' || path.startsWith('/phone/')) {
-      const token = path.startsWith('/phone/') ? decodeURIComponent(path.slice('/phone/'.length)) : '';
+    // The PHONE WALL: the house in one column, for a thumb (Peter, 09-06). The
+    // bare address is the wall; a room's address below it is the remote.
+    if (path === '/phone' || path === '/phone/') {
+      html(response, 200, renderPhoneWallPage(nonce, assetVersion(deps.assetDir, 'phone-wall')), nonce);
+      return;
+    }
+    // The PHONE: the remote in a pocket. /phone/study pins it to a room by
+    // name, same resolution as /face/.
+    if (path.startsWith('/phone/')) {
+      const token = decodeURIComponent(path.slice('/phone/'.length));
       const snapshot = deps.hub.snapshot();
       const resolved = token === '' || snapshot === null ? null : resolveZone(snapshot.zones, token);
       html(response, 200, renderPhonePage(nonce, resolved ?? '', token, assetVersion(deps.assetDir, 'phone')), nonce);

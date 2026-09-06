@@ -54,7 +54,7 @@ test('every page loads its own client, and the puck answers by name and by pixel
     return await response.text();
   };
 
-  for (const [path, script] of [['/', 'wall'], ['/phone', 'phone'], ['/now', 'face'], ['/puck', 'puck']]) {
+  for (const [path, script] of [['/', 'wall'], ['/phone', 'phone-wall'], ['/phone/study', 'phone'], ['/now', 'face'], ['/puck', 'puck']]) {
     const html = await body(path);
     assert.match(html, new RegExp('src="/assets/' + script + '\\.js(\\?v=[A-Za-z0-9_-]{10})?"'), path + ' must load ' + script + '.js');
   }

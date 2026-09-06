@@ -34,6 +34,46 @@ function normaliseIdleDelay(value: unknown): IdleDelayMinutes {
   return isIdleDelayMinutes(value) ? value : DEFAULT_IDLE_DELAY_MINUTES;
 }
 
+/**
+ * WHAT A SCREEN SAYS IT IS. Recorded so a misfire can be read off the registry
+ * instead of guessed (Peter, 09-06: a Fire TV had fallen into the phone
+ * layout and nothing here could say what its browser had reported).
+ */
+export interface DisplayScreen {
+  /** the CSS viewport the browser laid the page out in */
+  readonly width: number;
+  readonly height: number;
+  /** the browser's own account of itself, trimmed */
+  readonly agent: string;
+  /** which page said hello: wall · face · phone · puck */
+  readonly page: string;
+  /** what that page decided it was standing on: tv · phone */
+  readonly shape: string;
+}
+
+export const MAX_AGENT = 160;
+const PAGES = ['wall', 'face', 'phone', 'puck'];
+const SHAPES = ['tv', 'phone'];
+
+/** A screen report from the wire, bounded; null if it is not one. */
+export function normaliseScreen(value: unknown): DisplayScreen | null {
+  if (value === null || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  const dim = (n: unknown): number => (typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 20000 ? Math.round(n) : 0);
+  const width = dim(raw.width);
+  const height = dim(raw.height);
+  if (width === 0 || height === 0) return null;
+  const page = typeof raw.page === 'string' && PAGES.includes(raw.page) ? raw.page : '';
+  const shape = typeof raw.shape === 'string' && SHAPES.includes(raw.shape) ? raw.shape : '';
+  const agent = typeof raw.agent === 'string' ? raw.agent.replace(/\s+/g, ' ').trim().slice(0, MAX_AGENT) : '';
+  return { width, height, agent, page, shape };
+}
+
+function sameScreen(a: DisplayScreen | null, b: DisplayScreen | null): boolean {
+  if (a === null || b === null) return a === b;
+  return a.width === b.width && a.height === b.height && a.agent === b.agent && a.page === b.page && a.shape === b.shape;
+}
+
 export interface DisplayRecord {
   readonly id: string;
   readonly name: string;
@@ -42,6 +82,8 @@ export interface DisplayRecord {
   readonly outputId: string | null;
   /** Minutes of paused/stopped playback before this screen becomes its idle clock. */
   readonly idleDelayMinutes: IdleDelayMinutes;
+  /** What the screen last said it was; null until a page that reports it says hello. */
+  readonly screen: DisplayScreen | null;
 }
 
 export class DisplayRegistry {
@@ -72,6 +114,7 @@ export class DisplayRegistry {
           lastSeenAt: typeof record.lastSeenAt === 'string' ? record.lastSeenAt : new Date(0).toISOString(),
           outputId: typeof record.outputId === 'string' && record.outputId !== '' ? record.outputId : null,
           idleDelayMinutes,
+          screen: normaliseScreen(record.screen),
         });
       }
       if (migrated) this.save();
@@ -91,8 +134,12 @@ export class DisplayRegistry {
     }
   }
 
-  /** A screen saying hello. Returns what it is bound to, if anything. */
-  see(id: string, name: string, at: string): DisplayRecord | null {
+  /**
+   * A screen saying hello. Returns what it is bound to, if anything. A hello
+   * that carries no report keeps the last one: the report is a fact about the
+   * screen, not about this heartbeat.
+   */
+  see(id: string, name: string, at: string, screen: DisplayScreen | null = null): DisplayRecord | null {
     if (id === '' || id.length > 64) return null;
     const clean = name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
     const existing = this.records.get(id);
@@ -104,8 +151,9 @@ export class DisplayRegistry {
       lastSeenAt: at,
       outputId: existing?.outputId ?? null,
       idleDelayMinutes: existing?.idleDelayMinutes ?? DEFAULT_IDLE_DELAY_MINUTES,
+      screen: screen ?? existing?.screen ?? null,
     };
-    const changed = existing === undefined || existing.name !== record.name;
+    const changed = existing === undefined || existing.name !== record.name || !sameScreen(existing.screen, record.screen);
     this.records.set(id, record);
     // Written on a real change only: a heartbeat every twenty seconds must not
     // rewrite the file every twenty seconds.

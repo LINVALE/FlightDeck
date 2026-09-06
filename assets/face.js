@@ -1,4 +1,5 @@
 import './compat.js';
+import { decideUi, screenReport } from './screen-shape.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { createIdleDelayPolicy } from './idle-delay.js';
@@ -77,6 +78,19 @@ var LAMP_MIN = 24, LAMP_MAX = 96;
 
 var root = document.getElementById('face');
 var picker = document.getElementById('picker');
+/**
+ * ⚖️ A PHONE GETS THE REMOTE (Peter, 09-06). The Face's grammar is a
+ * television's; held in a hand it piles its chrome up (08-29, measured). A
+ * phone-shaped screen is sent to /phone/<room> before anything is built —
+ * short side and pointer, never the user agent; ?ui=tv keeps the Face.
+ */
+var uiStorage = null;
+try { uiStorage = window.localStorage; } catch (e) { uiStorage = null; }
+var screenShape = decideUi(window, location.search, uiStorage);
+if (screenShape === 'phone') {
+  var phoneToken = root.getAttribute('data-zone-slug') || root.getAttribute('data-zone') || '';
+  location.replace('/phone' + (phoneToken === '' ? '' : '/' + encodeURIComponent(phoneToken)));
+}
 // Silk inherits Android's fading overlay scrollbar, which is only a hairline on
 // a television. Mark that browser narrowly so Browse can keep a proper native
 // drag rail without changing the already-good Samsung and desktop renderings.
@@ -180,7 +194,7 @@ function sayHello() {
   if (displayId === null) return;
   fetch('/api/v1/display', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: displayId, name: displayName() }),
+    body: JSON.stringify({ id: displayId, name: displayName(), screen: screenReport(window, 'face', screenShape) }),
   }).then(function (response) {
     return response.ok ? response.json() : null;
   }).then(function (data) {

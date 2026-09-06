@@ -1039,3 +1039,11 @@ test('a refresh keeps a column\'s place and rebuilds nothing when the house is u
   assert.match(FACE, /if \(node\.classList && node\.classList\.contains\('roomcard-drag'\)\) return null;/, 'the grouping handle keeps its own drag');
   assert.match(FACE, /if \(event\.pointerType !== undefined && event\.pointerType !== 'mouse'\) return;/, 'a finger scrolls by itself');
 });
+
+// Peter 09-06: a phone-shaped screen gets the remote; the hello says what the screen is
+test('a phone is sent to the room\'s remote by shape, and the Face reports its screen on hello', () => {
+  assert.match(FACE, /import \{ decideUi, screenReport \} from '\.\/screen-shape\.js';/);
+  assert.match(FACE, /var screenShape = decideUi\(window, location\.search, uiStorage\);\s*if \(screenShape === 'phone'\) \{/);
+  assert.match(FACE, /location\.replace\('\/phone' \+ \(phoneToken === '' \? '' : '\/' \+ encodeURIComponent\(phoneToken\)\)\);/);
+  assert.match(FACE, /screen: screenReport\(window, 'face', screenShape\)/, 'the hello carries width, height, agent, page and shape');
+});

@@ -45,6 +45,29 @@ const FACE_NAMES = [
 const FACE_SUFFIX = new RegExp('^(.*?)\\s*·\\s*(' + FACE_NAMES.join('|') + ')\\s*$', 'i');
 
 /** A registry record remains intact; only its human-facing settings label is cleaned. */
+/** The browser's one-word name, from its own long account of itself. */
+export function browserWord(agent: string): string {
+  if (/\bSilk\//.test(agent)) return 'Silk';
+  if (/\bTizen\b|SMART-TV/i.test(agent)) return 'Samsung';
+  if (/\bWeb0S\b|webOS/i.test(agent)) return 'LG';
+  if (/\bFirefox\//.test(agent)) return 'Firefox';
+  if (/\bEdg\//.test(agent)) return 'Edge';
+  if (/\bChrome\//.test(agent)) return 'Chrome';
+  if (/\bSafari\//.test(agent)) return 'Safari';
+  return agent === '' ? '' : 'browser';
+}
+
+/** "1920×1080 · tv · Silk" — what the screen said it was, or nothing yet. */
+export function screenLine(display: DisplayRecord): string {
+  const screen = display.screen;
+  if (screen === null || screen === undefined) return '';   // a record built before reports existed
+  const parts = [String(screen.width) + '\u00d7' + String(screen.height)];
+  if (screen.shape !== '') parts.push(screen.shape);
+  const word = browserWord(screen.agent);
+  if (word !== '') parts.push(word);
+  return parts.join(' \u00b7 ');
+}
+
 export function physicalDisplayName(display: DisplayRecord): string | null {
   const raw = display.name.replace(/\s+/g, ' ').trim();
   if (raw === '' || raw === display.id || raw === display.id.slice(0, 8)) return null;
@@ -128,7 +151,8 @@ export function buildSettingsLayout(
       out[displayKey] = typeof proposedOutput === 'string' ? proposedOutput : (display.outputId ?? '');
       layout.push({
         type: 'dropdown', title: entry.name + ' · room', values: outputs, setting: displayKey,
-        subtitle: 'last seen ' + display.lastSeenAt.slice(11, 16),
+        subtitle: 'last seen ' + display.lastSeenAt.slice(11, 16)
+          + (screenLine(display) === '' ? '' : ' \u00b7 ' + screenLine(display)),
       });
 
       const saverKey = 'saver:' + display.id;

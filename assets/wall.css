@@ -190,10 +190,11 @@ body { min-height: 100vh; }
 .empty-brand span { color: var(--accent); }
 .empty-title { font-size: 1.1vw; letter-spacing: .18em; text-transform: uppercase; color: var(--bone); }
 .empty-copy { margin-top: .8vh; font-size: .8vw; letter-spacing: .06em; color: var(--dim); }
+/* No phone-shaped card rules behind a width breakpoint any more: a Fire TV
+   whose browser laid the page out narrow fell into them and got a single
+   column of boxes (Peter, 09-06). A phone is sent to /phone by wall.js; a
+   narrow browser on a television keeps the television's cards. */
 @media (max-width: 900px) {
-  .tile { width: 100%; }
-  .tile.is-live .tile-art { width: 18vw; height: 18vw; }
-  .tile-title { font-size: 4vw; } .tile-zone { font-size: 2.6vw; } .tile-line2 { font-size: 2.6vw; }
   .url.primary { font-size: 4vw; } .url.alt { font-size: 3vw; } .reach-note { font-size: 2.4vw; }
 }
 

@@ -188,6 +188,10 @@ bg.appendChild(el('div', 'wash'));
 
 var safe = el('div', 'safe');
 var head = el('div', 'head');
+// The wordmark is the way back to the phone wall — every room in one column.
+head.setAttribute('role', 'link');
+head.setAttribute('aria-label', 'all rooms');
+head.addEventListener('click', function () { location.href = '/phone'; });
 var brand = el('div', 'brand', 'FLIGHT');
 brand.appendChild(el('span', '', 'DECK'));
 var status = el('div', 'status');

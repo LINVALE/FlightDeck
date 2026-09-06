@@ -3,6 +3,18 @@ import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
+import { decideUi } from './screen-shape.js';
+
+/**
+ * ⚖️ A PHONE GETS THE PHONE WALL (Peter, 09-06). This page is a television's:
+ * four columns of cards sized in vw. Held in a hand it is the wrong page, so a
+ * phone-shaped screen is sent to /phone before anything is built — decided by
+ * the short side and the pointer, never the user agent, and overridable with
+ * ?ui=tv for comparing designs (screen-shape.js).
+ */
+var storageOrNull = null;
+try { storageOrNull = window.localStorage; } catch (e) { storageOrNull = null; }
+if (decideUi(window, location.search, storageOrNull) === 'phone') location.replace('/phone');
 
 /**
  * The House Wall. Rooms are alphabetical until somebody deliberately saves a

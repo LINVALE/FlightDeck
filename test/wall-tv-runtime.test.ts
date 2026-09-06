@@ -379,3 +379,12 @@ test('the controls live in a drawer that opens under the pointer, a tap or focus
   assert.doesNotMatch(CSS, /data-rows="1"/, 'size class 1 is gone with its rules, not out-specified');
 });
 
+
+// Peter 09-06: a Fire TV had fallen into the phone-shaped card rules
+test('a phone is sent to the phone wall by shape, never by user agent; the Wall keeps no phone-shaped card rules', () => {
+  assert.match(WALL, /import \{ decideUi \} from '\.\/screen-shape\.js';/);
+  assert.match(WALL, /if \(decideUi\(window, location\.search, storageOrNull\) === 'phone'\) location\.replace\('\/phone'\);/);
+  assert.doesNotMatch(WALL, /userAgent/, 'the Wall never reads the user agent');
+  assert.doesNotMatch(CSS, /\.tile\.is-live \.tile-art \{ width: 18vw/, 'the single-column box rules are gone');
+  assert.doesNotMatch(CSS, /@media \(max-width: 900px\) \{\s*\.tile \{ width: 100%; \}/);
+});

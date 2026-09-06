@@ -1,0 +1,127 @@
+/* The Phone Wall — the house in one column, held in one hand, worked with a
+   thumb (Peter, 09-06). Same deck, same bone, same gold; px rather than vw,
+   because this page is never a television's. Chromium 63 floor discipline
+   kept, as phone.css keeps it: a plain fallback always precedes env(). */
+
+:root {
+  --tarmac: #0a0b0d; --bone: #f2eee6; --ash: #a9a297; --smoke: #7d766c;
+  --accent: #d8a24a; --live: #6fae8c; --pause: #b39b78; --line: rgba(242,238,230,.10);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: rgba(0,0,0,0); }
+html, body { margin: 0; padding: 0; height: 100%; background: #0a0b0d; }
+body {
+  font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+/* The page scrolls; the head stays. */
+.pwall {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 0 12px 24px;
+  padding: 0 12px calc(env(safe-area-inset-bottom) + 24px);
+}
+.head {
+  position: -webkit-sticky; position: sticky; top: 0; z-index: 2;
+  display: -webkit-flex; display: flex; -webkit-align-items: baseline; align-items: baseline;
+  padding: 14px 4px 10px;
+  padding: calc(env(safe-area-inset-top) + 12px) 4px 10px;
+  background: rgba(10,11,13,.92);
+}
+.brand { font-size: 12px; letter-spacing: 0.34em; font-weight: 700; color: #5f5a53; }
+.brand span { color: var(--accent); }
+.status { margin-left: auto; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
+
+/* ---- a room ---- */
+.rooms { display: block; }
+.card {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  padding: 10px 10px 10px 10px; margin-bottom: 8px;
+  border-radius: 12px; background: #15171b; border: 1px solid var(--line);
+}
+.card.is-playing { border-color: rgba(111,174,140,.55); }
+.card.is-paused { border-color: rgba(179,155,120,.5); }
+.card.is-stopped { opacity: .82; }
+
+/* THE COVER IS SACRED: sized and placed, never dimmed, filtered, transformed or masked. */
+.card-art {
+  position: relative; -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  width: 64px; height: 64px; border-radius: 4px; overflow: hidden; background: #1c1f24;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  color: #4a4c52;
+}
+.card-art img { display: none; width: 100%; height: 100%; -o-object-fit: cover; object-fit: cover; }
+.card-art.has-art img { display: block; }
+.card-art.has-art .card-nomark { display: none; }
+.card-nomark { width: 26px; height: 26px; }
+
+.card-body { -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; padding: 0 12px; }
+.card-room {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ash);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-dot { -webkit-flex: 0 0 auto; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; margin-right: 7px; background: #3a3d44; }
+.card-room-name { overflow: hidden; text-overflow: ellipsis; }
+.card-title {
+  display: block; display: -webkit-box; margin-top: 3px;
+  font-family: Georgia, "Times New Roman", serif; font-size: 16.5px; line-height: 1.15; color: var(--bone);
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card-line2 {
+  display: block; margin-top: 2px; font-size: 12.5px; color: var(--ash);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-bar { display: block; height: 3px; margin-top: 8px; border-radius: 2px; background: rgba(242,238,230,.12); overflow: hidden; }
+.card-bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+.card-times { display: block; margin-top: 4px; font-size: 10.5px; letter-spacing: .04em; color: var(--smoke); }
+
+/* the one control a thumb reaches for, and the level under it */
+.card-side {
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  display: -webkit-flex; display: flex; -webkit-flex-direction: column; flex-direction: column;
+  -webkit-align-items: center; align-items: center;
+}
+.card-play {
+  width: 50px; height: 50px; border-radius: 50%;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,.22); background: rgba(242,238,230,.06); color: var(--bone);
+}
+.card-play:active { background: rgba(242,238,230,.2); }
+.card-play.off { opacity: .28; }
+.card-play .glyph { width: 24px; height: 24px; }
+.card.is-playing .card-play { border-color: rgba(111,174,140,.7); color: #cfe8d8; }
+.card-level {
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+  margin-top: 6px; font-size: 12px; color: var(--ash);
+}
+.card-level[hidden] { display: none; }
+.card-level .lv {
+  width: 38px; height: 34px; border-radius: 8px;
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center; -webkit-justify-content: center; justify-content: center;
+  border: 1px solid rgba(242,238,230,.14); color: var(--bone);
+}
+.card-level .lv:active { background: rgba(242,238,230,.16); }
+.card-level .lv .glyph { width: 14px; height: 14px; }
+.card-level .num { min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+.card-level.is-muted .num { color: var(--accent); }
+
+.empty { padding: 40vh 0 0; text-align: center; font-size: 14px; letter-spacing: .14em; text-transform: uppercase; color: var(--ash); }
+.empty[hidden] { display: none; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 28px; bottom: calc(env(safe-area-inset-bottom) + 28px);
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  padding: 8px 14px; border-radius: 8px; background: rgba(23,25,29,.96); border: 1px solid var(--line);
+  font-size: 13px; color: var(--bone); opacity: 0; pointer-events: none;
+  -webkit-transition: opacity .2s ease; transition: opacity .2s ease;
+}
+.toast.is-lit { opacity: 1; }
+
+/* Lying down, two rooms share a row. */
+@media (orientation: landscape) and (min-width: 640px) {
+  .rooms { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: 0 -4px; }
+  .card { width: calc(50% - 8px); margin: 0 4px 8px; }
+}

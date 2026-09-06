@@ -342,14 +342,18 @@ test('/phone is the remote: a third page with the same organs', async (t) => {
     { generation: 'test', zones: ZONES, coreName: 'ROCK', corePaired: true, coreSinceAt: new Date().toISOString(), revision: 1, at: new Date().toISOString() },
     relay, ledger));
 
-  // The bare address: no zone pinned — the page holds what the phone last held.
+  // The bare address is the PHONE WALL (Peter 09-06): the house in one column.
   const bare = await fetch(base + '/phone');
   assert.equal(bare.status, 200);
   const bareHtml = await bare.text();
   assert.match(bare.headers.get('content-security-policy') ?? '', /default-src 'none'/);
-  assert.match(bareHtml, /data-zone=""/);
-  assert.match(bareHtml, /\/assets\/phone\.css/);
-  assert.match(bareHtml, /\/assets\/phone\.js/, 'the phone page must load the phone script, not the face');
+  assert.match(bareHtml, /class="pwall" id="pwall"/);
+  assert.match(bareHtml, /\/assets\/phone-wall\.css/);
+  assert.match(bareHtml, /\/assets\/phone-wall\.js/, 'the phone wall must load its own script');
+  assert.doesNotMatch(bareHtml, /data-zone=/, 'the wall pins no room');
+  // A room's address below it is the remote, as before.
+  const remote = await (await fetch(base + '/phone/1601abc')).text();
+  assert.match(remote, /\/assets\/phone\.js/, 'the remote page must load the phone script, not the face');
 
   // A NAME resolves to a zone, exactly as /face/ does — typeable, bookmarkable.
   const named = await (await fetch(base + '/phone/study')).text();

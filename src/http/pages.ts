@@ -235,6 +235,21 @@ export function renderPhonePage(nonce: string, zoneId: string, zoneToken: string
 }
 
 /**
+ * THE PHONE WALL. The house in one column, for a thumb (Peter, 09-06: "a
+ * different wall that shows cards and individual elements optimised for a
+ * phone"). A fourth page, not the Wall in media queries — the Wall's cards are
+ * a television's, sized in vw for four columns; here every room is a card the
+ * height of a thumb, with the one control a listener reaches for and the
+ * room's remote a tap away. Same organs underneath: snapshot, stream, art
+ * relay, the one write route.
+ */
+export function renderPhoneWallPage(nonce: string, version = ''): string {
+  return head(nonce, 'FlightDeck', '/assets/phone-wall.css', 'phone-wall', version)
+    + '<body><main class="pwall" id="pwall" data-state="connecting"></main>'
+    + '</body></html>';
+}
+
+/**
  * PUCK PIXELS. `?px=360` pins the GLASS to the hardware's own resolution so the
  * page can be held beside the device; with none, the client sizes the stage off
  * the viewport's SHORT side. Bounded, because it is a pixel count from a URL.
