@@ -32,7 +32,7 @@ test('the card is a thumb\'s height with a 50px play and 38px level keys; the co
   assert.match(CSS, /\.card-art \{[^}]*width: 64px; height: 64px;/);
   assert.doesNotMatch(CSS, /\.card-art[^{]*\{[^}]*(opacity|filter|transform|mask)/, 'the cover is sacred');
   assert.doesNotMatch(CSS, /\d+vw/, 'a phone page is sized in px, never a television\'s vw');
-  assert.match(CSS, /@media \(orientation: landscape\) and \(min-width: 640px\)/, 'lying down, two rooms share a row');
+  assert.doesNotMatch(CSS, /orientation: landscape/, 'lying down it is still one column (Peter 09-06)');
 });
 
 test('the remote\'s wordmark is the way back to the phone wall', () => {

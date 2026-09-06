@@ -120,8 +120,5 @@ body {
 }
 .toast.is-lit { opacity: 1; }
 
-/* Lying down, two rooms share a row. */
-@media (orientation: landscape) and (min-width: 640px) {
-  .rooms { display: -webkit-flex; display: flex; -webkit-flex-wrap: wrap; flex-wrap: wrap; margin: 0 -4px; }
-  .card { width: calc(50% - 8px); margin: 0 4px 8px; }
-}
+/* Lying down it is still one column (Peter, 09-06: "keep just one column of
+   cards"): a thumb scrolls one list, whichever way the phone is held. */
