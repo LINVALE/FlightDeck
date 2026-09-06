@@ -788,17 +788,28 @@ body {
  * select circle itself: prev at nine, next at three, ↑ at twelve and ↓ at six —
  * small, half off the disc, clear of every label. The disc is still the select;
  * a tap on a verb is caught before it. */
-.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); font-size: calc(var(--u) * 3.4); margin-top: calc(var(--u) * -3.2); margin-left: calc(var(--u) * -3.2); background: rgba(10, 11, 14, .92); }
+/* ⚖️ BIGGER TO THE FINGER (Peter, 09-06, the puck on a phone: "the four
+   arrows need to be in bigger circles, using the max real estate possible").
+   The verbs' circles grow from 6.4 to 8.5 units, as far as the option names
+   allow (↓ at 61 ends at 65.25, the lowest names reach 65.7), and each
+   carries an invisible halo a third wider again, so the touch target is 13.6
+   units — 42px on a phone's glass — while the circle stays a circle. */
+.nav-keys .key { position: absolute; pointer-events: auto; margin: 0; width: calc(var(--u) * 8.5); height: calc(var(--u) * 8.5); line-height: calc(var(--u) * 8.5); font-size: calc(var(--u) * 3.4); margin-top: calc(var(--u) * -3.2); margin-left: calc(var(--u) * -3.2); background: rgba(10, 11, 14, .92); }
+/* ‹ › keep to 7.5 at 35/65: at 8.5 they touched the ends of the longer
+   names beside them (measured on the phone: "Composers", "Albums", "My Live
+   Radio"); their halo still gives the finger 12 units. */
 .key-prev { left: calc(var(--u) * 35); top: 50%; }
 .key-next { left: calc(var(--u) * 65); top: 50%; }
+.nav-keys .key-prev, .nav-keys .key-next { width: calc(var(--u) * 7.5); height: calc(var(--u) * 7.5); line-height: calc(var(--u) * 7.5); }
+.nav-keys .key::before { content: ""; position: absolute; left: -30%; top: -30%; right: -30%; bottom: -30%; border-radius: 50%; }
 /* ↑ ↓ at twelve and six, just INSIDE the rim: the axis (Peter, 09-04). With
    seven a page the two lowest circles sit at five and seven o'clock, and their
    names — drawn above their circles, inside the ring — reach up to 65.7 on a
    letter's page and to within 3 units of the centre line; a key ON the rim at
    65 crossed them by two pixels (measured). At 60.5 it ends at 63.7, clear;
    ↑ mirrors it at 39.5, and the name between them keeps to two lines. */
-.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 39.5); }
-.nav-keys .key-down, .puck[data-browse][data-lettered="1"] .nav-keys .key-down { left: 50%; top: calc(var(--u) * 60.5); }
+.nav-keys .key-up, .puck[data-browse][data-lettered="1"] .nav-keys .key-up { left: 50%; top: calc(var(--u) * 39); }
+.nav-keys .key-down, .puck[data-browse][data-lettered="1"] .nav-keys .key-down { left: 50%; top: calc(var(--u) * 61); }
 .puck:not([data-browse]) .nav-keys, .puck[data-spell="1"] .nav-keys { display: none; }
 /**
  * ⚖️ THE CENTRE IS ONE BOLD CIRCLE (Peter, 09-04): the highlighted item's name,
@@ -860,7 +871,7 @@ body {
 .puck[data-tier="rooms"] .key-next { display: none; }
 .puck[data-tier="rooms"] .chosen-title { max-height: calc(var(--u) * 4.8); -webkit-line-clamp: 1; font-size: calc(var(--u) * 3.6); }
 .puck[data-tier="rooms"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .3); }
-.puck[data-tier="rooms"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
+.puck[data-tier="rooms"] .nav-keys .key { width: calc(var(--u) * 7.4); height: calc(var(--u) * 7.4); line-height: calc(var(--u) * 7.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
 .puck[data-tier="rooms"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
 .puck[data-tier="rooms"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
 
@@ -885,7 +896,7 @@ body {
    same two lines; ‹ › stay, since it may run to pages. */
 .puck[data-tier="local"] .chosen-title { max-height: calc(var(--u) * 7.3); font-size: calc(var(--u) * 3.3); }
 .puck[data-tier="local"] .chosen-sub { font-size: calc(var(--u) * 2.4); margin-top: calc(var(--u) * .4); }
-.puck[data-tier="local"] .nav-keys .key { width: calc(var(--u) * 5.4); height: calc(var(--u) * 5.4); line-height: calc(var(--u) * 5.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
+.puck[data-tier="local"] .nav-keys .key { width: calc(var(--u) * 7.4); height: calc(var(--u) * 7.4); line-height: calc(var(--u) * 7.4); margin-top: calc(var(--u) * -2.7); margin-left: calc(var(--u) * -2.7); }
 .puck[data-tier="local"] .nav-keys .key-up { top: calc(var(--u) * 38.8); }
 .puck[data-tier="local"] .nav-keys .key-down { top: calc(var(--u) * 61.2); }
 .puck[data-tier="local"] .count { bottom: calc(var(--u) * 3); font-size: calc(var(--u) * 2.6); }

@@ -448,7 +448,7 @@ test('a tap on the ring seeks, through the one-intent gate', () => {
   // ⚖️ OUTER = VOLUME, INNER = POSITION, in the hand: the glass's outer edge is
   // handed to the wheel before the face ever sees it, so a finger on the dots
   // can never be read as a seek.
-  assert.match(JS, /var SEEK_BAND = 34;\s*var WHEEL_BAND = 45;/);
+  assert.match(JS, /var SEEK_BAND = 29;\s*var WHEEL_BAND = 45;/);
   assert.match(JS, /glass\.addEventListener\('pointerdown',[\s\S]{0,420}if \(radiusOf\(glassMetrics\(\), event\.clientX, event\.clientY\) >= WHEEL_BAND\) \{\s*beginTurn\(event\);\s*return;/,
     'the edge is the wheel in every state — in browse a turn carries the highlight');
   assert.doesNotMatch(JS, /!browse\.isOpen\(\) && radiusOf/);
@@ -613,7 +613,7 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = ON_PHONE \? '\/phone' : '\/';/);
   assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
   assert.ok(hasGlyph('return'));
-  assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\.5\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\); \}/);
   // swipes mean the same: ↑ is up, ← → are next and previous
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ browse\.move\(dx < 0 \? 1 : -1\); return true; \}/, 'a sideways swipe steps the highlight');
   assert.match(JS, /axis\(dy > 0 \? 1 : -1\);/, 'a vertical swipe walks the axis (Peter, 09-04)');
@@ -691,7 +691,7 @@ test('in a menu the cog moves the highlight, on the music face it is the volume;
   assert.match(BROWSE, /var LETTER_GAP = 44 \* Math\.PI \/ 180;/, 'a gap at twelve for the title');
   assert.match(BROWSE, /var from = Math\.floor\(offset \/ SLOTS\) \* SLOTS;/, 'a jump loads from the page\'s own start');
   assert.match(CSS, /\.puck\[data-lettered="1"\] \.count \{ bottom: calc\(var\(--u\) \* 14\);/);
-  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\.5\); \}/);
+  assert.match(CSS, /\.nav-keys \.key-up, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\); \}/);
   assert.match(BROWSE, /function fillBack\(\)[\s\S]{0,500}page\.items = items\.concat\(page\.items\);/);
 });
 
@@ -770,7 +770,7 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   assert.doesNotMatch(JS, /tagAngle \+= /, 'the circle never steps aside: it IS the bead');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
   assert.match(BROWSE, /downKey\.className = 'key key-down';/);
-  assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 60\.5\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');
+  assert.match(CSS, /\.nav-keys \.key-down, \.puck\[data-browse\]\[data-lettered="1"\] \.nav-keys \.key-down \{ left: 50%; top: calc\(var\(--u\) \* 61\); \}/, '↓ at six, just inside the rim: on the rim at 65 it crossed the 5 and 7 o\'clock names by two pixels (measured)');
   assert.match(CSS, /\.puck\[data-browse\] \.chosen-title \{[^\n]*\n[^\n]*\n  max-height: calc\(var\(--u\) \* 9\.5\);/, 'the name keeps to two lines between ↑ and ↓');
   // a swipe is judged where it started: the glass captures the pointer, so a lift over the disc or the credit is not lost
   assert.match(JS, /document\.addEventListener\('pointerup', lift, true\);/, 'heard at the document in the capture phase, before a control can stop it');
@@ -1033,3 +1033,12 @@ test('a drag on the scale is a dial: the tick under the finger, bounded, never f
   assert.match(JS, /if \(scrubbing\) return;   \/\/ the bead is under a finger/, 'the room\'s own position waits');
 });
 
+
+// Peter 09-06, the puck on a phone: bigger verbs, a broader ring
+test('the browse verbs are bigger circles with a touch halo, and the ring is broad to the finger', () => {
+  assert.match(JS, /var SEEK_BAND = 29;/, 'the band begins just outside the select disc');
+  assert.match(CSS, /\.nav-keys \.key \{[^}]*width: calc\(var\(--u\) \* 8\.5\); height: calc\(var\(--u\) \* 8\.5\);/);
+  assert.match(CSS, /\.nav-keys \.key::before \{ content: ""; position: absolute; left: -30%; top: -30%; right: -30%; bottom: -30%; border-radius: 50%; \}/, 'an invisible halo a third wider again');
+  assert.match(CSS, /\.key-down, [^{]*\{ left: 50%; top: calc\(var\(--u\) \* 61\); \}/, '\u2193 ends at 65.25, under the lowest names at 65.7');
+  assert.match(CSS, /\.nav-keys \.key-prev, \.nav-keys \.key-next \{ width: calc\(var\(--u\) \* 7\.5\);/, '\u2039 \u203a keep to 7.5 beside the longer names, the halo doing the rest');
+});

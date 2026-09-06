@@ -69,7 +69,15 @@ var BEZEL_RATIO = 0.085;
  * wheel — a tap sets the level, a circular drag turns it — wide enough for a
  * finger to find without looking.
  */
-var SEEK_BAND = 34;
+/**
+ * ⚖️ THE RING IS BROAD TO THE FINGER (Peter, 09-06, on the phone: "the seek
+ * touch/drag needs a broader touch area — it just brings up controls most of
+ * the time"). The arc is drawn at 42; a thumb aimed at it lands anywhere from
+ * the disc's edge outward, so the band begins just outside the select disc
+ * (radius 13 + the verbs' orbit) rather than at 34. Inside it, the centre
+ * still summons; outside it, every touch is the ring's.
+ */
+var SEEK_BAND = 29;
 var WHEEL_BAND = 45;
 
 /** The field behind a missing cover: the art drawn tiny and scaled up. */
