@@ -847,7 +847,13 @@ test('linear progress, picker and chrome consume one layout rail', () => {
   assert.match(CSS, /data-layout="classic"\] \.headmark \{ width: 34vw; \}/,
     'Classic keeps the relocated Face mark on the artwork rail');
   assert.match(CSS, /--flightdeck-rail-width: 46vw/);
-  assert.match(CSS, /data-layout="libretto"\] \{ --flightdeck-rail-width: 62vw; \}/);
+  // Peter 09-06: the sleeve is the right-hand page; the bands keep to the words' column
+  assert.match(CSS, /data-layout="libretto"\] \{ --flightdeck-rail-width: 51vw; \}/);
+  assert.match(CSS, /\[data-ring\]\[data-layout="libretto"\] \{ --flightdeck-rail-width: 45vw; \}/);
+  assert.match(CSS, /\[data-layout="libretto"\] \.cover \{\s*width: 36vw; height: 36vw; max-width: 64vh; max-height: 64vh;/, 'the plate is 36vw of sleeve, capped by the frame height');
+  assert.match(CSS, /\[data-ring\]\[data-layout="libretto"\] \.cover \{[^}]*width: 40vh; height: 40vh;/, 'the ring version is sized by height, because the ring must fit');
+  assert.match(CSS, /\[data-layout="libretto"\]\s*\.shelf \{\s*-webkit-justify-content: flex-start; justify-content: flex-start;/, 'the bands sit flush left, under the words');
+  assert.doesNotMatch(CSS, /\[data-ring\]\[data-layout="libretto"\] \.body \{ padding-top: 17vh; \}/, 'the small ring\'s top padding is gone with it');
   assert.match(CSS, /\.foot[\s\S]*width: var\(--flightdeck-rail-width\)/);
   assert.match(CSS, /\.copy > \.picker[\s\S]*width: var\(--flightdeck-rail-width\)/);
   assert.match(CSS, /\.copy > \.picker[\s\S]*left: auto; right: 5vw/);

@@ -679,18 +679,21 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
 }
 .face:not([data-size])[data-layout="libretto"] .np {
   -webkit-flex-direction: row-reverse; flex-direction: row-reverse;
-  -webkit-align-items: flex-end; align-items: flex-end;
+  -webkit-align-items: center; align-items: center;
   width: 100%;
 }
-/* ⚖️ THE IMAGE COMES IN OFF THE EDGE (Peter, 08-28: "the image is too far to the
-   right — leave a good amount of space"). It ended on the safe area's own right
-   edge, which is a boundary and not a margin. A further 5vw puts it 192px off
-   the frame against the words' 96px — deliberately uneven, because the page is:
-   a wide column of words wants its edge, a small picture wants air round it. The
-   words' column absorbs the difference, being the flexible one. */
+/* ⚖️ THE SLEEVE IS THE PLATE (Peter, 09-06: "the album art could be bigger still
+   on the right, with the pop-up controls moved to avoid overlap — Folio and
+   Rondo adjusted similarly"). 36vw of sleeve — 64% of a 16:9 frame's height,
+   and capped at that so a wider frame does not push it off the top — stands on
+   the safe area's right edge, the words' own margin mirrored: the 08-28 air
+   (5vw further in) was for a 15vw picture that needed room round it; a picture
+   this size IS the right-hand page. The words centre against it, and every
+   band of chrome keeps to the words' column (the rail rules below). */
 .face:not([data-size])[data-layout="libretto"] .cover {
-  width: 15vw; height: 15vw; -webkit-flex: 0 0 auto; flex: 0 0 auto;
-  margin-left: 3vw; margin-right: 5vw;
+  width: 36vw; height: 36vw; max-width: 64vh; max-height: 64vh;
+  -webkit-flex: 0 0 auto; flex: 0 0 auto;
+  margin-left: 3vw; margin-right: 0;
 }
 .face:not([data-size])[data-layout="libretto"] .copy { text-align: left; -webkit-flex: 1 1 auto; flex: 1 1 auto; min-width: 0; }
 .face:not([data-size])[data-layout="libretto"] .title {
@@ -770,8 +773,8 @@ body { font-family: "Helvetica Neue", Arial, sans-serif; color: #f2eee6; -webkit
   .face:not([data-size])[data-layout="dial"] .body { -webkit-flex-direction: column; flex-direction: column; }
   .face:not([data-size])[data-layout="dial"] .dialbox { width: 46vw; height: 46vw; margin: 2vh 0 0 0; }
   .face:not([data-size])[data-layout="dial"] .cover { width: 52vw; height: 52vw; }
-  .face:not([data-size])[data-layout="libretto"] .np { -webkit-flex-direction: column; flex-direction: column; }
-  .face:not([data-size])[data-layout="libretto"] .cover { width: 40vw; height: 40vw; margin: 0 0 2vh 0; }
+  .face:not([data-size])[data-layout="libretto"] .np { -webkit-flex-direction: column; flex-direction: column; -webkit-align-items: flex-end; align-items: flex-end; }
+  .face:not([data-size])[data-layout="libretto"] .cover { width: 40vw; height: 40vw; max-width: none; max-height: none; margin: 0 0 2vh 0; }
   .face:not([data-size])[data-layout="libretto"] .title { font-size: 7vw; }
 }
 
@@ -2288,17 +2291,22 @@ body > .browse[data-over-ring="1"] .browse-thumb {
    left to overflow — at Libretto's own size the ring ran 33px off the top of
    the frame and past the safe edge on the right. */
 .face:not([data-size])[data-ring][data-layout="libretto"] .cover {
-  width: 11vw; height: 11vw;
-  margin-left: 6vw; margin-right: 9vw;
+  /* 09-06: the ring version of the big plate. Sized by HEIGHT because the ring
+     is what has to fit: 40vh of sleeve draws a 71vh ring, which clears the
+     room's name at the top (42vh put the bead nine pixels under it) and the
+     foot below. The margins are the ring's overhang (15vh ≈ 9vw a side) plus
+     air, so the words stop short of the arc and the arc stops short of the
+     frame. */
+  width: 40vh; height: 40vh; max-width: none; max-height: none;
+  margin-left: 11vw; margin-right: 10vw;
 }
 /* The reading belongs to Dial's and Orbit's composition — it lives INSIDE their
    ring, where there is room for it. Here the circle is small and the times are
    already at the foot, so it would be the same numbers twice; unstyled, it fell
    into the flow underneath and said them there. */
 .face:not([data-size])[data-ring][data-layout="libretto"] .dial-reading { display: none; }
-/* And the page sits lower, because the ring reaches 81px above the sleeve and
-   the top of the frame belongs to the room's name and the face's. */
-.face:not([data-size])[data-ring][data-layout="libretto"] .body { padding-top: 17vh; }
+/* (The 17vh top padding the small ring needed is gone: the big ring is
+   centred in the frame and clears the room's name on its own.) */
 
 /* ══ CHROME IN BANDS — the faces with no column beside the artwork ════════════
    ⚖️ Classic and Orbit hang their chrome in the words' column. Dial, Libretto,
@@ -2327,9 +2335,20 @@ body > .browse[data-over-ring="1"] .browse-thumb {
 .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .shelf-browse .row-browse {
   width: var(--flightdeck-rail-width); margin: 0 auto;
 }
-/* Libretto's words run the width of the frame, so its bands do too — a 46vw
-   block under a 60vw title reads as a smaller, separate thing. */
-.face:not([data-size])[data-layout="libretto"] { --flightdeck-rail-width: 62vw; }
+/* ⚖️ LIBRETTO'S BANDS KEEP TO THE WORDS' COLUMN (Peter, 09-06: "the pop-up
+   controls moved to avoid overlap"). The sleeve is now the right-hand page, so
+   the bands — what to play above, how to play it below, the foot, an open
+   picker — sit flush left under the words at the column's width: 51vw beside
+   the 36vw plate, 45vw beside the ring's wider overhang. */
+.face:not([data-size])[data-layout="libretto"] { --flightdeck-rail-width: 51vw; }
+.face:not([data-size])[data-ring][data-layout="libretto"] { --flightdeck-rail-width: 45vw; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank])[data-layout="libretto"] .shelf {
+  -webkit-justify-content: flex-start; justify-content: flex-start;
+}
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank])[data-layout="libretto"] .shelf-browse .row-browse { margin: 0; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank])[data-layout="libretto"] .foot { margin-left: 0; }
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank])[data-layout="libretto"] .copy > .picker,
+.face:not([data-size])[data-shelf]:not([data-column]):not([data-flank])[data-layout="libretto"] .copy > .browse { left: 5vw; right: auto; }
 /* Linear progress and an open picker consume the same rail as the chrome. Ring
    layouts keep their progress in the ring and never reach this foot rule. */
 .face:not([data-size])[data-shelf]:not([data-column]):not([data-flank]) .foot {
