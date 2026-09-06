@@ -51,4 +51,8 @@ test('the remote has ways into the library and the queue, as sheets, on the same
   assert.match(PHONE, /location\.href = '\/phone'; \}\);/, 'the rooms sheet leads to the phone wall');
   assert.match(REMOTE_CSS, /grid-template-areas: "head head" "art \." "art copy" "art runway" "art deck";/, 'lying down, the words keep company with the controls; the slack sits above');
   assert.match(REMOTE_CSS, /\.way \{[^}]*width: 44px; height: 44px;/, 'a way in is a finger\'s size');
+  // Peter 09-06: "the keyboard appears but doesn't stay" — a snapshot rebuilt the sheet under the field
+  assert.match(PHONE, /if \(sheetMode === 'rooms' \|\| sheetMode === 'group' \|\| sheetMode === 'transfer'\) buildSheet\(\);/, 'only the room sheets follow the snapshot');
+  assert.doesNotMatch(PHONE, /if \(sheetMode !== null\) buildSheet\(\);/);
+  assert.match(PHONE, /input\.value = browse\.query;/, 'the query survives the redraw that brings its results');
 });

@@ -727,7 +727,7 @@ function roomRow(zone, marked, right, onPress) {
  */
 var browse = {
   session: 'phone-' + String(Date.now()).slice(-8) + Math.random().toString(36).slice(2, 8),
-  hierarchy: 'browse', list: null, items: [], loading: false, error: null,
+  hierarchy: 'browse', list: null, items: [], loading: false, error: null, query: '',
 };
 var BROWSE_PAGE = 60;
 
@@ -796,6 +796,7 @@ function browseBack() {
 }
 function browseSearch(query) {
   if (query.trim() === '') return null;
+  browse.query = query.trim();
   browse.hierarchy = 'search';
   browseBegin();
   return ask({ hierarchy: 'search', popAll: true, input: query.trim() }).then(browseShow).catch(browseFailed);
@@ -845,6 +846,7 @@ function buildBrowse(body, headRow) {
   input.placeholder = 'search Roon';
   input.setAttribute('aria-label', 'search Roon');
   input.setAttribute('autocomplete', 'off');
+  input.value = browse.query;   // the words survive the redraw that brings their results
   var go = el('span', 'sheet-go', 'go');
   go.setAttribute('role', 'button');
   go.addEventListener('click', function () { browseSearch(input.value); input.blur(); });
@@ -1206,7 +1208,11 @@ function paint(kind) {
       volKey = wantVolKey;
       buildVolume(zone);
     }
-    if (sheetMode !== null) buildSheet();
+    // The ROOM sheets follow the snapshot. Browse and the queue must not: a
+    // rebuild a second replaces the search field under a thumb and the
+    // keyboard falls away (Peter, 09-06: "the keyboard appears but doesn't
+    // stay"). The queue re-reads itself when the music moves on, above.
+    if (sheetMode === 'rooms' || sheetMode === 'group' || sheetMode === 'transfer') buildSheet();
   }
 
   paintVolumeRows();
