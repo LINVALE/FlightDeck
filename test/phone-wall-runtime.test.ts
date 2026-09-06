@@ -42,7 +42,7 @@ test('the remote\'s wordmark is the way back to the phone wall', () => {
 // Peter 09-06: "neither are connecting to browse or queue screens"
 test('the remote has ways into the library and the queue, as sheets, on the same planes the Face and puck use', () => {
   const REMOTE_CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'phone.css'), 'utf8');
-  assert.match(PHONE, /ways\.appendChild\(roombar\); ways\.appendChild\(browseWay\); ways\.appendChild\(queueWay\);/);
+  assert.match(PHONE, /ways\.appendChild\(roombar\); ways\.appendChild\(browseWay\); ways\.appendChild\(queueWay\); ways\.appendChild\(puckWay\);/, 'a visible way to the puck beside the library and the queue');
   assert.match(PHONE, /return fetch\('\/api\/v1\/browse', \{/, 'the Browse plane');
   assert.match(PHONE, /ask\(\{ hierarchy: 'search', popAll: true, input: query\.trim\(\) \}\)/, 'search is its own hierarchy');
   assert.match(PHONE, /ask\(\{ hierarchy: browse\.hierarchy, popLevels: 1 \}\)/, 'back is popLevels');

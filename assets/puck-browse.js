@@ -1141,6 +1141,12 @@ export function createBrowse(options) {
       optWrap.appendChild(node);
     }
     var pick = view.tier === 'alpha' ? null : itemAt(view.sel);
+    // ‹ › step the highlight: with one thing to choose from they would do
+    // nothing, so they are not shown (Peter, 09-06: "not clear when they will
+    // actually do something"). ↑ ↓ are the axis and always act.
+    var canStep = view.total > 1;
+    prevKey.setAttribute('data-off', canStep ? '0' : '1');
+    nextKey.setAttribute('data-off', canStep ? '0' : '1');
     if (view.spell) {
       // The middle is the query so far; the ring is the keyboard.
       chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;

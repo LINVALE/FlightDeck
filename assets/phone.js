@@ -245,7 +245,18 @@ queueWay.setAttribute('role', 'button');
 queueWay.setAttribute('aria-label', 'the queue');
 queueWay.appendChild(glyph('queue'));
 queueWay.addEventListener('click', function () { openSheet('queue'); });
-ways.appendChild(roombar); ways.appendChild(browseWay); ways.appendChild(queueWay);
+// ⚖️ A VISIBLE WAY TO THE PUCK (Peter, 09-06): the knob beside the library and
+// the queue, not only in the rooms sheet.
+var puckWay = el('span', 'way');
+puckWay.setAttribute('role', 'button');
+puckWay.setAttribute('aria-label', 'this room as the puck');
+puckWay.appendChild(glyph('puck'));
+puckWay.addEventListener('click', function () {
+  var here = currentZone();
+  if (here === null) return;
+  location.href = '/puck/' + encodeURIComponent(here.outputs.length > 0 ? here.outputs[0].id : here.id);
+});
+ways.appendChild(roombar); ways.appendChild(browseWay); ways.appendChild(queueWay); ways.appendChild(puckWay);
 var controlsHost = el('div', 'controls');
 deck.appendChild(volHost); deck.appendChild(ways); deck.appendChild(controlsHost);
 

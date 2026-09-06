@@ -1042,3 +1042,12 @@ test('the browse verbs are bigger circles with a touch halo, and the ring is bro
   assert.match(CSS, /\.key-down, [^{]*\{ left: 50%; top: calc\(var\(--u\) \* 61\); \}/, '\u2193 ends at 65.25, under the lowest names at 65.7');
   assert.match(CSS, /\.nav-keys \.key-prev, \.nav-keys \.key-next \{ width: calc\(var\(--u\) \* 7\.5\);/, '\u2039 \u203a keep to 7.5 beside the longer names, the halo doing the rest');
 });
+
+// Peter 09-06, the puck on a phone: verbs plainly on or gone; the letter is the select, large
+test('the verbs read by colour and leave when inert; the letter ring and the speller show their select large', () => {
+  assert.match(BROWSE, /var canStep = view\.total > 1;\s*prevKey\.setAttribute\('data-off', canStep \? '0' : '1'\);/, '\u2039 \u203a leave with one thing to choose from');
+  assert.match(CSS, /\.nav-keys \.key\[data-off="1"\] \{ display: none; \}/, 'absent, not dimmed');
+  assert.match(CSS, /\.nav-keys \.key-up, \.nav-keys \.key-down \{ border-color: var\(--accent\); color: var\(--accent\); \}/, 'the axis wears the accent');
+  assert.match(CSS, /\.puck\[data-tier="alpha"\] \.chosen-title \{ font-size: calc\(var\(--u\) \* 13\);/, 'the letter, large');
+  assert.match(CSS, /\.spell-keys \.key:last-child \{ width: calc\(var\(--u\) \* 11\);[^}]*border-color: var\(--accent\);/, 'the search key, largest and in the accent');
+});

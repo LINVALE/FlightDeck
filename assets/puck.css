@@ -949,3 +949,28 @@ body {
 .puck[data-browse] .words,
 .puck[data-browse] .scrim-top,
 .puck[data-browse] .scrim-foot { display: none; }
+
+/**
+ * ⚖️ PLAINLY ON, OR GONE (Peter, 09-06, on the phone: "the circle arrows are
+ * still small and it is not clear when they will actually do something").
+ * The verbs read by colour: ↑ ↓ are the AXIS — they change the face — and wear
+ * the accent; ‹ › step the highlight and are bone. A verb that would do
+ * nothing is not dimmed but absent: ‹ › leave when a level has one thing
+ * to choose from. The glyphs fill more of their circles.
+ */
+.nav-keys .key { background: rgba(10, 11, 14, .86); border-color: rgba(242, 238, 230, .55); color: #f2eee6; }
+.nav-keys .key .glyph { width: 64%; height: 64%; margin: 18% auto; }
+.nav-keys .key-up, .nav-keys .key-down { border-color: var(--accent); color: var(--accent); }
+.nav-keys .key[data-off="1"] { display: none; }
+
+/**
+ * ⚖️ THE LETTER IS THE SELECT, LARGE (Peter, 09-06: "the select once the
+ * letters are entered is very small and dim"). On the letter ring the disc
+ * reads the highlighted letter at three times the size of a title; in the
+ * speller the query so far at twice, bright, with the search key — the one
+ * that acts on it — the largest of the four and in the accent.
+ */
+.puck[data-tier="alpha"] .chosen-title { font-size: calc(var(--u) * 13); line-height: 1; max-height: none; font-weight: 800; color: #f2eee6; }
+.puck[data-spell="1"] .chosen-title { font-size: calc(var(--u) * 8); line-height: 1.05; font-weight: 800; color: #f2eee6; }
+.puck[data-spell="1"] .chosen-sub { color: rgba(242, 238, 230, .78); }
+.spell-keys .key:last-child { width: calc(var(--u) * 11); height: calc(var(--u) * 11); line-height: calc(var(--u) * 11); font-size: calc(var(--u) * 5.4); border-color: var(--accent); color: var(--accent); background: rgba(10, 11, 14, .9); }
