@@ -1031,7 +1031,7 @@ test('a drag on the scale is a dial: the tick under the finger, bounded, never f
   assert.match(JS, /if \(dragLast !== null && turning !== null\) return;/, 'a hand on the scale paints its own target; the room\'s answer waits');
   // the scrub
   assert.match(JS, /if \(radiusOf\(glassMetrics\(\), event\.clientX, event\.clientY\) >= SEEK_BAND && !browse\.isOpen\(\)\) \{\s*scrub = \{ moved: false \};/, 'a finger landing in the ring band may scrub; in a menu the rim belongs to nothing');
-  assert.match(JS, /setProgress\(fraction, fraction \* length, length\);\s*\}\);/, 'the bead and its time follow the finger');
+  assert.match(JS, /setProgress\(fraction, fraction \* length, length\);\s*placeScrubThumb\(fraction\);\s*\}\);/, 'the bead and its time follow the finger');
   assert.match(JS, /if \(was\.moved\) \{ wake\(\); seekTo\(event\.clientX, event\.clientY\); return; \}/, 'ONE seek, when the finger lifts');
   assert.match(JS, /if \(scrubbing\) return;   \/\/ the bead is under a finger/, 'the room\'s own position waits');
 });
@@ -1054,4 +1054,15 @@ test('the verbs read by colour and leave when inert; the letter ring and the spe
   assert.match(CSS, /\.puck\[data-tier="alpha"\] \.chosen-title \{ font-size: calc\(var\(--u\) \* 13\);/, 'the letter, large');
   assert.match(CSS, /\.spell-keys \.key:nth-child\(3\) \{ width: calc\(var\(--u\) \* 11\);[^}]*border-color: var\(--accent\);/, 'the search key, largest and in the accent, under the disc\'s centre');
   assert.match(BROWSE, /key\('\\u2423', 'space'[\s\S]{0,200}key\('\\u21b5', 'search'[\s\S]{0,200}key\('\\u2715', 'clear'/, 'the search key sits third of four');
+});
+
+// Peter 09-06: "dragging progress looks great with the mini image but doesn't actually seek"
+test('the sleeve is never the browser\'s to drag, and the scrub draws its own mini sleeve', () => {
+  assert.match(JS, /coverImg\.draggable = false;\s*coverImg\.setAttribute\('draggable', 'false'\);/, 'no native image drag can start under a scrub');
+  assert.match(JS, /rig\.addEventListener\('dragstart', function \(event\) \{ event\.preventDefault\(\); \}\);/);
+  assert.match(CSS, /\.cover img, \.glass img \{ -webkit-user-drag: none;[^}]*pointer-events: none; \}/, 'the pointer goes to the glass, never the picture');
+  assert.match(JS, /setProgress\(fraction, fraction \* length, length\);\s*placeScrubThumb\(fraction\);/, 'the mini sleeve rides with the bead');
+  assert.match(JS, /scrubbing = false;\s*scrubThumb\.style\.display = 'none';/, 'and leaves on the lift');
+  assert.match(CSS, /\.scrub-thumb \{[^}]*width: calc\(var\(--u\) \* 10\);/, 'ten units at radius 33: inside the arc, clear of the words at the foot');
+  assert.match(JS, /glass\.addEventListener\('pointercancel', function \(\) \{\s*touch = null;\s*scrub = null;\s*scrubbing = false;\s*scrubThumb\.style\.display = 'none';/, 'a cancelled pointer closes the scrub, or the bead would never follow the room again');
 });

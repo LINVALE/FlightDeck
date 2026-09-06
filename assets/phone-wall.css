@@ -127,3 +127,7 @@ body {
    level and red above safety, as every scale is banded. */
 .card-level.is-comfort .num { color: #c9902e; }
 .card-level.is-danger .num { color: rgb(232, 84, 70); }
+
+/* The sleeve is never the browser's to drag: a native image drag under a
+   finger or a mouse swallows the pointer before the lift (Peter, 09-06). */
+.card-art img { -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }

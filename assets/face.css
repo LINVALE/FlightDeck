@@ -2885,3 +2885,7 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
 .vol-scale b.comfort.on { background: #c9902e; }
 .vol-scale b.danger { background: rgba(232, 84, 70, .30); }
 .vol-scale b.danger.on { background: rgb(232, 84, 70); }
+
+/* The sleeve is never the browser's to drag: a native image drag under a
+   finger or a mouse swallows the pointer before the lift (Peter, 09-06). */
+.cover img, .face img { -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }

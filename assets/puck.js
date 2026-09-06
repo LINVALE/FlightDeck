@@ -154,6 +154,14 @@ rig.appendChild(detents);
 var cover = el('div', 'cover');
 var coverImg = document.createElement('img');
 coverImg.alt = '';
+// ⚖️ THE SLEEVE IS NEVER THE BROWSER'S TO DRAG (Peter, 09-06: "dragging progress
+// looks great with the mini image but doesn't actually seek"): a finger or a
+// mouse moving over the sleeve started the browser's own image drag — its
+// floating thumbnail was the "mini image" — and that drag swallowed the pointer
+// before the lift, so the one seek never went. The sleeve is not draggable, and
+// the scrub draws a mini sleeve of its own, on purpose (below).
+coverImg.draggable = false;
+coverImg.setAttribute('draggable', 'false');
 cover.appendChild(coverImg);
 
 var scrimTop = el('div', 'scrim-top');
@@ -330,6 +338,25 @@ pad.appendChild(btnNext);
 pad.appendChild(btnShuffle);
 
 glass.appendChild(cover);
+/** The mini sleeve that rides inside the ring while a finger scrubs — the one Peter liked, kept deliberately. */
+var scrubThumb = document.createElement('img');
+scrubThumb.className = 'scrub-thumb';
+scrubThumb.alt = '';
+scrubThumb.draggable = false;
+scrubThumb.setAttribute('draggable', 'false');
+scrubThumb.style.display = 'none';
+glass.appendChild(scrubThumb);
+var SCRUB_THUMB_R = 33;   // inside the arc (42 less the bead), clear of the words at the foot (r ≤ 25)
+function placeScrubThumb(fraction) {
+  var src = coverImg.getAttribute('src');
+  if (!src) { scrubThumb.style.display = 'none'; return; }
+  if (scrubThumb.getAttribute('src') !== src) scrubThumb.src = src;
+  var angle = (fraction * 2 * Math.PI) - (Math.PI / 2);
+  scrubThumb.style.left = String(50 + SCRUB_THUMB_R * Math.cos(angle)) + '%';
+  scrubThumb.style.top = String(50 + SCRUB_THUMB_R * Math.sin(angle)) + '%';
+  scrubThumb.style.display = '';
+}
+rig.addEventListener('dragstart', function (event) { event.preventDefault(); });
 glass.appendChild(scrimTop);
 glass.appendChild(scrimFoot);
 glass.appendChild(ring);
@@ -1042,6 +1069,7 @@ glass.addEventListener('pointermove', function (event) {
   var angle = Math.atan2(event.clientY - metrics.y, event.clientX - metrics.x) + Math.PI / 2;
   var fraction = ((angle / (2 * Math.PI)) % 1 + 1) % 1;
   setProgress(fraction, fraction * length, length);
+  placeScrubThumb(fraction);
 });
 
 function lift(event) {
@@ -1052,6 +1080,7 @@ function lift(event) {
     var was = scrub;
     scrub = null;
     scrubbing = false;
+    scrubThumb.style.display = 'none';
     if (was.moved) { wake(); seekTo(event.clientX, event.clientY); return; }
   }
   var dx = event.clientX - start.x;
@@ -1076,7 +1105,14 @@ function lift(event) {
  */
 document.addEventListener('pointerup', lift, true);
 
-glass.addEventListener('pointercancel', function () { touch = null; });
+// A cancelled pointer (the browser took it — a native drag once did) must not
+// leave a scrub half-open, or the bead would never follow the room again.
+glass.addEventListener('pointercancel', function () {
+  touch = null;
+  scrub = null;
+  scrubbing = false;
+  scrubThumb.style.display = 'none';
+});
 
 /** A mouse crossing the glass is the desk equivalent of a hand approaching it. */
 glass.addEventListener('pointermove', function (event) {
