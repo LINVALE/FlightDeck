@@ -349,32 +349,59 @@ body {
 }
 
 /* ═══ LYING DOWN (Peter, 09-06: "the face needs to fit the landscape screen").
-   A phone on its side is 390px tall: the portrait column — sleeve, words,
-   runway, deck stacked — ran the sleeve off the bottom (08-29, measured). Held
-   this way the page is two columns on a grid: the sleeve on the left, sized
-   by the HEIGHT it has, and on the right the words, the runway, and the deck
-   at the foot where the thumb is. Same nodes, same order; only the grid. Kept
-   to the short side, so a tablet lying down keeps the portrait column. ═══ */
+   A phone on its side gives the page 300–390px of height — less once the
+   browser's own bar is showing, which it is until the page is on the Home
+   Screen. The portrait column ran the sleeve off the bottom (08-29,
+   measured). Held this way the page is two columns on a grid: the sleeve on
+   the left, sized by the HEIGHT it has, and on the right the words, the
+   runway, and the deck at the foot where the thumb is. Same nodes, same
+   order; only the grid. The runway's row is the one that gives (minmax 0),
+   and below 340px the rows tighten again and the album line steps aside, so
+   nothing is ever pushed past the edge. Kept to the short side, so a tablet
+   lying down keeps the portrait column. ═══ */
 @media (orientation: landscape) and (max-height: 500px) {
   .safe {
     display: -ms-grid; display: grid;
-    grid-template-columns: 62vh 1fr;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 60vh 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     grid-template-areas: "head head" "art copy" "art runway" "art deck";
-    grid-column-gap: 24px; -webkit-column-gap: 24px; column-gap: 24px;
-    padding: 8px 20px 8px;
-    padding: calc(env(safe-area-inset-top) + 6px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 16px);
+    grid-column-gap: 20px; -webkit-column-gap: 20px; column-gap: 20px;
+    padding: 6px 16px 6px;
+    padding: calc(env(safe-area-inset-top) + 4px) calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 6px) calc(env(safe-area-inset-left) + 14px);
   }
   .head { grid-area: head; }
   .art { grid-area: art; margin: 0; -webkit-align-self: center; align-self: center; }
-  .cover { width: 62vh; height: 62vh; }
-  .copy { grid-area: copy; text-align: left; margin-top: 4px; min-height: 0; }
-  .title { margin: 0; max-width: 100%; font-size: 18px; }
-  .line2, .line3 { margin-left: 0; margin-right: 0; max-width: 100%; }
-  .runway { grid-area: runway; margin-top: 6px; margin-bottom: 0; padding: 6px 0; -webkit-align-self: start; align-self: start; }
+  .cover { width: 60vh; height: 60vh; }
+  .copy { grid-area: copy; text-align: left; margin-top: 0; min-height: 0; }
+  .title { margin: 0; max-width: 100%; font-size: 17px; -webkit-line-clamp: 1; }
+  .line2 { margin: 2px 0 0; max-width: 100%; }
+  .line3 { margin: 1px 0 0; max-width: 100%; }
+  .runway { grid-area: runway; margin: 4px 0 0; padding: 4px 0; min-height: 0; -webkit-align-self: start; align-self: start; }
+  .lamps { height: 10px; }
+  .times { margin-top: 4px; }
   .deck { grid-area: deck; margin-top: 0; -webkit-align-self: end; align-self: end; }
-  .vol-row { min-height: 40px; }
-  .roombar { margin: 4px 0; }
-  .ctl.main { width: 56px; height: 56px; }
-  .ctl.main .glyph { width: 26px; height: 26px; }
+  .vol { margin-bottom: 2px; }
+  .vol-row { min-height: 36px; padding: 0; }
+  .vol-mute { width: 36px; height: 36px; }
+  .vol-scale b { height: 12px; }
+  .roombar { min-height: 40px; margin: 3px 0; padding: 3px 8px; }
+  .roombar-art { width: 30px; height: 30px; }
+  .controls { min-height: 56px; margin-top: 2px; }
+  .ctl.main { width: 52px; height: 52px; }
+  .ctl.main .glyph { width: 24px; height: 24px; }
+}
+@media (orientation: landscape) and (max-height: 340px) {
+  .head { padding-bottom: 0; }
+  .brand { font-size: 10px; }
+  .line3 { display: none; }
+  .title { font-size: 16px; }
+  .runway { margin-top: 2px; padding: 2px 0; }
+  .times { margin-top: 2px; }
+  .vol-row { min-height: 32px; }
+  .vol-mute { width: 32px; height: 32px; }
+  .roombar { min-height: 36px; margin: 2px 0; }
+  .roombar-art { width: 26px; height: 26px; }
+  .controls { min-height: 48px; margin-top: 0; }
+  .ctl.main { width: 46px; height: 46px; }
+  .ctl.main .glyph { width: 22px; height: 22px; }
 }
