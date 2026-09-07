@@ -1059,9 +1059,12 @@ body {
 .puck[data-tier="queue"] .chosen-title, .puck[data-tier="queue"] .chosen-sub, .puck[data-tier="queue"] .chosen-play { display: none; }
 .queue-keys { display: none; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; align-items: center; }
 .puck[data-tier="queue"] .queue-keys { display: -webkit-flex; display: flex; }
-.queue-keys .key { width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); margin: 0 calc(var(--u) * .9); position: relative; }
-.queue-keys .key .glyph { width: 56%; height: 56%; margin: 22% auto; display: block; }
-.queue-keys .key-play { width: calc(var(--u) * 9.5); height: calc(var(--u) * 9.5); line-height: calc(var(--u) * 9.5); border-color: var(--accent); color: var(--accent); }
+/* Bright, not faint (Peter, 09-07: "the centre control on Chrome is faint and
+   hard to see"): bone glyphs on a dark fill with a strong rim; the middle key
+   wears the accent as a glow round a bone rim, so a grey sleeve cannot dim it. */
+.queue-keys .key { width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); margin: 0 calc(var(--u) * .9); position: relative; background: rgba(10, 11, 14, .88); border-color: rgba(242, 238, 230, .55); color: #f2eee6; }
+.queue-keys .key .glyph { width: 62%; height: 62%; margin: 19% auto; display: block; }
+.queue-keys .key-play { width: calc(var(--u) * 10); height: calc(var(--u) * 10); line-height: calc(var(--u) * 10); border: 2px solid #f2eee6; color: #f2eee6; background: rgba(10, 11, 14, .92); box-shadow: 0 0 0 calc(var(--u) * .6) var(--accent), 0 0 calc(var(--u) * 2.4) rgba(0, 0, 0, .5); }
 .queue-keys .key[data-off="1"] { display: none; }
 .puck[data-tier="queue"] .opt-on .tok { border-color: var(--accent); box-shadow: 0 0 0 calc(var(--u) * .6) var(--accent), 0 0 calc(var(--u) * 2.4) rgba(0, 0, 0, .5); }
 .puck[data-tier="queue"] .opt-on .tok-titled { color: #ffffff; }

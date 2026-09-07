@@ -1106,6 +1106,7 @@ test('the queue face: a strong highlight in the perimeter, a hub of transport ic
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.chosen-title, \.puck\[data-tier="queue"\] \.chosen-sub, \.puck\[data-tier="queue"\] \.chosen-play \{ display: none; \}/);
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.opt-on \.tok \{ border-color: var\(--accent\); box-shadow: 0 0 0 calc\(var\(--u\) \* \.6\) var\(--accent\)/, 'the chosen row, marked strongly in the perimeter');
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-prev, \.puck\[data-tier="queue"\] \.nav-keys \.key-next \{ display: none; \}/, 'the ring\'s steppers give way to the hub\'s');
+  assert.match(CSS, /\.queue-keys \.key-play \{[^}]*border: 2px solid #f2eee6; color: #f2eee6;/, 'the middle key is bone on dark, the accent only a glow (Peter 09-07: "faint")');
   assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);\s*while \(optWrap\.firstChild\)/, 'the axis words are painted for every tier, the queue included');
 });
 

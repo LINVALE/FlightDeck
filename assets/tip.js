@@ -17,6 +17,7 @@ export function installTips(options) {
   var holdTimer = null;
   var over = null;
   var swallowUntil = 0;
+  var hold = null;
 
   function ensure() {
     if (card !== null) return card;
@@ -58,6 +59,7 @@ export function installTips(options) {
   }
 
   function hide() {
+    pending = null;
     if (showTimer !== null) { clearTimeout(showTimer); showTimer = null; }
     if (holdTimer !== null) { clearTimeout(holdTimer); holdTimer = null; }
     if (card !== null) card.style.display = 'none';
@@ -70,13 +72,36 @@ export function installTips(options) {
     return node !== null && node !== document && node.nodeType === 1 ? node : null;
   }
 
+  var pending = null;
+  function arrive(node) {
+    if (node === null) { if (over !== null || showTimer !== null) hide(); pending = null; return; }
+    if (node === over || node === pending) return;
+    hide();
+    pending = node;
+    showTimer = setTimeout(function () { showTimer = null; pending = null; show(node); }, 260);
+  }
   document.addEventListener('pointerover', function (event) {
     if (event.pointerType === 'touch') return;
+    arrive(target(event));
+  }, true);
+  /**
+   * A television's browser may have no pointer events at all (the floor is
+   * Chromium 63, but a set's browser can be older), and its pointer remote
+   * speaks in mouse events — so the mouse is heard too. With pointer events
+   * present the same node arrives twice and the second is a no-op.
+   */
+  document.addEventListener('mousemove', function (event) {
+    if (hold !== null) return;
+    arrive(target(event));
+  }, true);
+  document.addEventListener('mouseout', function (event) {
+    if (typeof window.PointerEvent !== 'undefined') return;
     var node = target(event);
-    if (node === null) { hide(); return; }
-    if (node === over) return;
-    hide();
-    showTimer = setTimeout(function () { showTimer = null; show(node); }, 260);
+    if (node !== null && (node === over || node === pending)) {
+      var to = event.relatedTarget;
+      while (to && to !== node && to.nodeType === 1) to = to.parentNode;
+      if (to !== node) hide();
+    }
   }, true);
   document.addEventListener('pointerout', function (event) {
     if (event.pointerType === 'touch') return;
@@ -88,7 +113,6 @@ export function installTips(options) {
     }
   }, true);
   // A finger: hold half a second to read; the lift after a hold is not a tap.
-  var hold = null;
   document.addEventListener('pointerdown', function (event) {
     if (event.pointerType !== 'touch') { hide(); return; }
     var node = target(event);

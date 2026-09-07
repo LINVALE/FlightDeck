@@ -79,8 +79,9 @@ test('the remote installs the page\'s own tip: a finger holds to read, the lift 
   const TIP = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'tip.js'), 'utf8');
   assert.match(PHONE, /installTips\(\{ size: '13px' \}\);/);
   assert.match(PHONE, /row\.setAttribute\('data-tip', why\)/);
-  assert.match(TIP, /if \(event\.pointerType === 'touch'\) return;[\s\S]{0,200}showTimer = setTimeout\(function \(\) \{ showTimer = null; show\(node\); \}, 260\);/, 'a pointer: a beat after it settles');
+  assert.match(TIP, /function arrive\(node\) \{[\s\S]{0,300}showTimer = setTimeout\(function \(\) \{ showTimer = null; pending = null; show\(node\); \}, 260\);/, 'a pointer: a beat after it settles');
   assert.match(TIP, /holdTimer = setTimeout\(function \(\) \{[\s\S]{0,120}show\(hold\.node\); swallowUntil = Infinity;/, 'a finger: half a second held');
   assert.match(TIP, /if \(Date\.now\(\) < swallowUntil\) \{ event\.stopPropagation\(\); event\.preventDefault\(\); swallowUntil = 0; \}/, 'the lift after a hold is not a tap');
   assert.doesNotMatch(TIP, /<style|createElement\('style'\)/, 'no stylesheet, no nonce needed');
+  assert.match(TIP, /document\.addEventListener\('mousemove', function \(event\) \{\s*if \(hold !== null\) return;\s*arrive\(target\(event\)\);/, 'a television\'s pointer remote speaks in mouse events; heard even without pointer events');
 });
