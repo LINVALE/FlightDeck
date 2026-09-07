@@ -337,11 +337,17 @@ Roon when a zone is first enabled**: that is the one place they live.
 One reading of them, on every face (`assets/volume-limits.js`, mirrored by
 `src/model/volume-limits.ts` and kept in step by test):
 
-- **The scale is drawn to the top**, whatever the limits: plain up to comfort,
-  **amber** (`#c9902e`) from comfort to safety, **red** (`rgb(232,84,70)`)
-  beyond — on the Wall's rule, the Face's rail, the phone's scale, the puck's
-  bezel of a hundred ticks alike. (09-05 hid the puck's ticks past comfort;
-  09-06 supersedes that: hidden ticks said nothing about *where* the limit was.)
+- **The scale ends at the safety limit, as RAAT reports it** (⚖️ Peter 09-07:
+  "match what RAAT does — that's what I intended"). Roon folds a RAAT device's
+  safety limit into its range (measured: Study ROON `min 0 · max 80 · hard 80`)
+  while a RHEOS room reports `max 100 · hard 80` for the same limits; every
+  scale now ends where the safety limit is, so two rooms with the same limits
+  read the same and nothing is drawn that cannot be reached: plain up to
+  comfort, **amber** (`#c9902e`) from comfort to the end — on the Wall's rule,
+  the Face's rail, the phone's scale, the puck's bezel of a hundred ticks
+  alike. A level standing past safety, set from Roon's own app, still reads
+  **red**. (09-05 hid the puck's ticks past comfort; 09-06 drew a red band to
+  100; 09-07 supersedes both.)
 - **A drag, a turn, a press or a step goes up to comfort and stops there.**
 - **A second press inside 700ms on the same control passes comfort** — the
   request carries `override: true` — up to safety.

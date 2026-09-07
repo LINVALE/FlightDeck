@@ -6,27 +6,29 @@ import { limitsOf as serverLimitsOf, askedLevel as serverAskedLevel, askedSteps 
 // Peter 09-06: comfort (soft_limit) is a stop a double tap may pass; safety (hard_limit_max) is a wall.
 const ROON = { type: 'number', min: 0, max: 100, value: 40, step: 1, muted: false, softLimit: 80, hardLimitMax: 90 };
 
-test('the four numbers: comfort inside safety inside the scale; missing limits collapse inward', () => {
-  assert.deepEqual(limitsOf(ROON), { min: 0, max: 100, comfort: 80, safety: 90, step: 1 });
+test('the four numbers: the scale ends at the safety limit, as RAAT reports it; missing limits collapse inward', () => {
+  // Peter 09-07: "match what RAAT does" — Roon folds a RAAT device's safety limit into its range; every scale now ends there
+  assert.deepEqual(limitsOf(ROON), { min: 0, max: 90, comfort: 80, safety: 90, step: 1 });
   assert.deepEqual(limitsOf({ ...ROON, softLimit: null, hardLimitMax: null }), { min: 0, max: 100, comfort: 100, safety: 100, step: 1 }, 'no limits: the whole scale is comfortable');
-  assert.deepEqual(limitsOf({ ...ROON, softLimit: 95 }), { min: 0, max: 100, comfort: 90, safety: 90, step: 1 }, 'a comfort above safety is safety');
+  assert.deepEqual(limitsOf({ ...ROON, softLimit: 95 }), { min: 0, max: 90, comfort: 90, safety: 90, step: 1 }, 'a comfort above safety is safety');
   assert.deepEqual(limitsOf({ ...ROON, softLimit: 100, hardLimitMax: 100 }).comfort, 100, 'Roon reports 100/100 when nothing is set');
-  assert.deepEqual(limitsOf({ ...ROON, min: -80, max: 0, softLimit: -20, hardLimitMax: -10 }), { min: -80, max: 0, comfort: -20, safety: -10, step: 1 }, 'a dB scale');
+  assert.deepEqual(limitsOf({ ...ROON, min: -80, max: 0, softLimit: -20, hardLimitMax: -10 }), { min: -80, max: -10, comfort: -20, safety: -10, step: 1 }, 'a dB scale ends at its safety limit too');
   assert.deepEqual(serverLimitsOf(ROON), limitsOf(ROON), 'the server reads the same numbers');
   // measured 09-07: a Marantz over RAAT reports max 80 · hard 80 for the same limits a RHEOS room reports as max 100 · hard 80
-  const folded = { ...ROON, max: 80, softLimit: 60, hardLimitMax: 80 };
-  assert.deepEqual(limitsOf(folded), { min: 0, max: 100, comfort: 60, safety: 80, step: 1 }, 'a percent scale whose top is its safety limit reads to 100, red above the limit');
-  assert.deepEqual(serverLimitsOf(folded), limitsOf(folded));
-  assert.deepEqual(limitsOf({ ...ROON, type: 'db', min: -80, max: -10, softLimit: -20, hardLimitMax: -10 }).max, -10, 'a dB scale is left as reported');
-  assert.deepEqual(limitsOf({ ...ROON, max: 80, softLimit: 60, hardLimitMax: 100 }).max, 80, 'a genuine 0–80 device (its limit above its top) is left as reported');
+  const raat = { ...ROON, max: 80, softLimit: 60, hardLimitMax: 80 };      // Study ROON as measured
+  const rheos = { ...ROON, max: 100, softLimit: 60, hardLimitMax: 80 };    // Study RHEOS as measured, the same limits in Roon
+  assert.deepEqual(limitsOf(raat), { min: 0, max: 80, comfort: 60, safety: 80, step: 1 });
+  assert.deepEqual(limitsOf(rheos), limitsOf(raat), 'two rooms with the same limits read the same');
+  assert.deepEqual(serverLimitsOf(rheos), limitsOf(rheos));
+  assert.deepEqual(limitsOf({ ...ROON, max: 80, softLimit: 60, hardLimitMax: 100 }).max, 80, 'a genuine 0–80 device is left as reported');
 });
 
-test('bands: ok to comfort, amber to safety, red beyond — and the scale is painted to the top', () => {
-  const L = limitsOf(ROON);
+test('bands: ok to comfort, amber from comfort to the end of the scale; a level past safety (set from Roon) reads as danger', () => {
+  const L = limitsOf(ROON);   // 0..90, comfort 80
   assert.equal(bandOf(40, L), 'ok'); assert.equal(bandOf(80, L), 'ok'); assert.equal(bandOf(81, L), 'comfort'); assert.equal(bandOf(90, L), 'comfort'); assert.equal(bandOf(91, L), 'danger');
-  assert.deepEqual(bandsOf(L), { comfortAt: 0.8, safetyAt: 0.9 });
+  assert.deepEqual(bandsOf(L), { comfortAt: 80 / 90, safetyAt: 1 }, 'the scale ends at safety: no red band is drawn');
   const B = bandsOf(L);
-  assert.equal(bandAtFraction(0.5, B), 'ok'); assert.equal(bandAtFraction(0.8, B), 'comfort'); assert.equal(bandAtFraction(0.9, B), 'danger'); assert.equal(bandAtFraction(1, B), 'danger');
+  assert.equal(bandAtFraction(0.5, B), 'ok'); assert.equal(bandAtFraction(0.9, B), 'comfort'); assert.equal(bandAtFraction(1, B), 'comfort');
   assert.equal(bandAtFraction(0.95, bandsOf(limitsOf({ ...ROON, softLimit: null, hardLimitMax: null }))), 'ok', 'no limits, no bands');
 });
 

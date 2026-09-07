@@ -20,16 +20,18 @@ export function limitsOf(volume) {
   var max = typeof volume.max === 'number' ? volume.max : 100;
   if (max <= min) max = min + 1;
   var hard = typeof volume.hardLimitMax === 'number' ? volume.hardLimitMax : max;
-  /**
-   * ⚖️ ROON FOLDS THE SAFETY LIMIT INTO A RAAT DEVICE'S RANGE (measured 09-07:
-   * Study ROON, a Marantz over RAAT, reports min 0 · max 80 · hard 80 while
-   * Study RHEOS, the same limits set in Roon, reports max 100 · hard 80).
-   * A percent scale whose top IS its safety limit is that fold: the scale is
-   * drawn to 100 like every other, with the red band above the limit, so two
-   * rooms with the same limits read the same (Peter, 09-07).
-   */
-  if (volume.type === 'number' && min === 0 && max < 100 && max === hard) max = 100;
   var safety = hard > min && hard < max ? hard : max;
+  /**
+   * ⚖️ THE SCALE ENDS AT THE SAFETY LIMIT, AS RAAT DOES (Peter, 09-07: "match
+   * what RAAT does — that's what I intended"). Roon reports a RAAT device's
+   * range with the safety limit folded in (measured: Study ROON min 0 · max
+   * 80 · hard 80) while a RHEOS room reports max 100 · hard 80. Every scale
+   * now ends where the safety limit is, so two rooms with the same limits
+   * read the same and nothing is drawn that cannot be reached: plain to
+   * comfort, amber from comfort to the end. (Supersedes 09-06's red band to
+   * 100.)
+   */
+  if (safety < max) max = safety;
   var soft = typeof volume.softLimit === 'number' ? volume.softLimit : safety;
   var comfort = soft > min && soft < safety ? soft : safety;
   var step = typeof volume.step === 'number' && volume.step > 0 ? volume.step : 1;

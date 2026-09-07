@@ -20,10 +20,10 @@ export function limitsOf(volume: OutputVolume): VolumeLimits {
   let max = volume.max ?? 100;
   if (max <= min) max = min + 1;
   const hard = volume.hardLimitMax ?? max;
-  // Roon folds a RAAT device's safety limit into its range (measured 09-07:
-  // max 80 · hard 80); a percent scale whose top is its safety limit reads to 100.
-  if (volume.type === 'number' && min === 0 && max < 100 && max === hard) max = 100;
   const safety = hard > min && hard < max ? hard : max;
+  // The scale ends at the safety limit, as Roon reports a RAAT device's range
+  // (Peter, 09-07: "match what RAAT does"); supersedes the red band to 100.
+  if (safety < max) max = safety;
   const soft = volume.softLimit ?? safety;
   const comfort = soft > min && soft < safety ? soft : safety;
   const step = volume.step !== null && volume.step > 0 ? volume.step : 1;
