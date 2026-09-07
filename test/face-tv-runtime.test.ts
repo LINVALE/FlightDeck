@@ -1069,7 +1069,7 @@ test('the Face\'s list reads the current row\'s sentence at its foot, for a remo
   const FACE_CSS2 = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.css'), 'utf8');
   assert.match(FACE, /function paintBrowseWhy\(node\)[\s\S]{0,300}var text = node !== null \? \(node\.getAttribute\('data-tip'\) \|\| ''\) : '';/);
   assert.match(FACE, /browseNavigationCurrent = node;\s*paintBrowseWhy\(node\);/, 'it follows the current row');
-  assert.match(FACE, /body\.appendChild\(el\('div', 'browse-why'\)\);/);
+  assert.match(FACE, /browsePanel\.replaceChildren\(head, body, el\('div', 'browse-why'\)\);/, 'a footer of the panel, under the list and the alphabet alike');
   assert.match(FACE, /installTips\(\{ size: '1\.9vh' \}\);/);
   assert.match(FACE_CSS2, /\.browse-why:empty \{ display: none; \}/);
 });

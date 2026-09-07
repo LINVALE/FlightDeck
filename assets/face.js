@@ -4275,9 +4275,10 @@ function browseShell(title, canGoBack) {
   // content and pushed the rail thousands of pixels off screen.
   var body = el('div', 'browse-body');
   body.appendChild(list);
-  body.appendChild(el('div', 'browse-why'));
   setBrowseNavigation(null);
-  browsePanel.replaceChildren(head, body);
+  // The foot line sits under the whole body — the body is a row of the list
+  // and the alphabet, and a line inside it became a third column (measured).
+  browsePanel.replaceChildren(head, body, el('div', 'browse-why'));
   browseAlive();
   return list;
 }
