@@ -1075,6 +1075,7 @@ test('the axis pills name the face they lead to, on the music face and in browse
   assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);/);
   assert.match(CSS, /\.axis-word \{[^}]*text-transform: uppercase;/);
   assert.match(CSS, /\.btn-up, \.btn-down \{\s*width: auto; min-width: calc\(var\(--u\) \* 8\); height: calc\(var\(--u\) \* 6\.4\);/, 'pills, not circles');
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-up, \.puck\[data-tier="queue"\] \.nav-keys \.key-down,[\s\S]{0,260}width: auto; min-width: calc\(var\(--u\) \* 8\.5\);/, 'the queue, rooms and local tiers keep the pill\'s own width (Peter 09-07: the word spilled past the pill)');
 });
 
 test('the letter ring reads one foot line — what is spelt, then where in the list — and counts a glance can read', () => {

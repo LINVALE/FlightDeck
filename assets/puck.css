@@ -1031,8 +1031,18 @@ body {
 }
 .nav-keys .key-up .glyph, .nav-keys .key-down .glyph { width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); margin: 0; }
 .nav-keys .key-up .axis-word, .nav-keys .key-down .axis-word { color: var(--accent); }
+/* The queue, rooms and local tiers size their keys at 5.4 for the ‹ › circles;
+   the pills must not inherit that width or the word spills past the pill
+   (Peter, 09-07: "Library and Playing do not fit in the buttons"). */
+.puck[data-tier="queue"] .nav-keys .key-up, .puck[data-tier="queue"] .nav-keys .key-down,
 .puck[data-tier="rooms"] .nav-keys .key-up, .puck[data-tier="rooms"] .nav-keys .key-down,
-.puck[data-tier="local"] .nav-keys .key-up, .puck[data-tier="local"] .nav-keys .key-down { height: calc(var(--u) * 5.6); }
+.puck[data-tier="local"] .nav-keys .key-up, .puck[data-tier="local"] .nav-keys .key-down {
+  width: auto; min-width: calc(var(--u) * 8.5); height: calc(var(--u) * 5.8); line-height: normal;
+  margin-left: 0; margin-top: calc(var(--u) * -2.9);
+  padding: 0 calc(var(--u) * 2.2) 0 calc(var(--u) * 1.4);
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+}
+.axis-word { overflow: visible; }
 
 /* ⚖️ THE BEZEL'S NUMBER, READABLE (Peter, 09-07: "optimise"): 3.6 rig units
    in bold with a dark halo, so it reads over the ticks on a 313px glass. */
