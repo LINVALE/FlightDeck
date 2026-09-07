@@ -10,7 +10,7 @@ import { createVolumeGate, levelAtAngle, levelForDrag } from './volume-gate.js';
 import { readPalette, luminance } from './sleeve-palette.js';
 import { decideUi } from './screen-shape.js';
 import { installTips } from './tip.js';
-installTips({ size: '14px' });
+var tips = installTips({ size: '14px' });
 import { limitsOf, bandOf, askedLevel, createDoubleTap } from './volume-limits.js';
 
 /** A second tap on the scale inside the window: the hand means above comfort. */
@@ -950,6 +950,7 @@ var browse = createBrowse({
   },
   onAxis: function (dir) { axis(dir); },
   axisName: function (dir) { return faceName(nextStop(browse.at(), dir)); },
+  tip: tips,
   onSwitch: function (room) { switchRoom(room); },
   // The rooms face reads the house from the store and acts through the deck.
   zones: function () { var s = store.snapshot(); return s === null ? [] : s.zones; },

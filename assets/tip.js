@@ -142,5 +142,14 @@ export function installTips(options) {
   window.addEventListener('scroll', hide, true);
   window.addEventListener('blur', hide);
 
-  return { hide: hide };
+  /** Show the card for `node` now, for `ms` (default 3s) — the D-pad's and the wheel's way of hovering. */
+  var announceTimer = null;
+  function announce(node, ms) {
+    if (node === null || node === undefined) return;
+    hide();
+    show(node);
+    if (announceTimer !== null) clearTimeout(announceTimer);
+    announceTimer = setTimeout(function () { announceTimer = null; if (over === node) hide(); }, typeof ms === 'number' ? ms : 3000);
+  }
+  return { hide: hide, show: announce };
 }

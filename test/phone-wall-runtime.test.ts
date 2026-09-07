@@ -83,5 +83,6 @@ test('the remote installs the page\'s own tip: a finger holds to read, the lift 
   assert.match(TIP, /holdTimer = setTimeout\(function \(\) \{[\s\S]{0,120}show\(hold\.node\); swallowUntil = Infinity;/, 'a finger: half a second held');
   assert.match(TIP, /if \(Date\.now\(\) < swallowUntil\) \{ event\.stopPropagation\(\); event\.preventDefault\(\); swallowUntil = 0; \}/, 'the lift after a hold is not a tap');
   assert.doesNotMatch(TIP, /<style|createElement\('style'\)/, 'no stylesheet, no nonce needed');
+  assert.match(TIP, /return \{ hide: hide, show: announce \};/, 'a card can be shown on demand, for a beat — the D-pad\'s and the wheel\'s way of hovering');
   assert.match(TIP, /document\.addEventListener\('mousemove', function \(event\) \{\s*if \(hold !== null\) return;\s*arrive\(target\(event\)\);/, 'a television\'s pointer remote speaks in mouse events; heard even without pointer events');
 });

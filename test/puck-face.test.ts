@@ -839,7 +839,7 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(BROWSE, /node\.appendChild\(titledToken\(item\.title, size, mine\)\);/, 'the title in each circle, not the sleeve');
   assert.match(BROWSE, /function titledToken\(title, size, mine\) \{\s*var mark = el\('div', 'tok tok-titled'\);\s*mark\.appendChild\(el\('div', 'tok-title', title\)\);/);
   assert.match(BROWSE, /\(item\.now === true \? ' opt-now' : ''\)/, 'the playing row is marked on its rim');
-  assert.match(BROWSE, /function bindChoose\(node, index\) \{[\s\S]{0,300}if \(view === null \|\| view\.sel === index\) return;\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a circle chooses; only the hub plays');
+  assert.match(BROWSE, /function bindChoose\(node, index\) \{[\s\S]{0,600}if \(view\.sel === index\) \{ queueGo\(\); return; \}\s*view\.sel = index;\s*tick\(\);\s*draw\(\);/, 'a tap on a circle chooses; a second tap on it goes (09-07), as does the hub');
   assert.match(CSS, /\.tok-title \{[^\n]*-webkit-line-clamp: 3;/);
   assert.match(CSS, /\.opt-now \.tok \{ border-color: rgba\(242, 238, 230, \.7\); \}/);
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.count \{ display: none; \}/, 'the place in the queue is read in the hub; an even ring puts a circle where the count would be');
@@ -1119,8 +1119,12 @@ test('every ring circle and the hub carry the row\'s sentence as a hover tag', (
 });
 
 // Peter 09-07: "no hints showing" on the television's browser — a tip of the page's own, and the sentence at the foot
-test('the puck shows what the highlighted row does at the foot, and installs the page\'s own tip', () => {
-  assert.match(BROWSE, /linsub\.textContent = explains \? explain\(itemAt\(view\.sel\)\) : '';/);
-  assert.match(JS, /import \{ installTips \} from '\.\/tip\.js';\s*installTips\(\{ size: '14px' \}\);/);
-  assert.match(CSS, /\.puck\[data-lettered="1"\] \.linsub \{ display: none; \}/, 'not where the alphabet owns the foot');
+test('the card follows the D-pad and the wheel beside the highlighted circle; the foot line is gone (it hid behind the cog)', () => {
+  assert.match(JS, /var tips = installTips\(\{ size: '14px' \}\);/);
+  assert.match(JS, /tip: tips,/);
+  assert.match(BROWSE, /announce = true;/);
+  assert.match(BROWSE, /if \(tip !== null && lit !== null && lit\.getAttribute\('data-tip'\)\) tip\.show\(lit, 3000\);/);
+  assert.doesNotMatch(BROWSE, /linsub\.textContent = explains/);
+  assert.doesNotMatch(CSS, /\.puck\[data-lettered="1"\] \.linsub/);
+  assert.match(BROWSE, /if \(view\.sel === index\) \{ queueGo\(\); return; \}/, 'in the queue a tap on the highlighted circle goes (Peter 09-07)');
 });

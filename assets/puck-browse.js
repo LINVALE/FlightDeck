@@ -303,6 +303,8 @@ export function createBrowse(options) {
   var act = options.act || function () { return Promise.resolve(false); };
   var onSwitch = options.onSwitch || function () {};
   var axisName = options.axisName || function () { return ''; };
+  var tip = options.tip || null;
+  var announce = false;   // the next draw shows the card beside the highlighted circle
   var session = 'puck-' + String(Math.floor(Math.random() * 1e6));
 
   /* ---------- the layer ---------- */
@@ -729,11 +731,11 @@ export function createBrowse(options) {
     else if (view.tier === 'rooms') drawRooms();
     else if (view.tier === 'local') drawLocalRing();
     else drawRing();
-    // ⚖️ WHAT THE HIGHLIGHTED ROW DOES, AT THE FOOT (Peter, 09-07): a sentence
-    // every screen can show, wheel or finger, where a hover tag cannot be relied
-    // on. Not on a letter's page, where the alphabet owns the foot.
-    var explains = (view.tier === 'radial' || view.tier === 'linear' || view.tier === 'local') && !view.spell && !view.letter;
-    linsub.textContent = explains ? explain(itemAt(view.sel)) : '';
+    if (announce) {
+      announce = false;
+      var lit = optWrap.querySelector('.opt-on');
+      if (tip !== null && lit !== null && lit.getAttribute('data-tip')) tip.show(lit, 3000);
+    }
 
   }
 
@@ -1169,7 +1171,12 @@ export function createBrowse(options) {
   function bindChoose(node, index) {
     node.addEventListener('click', function (event) {
       event.stopPropagation();
-      if (view === null || view.sel === index) return;
+      if (view === null) return;
+      // ⚖️ A tap on the highlighted circle GOES (Peter, 09-07: "a click/tap on
+      // the highlighted option in the satellites should go to that choice
+      // immediately, in addition to clicking on the centre sun"); a tap on
+      // another circle highlights it first.
+      if (view.sel === index) { queueGo(); return; }
       view.sel = index;
       tick();
       draw();
@@ -1461,6 +1468,10 @@ export function createBrowse(options) {
     if (view === null || busy) return;
     var n = view.tier === 'alpha' ? view.letters.length : view.total;
     if (n === 0) return;
+    // ⚖️ THE CARD FOLLOWS THE D-PAD AND THE WHEEL (Peter, 09-07: the foot line
+    // was hidden behind the cog): a highlight moved by a key or a turn shows
+    // the row's sentence beside its circle for a beat, as a hover would.
+    announce = true;
     if (view.tier === 'linear') {
       var next = view.sel + step;
       // A library has ends; a ring does not.
