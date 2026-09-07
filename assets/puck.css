@@ -1030,7 +1030,16 @@ body {
   display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
 }
 .nav-keys .key-up .glyph, .nav-keys .key-down .glyph { width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); margin: 0; }
-.nav-keys .key-up .axis-word, .nav-keys .key-down .axis-word { color: var(--accent); }
+/* ⚖️ CONTRAST, NOT COLOUR (Peter, 09-07: "the buttons for library and playing
+   are faded out on the TV — they need good contrast"). The pills wore the
+   sleeve's accent, which a muted sleeve turns grey, on a translucent fill.
+   Now bone on near-black with a strong rim, on the music face and in browse
+   alike; the accent plays no part. */
+.btn-up, .btn-down, .nav-keys .key-up, .nav-keys .key-down {
+  background: rgba(8, 9, 12, .94); border: 1px solid rgba(242, 238, 230, .78); color: #f2eee6;
+}
+.btn-up .glyph, .btn-down .glyph, .nav-keys .key-up .glyph, .nav-keys .key-down .glyph { color: #f2eee6; }
+.axis-word, .nav-keys .key-up .axis-word, .nav-keys .key-down .axis-word { color: #f2eee6; font-weight: 700; }
 /* The queue, rooms and local tiers size their keys at 5.4 for the ‹ › circles;
    the pills must not inherit that width or the word spills past the pill
    (Peter, 09-07: "Library and Playing do not fit in the buttons"). */

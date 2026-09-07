@@ -1150,3 +1150,10 @@ test('a hop takes the best match — exact title with the artist, exact title, a
   assert.doesNotMatch(BROWSE, /throw new Error\('not in Roon'\)/);
   assert.match(BROWSE, /row: \{ kind: 'tracks', title: t\.title \|\| '', artist: firstArtist\(t\.line2\), line3: t\.line3 \|\| '' \}/, 'the queue\'s past rows carry what the hop needs (they carried a raw ledger row, which is why they said not in Roon)');
 });
+
+// Peter 09-07: "the buttons for library and playing are faded out on the TV — they need good contrast"
+test('the axis pills are bone on near-black with a strong rim; the sleeve\'s accent plays no part', () => {
+  assert.match(CSS, /\.btn-up, \.btn-down, \.nav-keys \.key-up, \.nav-keys \.key-down \{\s*background: rgba\(8, 9, 12, \.94\); border: 1px solid rgba\(242, 238, 230, \.78\); color: #f2eee6;/);
+  assert.match(CSS, /\.axis-word, \.nav-keys \.key-up \.axis-word, \.nav-keys \.key-down \.axis-word \{ color: #f2eee6; font-weight: 700; \}/);
+  assert.doesNotMatch(CSS, /\.axis-word \{ color: var\(--accent\); \}/);
+});
