@@ -70,6 +70,35 @@ var SPACE = '\u2423';
 var DELETE = '\u232b';
 var GO = '\u23ce';
 
+/**
+ * ⚖️ THE BEST MATCH, NEVER "NOT IN ROON" (Peter, 09-07: "rather than return
+ * not in Roon we should search for an album or track and pick the best
+ * match"). Among a search category's rows: the title that matches exactly
+ * AND names the artist; then an exact title; then a title that begins with
+ * what was asked; then one that contains it; then the first row Roon offered.
+ */
+export function bestMatch(items, wantKey, artistKey) {
+  var rows = Array.isArray(items) ? items : [];
+  if (rows.length === 0) return null;
+  artistKey = keyOf(artistKey || '');   // keys are Roon's collation form (upper case); a caller need not know
+  var score = function (item) {
+    var key = keyOf(item.title || '');
+    var sub = keyOf(item.subtitle || '');
+    var artist = artistKey !== '' && sub.indexOf(artistKey) !== -1;
+    if (key === wantKey) return artist ? 5 : 4;
+    if (wantKey !== '' && key.indexOf(wantKey) === 0) return artist ? 3 : 2;
+    if (wantKey !== '' && key.indexOf(wantKey) !== -1) return 1;
+    return 0;
+  };
+  var best = rows[0];
+  var bestScore = score(best);
+  for (var i = 1; i < rows.length; i += 1) {
+    var s = score(rows[i]);
+    if (s > bestScore) { best = rows[i]; bestScore = s; }
+  }
+  return best;
+}
+
 /** 28390 → "28 390" (a thin space): a count a glance can read. */
 export function thousands(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
@@ -594,7 +623,8 @@ export function createBrowse(options) {
           var t = tracks[i];
           if (t.zoneId !== zone) continue;
           if (t.title === lastTitle) continue;           // the playing track, or a repeat of the last kept
-          past.push({ title: t.title || '(untitled)', subtitle: firstArtist(t.line2), row: t, past: true });
+          past.push({ title: t.title || '(untitled)', subtitle: firstArtist(t.line2), past: true,
+            row: { kind: 'tracks', title: t.title || '', artist: firstArtist(t.line2), line3: t.line3 || '' } });
           lastTitle = t.title;
         }
         return past;
@@ -880,38 +910,53 @@ export function createBrowse(options) {
    * presents THAT level — an album's tracks and Play Album, an artist's page, a
    * track's Play Now / Add Next / Queue. ‹ from there is the ledger ring again.
    */
-  function hop(row) {
-    var from = view;
-    var mine = epoch;
-    var want = { tracks: 'Tracks', albums: 'Albums', artists: 'Artists' }[row.kind];
-    var query = row.kind === 'artists' ? row.name : row.title;
-    var wantKey = keyOf(query);
-    busy = true;
-    levelName.textContent = 'finding…';
-    ask({ hierarchy: 'search', popAll: true, input: query })
+  /** Search Roon for `query`, open `categoryTitle` among its results, and load that page — or null if Roon has no such category. */
+  function searchCategory(query, categoryTitle) {
+    return ask({ hierarchy: 'search', popAll: true, input: query })
       .then(function () { return ask({ hierarchy: 'search', load: true, count: 20, offset: 0 }); })
       .then(function (head) {
         var items = head.items || [];
         var category = null;
-        for (var i = 0; i < items.length; i += 1) if (items[i].title === want) category = items[i];
-        if (category === null) throw new Error('not in Roon');
+        for (var i = 0; i < items.length; i += 1) if (items[i].title === categoryTitle) category = items[i];
+        if (category === null) return null;
         return ask({ hierarchy: 'search', itemKey: category.itemKey })
-          .then(function () { return ask({ hierarchy: 'search', load: true, count: 40, offset: 0 }); });
-      })
-      .then(function (page) {
-        var items = page.items || [];
-        var artistKey = keyOf(row.artist || '').split(' ')[0];
-        var pick = null;
-        for (var i = 0; i < items.length; i += 1) {
-          if (keyOf(items[i].title) !== wantKey) continue;
-          if (row.kind !== 'artists' && artistKey !== '' && items[i].subtitle && keyOf(items[i].subtitle).indexOf(artistKey) === -1) continue;
-          pick = items[i];
-          break;
-        }
-        if (pick === null && items.length > 0) pick = items[0];
-        if (pick === null) throw new Error('not in Roon');
+          .then(function () { return ask({ hierarchy: 'search', load: true, count: 40, offset: 0 }); })
+          .then(function (page) { return page.items || []; });
+      });
+  }
+
+  function hop(row) {
+    var from = view;
+    var mine = epoch;
+    var kind = row.kind || 'tracks';
+    var query = kind === 'artists' ? (row.name || row.artist || row.title) : row.title;
+    var wantKey = keyOf(query);
+    var artistKey = keyOf(row.artist || '').split(' ')[0];
+    busy = true;
+    levelName.textContent = 'finding…';
+    /**
+     * ⚖️ THE BEST MATCH, NEVER "NOT IN ROON" (Peter, 09-07): the track first;
+     * failing that the album it came from; failing that the artist — each
+     * search's category taken at its best-matching row.
+     */
+    var tries = [];
+    if (kind === 'artists') tries.push({ query: query, category: 'Artists', key: wantKey });
+    else {
+      tries.push({ query: row.title, category: kind === 'albums' ? 'Albums' : 'Tracks', key: wantKey });
+      if (kind !== 'albums' && row.line3) tries.push({ query: row.line3, category: 'Albums', key: keyOf(row.line3) });
+      if (row.artist) tries.push({ query: row.artist, category: 'Artists', key: keyOf(row.artist) });
+    }
+    var attempt = function (n) {
+      if (n >= tries.length) throw new Error('nothing like that in Roon');
+      var t = tries[n];
+      return searchCategory(t.query, t.category).then(function (items) {
+        var pick = items === null ? null : bestMatch(items, t.key, artistKey);
+        if (pick === null) return attempt(n + 1);
+        wantKey = t.key;   // the pass-through below judges the one-row shell against what was found
         return ask({ hierarchy: 'search', itemKey: pick.itemKey });
-      })
+      });
+    };
+    attempt(0)
       .then(function (result) {
         busy = false;
         if (!current(mine)) return;

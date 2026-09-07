@@ -1128,3 +1128,25 @@ test('the card follows the D-pad and the wheel beside the highlighted circle; th
   assert.doesNotMatch(CSS, /\.puck\[data-lettered="1"\] \.linsub/);
   assert.match(BROWSE, /if \(view\.sel === index\) \{ queueGo\(\); return; \}/, 'in the queue a tap on the highlighted circle goes (Peter 09-07)');
 });
+
+// Peter 09-07: "rather than return not in Roon we should search for an album or track and pick the best match"
+test('a hop takes the best match — exact title with the artist, exact title, a prefix, a mention, the first row — and tries the album and the artist before giving up', async () => {
+  const mod = await import('../assets/puck-browse.js');
+  const rows = [
+    { title: 'Body and Soul (Live)', subtitle: 'Coleman Hawkins' },
+    { title: 'Body and Soul', subtitle: 'Billie Holiday' },
+    { title: 'Body and Soul', subtitle: 'Coleman Hawkins' },
+    { title: 'Somebody', subtitle: 'Depeche Mode' },
+  ];
+  assert.equal(mod.bestMatch(rows, mod.keyOf('Body and Soul'), 'coleman')?.subtitle, 'Coleman Hawkins', 'exact title AND the artist wins');
+  assert.equal(mod.bestMatch(rows, mod.keyOf('Body and Soul'), 'chet')?.subtitle, 'Billie Holiday', 'then the first exact title');
+  assert.equal(mod.bestMatch(rows, mod.keyOf('Body and'), '')?.title, 'Body and Soul (Live)', 'then a title that begins with it');
+  assert.equal(mod.bestMatch(rows, mod.keyOf('Somebody'), '')?.title, 'Somebody');
+  assert.equal(mod.bestMatch(rows, mod.keyOf('Autumn Leaves'), '')?.title, 'Body and Soul (Live)', 'nothing alike: the first row Roon offered');
+  assert.equal(mod.bestMatch([], 'x', ''), null);
+  assert.match(BROWSE, /tries\.push\(\{ query: row\.title, category: kind === 'albums' \? 'Albums' : 'Tracks', key: wantKey \}\);/);
+  assert.match(BROWSE, /if \(kind !== 'albums' && row\.line3\) tries\.push\(\{ query: row\.line3, category: 'Albums', key: keyOf\(row\.line3\) \}\);/, 'then the album it came from');
+  assert.match(BROWSE, /if \(row\.artist\) tries\.push\(\{ query: row\.artist, category: 'Artists', key: keyOf\(row\.artist\) \}\);/, 'then the artist');
+  assert.doesNotMatch(BROWSE, /throw new Error\('not in Roon'\)/);
+  assert.match(BROWSE, /row: \{ kind: 'tracks', title: t\.title \|\| '', artist: firstArtist\(t\.line2\), line3: t\.line3 \|\| '' \}/, 'the queue\'s past rows carry what the hop needs (they carried a raw ledger row, which is why they said not in Roon)');
+});
