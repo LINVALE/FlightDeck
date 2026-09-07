@@ -13,6 +13,12 @@ test('the four numbers: comfort inside safety inside the scale; missing limits c
   assert.deepEqual(limitsOf({ ...ROON, softLimit: 100, hardLimitMax: 100 }).comfort, 100, 'Roon reports 100/100 when nothing is set');
   assert.deepEqual(limitsOf({ ...ROON, min: -80, max: 0, softLimit: -20, hardLimitMax: -10 }), { min: -80, max: 0, comfort: -20, safety: -10, step: 1 }, 'a dB scale');
   assert.deepEqual(serverLimitsOf(ROON), limitsOf(ROON), 'the server reads the same numbers');
+  // measured 09-07: a Marantz over RAAT reports max 80 · hard 80 for the same limits a RHEOS room reports as max 100 · hard 80
+  const folded = { ...ROON, max: 80, softLimit: 60, hardLimitMax: 80 };
+  assert.deepEqual(limitsOf(folded), { min: 0, max: 100, comfort: 60, safety: 80, step: 1 }, 'a percent scale whose top is its safety limit reads to 100, red above the limit');
+  assert.deepEqual(serverLimitsOf(folded), limitsOf(folded));
+  assert.deepEqual(limitsOf({ ...ROON, type: 'db', min: -80, max: -10, softLimit: -20, hardLimitMax: -10 }).max, -10, 'a dB scale is left as reported');
+  assert.deepEqual(limitsOf({ ...ROON, max: 80, softLimit: 60, hardLimitMax: 100 }).max, 80, 'a genuine 0–80 device (its limit above its top) is left as reported');
 });
 
 test('bands: ok to comfort, amber to safety, red beyond — and the scale is painted to the top', () => {
