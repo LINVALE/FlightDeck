@@ -1108,3 +1108,11 @@ test('the queue face: a strong highlight in the perimeter, a hub of transport ic
   assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-prev, \.puck\[data-tier="queue"\] \.nav-keys \.key-next \{ display: none; \}/, 'the ring\'s steppers give way to the hub\'s');
   assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);\s*while \(optWrap\.firstChild\)/, 'the axis words are painted for every tier, the queue included');
 });
+
+// Peter 09-07: "can we provide info in hover tags to show what they do?"
+test('every ring circle and the hub carry the row\'s sentence as a hover tag', () => {
+  assert.match(BROWSE, /import \{ hintFor \} from '\.\/browse-hints\.js';/);
+  assert.match(BROWSE, /function explain\(item\) \{\s*return hintFor\(item, \{ title: view === null \? '' : view\.title, hierarchy: view === null \? '' : view\.hierarchy \}\);/);
+  assert.equal((BROWSE.match(/node\.setAttribute\('title', explain\(itemAt\((index|i)\)\)\);/g) || []).length, 3, 'the radial ring, a letter\'s page and the local ring');
+  assert.match(BROWSE, /chosen\.setAttribute\('title', explain\(itemAt\(view\.sel\)\)\)/, 'and the hub reads the highlighted row\'s');
+});

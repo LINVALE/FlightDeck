@@ -1,6 +1,7 @@
 import './compat.js';
 import { decideUi, screenReport } from './screen-shape.js';
 import { limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
+import { hintFor } from './browse-hints.js';
 
 /** A second press on the same control inside the window: the hand means above comfort. */
 var volumeTaps = createDoubleTap(700);
@@ -4291,6 +4292,14 @@ function browseRow(item, onPick) {
   if (item.intent) {
     row.setAttribute('title', item.intent);
     row.setAttribute('aria-label', item.intent);
+  } else {
+    // What choosing it does, in a sentence (browse-hints.js; Peter 09-07):
+    // a hover tag for a pointer, the spoken label for a reader.
+    var why = hintFor(item, {
+      title: browseCtx !== null && Array.isArray(browseCtx.trail) && browseCtx.trail.length > 0 ? browseCtx.trail[browseCtx.trail.length - 1] : '',
+      hierarchy: browseCtx === null ? '' : browseCtx.hierarchy,
+    });
+    if (why !== '') { row.setAttribute('title', why); row.setAttribute('aria-label', String(item.title || '') + ' \u2014 ' + why); }
   }
   var thumbBox = el('span', 'browse-thumb');
   if (item.art) {

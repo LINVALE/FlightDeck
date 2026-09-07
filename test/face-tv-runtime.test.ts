@@ -1059,3 +1059,8 @@ test('the Face\'s scale is drawn to the top in Roon\'s bands; a press or step is
   assert.match(FACE_CSS, /\.vol-scale b\.comfort\.on \{ background: #c9902e; \}/);
   assert.match(FACE_CSS, /\.vol-scale b\.danger\.on \{ background: rgb\(232, 84, 70\); \}/);
 });
+
+test('the Face\'s browse rows carry the row\'s sentence as a hover tag and spoken label (Peter 09-07)', () => {
+  assert.match(FACE, /import \{ hintFor \} from '\.\/browse-hints\.js';/);
+  assert.match(FACE, /var why = hintFor\(item, \{[\s\S]{0,260}if \(why !== ''\) \{ row\.setAttribute\('title', why\); row\.setAttribute\('aria-label', String\(item\.title \|\| ''\) \+ ' \\u2014 ' \+ why\); \}/);
+});

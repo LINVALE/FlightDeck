@@ -69,3 +69,8 @@ test('the puck is an option on a phone: a way in from the remote, and a way back
   assert.match(PUCK, /if \(ON_PHONE\) \{\s*var here = currentZone\(\);\s*var room = here !== null \? here\.id : wantedSlug;\s*window\.location\.href = '\/phone' \+ \(room === '' \? '' : '\/' \+ encodeURIComponent\(room\)\);/, 'the door leads to the remote by the ZONE, which the remote resolves');
   assert.match(PUCK_CSS, /\.puck\[data-outside="2"\] \.outside \{ display: -webkit-flex; display: flex; top: auto; bottom: 16px;/);
 });
+
+test('the remote\'s sheet rows carry the row\'s sentence as a hover tag and spoken label (Peter 09-07)', () => {
+  assert.match(PHONE, /import \{ hintFor \} from '\.\/browse-hints\.js';/);
+  assert.match(PHONE, /var why = hintFor\(item, \{ title: browse\.list !== null \? browse\.list\.title : '', hierarchy: browse\.hierarchy \}\);/);
+});

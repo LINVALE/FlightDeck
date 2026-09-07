@@ -4,6 +4,7 @@ import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { limitsOf, bandsOf, bandAtFraction, bandOf, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
+import { hintFor } from './browse-hints.js';
 
 /** A second press on the same control inside the window: the thumb means above comfort. */
 var volumeTaps = createDoubleTap(700);
@@ -866,6 +867,10 @@ function browseRow(item) {
   var acts = item.hint === 'action';
   var row = el('div', 'brow' + (acts ? ' act' : '') + (!goes && !acts ? ' head' : ''));
   row.setAttribute('data-hint', item.hint || '');
+  // What choosing it does, in a sentence (browse-hints.js): a hover tag on a
+  // screen, the spoken label on a phone.
+  var why = hintFor(item, { title: browse.list !== null ? browse.list.title : '', hierarchy: browse.hierarchy });
+  if (why !== '') { row.setAttribute('title', why); row.setAttribute('aria-label', item.title + ' \u2014 ' + why); }
   if (item.art) {
     var artBox = el('span', 'brow-art');
     var img = document.createElement('img');

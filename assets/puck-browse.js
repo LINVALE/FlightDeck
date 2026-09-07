@@ -46,6 +46,7 @@
  */
 
 import { glyph, iconNameFor } from './puck-icons.js';
+import { hintFor } from './browse-hints.js';
 import { createCollages } from './collage.js';
 
 var SVG_NS = 'http://www.w3.org/2000/svg';
@@ -694,6 +695,11 @@ export function createBrowse(options) {
 
   /* ---------- drawing ---------- */
 
+  /** What a row does, for its hover tag and spoken label (browse-hints.js). */
+  function explain(item) {
+    return hintFor(item, { title: view === null ? '' : view.title, hierarchy: view === null ? '' : view.hierarchy });
+  }
+
   function itemAt(index) {
     var at = index - view.base;
     return at >= 0 && at < view.items.length ? view.items[at] : null;
@@ -711,6 +717,7 @@ export function createBrowse(options) {
     if (view.tier !== 'linear') root.removeAttribute('data-lettered');
     if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
     paintLevel();
+    if (view.tier !== 'alpha' && !view.spell) chosen.setAttribute('title', explain(itemAt(view.sel))); else chosen.removeAttribute('title');
     // The axis pills name the faces above and below wherever the puck stands —
     // the queue included (Peter, 09-07: "up: library, down: now playing").
     upWord.textContent = axisName(-1);
@@ -845,6 +852,7 @@ export function createBrowse(options) {
       var mine = index === view.sel ? size * 1.3 : size;
       node.appendChild(titledToken(item.title, size, mine));
       place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      node.setAttribute('title', explain(itemAt(index)));
       bindPick(node, index);
       optWrap.appendChild(node);
     }
@@ -1290,6 +1298,7 @@ export function createBrowse(options) {
         node.appendChild(name);
       }
       place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+      node.setAttribute('title', explain(itemAt(i)));
       bindPick(node, i);
       optWrap.appendChild(node);
     }
@@ -1365,6 +1374,7 @@ export function createBrowse(options) {
         : 'calc(var(--u) * ' + String(-(mine / 2 + (lettered ? 4.4 : 5.1))) + ')';
       node.appendChild(name);
       place(node, 50 + radius * Math.cos(angle), 50 + radius * Math.sin(angle));
+      node.setAttribute('title', explain(itemAt(index)));
       bindPick(node, index);
       optWrap.appendChild(node);
     }
