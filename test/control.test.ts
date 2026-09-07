@@ -550,9 +550,11 @@ test('an island can be named, and only one the Core actually reported', async (t
   const { post, port, registry } = await serve(t);
   const snapshot = await (await fetch('http://127.0.0.1:' + String(port) + '/api/v1/snapshot')).json() as
     { islands: { id: string; count: number; label: string | null }[] };
-  // Two islands now: Study+Kitchen, and the Downstairs pair. Garden can group
-  // with nothing and is in neither.
-  assert.equal(snapshot.islands.length, 2);
+  // Three islands: Study+Kitchen, the Downstairs pair, and Porch alone — an
+  // island of one is still an island (Peter 09-06: "Study ROON should trigger
+  // a new tab"). Garden names no peer at all and is in none.
+  assert.equal(snapshot.islands.length, 3);
+  assert.ok(snapshot.islands.some((i) => i.count === 1), 'the lone Roon Ready room has a family of its own');
   const island = snapshot.islands.find((i) => i.count === 2 && i.label === null) as { id: string; count: number; label: string | null };
   assert.ok(island, 'the Study/Kitchen island');
   assert.equal(island.count, 2);

@@ -232,8 +232,10 @@ test('outputs share an island exactly when Roon gives them the same membership',
   const raat = ['oA', 'oB', 'oC'];
   assert.equal(islandOf(raat), islandOf(['oC', 'oA', 'oB']), 'order must not matter');
   assert.notEqual(islandOf(raat), islandOf(['oA', 'oB']), 'a different membership is a different island');
-  assert.equal(islandOf(['oA']), '', 'an output that can group with nothing has no island');
-  assert.equal(islandOf([]), '', 'and neither has one Roon said nothing about');
+  // Peter 09-06: "Study ROON should trigger a new tab" — a Roon Ready device alone still names itself
+  assert.notEqual(islandOf(['oA']), '', 'an island of one is still an island (09-06; until then a lone output got none and the tabs vanished)');
+  assert.equal(islandOf(['oA']), islandOf(['oA']), 'and a stable one');
+  assert.equal(islandOf([]), '', 'only an output Roon said nothing about has no island');
 });
 
 test('the island reaches the screen on every output', () => {

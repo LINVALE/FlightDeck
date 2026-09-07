@@ -95,11 +95,18 @@ function projectVolume(raw: unknown): OutputVolume | null {
 
 /**
  * An island's name is its membership. Hashed only so it is short enough to carry
- * and compare; nothing is inferred from it, and an output that can group with
- * nothing gets no island rather than an island of one.
+ * and compare; nothing is inferred from it.
+ *
+ * ⚖️ AN ISLAND OF ONE IS STILL AN ISLAND (Peter, 09-06: "Study ROON should
+ * trigger a new tab"). A Roon Ready device standing alone says it can group
+ * with ITSELF and nothing else — that is still a family (the registry then
+ * finds the family it was last seen in, by that one member, so the tab keeps
+ * its name). Only an output that names no peer at all — Roon's word for a
+ * device that cannot group right now, asleep or otherwise — gets no island.
+ * (Until 09-06 a lone output got none, and the Wall's tabs vanished with it.)
  */
 export function islandOf(peers: readonly string[]): string {
-  if (peers.length < 2) return '';
+  if (peers.length === 0) return '';
   return createHash('sha1').update([...peers].sort().join(',')).digest('hex').slice(0, 8);
 }
 
