@@ -879,7 +879,7 @@ test('taps spell a prefix, judged in Roon\'s order, and the page seeks the first
   assert.match(BROWSE, /page\.spelt = \{ prefix: prefix, at: Date\.now\(\) \};/);
   assert.match(BROWSE, /spelt: letter !== undefined \? \{ prefix: letter, at: Date\.now\(\) \} : null,/, 'the first letter, from the ring, can be spelt on from');
   assert.match(BROWSE, /if \(view\.spelt && pick !== null && prefixCompare\(pick\.title, view\.spelt\.prefix\) !== 0\) view\.spelt = null;/, 'what is spelt stays only while the highlight is under it');
-  assert.match(BROWSE, /\(view\.spelt \? view\.spelt\.prefix : view\.letter\)\);/, 'what is spelt is written beside the count');
+  assert.match(BROWSE, /\(view\.spelt \? view\.spelt\.prefix : view\.letter\) \+ '  \\u00b7  '\)/, 'what is spelt is written beside the count');
 });
 
 /**
@@ -1065,4 +1065,29 @@ test('the sleeve is never the browser\'s to drag, and the scrub draws its own mi
   assert.match(JS, /scrubbing = false;\s*scrubThumb\.style\.display = 'none';/, 'and leaves on the lift');
   assert.match(CSS, /\.scrub-thumb \{[^}]*width: calc\(var\(--u\) \* 10\);/, 'ten units at radius 33: inside the arc, clear of the words at the foot');
   assert.match(JS, /glass\.addEventListener\('pointercancel', function \(\) \{\s*touch = null;\s*scrub = null;\s*scrubbing = false;\s*scrubThumb\.style\.display = 'none';/, 'a cancelled pointer closes the scrub, or the bead would never follow the room again');
+});
+
+// Peter 09-07 polish: the axis says where it goes; one foot line; a readable bezel number
+test('the axis pills name the face they lead to, on the music face and in browse', () => {
+  assert.match(JS, /function faceName\(stop\) \{\s*return stop === 'browse' \? 'library' : \(stop === 'queue' \? 'queue' : 'music'\);/);
+  assert.match(JS, /axisName: function \(dir\) \{ return faceName\(nextStop\(browse\.at\(\), dir\)\); \},/);
+  assert.match(JS, /function render\(\) \{\s*paintAxis\(\);/, 'named on every paint, for wherever the puck stands');
+  assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);/);
+  assert.match(CSS, /\.axis-word \{[^}]*text-transform: uppercase;/);
+  assert.match(CSS, /\.btn-up, \.btn-down \{\s*width: auto; min-width: calc\(var\(--u\) \* 8\); height: calc\(var\(--u\) \* 6\.4\);/, 'pills, not circles');
+});
+
+test('the letter ring reads one foot line — what is spelt, then where in the list — and counts a glance can read', () => {
+  assert.match(BROWSE, /export function thousands\(n\)/);
+  assert.match(BROWSE, /count\.textContent = \(view\.letter === null \? '' : \(view\.spelt \? view\.spelt\.prefix : view\.letter\) \+ '  \\u00b7  '\)\s*\+ String\(view\.sel \+ 1\) \+ ' \/ ' \+ thousands\(view\.total\);/);
+  assert.match(BROWSE, /count\.textContent = thousands\(view\.total\) \+ \(view\.title \? ' ' \+ String\(view\.title\)\.toLowerCase\(\) : ''\) \+ ' \\u00b7 pick a letter';/, '"28 390 tracks · pick a letter"');
+  assert.match(CSS, /\.puck\[data-lettered="1"\] \.nav-keys \.key-prev, \.puck\[data-lettered="1"\] \.nav-keys \.key-next \{ width: calc\(var\(--u\) \* 6\.4\);/, 'a letter\'s page keeps ‹ › at 6.4 beside its long names');
+  assert.match(CSS, /\.tick-read \{ font-size: 3\.6px; paint-order: stroke; stroke: rgba\(6, 7, 10, \.9\);/, 'the bezel number, readable');
+});
+
+test('thousands: a thin space every three digits', async () => {
+  const mod = await import('../assets/puck-browse.js');
+  assert.equal(mod.thousands(28390), '28\u2009390');
+  assert.equal(mod.thousands(999), '999');
+  assert.equal(mod.thousands(1204567), '1\u2009204\u2009567');
 });

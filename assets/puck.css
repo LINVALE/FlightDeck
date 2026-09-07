@@ -1004,3 +1004,40 @@ body {
   border-radius: 3px; -o-object-fit: cover; object-fit: cover;
   box-shadow: 0 2px 10px rgba(0, 0, 0, .6), 0 0 0 1px rgba(242, 238, 230, .4);
 }
+
+/* ⚖️ THE AXIS SAYS WHERE IT GOES (Peter, 09-07): the two arrows are slim pills
+   naming the face they lead to — on the music face and in browse alike. Centred
+   by translate on their own box (a button, never the cover). */
+.btn-up, .btn-down {
+  width: auto; min-width: calc(var(--u) * 8); height: calc(var(--u) * 6.4);
+  margin-left: 0; margin-top: calc(var(--u) * -3.2);
+  padding: 0 calc(var(--u) * 2.4) 0 calc(var(--u) * 1.6);
+  border-radius: calc(var(--u) * 3.2);
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  -webkit-flex-direction: row; flex-direction: row;
+  -webkit-align-items: center; align-items: center;
+}
+.btn-up .glyph, .btn-down .glyph { width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); margin: 0; }
+.axis-word {
+  margin-left: calc(var(--u) * 1); font-size: calc(var(--u) * 2.6); font-weight: 600;
+  letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; line-height: 1;
+}
+.nav-keys .key-up, .nav-keys .key-down {
+  width: auto; min-width: calc(var(--u) * 8.5); height: calc(var(--u) * 6.4); line-height: normal;
+  margin-left: 0; -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  padding: 0 calc(var(--u) * 2.2) 0 calc(var(--u) * 1.4);
+  border-radius: calc(var(--u) * 3.2);
+  display: -webkit-flex; display: flex; -webkit-align-items: center; align-items: center;
+}
+.nav-keys .key-up .glyph, .nav-keys .key-down .glyph { width: calc(var(--u) * 3.2); height: calc(var(--u) * 3.2); margin: 0; }
+.nav-keys .key-up .axis-word, .nav-keys .key-down .axis-word { color: var(--accent); }
+.puck[data-tier="rooms"] .nav-keys .key-up, .puck[data-tier="rooms"] .nav-keys .key-down,
+.puck[data-tier="local"] .nav-keys .key-up, .puck[data-tier="local"] .nav-keys .key-down { height: calc(var(--u) * 5.6); }
+
+/* ⚖️ THE BEZEL'S NUMBER, READABLE (Peter, 09-07: "optimise"): 3.6 rig units
+   in bold with a dark halo, so it reads over the ticks on a 313px glass. */
+.tick-read { font-size: 3.6px; paint-order: stroke; stroke: rgba(6, 7, 10, .9); stroke-width: 1.2px; stroke-linejoin: round; }
+/* A letter's page holds twelve circles and their names reach in at three and
+   nine: ‹ › keep to 6.4 there (measured: 7.5 touched "¿Qué será?"); the halo
+   still gives the finger its 10 units. */
+.puck[data-lettered="1"] .nav-keys .key-prev, .puck[data-lettered="1"] .nav-keys .key-next { width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); }

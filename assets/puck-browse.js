@@ -68,6 +68,11 @@ var ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 var SPACE = '\u2423';
 var DELETE = '\u232b';
 var GO = '\u23ce';
+
+/** 28390 → "28 390" (a thin space): a count a glance can read. */
+export function thousands(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009');
+}
 /* The three verbs are BUTTONS under the query (see `keys`); the ring is letters only. */
 
 /**
@@ -294,6 +299,7 @@ export function createBrowse(options) {
   var fence = options.fence || function () { return null; };
   var act = options.act || function () { return Promise.resolve(false); };
   var onSwitch = options.onSwitch || function () {};
+  var axisName = options.axisName || function () { return ''; };
   var session = 'puck-' + String(Math.floor(Math.random() * 1e6));
 
   /* ---------- the layer ---------- */
@@ -377,6 +383,11 @@ export function createBrowse(options) {
   var downKey = key('', 'swipe down: the face below', function () { onAxis(1); });
   upKey.appendChild(glyph('up'));       // the same line-work as the music face's ↑ ↓: one idiom
   downKey.appendChild(glyph('down'));
+  // ⚖️ and the NAME of the face each leads to (Peter, 09-07): music · library · queue
+  var upWord = el('span', 'axis-word');
+  var downWord = el('span', 'axis-word');
+  upKey.appendChild(upWord);
+  downKey.appendChild(downWord);
   prevKey.className = 'key key-prev';
   nextKey.className = 'key key-next';
   upKey.className = 'key key-up';
@@ -1152,6 +1163,8 @@ export function createBrowse(options) {
     var canStep = view.total > 1;
     prevKey.setAttribute('data-off', canStep ? '0' : '1');
     nextKey.setAttribute('data-off', canStep ? '0' : '1');
+    upWord.textContent = axisName(-1);
+    downWord.textContent = axisName(1);
     if (view.spell) {
       // The middle is the query so far; the ring is the keyboard.
       chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;
@@ -1170,7 +1183,7 @@ export function createBrowse(options) {
     root.setAttribute('data-named', named && view.tier !== 'alpha' ? '1' : '0');
     linsub.textContent = '';
     if (view.spell) count.textContent = '';
-    else if (view.tier === 'alpha') count.textContent = String(view.total) + ' — pick a letter';
+    else if (view.tier === 'alpha') count.textContent = thousands(view.total) + (view.title ? ' ' + String(view.title).toLowerCase() : '') + ' \u00b7 pick a letter';
     else count.textContent = String(view.sel + 1) + ' / ' + String(view.total);
   }
 
@@ -1237,8 +1250,10 @@ export function createBrowse(options) {
     chosenSub.textContent = pick !== null && pick.subtitle ? pick.subtitle : '';
     linsub.textContent = '';
     root.setAttribute('data-named', '1');
-    count.textContent = String(view.sel + 1) + ' / ' + String(view.total)
-      + (view.letter === null ? '' : '  \u00b7  ' + (view.spelt ? view.spelt.prefix : view.letter));
+    // ⚖️ ONE FOOT LINE (Peter, 09-07): what is spelt, then where in the letter's
+    // list — "MAR · 3 / 1 204" — rather than the count and the prefix competing.
+    count.textContent = (view.letter === null ? '' : (view.spelt ? view.spelt.prefix : view.letter) + '  \u00b7  ')
+      + String(view.sel + 1) + ' / ' + thousands(view.total);
   }
 
   /**

@@ -325,8 +325,30 @@ btnMute.setAttribute('title', 'mute');
  * and a swipe does the same without looking. The credit at the foot stays the
  * door to browse. The return arrow that sat above play now rides the room name.
  */
+/**
+ * ⚖️ THE AXIS SAYS WHERE IT GOES (Peter, 09-07: "for a mouse or remote the
+ * up/down arrow is easier than a swipe, but isn't really saying what it does
+ * and isn't pretty"). The two arrows are pills now, each carrying the NAME of
+ * the face it leads to — music · library · queue — read off the wheel
+ * (puck-axis.js) for wherever the puck is standing. A swipe still does the
+ * same; the pill is for the hand that cannot swipe.
+ */
+function faceName(stop) {
+  return stop === 'browse' ? 'library' : (stop === 'queue' ? 'queue' : 'music');
+}
 var btnUp = button('up', 'btn-up');
 var btnDown = button('down', 'btn-down');
+var btnUpWord = el('span', 'axis-word');
+var btnDownWord = el('span', 'axis-word');
+btnUp.appendChild(btnUpWord);
+btnDown.appendChild(btnDownWord);
+function paintAxis() {
+  var here = typeof browse === 'undefined' || browse === null ? 'play' : browse.at();
+  var up = faceName(nextStop(here, -1));
+  var down = faceName(nextStop(here, 1));
+  if (btnUpWord.textContent !== up) { btnUpWord.textContent = up; btnUp.setAttribute('aria-label', 'up: the ' + up); btnUp.setAttribute('title', 'up: the ' + up); }
+  if (btnDownWord.textContent !== down) { btnDownWord.textContent = down; btnDown.setAttribute('aria-label', 'down: the ' + down); btnDown.setAttribute('title', 'down: the ' + down); }
+}
 
 pad.appendChild(btnUp);
 pad.appendChild(btnDown);
@@ -856,6 +878,7 @@ function paintControls(zone) {
 var nowKey = '';   // what the room was last seen playing, so a change can be noticed
 
 function render() {
+  paintAxis();
   var zone = currentZone();
   paintVolume();
   paintControls(zone);
@@ -923,6 +946,7 @@ var browse = createBrowse({
     render();
   },
   onAxis: function (dir) { axis(dir); },
+  axisName: function (dir) { return faceName(nextStop(browse.at(), dir)); },
   onSwitch: function (room) { switchRoom(room); },
   // The rooms face reads the house from the store and acts through the deck.
   zones: function () { var s = store.snapshot(); return s === null ? [] : s.zones; },
