@@ -1103,9 +1103,14 @@ export function createBrowse(options) {
     // playing row keeps twelve and what came before sits to its left.
     var past = first === 0 ? view.past : [];
     var all = past.length + m;
-    var size = tokenSize(all);
+    // A short ring hugs twelve — the past to the left of it, what comes next to
+    // the right, a step of 36° each — so the past never wanders round to three
+    // o'clock and reads as upcoming (measured with four tokens). A full page
+    // spreads round the whole face as before.
+    var step = all <= 10 ? Math.PI / 5 : (2 * Math.PI) / all;
+    var size = tokenSize(Math.max(all, 10));
     named = false;
-    var slot = function (i) { return ((i - past.length) / all) * 2 * Math.PI - Math.PI / 2; };
+    var slot = function (i) { return (i - past.length) * step - Math.PI / 2; };
     for (var p = 0; p < past.length; p += 1) {
       (function (row, i) {
         var node = el('div', 'opt opt-past');

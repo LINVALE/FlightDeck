@@ -1098,6 +1098,7 @@ test('the queue face: a strong highlight in the perimeter, a hub of transport ic
   assert.match(BROWSE, /if \(same\) return \{ kind: 'album', title: album\.length > 22 \? 'Album' : 'Album \\u00b7 ' \+ album \};/, 'rows that share an album are that album');
   assert.match(BROWSE, /function pastLoad\(zone, nowTitle\)[\s\S]{0,600}past\.length < 3/, 'three tracks before the playing one, from the ledger, best-effort');
   assert.match(BROWSE, /var node = el\('div', 'opt opt-past'\);/, 'dimmed on the ring, before twelve');
+  assert.match(BROWSE, /var step = all <= 10 \? Math\.PI \/ 5 : \(2 \* Math\.PI\) \/ all;/, 'a short ring hugs twelve: the past to the left, the next to the right');
   assert.match(BROWSE, /chosenTitle\.textContent = '';\s*chosenSub\.textContent = '';/, 'no words in the hub');
   assert.match(BROWSE, /function queueGo\(\)[\s\S]{0,300}if \(pick\.now === true\) \{ act\(\{ action: 'playpause', zone: view\.queue\.zone \}\); return; \}\s*playFrom\(pick\);/, 'the middle key pauses the playing row or plays the highlighted one');
   assert.match(BROWSE, /prevQ\.setAttribute\('data-off', playing \? '0' : '1'\);/, 'prev and next stand only while the room plays');
