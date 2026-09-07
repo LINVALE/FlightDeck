@@ -2889,3 +2889,13 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
 /* The sleeve is never the browser's to drag: a native image drag under a
    finger or a mouse swallows the pointer before the lift (Peter, 09-06). */
 .cover img, .face img { -webkit-user-drag: none; -webkit-user-select: none; user-select: none; }
+
+/* ⚖️ WHAT THE CURRENT ROW DOES, AT THE FOOT OF THE LIST (Peter, 09-07): a
+   remote has no pointer to hover, so the sentence sits under the list and
+   follows the current row. */
+.browse-why {
+  padding: 1vh 1.6vw 0.4vh; min-height: 3.4vh;
+  font-size: 1.55vh; line-height: 1.25; color: rgba(242, 238, 230, .62);
+  border-top: 1px solid rgba(242, 238, 230, .10);
+}
+.browse-why:empty { display: none; }

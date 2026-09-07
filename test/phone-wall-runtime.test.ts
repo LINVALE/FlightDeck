@@ -74,3 +74,13 @@ test('the remote\'s sheet rows carry the row\'s sentence as a hover tag and spok
   assert.match(PHONE, /import \{ hintFor \} from '\.\/browse-hints\.js';/);
   assert.match(PHONE, /var why = hintFor\(item, \{ title: browse\.list !== null \? browse\.list\.title : '', hierarchy: browse\.hierarchy \}\);/);
 });
+
+test('the remote installs the page\'s own tip: a finger holds to read, the lift is not a tap (Peter 09-07)', () => {
+  const TIP = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'tip.js'), 'utf8');
+  assert.match(PHONE, /installTips\(\{ size: '13px' \}\);/);
+  assert.match(PHONE, /row\.setAttribute\('data-tip', why\)/);
+  assert.match(TIP, /if \(event\.pointerType === 'touch'\) return;[\s\S]{0,200}showTimer = setTimeout\(function \(\) \{ showTimer = null; show\(node\); \}, 260\);/, 'a pointer: a beat after it settles');
+  assert.match(TIP, /holdTimer = setTimeout\(function \(\) \{[\s\S]{0,120}show\(hold\.node\); swallowUntil = Infinity;/, 'a finger: half a second held');
+  assert.match(TIP, /if \(Date\.now\(\) < swallowUntil\) \{ event\.stopPropagation\(\); event\.preventDefault\(\); swallowUntil = 0; \}/, 'the lift after a hold is not a tap');
+  assert.doesNotMatch(TIP, /<style|createElement\('style'\)/, 'no stylesheet, no nonce needed');
+});

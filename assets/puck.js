@@ -9,6 +9,8 @@ import { glyph } from './puck-icons.js';
 import { createVolumeGate, levelAtAngle, levelForDrag } from './volume-gate.js';
 import { readPalette, luminance } from './sleeve-palette.js';
 import { decideUi } from './screen-shape.js';
+import { installTips } from './tip.js';
+installTips({ size: '14px' });
 import { limitsOf, bandOf, askedLevel, createDoubleTap } from './volume-limits.js';
 
 /** A second tap on the scale inside the window: the hand means above comfort. */

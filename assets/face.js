@@ -2,6 +2,8 @@ import './compat.js';
 import { decideUi, screenReport } from './screen-shape.js';
 import { limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
 import { hintFor } from './browse-hints.js';
+import { installTips } from './tip.js';
+installTips({ size: '1.9vh' });
 
 /** A second press on the same control inside the window: the hand means above comfort. */
 var volumeTaps = createDoubleTap(700);
@@ -4097,9 +4099,19 @@ function browseNavigationIdentity(node) {
   return 'text:' + String(node.textContent || '').replace(/^\s+|\s+$/g, '');
 }
 
+/** The foot of the panel reads what the current row does (Peter, 09-07): a remote has no pointer to hover. */
+function paintBrowseWhy(node) {
+  if (browsePanel === null) return;
+  var why = browsePanel.querySelector('.browse-why');
+  if (why === null) return;
+  var text = node !== null ? (node.getAttribute('data-tip') || '') : '';
+  if (why.textContent !== text) why.textContent = text;
+}
+
 function setBrowseNavigation(node) {
   if (browseNavigationCurrent !== null) browseNavigationCurrent.classList.remove('browse-key-current');
   browseNavigationCurrent = node;
+  paintBrowseWhy(node);
   if (node === null) return;
   node.classList.add('browse-key-current');
   try { node.focus(); } catch (error) { /* visible current mark still works */ }
@@ -4263,6 +4275,7 @@ function browseShell(title, canGoBack) {
   // content and pushed the rail thousands of pixels off screen.
   var body = el('div', 'browse-body');
   body.appendChild(list);
+  body.appendChild(el('div', 'browse-why'));
   setBrowseNavigation(null);
   browsePanel.replaceChildren(head, body);
   browseAlive();
@@ -4290,7 +4303,7 @@ function browseRow(item, onPick) {
   var itemIdentity = String(item.itemKey || item.title || '');
   row.setAttribute('data-browse-key', itemIdentity);
   if (item.intent) {
-    row.setAttribute('title', item.intent);
+    row.setAttribute('data-tip', item.intent);
     row.setAttribute('aria-label', item.intent);
   } else {
     // What choosing it does, in a sentence (browse-hints.js; Peter 09-07):
@@ -4299,7 +4312,7 @@ function browseRow(item, onPick) {
       title: browseCtx !== null && Array.isArray(browseCtx.trail) && browseCtx.trail.length > 0 ? browseCtx.trail[browseCtx.trail.length - 1] : '',
       hierarchy: browseCtx === null ? '' : browseCtx.hierarchy,
     });
-    if (why !== '') { row.setAttribute('title', why); row.setAttribute('aria-label', String(item.title || '') + ' \u2014 ' + why); }
+    if (why !== '') { row.setAttribute('data-tip', why); row.setAttribute('aria-label', String(item.title || '') + ' \u2014 ' + why); }
   }
   var thumbBox = el('span', 'browse-thumb');
   if (item.art) {

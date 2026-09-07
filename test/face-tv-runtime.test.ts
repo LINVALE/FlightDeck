@@ -1062,5 +1062,14 @@ test('the Face\'s scale is drawn to the top in Roon\'s bands; a press or step is
 
 test('the Face\'s browse rows carry the row\'s sentence as a hover tag and spoken label (Peter 09-07)', () => {
   assert.match(FACE, /import \{ hintFor \} from '\.\/browse-hints\.js';/);
-  assert.match(FACE, /var why = hintFor\(item, \{[\s\S]{0,260}if \(why !== ''\) \{ row\.setAttribute\('title', why\); row\.setAttribute\('aria-label', String\(item\.title \|\| ''\) \+ ' \\u2014 ' \+ why\); \}/);
+  assert.match(FACE, /var why = hintFor\(item, \{[\s\S]{0,260}if \(why !== ''\) \{ row\.setAttribute\('data-tip', why\); row\.setAttribute\('aria-label', String\(item\.title \|\| ''\) \+ ' \\u2014 ' \+ why\); \}/);
+});
+
+test('the Face\'s list reads the current row\'s sentence at its foot, for a remote with no pointer (Peter 09-07)', () => {
+  const FACE_CSS2 = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.css'), 'utf8');
+  assert.match(FACE, /function paintBrowseWhy\(node\)[\s\S]{0,300}var text = node !== null \? \(node\.getAttribute\('data-tip'\) \|\| ''\) : '';/);
+  assert.match(FACE, /browseNavigationCurrent = node;\s*paintBrowseWhy\(node\);/, 'it follows the current row');
+  assert.match(FACE, /body\.appendChild\(el\('div', 'browse-why'\)\);/);
+  assert.match(FACE, /installTips\(\{ size: '1\.9vh' \}\);/);
+  assert.match(FACE_CSS2, /\.browse-why:empty \{ display: none; \}/);
 });

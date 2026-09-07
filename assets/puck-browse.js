@@ -717,7 +717,7 @@ export function createBrowse(options) {
     if (view.tier !== 'linear') root.removeAttribute('data-lettered');
     if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
     paintLevel();
-    if (view.tier !== 'alpha' && !view.spell) chosen.setAttribute('title', explain(itemAt(view.sel))); else chosen.removeAttribute('title');
+    if (view.tier !== 'alpha' && !view.spell) chosen.setAttribute('data-tip', explain(itemAt(view.sel))); else chosen.removeAttribute('data-tip');
     // The axis pills name the faces above and below wherever the puck stands —
     // the queue included (Peter, 09-07: "up: library, down: now playing").
     upWord.textContent = axisName(-1);
@@ -729,6 +729,11 @@ export function createBrowse(options) {
     else if (view.tier === 'rooms') drawRooms();
     else if (view.tier === 'local') drawLocalRing();
     else drawRing();
+    // ⚖️ WHAT THE HIGHLIGHTED ROW DOES, AT THE FOOT (Peter, 09-07): a sentence
+    // every screen can show, wheel or finger, where a hover tag cannot be relied
+    // on. Not on a letter's page, where the alphabet owns the foot.
+    var explains = (view.tier === 'radial' || view.tier === 'linear' || view.tier === 'local') && !view.spell && !view.letter;
+    linsub.textContent = explains ? explain(itemAt(view.sel)) : '';
 
   }
 
@@ -852,7 +857,7 @@ export function createBrowse(options) {
       var mine = index === view.sel ? size * 1.3 : size;
       node.appendChild(titledToken(item.title, size, mine));
       place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
-      node.setAttribute('title', explain(itemAt(index)));
+      node.setAttribute('data-tip', explain(itemAt(index)));
       bindPick(node, index);
       optWrap.appendChild(node);
     }
@@ -1298,7 +1303,7 @@ export function createBrowse(options) {
         node.appendChild(name);
       }
       place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
-      node.setAttribute('title', explain(itemAt(i)));
+      node.setAttribute('data-tip', explain(itemAt(i)));
       bindPick(node, i);
       optWrap.appendChild(node);
     }
@@ -1374,7 +1379,7 @@ export function createBrowse(options) {
         : 'calc(var(--u) * ' + String(-(mine / 2 + (lettered ? 4.4 : 5.1))) + ')';
       node.appendChild(name);
       place(node, 50 + radius * Math.cos(angle), 50 + radius * Math.sin(angle));
-      node.setAttribute('title', explain(itemAt(index)));
+      node.setAttribute('data-tip', explain(itemAt(index)));
       bindPick(node, index);
       optWrap.appendChild(node);
     }

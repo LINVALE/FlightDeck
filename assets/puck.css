@@ -1071,3 +1071,13 @@ body {
    ring's ‹ › would sit under them (measured: they touched). The wheel and a
    tap on a circle still move the highlight. */
 .puck[data-tier="queue"] .nav-keys .key-prev, .puck[data-tier="queue"] .nav-keys .key-next { display: none; }
+
+/* ⚖️ WHAT THE HIGHLIGHTED ROW DOES, AT THE FOOT (Peter, 09-07): two short lines
+   under the ring, in the foot the count leaves free on these tiers. */
+.puck[data-tier="radial"] .linsub, .puck[data-tier="linear"] .linsub, .puck[data-tier="local"] .linsub {
+  left: calc(var(--u) * 18); right: calc(var(--u) * 18); bottom: calc(var(--u) * 7.5);
+  white-space: normal; font-size: calc(var(--u) * 2.6); line-height: 1.18;
+  max-height: calc(var(--u) * 6.4); overflow: hidden; text-overflow: clip;
+  color: rgba(242, 238, 230, .62);
+}
+.puck[data-lettered="1"] .linsub { display: none; }

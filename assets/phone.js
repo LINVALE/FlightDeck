@@ -5,6 +5,8 @@ import { seekTargetSecond } from './seek-target.js';
 import { createSeekIntentGate } from './seek-intent.js';
 import { limitsOf, bandsOf, bandAtFraction, bandOf, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
 import { hintFor } from './browse-hints.js';
+import { installTips } from './tip.js';
+installTips({ size: '13px' });
 
 /** A second press on the same control inside the window: the thumb means above comfort. */
 var volumeTaps = createDoubleTap(700);
@@ -870,7 +872,7 @@ function browseRow(item) {
   // What choosing it does, in a sentence (browse-hints.js): a hover tag on a
   // screen, the spoken label on a phone.
   var why = hintFor(item, { title: browse.list !== null ? browse.list.title : '', hierarchy: browse.hierarchy });
-  if (why !== '') { row.setAttribute('title', why); row.setAttribute('aria-label', item.title + ' \u2014 ' + why); }
+  if (why !== '') { row.setAttribute('data-tip', why); row.setAttribute('aria-label', item.title + ' \u2014 ' + why); }
   if (item.art) {
     var artBox = el('span', 'brow-art');
     var img = document.createElement('img');
