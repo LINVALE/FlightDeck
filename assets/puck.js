@@ -334,7 +334,7 @@ btnMute.setAttribute('title', 'mute');
  * same; the pill is for the hand that cannot swipe.
  */
 function faceName(stop) {
-  return stop === 'browse' ? 'library' : (stop === 'queue' ? 'queue' : 'music');
+  return stop === 'browse' ? 'library' : (stop === 'queue' ? 'queue' : 'playing');
 }
 var btnUp = button('up', 'btn-up');
 var btnDown = button('down', 'btn-down');
@@ -891,6 +891,7 @@ function render() {
   }
   // The rooms face follows the house: any room starting, stopping or regrouping redraws it in place.
   if (browse !== undefined) browse.refreshRooms();
+  if (browse !== undefined) browse.queueKeys();
   if (zone === null) {
     roomName.textContent = '';
     title.textContent = '';

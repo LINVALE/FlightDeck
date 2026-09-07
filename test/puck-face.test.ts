@@ -806,7 +806,7 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
     { id: '557529', title: '', artist: '', album: '', lengthSec: null, art: null },
   ] });
   assert.equal(rows.length, 3);
-  assert.deepEqual(rows[1], { title: 'Tragedy', subtitle: 'Norah Jones', art: null, hint: 'queue', queueId: '557528', now: false }, 'ids are strings on the wire, whatever Roon sent');
+  assert.deepEqual(rows[1], { title: 'Tragedy', subtitle: 'Norah Jones', artist: 'Norah Jones', album: '', art: null, hint: 'queue', queueId: '557528', now: false }, 'ids are strings on the wire, whatever Roon sent; artist and album ride along for the source label (09-07)');
   assert.equal(rows[2].title, '(untitled)');
   assert.equal(rows[2].subtitle, '');
   assert.deepEqual(queueRows({}), []);
@@ -820,7 +820,7 @@ test('the queue reads as a level: sleeves ring the face, the playing row is mark
   assert.match(JS, /if \(browse\.isOpen\(\)\) \{ if \(!band && browse\.at\(\) !== 'queue'\) browse\.commit\(\); return; \}/, 'in the queue a stray tap on the glass never plays: only the hub does');
   assert.match(BROWSE, /sel: rows\.length > 1 \? 1 : 0/, 'the highlight opens on the first row still to come');
   // a row plays from there, fenced; the playing row is refused before the wire
-  assert.match(BROWSE, /if \(view\.queue\) \{ playFrom\(item\); return; \}/);
+  assert.match(BROWSE, /if \(view\.queue\) \{ queueGo\(\); return; \}/);
   assert.match(BROWSE, /function playFrom\(item\) \{\s*if \(item\.now\) \{ flash\('already playing'\); return; \}/);
   assert.match(BROWSE, /body: JSON\.stringify\(\{ zone: fence\.zone, itemId: item\.queueId, generation: fence\.generation, queueRevision: fence\.revision \}\),/);
   assert.match(BROWSE, /if \(response\.ok\) \{ flash\('playing ' \+ item\.title\); close\(\); return; \}/, 'and the face returns to the music');
@@ -1069,7 +1069,7 @@ test('the sleeve is never the browser\'s to drag, and the scrub draws its own mi
 
 // Peter 09-07 polish: the axis says where it goes; one foot line; a readable bezel number
 test('the axis pills name the face they lead to, on the music face and in browse', () => {
-  assert.match(JS, /function faceName\(stop\) \{\s*return stop === 'browse' \? 'library' : \(stop === 'queue' \? 'queue' : 'music'\);/);
+  assert.match(JS, /function faceName\(stop\) \{\s*return stop === 'browse' \? 'library' : \(stop === 'queue' \? 'queue' : 'playing'\);/, 'the music face is "playing" on the pills (Peter 09-07: "down → now playing")');
   assert.match(JS, /axisName: function \(dir\) \{ return faceName\(nextStop\(browse\.at\(\), dir\)\); \},/);
   assert.match(JS, /function render\(\) \{\s*paintAxis\(\);/, 'named on every paint, for wherever the puck stands');
   assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);/);
@@ -1090,4 +1090,19 @@ test('thousands: a thin space every three digits', async () => {
   assert.equal(mod.thousands(28390), '28\u2009390');
   assert.equal(mod.thousands(999), '999');
   assert.equal(mod.thousands(1204567), '1\u2009204\u2009567');
+});
+
+// Peter 09-07: the queue face — the ring reads, the hub plays; the queue says what it is; the past rings the face
+test('the queue face: a strong highlight in the perimeter, a hub of transport icons alone, the source named, the past remembered', () => {
+  assert.match(BROWSE, /function queueSource\(zone, rows\)[\s\S]{0,900}return \{ kind: 'radio', title: 'Roon Radio' \};/, 'one row with Radio on is Roon Radio');
+  assert.match(BROWSE, /if \(same\) return \{ kind: 'album', title: album\.length > 22 \? 'Album' : 'Album \\u00b7 ' \+ album \};/, 'rows that share an album are that album');
+  assert.match(BROWSE, /function pastLoad\(zone, nowTitle\)[\s\S]{0,600}past\.length < 3/, 'three tracks before the playing one, from the ledger, best-effort');
+  assert.match(BROWSE, /var node = el\('div', 'opt opt-past'\);/, 'dimmed on the ring, before twelve');
+  assert.match(BROWSE, /chosenTitle\.textContent = '';\s*chosenSub\.textContent = '';/, 'no words in the hub');
+  assert.match(BROWSE, /function queueGo\(\)[\s\S]{0,300}if \(pick\.now === true\) \{ act\(\{ action: 'playpause', zone: view\.queue\.zone \}\); return; \}\s*playFrom\(pick\);/, 'the middle key pauses the playing row or plays the highlighted one');
+  assert.match(BROWSE, /prevQ\.setAttribute\('data-off', playing \? '0' : '1'\);/, 'prev and next stand only while the room plays');
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.chosen-title, \.puck\[data-tier="queue"\] \.chosen-sub, \.puck\[data-tier="queue"\] \.chosen-play \{ display: none; \}/);
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.opt-on \.tok \{ border-color: var\(--accent\); box-shadow: 0 0 0 calc\(var\(--u\) \* \.6\) var\(--accent\)/, 'the chosen row, marked strongly in the perimeter');
+  assert.match(CSS, /\.puck\[data-tier="queue"\] \.nav-keys \.key-prev, \.puck\[data-tier="queue"\] \.nav-keys \.key-next \{ display: none; \}/, 'the ring\'s steppers give way to the hub\'s');
+  assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);\s*while \(optWrap\.firstChild\)/, 'the axis words are painted for every tier, the queue included');
 });

@@ -1041,3 +1041,23 @@ body {
    nine: ‹ › keep to 6.4 there (measured: 7.5 touched "¿Qué será?"); the halo
    still gives the finger its 10 units. */
 .puck[data-lettered="1"] .nav-keys .key-prev, .puck[data-lettered="1"] .nav-keys .key-next { width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); }
+
+/* ⚖️ THE QUEUE FACE (Peter, 09-07): the ring reads, the hub plays. The chosen
+   row is marked strongly in the perimeter; the hub carries prev · play/pause ·
+   next as icons and no words; the past rings the face dimmed; the level's
+   title says what the queue is (Roon Radio · Album · Queue). */
+.puck[data-tier="queue"] .chosen-title, .puck[data-tier="queue"] .chosen-sub, .puck[data-tier="queue"] .chosen-play { display: none; }
+.queue-keys { display: none; -webkit-justify-content: center; justify-content: center; -webkit-align-items: center; align-items: center; }
+.puck[data-tier="queue"] .queue-keys { display: -webkit-flex; display: flex; }
+.queue-keys .key { width: calc(var(--u) * 6.4); height: calc(var(--u) * 6.4); line-height: calc(var(--u) * 6.4); margin: 0 calc(var(--u) * .9); position: relative; }
+.queue-keys .key .glyph { width: 56%; height: 56%; margin: 22% auto; display: block; }
+.queue-keys .key-play { width: calc(var(--u) * 9.5); height: calc(var(--u) * 9.5); line-height: calc(var(--u) * 9.5); border-color: var(--accent); color: var(--accent); }
+.queue-keys .key[data-off="1"] { display: none; }
+.puck[data-tier="queue"] .opt-on .tok { border-color: var(--accent); box-shadow: 0 0 0 calc(var(--u) * .6) var(--accent), 0 0 calc(var(--u) * 2.4) rgba(0, 0, 0, .5); }
+.puck[data-tier="queue"] .opt-on .tok-titled { color: #ffffff; }
+.opt-past .tok { border-color: rgba(242, 238, 230, .16); }
+.opt-past .tok-titled { color: rgba(242, 238, 230, .48); }
+/* In the queue the hub's own prev · next are the steppers that matter; the
+   ring's ‹ › would sit under them (measured: they touched). The wheel and a
+   tap on a circle still move the highlight. */
+.puck[data-tier="queue"] .nav-keys .key-prev, .puck[data-tier="queue"] .nav-keys .key-next { display: none; }

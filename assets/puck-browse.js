@@ -212,6 +212,8 @@ export function queueRows(data) {
       // The artist alone: a jazz credit runs to five names before the album
       // would even start, and the hub has room for one line of it.
       subtitle: item.artist || item.album || '',
+      artist: item.artist || '',
+      album: item.album || '',
       art: item.art || null,
       hint: 'queue',
       queueId: String(item.id === undefined || item.id === null ? '' : item.id),
@@ -423,6 +425,54 @@ export function createBrowse(options) {
   roomKeys.appendChild(pullKey);
   roomKeys.appendChild(shiftKey);
   chosen.appendChild(roomKeys);
+  /**
+   * ⚖️ THE QUEUE'S HUB IS TRANSPORT ALONE (Peter, 09-07: "the centre is too
+   * small to display clearly — highlight the selected item in the perimeter and
+   * just show play/pause, prev and next in the centre as icons; no info
+   * repeated in the centre"). Prev and next stand only while the room plays;
+   * the middle key plays the highlighted row, or pauses the playing one.
+   */
+  var queueKeys = el('div', 'queue-keys');
+  var prevQ = key('', 'previous track', function () { if (view !== null && view.queue) act({ action: 'previous', zone: view.queue.zone }); });
+  var playQ = key('', 'play', function () { queueGo(); });
+  var nextQ = key('', 'next track', function () { if (view !== null && view.queue) act({ action: 'next', zone: view.queue.zone }); });
+  prevQ.appendChild(glyph('prev'));
+  nextQ.appendChild(glyph('next'));
+  prevQ.className = 'key key-prev-q';
+  playQ.className = 'key key-play';
+  nextQ.className = 'key key-next-q';
+  queueKeys.appendChild(prevQ);
+  queueKeys.appendChild(playQ);
+  queueKeys.appendChild(nextQ);
+  chosen.appendChild(queueKeys);
+
+  function queueZone() {
+    if (view === null || !view.queue) return null;
+    var all = zones();
+    for (var i = 0; i < all.length; i += 1) if (all[i].id === view.queue.zone) return all[i];
+    return null;
+  }
+  function queueGo() {
+    if (view === null || !view.queue) return;
+    var pick = itemAt(view.sel);
+    if (pick === null) return;
+    if (pick.now === true) { act({ action: 'playpause', zone: view.queue.zone }); return; }
+    playFrom(pick);
+  }
+  function paintQueueKeys() {
+    if (view === null || !view.queue) return;
+    var here = queueZone();
+    var playing = here !== null && (here.state === 'playing' || here.state === 'loading');
+    var pick = itemAt(view.sel);
+    prevQ.setAttribute('data-off', playing ? '0' : '1');
+    nextQ.setAttribute('data-off', playing ? '0' : '1');
+    var shows = pick !== null && pick.now === true && playing ? 'pause' : 'play';
+    if (playQ.getAttribute('data-shows') !== shows) {
+      playQ.setAttribute('data-shows', shows);
+      playQ.replaceChildren(glyph(shows));
+      playQ.setAttribute('title', shows === 'pause' ? 'pause' : (pick !== null && pick.now === true ? 'play' : 'play from here'));
+    }
+  }
 
   // ⚖️ THE SEARCH KEY IS THE BIG ONE, IN THE MIDDLE (Peter, 09-06: "the select
   // once the letters are entered is very small and dim"). The disc adds the
@@ -501,13 +551,63 @@ export function createBrowse(options) {
       });
   }
 
-  function presentQueue(zone, data) {
+  /**
+   * ⚖️ THE QUEUE SAYS WHAT IT IS (Peter, 09-07: "show the queue is a playlist,
+   * an album or Roon Radio, clear in the layout — Roon Radio only has one
+   * option and that's usually playing"). Roon's queue carries no source; it is
+   * read off what is there: one row with Radio on is ROON RADIO, rows that all
+   * share an album are that ALBUM, anything else is the QUEUE.
+   */
+  function queueSource(zone, rows) {
+    var all = zones();
+    var here = null;
+    for (var i = 0; i < all.length; i += 1) if (all[i].id === zone) { here = all[i]; break; }
+    var radio = here !== null && here.settings !== null && here.settings !== undefined && here.settings.autoRadio === true;
+    if (rows.length <= 1 && radio) return { kind: 'radio', title: 'Roon Radio' };
+    if (rows.length > 1) {
+      var album = rows[0].album;
+      var same = album !== '';
+      for (var j = 1; j < rows.length && same; j += 1) if (rows[j].album !== album) same = false;
+      if (same) return { kind: 'album', title: album.length > 22 ? 'Album' : 'Album \u00b7 ' + album };
+    }
+    return { kind: 'queue', title: rows.length <= 1 && radio ? 'Roon Radio' : 'Queue' };
+  }
+
+  /**
+   * ⚖️ THE PAST, IF WE REMEMBER IT (Peter, 09-07): the deck's ledger keeps what
+   * every room has played, so the three tracks before the playing one ring the
+   * face too, dimmed, counter-clockwise from twelve — a Radio room, which has
+   * no queue to speak of, at least shows where it has been. Read best-effort:
+   * a ledger that answers late or not at all costs the ring nothing.
+   */
+  function pastLoad(zone, nowTitle) {
+    return fetch('/api/v1/recent?limit=80', { cache: 'no-store' })
+      .then(function (response) { return response.ok ? response.json() : { tracks: [] }; })
+      .then(function (data) {
+        var tracks = Array.isArray(data.tracks) ? data.tracks : [];
+        var past = [];
+        var lastTitle = nowTitle;
+        for (var i = 0; i < tracks.length && past.length < 3; i += 1) {
+          var t = tracks[i];
+          if (t.zoneId !== zone) continue;
+          if (t.title === lastTitle) continue;           // the playing track, or a repeat of the last kept
+          past.push({ title: t.title || '(untitled)', subtitle: firstArtist(t.line2), row: t, past: true });
+          lastTitle = t.title;
+        }
+        return past;
+      })
+      .catch(function () { return []; });
+  }
+
+  function presentQueue(zone, data, past) {
     var rows = queueRows(data);
     var was = view !== null && view.queue ? view : null;
+    var source = queueSource(zone, rows);
     view = {
       // A ring of titled circles, the whole queue at once (see drawQueueRing).
       hierarchy: 'queue', tier: 'queue',
-      title: 'Queue', total: rows.length,
+      title: source.title, total: rows.length,
+      source: source.kind, past: past || [],
       // Row zero is what is playing; the highlight opens on the first row still to come.
       items: rows, base: 0, sel: rows.length > 1 ? 1 : 0, depth: 0, letter: null, paging: false,
       letters: null, probes: {}, plain: true,
@@ -531,9 +631,13 @@ export function createBrowse(options) {
     view = null;
     queueLoad(zone, 0)
       .then(function (data) {
+        var rows = queueRows(data);
+        return pastLoad(zone, rows.length > 0 ? rows[0].title : '').then(function (past) { return { data: data, past: past }; });
+      })
+      .then(function (got) {
         busy = false;
         if (mine !== epoch) return;
-        presentQueue(zone, data);
+        presentQueue(zone, got.data, got.past);
       })
       .catch(function (error) {
         busy = false;
@@ -550,7 +654,11 @@ export function createBrowse(options) {
     var mine = epoch;
     var zone = view.queue.zone;
     queueLoad(zone, 0)
-      .then(function (data) { if (current(mine) && view.queue) presentQueue(zone, data); })
+      .then(function (data) {
+        var rows = queueRows(data);
+        return pastLoad(zone, rows.length > 0 ? rows[0].title : '').then(function (past) { return { data: data, past: past }; });
+      })
+      .then(function (got) { if (current(mine) && view.queue) presentQueue(zone, got.data, got.past); })
       .catch(function () {});
   }
 
@@ -603,6 +711,10 @@ export function createBrowse(options) {
     if (view.tier !== 'linear') root.removeAttribute('data-lettered');
     if (view.spell) root.setAttribute('data-spell', '1'); else root.removeAttribute('data-spell');
     paintLevel();
+    // The axis pills name the faces above and below wherever the puck stands —
+    // the queue included (Peter, 09-07: "up: library, down: now playing").
+    upWord.textContent = axisName(-1);
+    downWord.textContent = axisName(1);
     while (optWrap.firstChild) optWrap.removeChild(optWrap.firstChild);
 
     if (view.tier === 'linear') drawPaged();
@@ -987,12 +1099,30 @@ export function createBrowse(options) {
     var n = view.total;
     var first = Math.floor(view.sel / QUEUE_PAGE) * QUEUE_PAGE;
     var m = Math.max(0, Math.min(QUEUE_PAGE, n - first));
-    var size = tokenSize(m);
+    // The past rings the first page only, counter-clockwise from twelve, so the
+    // playing row keeps twelve and what came before sits to its left.
+    var past = first === 0 ? view.past : [];
+    var all = past.length + m;
+    var size = tokenSize(all);
     named = false;
+    var slot = function (i) { return ((i - past.length) / all) * 2 * Math.PI - Math.PI / 2; };
+    for (var p = 0; p < past.length; p += 1) {
+      (function (row, i) {
+        var node = el('div', 'opt opt-past');
+        node.appendChild(titledToken(row.title, size, size));
+        var angle = slot(i);
+        place(node, 50 + OPT_R * Math.cos(angle), 50 + OPT_R * Math.sin(angle));
+        node.setAttribute('title', 'played before: ' + row.title + (row.subtitle ? ' \u00b7 ' + row.subtitle : ''));
+        node.addEventListener('click', function (event) { event.stopPropagation(); hop(row.row); });
+        node.addEventListener('pointerdown', function (event) { event.stopPropagation(); });
+        node.addEventListener('pointerup', function (event) { event.stopPropagation(); });
+        optWrap.appendChild(node);
+      })(past[past.length - 1 - p], p);   // oldest furthest from twelve
+    }
     for (var k = 0; k < m; k += 1) {
       var index = first + k;
       var item = view.items[index];
-      var angle = (k / m) * 2 * Math.PI - Math.PI / 2;   // twelve o'clock, clockwise: the playing row first
+      var angle = slot(past.length + k);   // twelve o'clock, clockwise: the playing row first
       var node = el('div', (index === view.sel ? 'opt opt-on' : 'opt') + (item.now === true ? ' opt-now' : ''));
       var mine = index === view.sel ? size * 1.3 : size;
       node.appendChild(titledToken(item.title, size, mine));
@@ -1000,14 +1130,16 @@ export function createBrowse(options) {
       bindChoose(node, index);
       optWrap.appendChild(node);
     }
-    var pick = itemAt(view.sel);
+    // The hub carries no words here (Peter, 09-07): the ring reads, the hub plays.
     chosenArt.style.display = 'none';
     chosen.className = 'chosen';
-    chosenTitle.textContent = pick !== null ? pick.title : 'Nothing queued';
-    chosenSub.textContent = pick === null ? '' : queueSub(pick);
+    chosenTitle.textContent = '';
+    chosenSub.textContent = '';
     root.setAttribute('data-named', '0');
+    root.setAttribute('data-source', view.source || 'queue');
     linsub.textContent = '';
     count.textContent = '';
+    paintQueueKeys();
   }
 
   /**
@@ -1163,8 +1295,6 @@ export function createBrowse(options) {
     var canStep = view.total > 1;
     prevKey.setAttribute('data-off', canStep ? '0' : '1');
     nextKey.setAttribute('data-off', canStep ? '0' : '1');
-    upWord.textContent = axisName(-1);
-    downWord.textContent = axisName(1);
     if (view.spell) {
       // The middle is the query so far; the ring is the keyboard.
       chosenTitle.textContent = view.spell.query === '' ? view.spell.prompt : view.spell.query;
@@ -1524,7 +1654,7 @@ export function createBrowse(options) {
     // puck that room's. Pull and shift are the two keys under it.
     if (view.rooms) { onSwitch(item); return; }
     if (view.local) { hop(item); return; }
-    if (view.queue) { playFrom(item); return; }
+    if (view.queue) { queueGo(); return; }
     if (item.input !== null && item.input !== undefined) { spell(item); return; }
     var mine = epoch;
     var hierarchy = view.hierarchy;
@@ -1853,6 +1983,8 @@ export function createBrowse(options) {
     move: move,
     reloadQueue: reloadQueue,
     refreshRooms: refreshRooms,
+    /** The queue's hub keys follow the room's state (play/pause, prev/next while playing). */
+    queueKeys: function () { if (view !== null && view.queue) paintQueueKeys(); },
     isOpen: function () { return view !== null; },
     /** Which face is up: the music, the library, the queue, or the rooms (a side door off the music). */
     at: function () { return view === null ? 'play' : (view.queue ? 'queue' : (view.rooms ? 'rooms' : 'browse')); },
