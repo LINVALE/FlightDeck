@@ -1069,7 +1069,7 @@ test('the sleeve is never the browser\'s to drag, and the scrub draws its own mi
 
 // Peter 09-07 polish: the axis says where it goes; one foot line; a readable bezel number
 test('the axis pills name the face they lead to, on the music face and in browse', () => {
-  assert.match(JS, /function faceName\(stop\) \{\s*return stop === 'browse' \? 'library' : \(stop === 'queue' \? 'queue' : 'playing'\);/, 'the music face is "playing" on the pills (Peter 09-07: "down → now playing")');
+  assert.match(JS, /function faceName\(stop\) \{[\s\S]{0,120}return stop === 'browse' \? 'browse' : \(stop === 'queue' \? 'queue' : 'playing'\);/, 'playing · browse · queue on the pills — "browse", Roon\'s own word, not "library" (Peter 09-07)');
   assert.match(JS, /axisName: function \(dir\) \{ return faceName\(nextStop\(browse\.at\(\), dir\)\); \},/);
   assert.match(JS, /function render\(\) \{\s*paintAxis\(\);/, 'named on every paint, for wherever the puck stands');
   assert.match(BROWSE, /upWord\.textContent = axisName\(-1\);\s*downWord\.textContent = axisName\(1\);/);

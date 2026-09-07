@@ -336,7 +336,8 @@ btnMute.setAttribute('title', 'mute');
  * same; the pill is for the hand that cannot swipe.
  */
 function faceName(stop) {
-  return stop === 'browse' ? 'library' : (stop === 'queue' ? 'queue' : 'playing');
+  // "browse", not "library": Roon's own word for it (Peter, 09-07).
+  return stop === 'browse' ? 'browse' : (stop === 'queue' ? 'queue' : 'playing');
 }
 var btnUp = button('up', 'btn-up');
 var btnDown = button('down', 'btn-down');
