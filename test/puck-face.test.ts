@@ -228,9 +228,9 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
   // ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "bold the ticks up to
   // the level") — lit in the accent and thicker, in every state.
-  // ⚖️ .72, not 1 (Peter, 09-08): the lit run is laid OVER its ground like the
+  // ⚖️ .88, not 1 (Peter, 09-08): the lit run is laid OVER its ground like the
   // progress ring, keeping only the extra width that carries the level across a room.
-  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.72; stroke-width: 1\.25; \}/m,
+  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.88; stroke-width: 1\.25; \}/m,
     'lit and bold, at rest as much as in control');
   assert.doesNotMatch(CSS, /\[data-chrome="1"\] \.tick\.is-lit/, 'no state gate on the level');
   assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
@@ -941,8 +941,8 @@ test('the wheel stops at Roon\'s comfort level and draws the scale past it in am
     assert.match(JS, /var band = i >= safetyAt && safetyAt < ticks\.length \? ' danger' : \(i >= comfortAt && comfortAt < safetyAt \? ' comfort' : ''\);/, 'every tick is drawn, in its band: amber to safety, red beyond (09-06)');
     assert.match(JS, /"at Roon's comfort level \\u00b7 "/, 'and the readout says so, beneath the number');
     assert.doesNotMatch(CSS, /\.tick\.beyond/, 'no tick is hidden any more (09-06 supersedes 09-05)');
-    assert.match(CSS, /\.tick\.comfort\.is-lit, \.tick\.major\.comfort\.is-lit \{ stroke: #c9902e; stroke-opacity: \.78; \}/, 'amber from comfort to safety');
-  assert.match(CSS, /\.tick\.danger\.is-lit, \.tick\.major\.danger\.is-lit \{ stroke: rgb\(232, 84, 70\); stroke-opacity: \.82; \}/, 'red beyond safety');
+    assert.match(CSS, /\.tick\.comfort\.is-lit, \.tick\.major\.comfort\.is-lit \{ stroke: #c9902e; stroke-opacity: \.92; \}/, 'amber from comfort to safety');
+  assert.match(CSS, /\.tick\.danger\.is-lit, \.tick\.major\.danger\.is-lit \{ stroke: rgb\(232, 84, 70\); stroke-opacity: \.94; \}/, 'red beyond safety');
   assert.match(JS, /var over = volume\.value > bounds\.ceiling;/, 'a level set above the comfort level from Roon is shown where it is');
   assert.match(JS, /"above Roon's comfort level \\u00b7 "/, 'named in its band');
   assert.match(JS, /'above the safety limit set in Roon \\u00b7 '/, 'and the red band is named too');

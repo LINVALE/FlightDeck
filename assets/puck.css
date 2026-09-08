@@ -97,10 +97,13 @@ body {
  * as the puck"; and "the progress circle on the page is already nicely semi
  * transparent"). The progress ring has always been laid over its ground rather
  * than painted on it; the volume scale was the one reading still fully opaque.
- * It keeps its extra WIDTH, which is what carries the level across a room, and
- * gives back the rest. `fw/main/ui.c` holds the knob's rim at the same value.
+ * It keeps its extra WIDTH, which is what carries the level across a room. At
+ * .72 it read as washed out over a bright sleeve (Peter, 09-08: "a little less
+ * transparent than this - more solid please"), so .88: the album is still
+ * there underneath, and the reading is a reading again.
+ * `fw/main/ui.c` holds the knob's rim at the same value.
  */
-.tick.is-lit { stroke: var(--accent); stroke-opacity: .72; stroke-width: 1.25; }
+.tick.is-lit { stroke: var(--accent); stroke-opacity: .88; stroke-width: 1.25; }
 .tick.major.is-lit { stroke-width: 1.7; }
 .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
 .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
@@ -113,9 +116,9 @@ body {
    ticks): amber from the comfort level to the safety level, red beyond; lit
    in full, unlit as a tint. The reading wears the band the level stands in. */
 .tick.comfort, .tick.major.comfort { stroke: rgba(201, 144, 46, .38); }
-.tick.comfort.is-lit, .tick.major.comfort.is-lit { stroke: #c9902e; stroke-opacity: .78; }
+.tick.comfort.is-lit, .tick.major.comfort.is-lit { stroke: #c9902e; stroke-opacity: .92; }
 .tick.danger, .tick.major.danger { stroke: rgba(232, 84, 70, .38); }
-.tick.danger.is-lit, .tick.major.danger.is-lit { stroke: rgb(232, 84, 70); stroke-opacity: .82; }
+.tick.danger.is-lit, .tick.major.danger.is-lit { stroke: rgb(232, 84, 70); stroke-opacity: .94; }
 .rig[data-band="comfort"] .tick-read { fill: #c9902e; }
 .rig[data-band="danger"] .tick-read { fill: rgb(232, 84, 70); }
 
@@ -125,7 +128,10 @@ body {
   width: var(--glass); height: var(--glass);
   border-radius: 50%;
   overflow: hidden;
-  background: #05060a;
+  /* Transparent: the sleeve now fills the RIG behind this, and the glass is
+     what sits ON it — rings, words and controls. The ground for a face with no
+     artwork is the rig's own gradient underneath. */
+  background: transparent;
   cursor: default;
   -ms-touch-action: none; touch-action: none;
 }
@@ -500,6 +506,14 @@ body {
 .pad { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
 .puck:not([data-chrome="1"]) .pad { display: none; }
 .puck[data-browse] .pad { display: none; }
+
+.rig-edge {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: -webkit-radial-gradient(circle at 50% 50%, rgba(6, 7, 10, 0) 78%, rgba(6, 7, 10, .58) 100%);
+  background: radial-gradient(circle at 50% 50%, rgba(6, 7, 10, 0) 78%, rgba(6, 7, 10, .58) 100%);
+}
 
 /* Over the art, never in it: the cover keeps every one of its own pixels. */
 .pad-veil {

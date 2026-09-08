@@ -367,7 +367,24 @@ pad.appendChild(btnPlay);
 pad.appendChild(btnNext);
 pad.appendChild(btnShuffle);
 
-glass.appendChild(cover);
+/**
+ * ⚖️ THE SLEEVE IS THE WHOLE DISC (Peter, 09-08: "the page volume circle is
+ * still not showing any transparency"). It was, at .72 — but the scale sits at
+ * radius 213 and the artwork stopped at 190, so there was nothing but bezel
+ * behind it. Measured, then ruled: the cover leaves the glass and fills the
+ * RIG, so the scale lies on the album exactly as the rim does on the knob. It
+ * goes in before the ticks, so they paint over it; the rig's own metal
+ * gradient stays underneath as what shows when there is no artwork.
+ */
+rig.insertBefore(cover, detents);
+/**
+ * A soft edge on the outermost tenth, between the sleeve and the scale. Not on
+ * the cover and not on an ancestor of it — a SIBLING, exactly as the two scrims
+ * are, so the sacred-cover rule holds. Without it the band that used to be
+ * bezel stayed at full brightness and fought the ticks lying across it.
+ */
+var rigEdge = el('div', 'rig-edge');
+rig.insertBefore(rigEdge, detents);
 /** The mini sleeve that rides inside the ring while a finger scrubs — the one Peter liked, kept deliberately. */
 var scrubThumb = document.createElement('img');
 scrubThumb.className = 'scrub-thumb';
