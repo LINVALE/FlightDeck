@@ -1206,8 +1206,10 @@ test('the music cluster is one table, spread wide, and clear of the seek band', 
  * scale, which is what lets the cover show through.
  */
 test('the lit scale is solid and reads on any sleeve, because each mark has a halo', () => {
-  assert.match(CSS, /\.tick-halo \{ stroke: rgba\(0, 0, 0, 0\); stroke-width: 2\.1;/, 'nothing until the run reaches it');
-  assert.match(CSS, /\.tick-halo\.is-lit \{ stroke: rgba\(0, 0, 0, \.62\); \}/);
+  // ⚖️ Under EVERY mark (Peter, 09-08: "volume markers are not clear over light
+  // background") — the marks are light, so a pale sleeve left them nothing to sit against.
+  assert.match(CSS, /\.tick-halo \{ stroke: rgba\(0, 0, 0, \.40\); stroke-width: 1\.5;/, 'a quiet edge under every mark');
+  assert.match(CSS, /\.tick-halo\.is-lit \{ stroke: rgba\(0, 0, 0, \.66\); stroke-width: 2\.1; \}/, 'a stronger one under the lit run');
   assert.match(CSS, /\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: 1;/, 'the lit run itself is solid');
   // the halo is painted BEFORE the marks, or it would sit on top of them
   assert.match(JS, /haloLayer\.setAttribute\('class', 'tick-haloes'\);\s*detents\.appendChild\(haloLayer\);/);

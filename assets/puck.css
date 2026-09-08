@@ -78,14 +78,24 @@ body {
  * is still set, just not heard.
  */
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-/* The dark edge under a lit mark. Invisible until the run reaches it, so an
-   unlit scale stays a whisper on the sleeve rather than a row of dark specks. */
-.tick-halo { stroke: rgba(0, 0, 0, 0); stroke-width: 2.1; stroke-linecap: round; }
-.tick-halo.is-lit { stroke: rgba(0, 0, 0, .62); }
+/**
+ * ⚖️ THE DARK EDGE IS UNDER EVERY MARK, NOT ONLY THE LIT ONES (Peter, 09-08:
+ * "volume markers are not clear over light background"). The marks are bone
+ * and the accent — both LIGHT — so on a pale sleeve they had nothing to sit
+ * against, and the halo was only being drawn where the run was lit. A dark
+ * edge under a light mark reads on a dark ground AND a light one: on a dark
+ * sleeve it disappears into what is already there, and on a light sleeve it is
+ * the whole reason the mark is visible. It costs the quiet scale nothing.
+ */
+.tick-halo { stroke: rgba(0, 0, 0, .40); stroke-width: 1.5; stroke-linecap: round; }
+.tick-halo.is-lit { stroke: rgba(0, 0, 0, .66); stroke-width: 2.1; }
+.tick-halo.major { stroke-width: 1.9; }
 .tick-halo.major.is-lit { stroke-width: 2.7; }
 
-.tick { stroke: rgba(242, 238, 230, .13); stroke-width: .45; stroke-linecap: round; }
-.tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
+/* Bone at .13 vanished on a pale cover; the halo now carries the contrast, so
+   the unlit run can be a real mark instead of a rumour. */
+.tick { stroke: rgba(242, 238, 230, .38); stroke-width: .5; stroke-linecap: round; }
+.tick.major { stroke: rgba(242, 238, 230, .58); stroke-width: .8; }
 /**
  * ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "we need the volume to be
  * reflected on the cogs on screen — bold the ticks up to the level"). An
@@ -161,6 +171,16 @@ body {
   width: 100%; height: 100%;
   border-radius: 50%;
   overflow: hidden;
+  /**
+   * ⚠️ THE SLEEVE TAKES NO TOUCH (Peter, 09-08: "volume is not shifting when
+   * clicking on page volume dial"). Moving the cover out of the glass to fill
+   * the rig put a 444-pixel element over the WHEEL BAND, and the wheel is
+   * outside the glass — so every press meant for the volume landed on the
+   * picture and stopped there. Measured: at 88 to 96 per cent of the radius,
+   * `elementFromPoint` was returning the cover. It is decoration; the rig and
+   * the glass own every gesture.
+   */
+  pointer-events: none;
 }
 
 /* Roon's relay fits a sleeve inside 640x640 and a non-square one comes back
