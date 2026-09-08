@@ -46,8 +46,12 @@ test('a five-second wheel flood cannot move a room more than the session cap', a
     r.tick(16);
     await r.settle();
   }
-  assert.ok(stepped <= 20, 'accepted ' + String(stepped) + ' steps of a 300-event flood');
-  assert.ok(sum(r.sent) <= 20, 'sent ' + String(sum(r.sent)) + ' steps net to Roon');
+  // ⚖️ The ROLLING BUDGET is what holds a flood, not the session cap (09-08):
+  // five steps a second, so five seconds of inertia moves a room 25 — never the
+  // 104 of the real runaway — and the deck holds it at Roon's comfort level
+  // besides. Measured, not assumed.
+  assert.ok(stepped <= 25, 'accepted ' + String(stepped) + ' steps of a 300-event flood');
+  assert.ok(sum(r.sent) <= 25, 'sent ' + String(sum(r.sent)) + ' steps net to Roon');
   for (const batch of r.sent) assert.ok(Math.abs(batch) <= 4, 'a batch of ' + String(batch));
 });
 
@@ -77,19 +81,61 @@ test('no more than five steps in any second, whatever the hand does', async () =
   assert.equal(r.gate.step(1), 'sent');
 });
 
-test('a continuous spin stops at twenty net until the wheel rests', async () => {
+/**
+ * ⚖️ A DELIBERATE SWEEP IS NOT A RUNAWAY (Peter, 09-08: "on html keep getting
+ * wheel paused lift … that makes no sense!"). Forty detents across a scale is
+ * an ordinary thing to want; the cap must not be inside it.
+ */
+test('a deliberate sweep of forty detents goes through untouched', async () => {
   const r = rig();
   const verdicts: string[] = [];
-  // Four detents a second, well inside the budget, for ten seconds.
   for (let i = 0; i < 40; i += 1) { verdicts.push(r.gate.step(1)); r.tick(250); await r.settle(); }
-  assert.equal(verdicts.filter((v) => v === 'sent').length, 20);
-  assert.equal(verdicts.filter((v) => v === 'rest').length, 20);
-  assert.equal(sum(r.sent), 20);
+  assert.equal(verdicts.filter((v) => v === 'sent').length, 40);
+  assert.equal(verdicts.filter((v) => v === 'rest').length, 0);
+  assert.equal(sum(r.sent), 40);
+});
+
+/**
+ * The cap INTERRUPTS a very long spin; it does not end it. That is deliberate
+ * (09-08): the rolling budget is the rate limit and Roon's comfort level is the
+ * ceiling, so this layer only has to break the hand's stride once it has passed
+ * sixty steps without resting — and then let it back in.
+ */
+test('a spin past sixty is interrupted, and opens again by itself', async () => {
+  const r = rig();
+  const verdicts: string[] = [];
+  // Four detents a second, well inside the budget, for twenty seconds.
+  for (let i = 0; i < 80; i += 1) { verdicts.push(r.gate.step(1)); r.tick(250); await r.settle(); }
+  assert.ok(verdicts.filter((v) => v === 'rest').length > 0, 'the guard did speak');
+  assert.ok(verdicts.indexOf('rest') >= 60, 'and not before sixty steps had gone');
+  assert.equal(verdicts[verdicts.length - 1], 'sent', 'and the hand was let back in');
   // Resting for most of a second opens a new session; turning back down is fine
   // within one too — the cap is on NET movement, not on activity.
   r.tick(900);
   assert.equal(r.gate.step(-1), 'sent');
   assert.equal(r.gate.step(-1), 'sent');
+});
+
+/**
+ * ⚠️ A trackpad goes on firing after the finger lifts. Those refusals used to
+ * hold the window open, so the guard could not be escaped by doing what it
+ * asked — which is exactly what Peter kept hitting. The window is measured
+ * from the last step that actually WENT.
+ */
+test('inertia after the cap cannot hold the guard shut', async () => {
+  const r = rig();
+  // Turn until the cap speaks: four a second, inside the budget, so every step
+  // counts and the sixty-first is the one refused.
+  let verdict = '';
+  for (let i = 0; i < 61 && verdict !== 'rest'; i += 1) { verdict = r.gate.step(1); r.tick(250); await r.settle(); }
+  assert.equal(verdict, 'rest', 'the cap is reached');
+  // The hand is off, but the hardware keeps sending. Under the old rule those
+  // refusals kept the window alive and the guard could never be escaped.
+  const during: string[] = [];
+  for (let i = 0; i < 4; i += 1) { r.tick(150); during.push(r.gate.step(1)); }
+  assert.ok(during.some((v) => v === 'rest'), 'the refusals are refusals');
+  r.tick(900);
+  assert.equal(r.gate.step(1), 'sent', 'the guard let the hand back in on its own');
 });
 
 test('one request in flight, and what gathers meanwhile goes as one batch', async () => {

@@ -639,7 +639,10 @@ function turn(step) {
   showTurning();
   // The runaway guard: twenty steps of continuous turning, then it waits for
   // the hand to pause. Say so in words a person can act on.
-  if (verdict === 'rest') { flash('wheel paused \u2014 lift, then turn again'); return; }
+  // ⚖️ Say what happened and that it mends itself (Peter, 09-08: "keep getting
+  // wheel paused lift … that makes no sense!") — there is nothing to lift on a
+  // trackpad, and the guard opens again on its own after a second.
+  if (verdict === 'rest') { flash('volume paused for a moment \u2014 it follows again in a second'); return; }
   if (verdict !== 'sent') return;
   haptic(6);
   render();

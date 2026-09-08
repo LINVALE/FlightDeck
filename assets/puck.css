@@ -534,8 +534,8 @@ body {
   margin-top: calc(var(--u) * -5.25);
 }
 
-.btn-repeat { left: calc(var(--u) * 29); margin-left: calc(var(--u) * -5.25); }
-.btn-shuffle { left: calc(var(--u) * 71); margin-left: calc(var(--u) * -5.25); }
+.btn-repeat { left: calc(var(--u) * 27.5); margin-left: calc(var(--u) * -5.25); }
+.btn-shuffle { left: calc(var(--u) * 72.5); margin-left: calc(var(--u) * -5.25); }
 /* ↑ above play and ↓ in the shoulder row's centre: the axis, where the disc
    wears it in browse (Peter, 09-04). Below the shoulder row is the credit, which
    the overlay keeps whole (Peter, 09-03: all three lines) — so ↓ took the

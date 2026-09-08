@@ -614,7 +614,7 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   assert.ok(hasGlyph('back'));
   assert.match(JS, /roomName\.textContent = zone\.name;/);
   assert.match(JS, /function goHome\(\)[\s\S]{0,400}window\.location\.href = ON_PHONE \? '\/phone' : '\/';/);
-  assert.match(JS, /flash\('wheel paused \\u2014 lift, then turn again'\)/, 'the guard says what it means');
+  assert.match(JS, /flash\('volume paused for a moment \\u2014 it follows again in a second'\)/, 'the guard says what happened and that it mends itself (Peter, 09-08)');
   assert.ok(hasGlyph('return'));
   assert.match(CSS, /\.nav-keys \.key-up,[^\n]*\.key-up \{ left: 50%; top: calc\(var\(--u\) \* 39\); \}/);
   // swipes mean the same: ↑ is up, ← → are next and previous
@@ -1179,8 +1179,8 @@ test('the music cluster is one table, spread wide, and clear of the seek band', 
   assert.match(CSS, /\.btn-play \{\s*left: 50%; top: calc\(var\(--u\) \* 45\);\s*width: calc\(var\(--u\) \* 18\)/, 'play is the largest, at 45');
   assert.match(CSS, /\.btn-prev, \.btn-next \{\s*top: calc\(var\(--u\) \* 45\);\s*width: calc\(var\(--u\) \* 13\)/, 'prev and next share the transport row');
   assert.match(CSS, /\.btn-repeat, \.btn-shuffle \{\s*top: calc\(var\(--u\) \* 65\);\s*width: calc\(var\(--u\) \* 10\.5\)/, 'the shoulder is its own row');
-  assert.match(CSS, /\.btn-repeat \{ left: calc\(var\(--u\) \* 29\);/);
-  assert.match(CSS, /\.btn-shuffle \{ left: calc\(var\(--u\) \* 71\);/);
+  assert.match(CSS, /\.btn-repeat \{ left: calc\(var\(--u\) \* 27\.5\);/, 'out from the pill it flanks (Peter, 09-08)');
+  assert.match(CSS, /\.btn-shuffle \{ left: calc\(var\(--u\) \* 72\.5\);/);
   assert.match(CSS, /\.btn-prev \{ left: calc\(var\(--u\) \* 26\);/);
   assert.match(CSS, /\.btn-next \{ left: calc\(var\(--u\) \* 74\);/);
   // Measured on the live page (CDP, 09-08): the farthest reach of any control

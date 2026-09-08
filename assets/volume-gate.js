@@ -16,10 +16,26 @@
  *     past the four the server will honour, and go as one batch afterwards
  *   · a rolling BUDGET: no more than five steps in any second, which is what a
  *     hand does on a detented knob and more than a wheel with inertia deserves
- *   · a SESSION CAP: no more than twenty steps net without the wheel resting for
- *     most of a second — a continuous spin cannot take a room to its maximum
- *     (twelve at first; a deliberate sweep kept hitting it, so two thirds of a
- *     turn now, and the face says "wheel paused — lift, then turn again")
+ *   · a SESSION CAP: no more than sixty steps net without the wheel resting for
+ *     most of a second — a continuous spin cannot run away with a room
+ *
+ * ⚖️ THE CAP IS SIXTY, AND ONLY AN ACCEPTED STEP HOLDS THE SESSION OPEN
+ * (Peter, 09-08: "on html keep getting wheel paused lift … that makes no
+ * sense!"). Two faults, both false alarms rather than saved rooms:
+ *
+ *   · twelve, then twenty, were inside ordinary use. The budget already holds
+ *     the rate to five steps a second, so sixty steps is twelve unbroken
+ *     seconds of turning — no hand does that, and every deliberate sweep of a
+ *     scale is now under it. And since 09-07 the DECK holds every request at
+ *     Roon's comfort level unless the hand overrode it, so the outcome this
+ *     cap was invented to prevent — a room climbing toward its maximum with
+ *     nobody's hand on anything — is prevented at the other end too.
+ *   · a REFUSED step used to hold the session open. A trackpad goes on firing
+ *     for a second or more after the finger lifts, so those refusals kept the
+ *     window alive, and the guard could not be escaped by doing what it asked.
+ *     Now the window is measured from the last step actually SENT: the guard
+ *     interrupts, and lets the hand back in whatever the hardware is still
+ *     doing.
  *   · the reading under the hand never runs more than four ahead of what Roon
  *     has confirmed, so a face cannot show a level the room never reached
  *
@@ -32,7 +48,7 @@ export function createVolumeGate(send, options) {
   var setTimer = typeof opts.setTimer === 'function' ? opts.setTimer : setTimeout;
   var detentDelta = typeof opts.detentDelta === 'number' ? opts.detentDelta : 100;
   var budget = typeof opts.budgetPerSecond === 'number' ? opts.budgetPerSecond : 5;
-  var sessionCap = typeof opts.sessionCap === 'number' ? opts.sessionCap : 20;
+  var sessionCap = typeof opts.sessionCap === 'number' ? opts.sessionCap : 60;
   var restMs = typeof opts.restMs === 'number' ? opts.restMs : 800;
   var batchMax = typeof opts.batchMax === 'number' ? opts.batchMax : 4;
   var flightMs = typeof opts.flightMs === 'number' ? opts.flightMs : 2500;
@@ -78,10 +94,10 @@ export function createVolumeGate(send, options) {
     var dir = direction > 0 ? 1 : -1;
     var at = now();
     if (at - sessionLast > restMs) sessionNet = 0;
-    sessionLast = at;
     trim(at);
     if (accepted.length >= budget) return 'budget';
     if (Math.abs(sessionNet + dir) > sessionCap) return 'rest';
+    sessionLast = at;          /* only a step that WENT holds the session open */
     accepted.push(at);
     sessionNet += dir;
     ahead = Math.max(-batchMax, Math.min(batchMax, ahead + dir));
