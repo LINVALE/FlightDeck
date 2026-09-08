@@ -143,10 +143,27 @@ body {
 /* Roon's relay fits a sleeve inside 640x640 and a non-square one comes back
    non-square; stretched to the glass it lied, boxed it left a gap. Cropped to
    the circle its overflow is falling outside the disc anyway. */
+/**
+ * ⚖️ THE LARGEST PART OF THE SLEEVE THAT FITS THE DIAL (Peter, 09-08: "the
+ * album art looks better on the puck than on the page — i think because on the
+ * page we are overlaying the rings and cutting off more rather than using the
+ * largest part of the cover that fits in the visible area of the dial").
+ *
+ * He was right, and by more than he guessed. The sleeve was blown up to 118%
+ * and THEN masked to the circle, so the round glass showed only 56.4% of the
+ * cover — nearly half of every album thrown away before it was drawn. A square
+ * exactly inscribing the circle would show 78.5%.
+ *
+ * The knob does better than either: it draws the sleeve at 320 of its 360
+ * pixels and lets the volume rim cover the seam, so 90.7% of the cover
+ * survives — measured, and the reason the two faces looked different. The page
+ * takes the same 88.9%, and the dark band left at the edge is the mount the
+ * rim occupies on the device.
+ */
 .cover img {
   display: block;
-  width: 118%; height: 118%;
-  margin-left: -9%; margin-top: -9%;
+  width: 88.9%; height: 88.9%;
+  margin-left: 5.55%; margin-top: 5.55%;
   -o-object-fit: cover; object-fit: cover;
 }
 

@@ -308,7 +308,10 @@ test('one ring on the glass, and no volume control drawn on it at all', () => {
   assert.match(JS, /var PROG_R = 42;/, 'the position ring sits inside the wheel band, clear of the dots');
   // A circle cut from WITHIN the sleeve: drawn past the glass so no edge of the
   // square can reach the rim, and cropped rather than stretched or boxed.
-  assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 118%; height: 118%;\s*margin-left: -9%; margin-top: -9%;/);
+  // ⚖️ 88.9%, the knob's own 320 of 360 (Peter, 09-08). At 118% the circular
+  // mask showed only 56.4% of the sleeve; at 88.9% it shows 90.7%, and the two
+  // faces finally crop an album the same way.
+  assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 88\.9%; height: 88\.9%;\s*margin-left: 5\.55%; margin-top: 5\.55%;/);
   assert.match(CSS, /\.cover img \{[\s\S]{0,200}object-fit: cover/);
   // The wheel and its dots ARE the volume (Peter, 09-03): nothing on the glass.
   assert.doesNotMatch(JS, /vol-pill|volMinus|volPlus|volMute|vol-num/);
