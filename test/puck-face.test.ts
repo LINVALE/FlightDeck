@@ -308,10 +308,11 @@ test('one ring on the glass, and no volume control drawn on it at all', () => {
   assert.match(JS, /var PROG_R = 42;/, 'the position ring sits inside the wheel band, clear of the dots');
   // A circle cut from WITHIN the sleeve: drawn past the glass so no edge of the
   // square can reach the rim, and cropped rather than stretched or boxed.
-  // ⚖️ 88.9%, the knob's own 320 of 360 (Peter, 09-08). At 118% the circular
-  // mask showed only 56.4% of the sleeve; at 88.9% it shows 90.7%, and the two
-  // faces finally crop an album the same way.
-  assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 88\.9%; height: 88\.9%;\s*margin-left: 5\.55%; margin-top: 5\.55%;/);
+  // ⚖️ The largest square that still FILLS the dial (Peter, 09-08). At 118% the
+  // circular mask threw away 43.6% of the sleeve; at 88.9% the corners of the
+  // dial showed bare ground ("black at each side"). Exactly the glass keeps
+  // 78.5% of the cover with no gap anywhere.
+  assert.match(CSS, /\.cover img \{[\s\S]{0,200}width: 100%; height: 100%;\s*margin-left: 0; margin-top: 0;/);
   assert.match(CSS, /\.cover img \{[\s\S]{0,200}object-fit: cover/);
   // The wheel and its dots ARE the volume (Peter, 09-03): nothing on the glass.
   assert.doesNotMatch(JS, /vol-pill|volMinus|volPlus|volMute|vol-num/);

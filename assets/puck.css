@@ -155,15 +155,20 @@ body {
  * exactly inscribing the circle would show 78.5%.
  *
  * The knob does better than either: it draws the sleeve at 320 of its 360
- * pixels and lets the volume rim cover the seam, so 90.7% of the cover
- * survives — measured, and the reason the two faces looked different. The page
- * takes the same 88.9%, and the dark band left at the edge is the mount the
- * rim occupies on the device.
+ * pixels and lets its VOLUME RIM cover the seam, so 90.7% of the cover
+ * survives. The page has no rim on the glass — volume lives on the bezel
+ * outside it — so copying that 88.9% left bare ground showing at the four
+ * edges (Peter, 09-08: "now the album art is showing black at each side").
+ *
+ * So the page takes the largest square that still fills the dial: exactly the
+ * glass, the circle inscribed in the sleeve. No gap anywhere, and 78.5% of the
+ * cover survives against the 56.4% it had. The knob keeps its extra 12 points
+ * because it has something to hide the seam with, and the page does not.
  */
 .cover img {
   display: block;
-  width: 88.9%; height: 88.9%;
-  margin-left: 5.55%; margin-top: 5.55%;
+  width: 100%; height: 100%;
+  margin-left: 0; margin-top: 0;
   -o-object-fit: cover; object-fit: cover;
 }
 
