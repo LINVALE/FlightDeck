@@ -36,15 +36,33 @@ remote. There is a step-by-step guide at `/setup`, and a five-minute check at
 
 **Address:** `/`
 
-One card per Roon zone: what is playing, who it is by, and how far through it
-is. Rooms that are playing sort ahead of rooms that are not, so the wall reads
-top-left to bottom-right in order of what matters.
+![The Wall, eight rooms](/assets/screens/wall.png)
 
-**A card at rest shows words and position only.** Bring a pointer over it, or
-tap it once on a touch screen, and a drawer of controls opens: play and pause,
-previous and next, volume, mute, and the buttons for grouping. On the bottom
-row the card rises and the drawer opens beneath it, so the controls are never
-off the edge of the screen.
+One card per Roon zone: what is playing, who it is by, and how far through it
+is. A room that is playing is marked **now**.
+
+**Cards are in alphabetical order and they hold it.** They do not re-sort when a
+room starts or stops, so a card never moves out from under your hand. If you
+want a different order, **Reorder** lets you drag them into one and it is
+remembered on that screen.
+
+### How the controls appear
+
+That depends on how many rooms you have, because a card that is one of six has
+room for everything and a card that is one of twenty does not.
+
+**Up to two rows** — every control is on the card, as above. Nothing is hidden.
+
+**Three rows or more** — a card at rest shows the words and the position only,
+and a drawer of controls opens when you bring a pointer over it or tap it once:
+play and pause, previous and next, volume, mute, and the buttons for grouping.
+On the bottom row the card rises and the drawer opens beneath it, so the
+controls are never off the edge of the screen.
+
+![Fourteen rooms, one card's drawer open](/assets/screens/wall-drawer.png)
+
+**One row** — the cards are held to half the height of the screen, so four
+rooms do not become four enormous posters.
 
 **Tap a card twice** (or click its title) to open that room's full-screen Face.
 
@@ -80,6 +98,8 @@ where it was.
 
 **Address:** `/face/<room>` — or tap a card twice on the Wall.
 
+![Presence, the default face](/assets/screens/face-presence.png)
+
 This is the screen for a television or a spare tablet: the cover art large, the
 title and artist under it, and the position running along the bottom.
 
@@ -93,6 +113,23 @@ finger so you can see where you are landing. The seek is sent once, when you let
 go, so a long drag does not fire a hundred requests at the room.
 
 **Arrow keys cycle the faces** on a television remote.
+
+### The album, and the artist
+
+**Press the cover and the screen flips to the artist.** The photograph Roon
+holds for the performer fills the screen, the sleeve shrinks to a small plate
+beside the words, and everything else stays where it was. Press it again and you
+are back on the album.
+
+![The same track, flipped to the artist](/assets/screens/face-artist.png)
+
+Roon often has more than one photograph for a track — a performer, a conductor,
+a composer — and it does not say which is which. So when there are several they
+**rotate every ten seconds** and a small counter shows which one you are on. You
+never have to press anything to see them all, and you can press the cover to
+stop and go back to the album at any time.
+
+A new track always comes back to the album view.
 
 ### The faces
 
@@ -113,6 +150,10 @@ each screen remembers its own choice per room.
 | Gallery | The artist's own photographs, cycled |
 | Aurora | Slow colour drawn from the sleeve |
 | Puck | Forwards to the round face — see below |
+
+![Dial](/assets/screens/face-dial.png)
+
+![Plate](/assets/screens/face-plate.png)
 
 **The cover is never touched.** No crop, tint, filter or overlay on the artwork
 itself, on any face. Everything a face needs to say, it says in the space around
@@ -138,11 +179,15 @@ calls itself, so a Fire TV is never mistaken for one.
 
 ### The phone Wall — `/phone`
 
+![The phone Wall](/assets/screens/phone-wall.png)
+
 One card per room, alphabetical, sized for a thumb. Volume is a pair of large
 steps rather than a slider you cannot hit while walking. In landscape it stays
 one column, so a card is never squeezed into an unreadable strip.
 
 ### The phone remote — `/phone/<room>`
+
+![The phone remote](/assets/screens/phone-remote.png)
 
 The room's cover, its words, transport, volume, and the doors to browse and the
 queue. It fits the screen in either orientation, including the shortened screen
@@ -160,6 +205,8 @@ store.
 
 **Address:** `/puck/<output>`, or choose **Puck** from the faces on any Face
 screen.
+
+![The puck](/assets/screens/puck.png)
 
 This is the face the physical knob runs, and it is the same drawing in a browser
 so you can use it before the hardware is in your hand.
