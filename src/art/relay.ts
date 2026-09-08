@@ -31,6 +31,11 @@ export const SIZES = {
   // Browse rows: small, many at once, and scrolled — the Core scales them, so a
   // list of two thousand albums never sends a full-size sleeve down the wire.
   thumb: { width: 160, height: 160, scale: 'fit' },
+  // ⚖️ The puck's own sleeve (09-08). The knob is a 360px circle and decodes
+  // the JPEG itself on an ESP32, so the size it is SENT is the size it shows:
+  // asking for `cover` would make a microcontroller decode four times the
+  // pixels it can draw, into memory it would rather not spend.
+  knob: { width: 320, height: 320, scale: 'fit' },
 } as const;
 
 export type SizeClass = keyof typeof SIZES;

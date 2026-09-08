@@ -72,6 +72,7 @@ function projectNowPlaying(raw: unknown, art: ArtMinter, at: string): NowPlaying
     artistArts: artistKeys(np.artist_image_keys)
       .map((key) => art.pathFor(key, 'hero'))
       .filter((ref): ref is ArtRef => ref !== null),
+    artKnob: art.pathFor(np.image_key, 'knob'),
     lengthSec: positive(np.length),
     seek: position === null ? null : { positionSec: position, at },
   };

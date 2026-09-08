@@ -502,30 +502,40 @@ body {
  * calc() offsets — never a transform, because `.glass` is an ancestor of the
  * cover.
  */
+/**
+ * ⚖️ ONE LAYOUT, PAGE AND KNOB (Peter, 09-08: "we need the same on both and the
+ * goal should be max separation for easy touch keeping the relative sizes as we
+ * have them — important buttons larger — and we need to make sure the edge seek
+ * is kept clean space as well … can we unify so what I see on screen is what's
+ * on the puck?"). `fw/main/ui.c` carries this same table, and the knob is drawn
+ * from it: the transport above the middle, the shoulder below it, the credit
+ * whole at the foot. Repeat and shuffle moved OUT to 24 and 76 so no button is
+ * nearer than 5u to another, and every corner stops short of the seek band.
+ */
 .btn-play {
-  left: 50%; top: calc(var(--u) * 39);
-  width: calc(var(--u) * 17); height: calc(var(--u) * 17);
-  margin-left: calc(var(--u) * -8.5); margin-top: calc(var(--u) * -8.5);
+  left: 50%; top: calc(var(--u) * 45);
+  width: calc(var(--u) * 18); height: calc(var(--u) * 18);
+  margin-left: calc(var(--u) * -9); margin-top: calc(var(--u) * -9);
   background: rgba(10, 11, 14, .74);
 }
 
 .btn-prev, .btn-next {
-  top: calc(var(--u) * 39);
-  width: calc(var(--u) * 12.5); height: calc(var(--u) * 12.5);
-  margin-top: calc(var(--u) * -6.25);
+  top: calc(var(--u) * 45);
+  width: calc(var(--u) * 13); height: calc(var(--u) * 13);
+  margin-top: calc(var(--u) * -6.5);
 }
 
-.btn-prev { left: calc(var(--u) * 26); margin-left: calc(var(--u) * -6.25); }
-.btn-next { left: calc(var(--u) * 74); margin-left: calc(var(--u) * -6.25); }
+.btn-prev { left: calc(var(--u) * 26); margin-left: calc(var(--u) * -6.5); }
+.btn-next { left: calc(var(--u) * 74); margin-left: calc(var(--u) * -6.5); }
 
 .btn-repeat, .btn-shuffle {
-  top: calc(var(--u) * 56);
-  width: calc(var(--u) * 10); height: calc(var(--u) * 10);
-  margin-top: calc(var(--u) * -5);
+  top: calc(var(--u) * 65);
+  width: calc(var(--u) * 10.5); height: calc(var(--u) * 10.5);
+  margin-top: calc(var(--u) * -5.25);
 }
 
-.btn-repeat { left: calc(var(--u) * 33); margin-left: calc(var(--u) * -5); }
-.btn-shuffle { left: calc(var(--u) * 67); margin-left: calc(var(--u) * -5); }
+.btn-repeat { left: calc(var(--u) * 29); margin-left: calc(var(--u) * -5.25); }
+.btn-shuffle { left: calc(var(--u) * 71); margin-left: calc(var(--u) * -5.25); }
 /* ↑ above play and ↓ in the shoulder row's centre: the axis, where the disc
    wears it in browse (Peter, 09-04). Below the shoulder row is the credit, which
    the overlay keeps whole (Peter, 09-03: all three lines) — so ↓ took the
@@ -536,8 +546,8 @@ body {
   width: calc(var(--u) * 8); height: calc(var(--u) * 8);
   margin-left: calc(var(--u) * -4); margin-top: calc(var(--u) * -4);
 }
-.btn-up { top: calc(var(--u) * 24); }
-.btn-down { top: calc(var(--u) * 56); }
+.btn-up { top: calc(var(--u) * 27); }
+.btn-down { top: calc(var(--u) * 65); }
 .key .glyph { width: 54%; height: 54%; display: block; margin: 23% auto; }
 
 /* ⚖️ MUTE AT THE BOTTOM, BETWEEN THE TWO RINGS, OPPOSITE THE LENGTH (Peter,

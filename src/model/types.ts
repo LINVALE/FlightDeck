@@ -34,6 +34,12 @@ export interface NowPlaying {
    * answers "who is this?" and settles the question on screen.
    */
   readonly artistArts: readonly ArtRef[];
+  /**
+   * The same sleeve at the puck's own size (320px). A knob decodes the JPEG on
+   * its own processor, so it is served what it can draw rather than four times
+   * as much; browsers keep using `art`.
+   */
+  readonly artKnob: ArtRef | null;
   readonly lengthSec: number | null;
   readonly seek: SeekRef | null;
 }

@@ -448,7 +448,10 @@ test('a tap on the ring seeks, through the one-intent gate', () => {
   // ⚖️ OUTER = VOLUME, INNER = POSITION, in the hand: the glass's outer edge is
   // handed to the wheel before the face ever sees it, so a finger on the dots
   // can never be read as a seek.
-  assert.match(JS, /var SEEK_BAND = 29;\s*var WHEEL_BAND = 45;/);
+  // ⚖️ 37, not 29 (Peter, 09-08: "make sure the edge seek is kept clean space"):
+  // no control on either the page or the knob reaches past 36.9u, so the band
+  // holds nothing but the track. `fw/main/ui.c` keeps the same line at 133px.
+  assert.match(JS, /var SEEK_BAND = 37;\s*var WHEEL_BAND = 45;/);
   assert.match(JS, /glass\.addEventListener\('pointerdown',[\s\S]{0,420}if \(radiusOf\(glassMetrics\(\), event\.clientX, event\.clientY\) >= WHEEL_BAND\) \{\s*beginTurn\(event\);\s*return;/,
     'the edge is the wheel in every state — in browse a turn carries the highlight');
   assert.doesNotMatch(JS, /!browse\.isOpen\(\) && radiusOf/);
@@ -765,7 +768,10 @@ test('the axis is a wheel of three faces: every face is one swipe from every oth
   // the same idiom on the music face: ↑ above play, ↓ below the shoulder row, tap to rotate
   assert.match(JS, /var btnUp = button\('up', 'btn-up'\);\s*var btnDown = button\('down', 'btn-down'\);/);
   assert.match(JS, /press\(btnUp, function \(\) \{ axis\(-1\); \}\);\s*press\(btnDown, function \(\) \{ axis\(1\); \}\);/);
-  assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 24\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 56\); \}/, '↓ in the shoulder row\'s centre: below it is the credit, which the overlay keeps whole');
+  // ⚖️ Spread wide (Peter, 09-08): the axis pills stand clear of the transport
+  // on both faces, and the cluster may use the whole glass because it is
+  // summoned and goes away again. The table is pinned in its own test below.
+  assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 27\); \}\s*\.btn-down \{ top: calc\(var\(--u\) \* 65\); \}/, '↑ above the transport and ↓ in the shoulder row\'s centre, eighteen units apart from play');
   assert.match(CSS, /\.btn-mute \{\s*left: 50%; top: calc\(var\(--u\) \* 95\.6\);\s*width: calc\(var\(--u\) \* 5\.6\);/, 'mute at the bottom, between the two rings, opposite the length (Peter, 09-05)');
   assert.doesNotMatch(JS, /tagAngle \+= /, 'the circle never steps aside: it IS the bead');
   assert.doesNotMatch(CSS, /\.puck\[data-chrome="1"\] \.artist[^\n]*display: none/, 'the overlay never hides a credit line (Peter, 09-03)');
@@ -1039,7 +1045,7 @@ test('a drag on the scale is a dial: the tick under the finger, bounded, never f
 
 // Peter 09-06, the puck on a phone: bigger verbs, a broader ring
 test('the browse verbs are bigger circles with a touch halo, and the ring is broad to the finger', () => {
-  assert.match(JS, /var SEEK_BAND = 29;/, 'the band begins just outside the select disc');
+  assert.match(JS, /var SEEK_BAND = 37;/, 'the band begins outside every control, page and knob alike');
   assert.match(CSS, /\.nav-keys \.key \{[^}]*width: calc\(var\(--u\) \* 8\.5\); height: calc\(var\(--u\) \* 8\.5\);/);
   assert.match(CSS, /\.nav-keys \.key::before \{ content: ""; position: absolute; left: -30%; top: -30%; right: -30%; bottom: -30%; border-radius: 50%; \}/, 'an invisible halo a third wider again');
   assert.match(CSS, /\.key-down, [^{]*\{ left: 50%; top: calc\(var\(--u\) \* 61\); \}/, '\u2193 ends at 65.25, under the lowest names at 65.7');
@@ -1156,4 +1162,30 @@ test('the axis pills are bone on near-black with a strong rim; the sleeve\'s acc
   assert.match(CSS, /\.btn-up, \.btn-down, \.nav-keys \.key-up, \.nav-keys \.key-down \{\s*background: rgba\(8, 9, 12, \.94\); border: 1px solid rgba\(242, 238, 230, \.78\); color: #f2eee6;/);
   assert.match(CSS, /\.axis-word, \.nav-keys \.key-up \.axis-word, \.nav-keys \.key-down \.axis-word \{ color: #f2eee6; font-weight: 700; \}/);
   assert.doesNotMatch(CSS, /\.axis-word \{ color: var\(--accent\); \}/);
+});
+
+
+/**
+ * ⚖️ ONE LAYOUT, PAGE AND KNOB (Peter, 09-08: "can we unify so what I see on
+ * screen is what's on the puck?"). These seven numbers are the contract between
+ * `assets/puck.css` and `fw/main/ui.c`; the firmware's comment carries the same
+ * table. If a row moves here it moves there, or the two faces drift apart
+ * again — which is exactly what Peter caught: the knob had the title above the
+ * axis, alone, while the page kept it with its own artist and album.
+ */
+test('the music cluster is one table, spread wide, and clear of the seek band', () => {
+  assert.match(CSS, /\.btn-up \{ top: calc\(var\(--u\) \* 27\); \}/, '↑ QUEUE at 27');
+  assert.match(CSS, /\.btn-down \{ top: calc\(var\(--u\) \* 65\); \}/, '↓ BROWSE at 65');
+  assert.match(CSS, /\.btn-play \{\s*left: 50%; top: calc\(var\(--u\) \* 45\);\s*width: calc\(var\(--u\) \* 18\)/, 'play is the largest, at 45');
+  assert.match(CSS, /\.btn-prev, \.btn-next \{\s*top: calc\(var\(--u\) \* 45\);\s*width: calc\(var\(--u\) \* 13\)/, 'prev and next share the transport row');
+  assert.match(CSS, /\.btn-repeat, \.btn-shuffle \{\s*top: calc\(var\(--u\) \* 65\);\s*width: calc\(var\(--u\) \* 10\.5\)/, 'the shoulder is its own row');
+  assert.match(CSS, /\.btn-repeat \{ left: calc\(var\(--u\) \* 29\);/);
+  assert.match(CSS, /\.btn-shuffle \{ left: calc\(var\(--u\) \* 71\);/);
+  assert.match(CSS, /\.btn-prev \{ left: calc\(var\(--u\) \* 26\);/);
+  assert.match(CSS, /\.btn-next \{ left: calc\(var\(--u\) \* 74\);/);
+  // Measured on the live page (CDP, 09-08): the farthest reach of any control
+  // is 31.1u, and the tightest gap between two of them is 4.3u.
+  const ROWS = [27, 45, 65];
+  assert.ok(ROWS[1] - ROWS[0] >= 15 && ROWS[2] - ROWS[1] >= 15,
+    'the axis pills stand clear of the transport — Peter, 09-08: "queue and browse clearly separate from play"');
 });

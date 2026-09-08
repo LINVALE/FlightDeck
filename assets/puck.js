@@ -83,7 +83,12 @@ var BEZEL_RATIO = 0.085;
  * (radius 13 + the verbs' orbit) rather than at 34. Inside it, the centre
  * still summons; outside it, every touch is the ring's.
  */
-var SEEK_BAND = 29;
+/* ⚖️ 37, not 29 (Peter, 09-08: "make sure the edge seek is kept clean space").
+ * No control on this page reaches past 31.1u, and on the knob — where every
+ * button carries a generous margin of glass for a thumb — none reaches past
+ * 36.9. So from 37 out the face belongs to the track and to nothing else, on
+ * both. `fw/main/ui.c` holds the same line at 133 pixels of its 360. */
+var SEEK_BAND = 37;
 var WHEEL_BAND = 45;
 
 /** The field behind a missing cover: the art drawn tiny and scaled up. */
