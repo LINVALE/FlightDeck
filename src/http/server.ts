@@ -416,6 +416,12 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
     // Repo documents, rendered from their Markdown. Useful on the phone in your
     // hand while you stand in front of the TV you are setting up.
     const DOCS: Record<string, { file: string; title: string }> = {
+      // ⚖️ The beta's own guide, served from the repo Markdown like the rest
+      // (Peter, 09-08: "prepare a detailed set of instructions and examples of
+      // what the screens are and how to use this"). It ships WITH the product
+      // so it is reachable from the device you are holding, not only from a
+      // download — which is the whole reason /setup and /drill are here.
+      '/guide': { file: 'guide.md', title: 'What the screens are' },
       '/setup': { file: 'tv-setup.md', title: 'Putting FlightDeck on a TV' },
       '/drill': { file: 'tv-drill.md', title: 'The TV drill' },
     };
