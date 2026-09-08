@@ -228,9 +228,9 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.doesNotMatch(JS, /vol-arc|VOL_R|ring-gutter|vol-track/, 'nothing but progress is drawn on the glass');
   // ⚖️ THE LEVEL IS ON THE WHEEL, ALWAYS (Peter, 09-03: "bold the ticks up to
   // the level") — lit in the accent and thicker, in every state.
-  // ⚖️ .88, not 1 (Peter, 09-08): the lit run is laid OVER its ground like the
+  // ⚖️ solid, with a halo (Peter, 09-08): the lit run is laid OVER its ground like the
   // progress ring, keeping only the extra width that carries the level across a room.
-  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: \.88; stroke-width: 1\.25; \}/m,
+  assert.match(CSS, /^\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: 1; stroke-width: 1\.25; \}/m,
     'lit and bold, at rest as much as in control');
   assert.doesNotMatch(CSS, /\[data-chrome="1"\] \.tick\.is-lit/, 'no state gate on the level');
   assert.match(CSS, /\.rig\[data-muted="1"\] \.tick\.is-lit \{ stroke-opacity: \.38; \}/, 'muted dims the lit run rather than emptying it');
@@ -941,8 +941,8 @@ test('the wheel stops at Roon\'s comfort level and draws the scale past it in am
     assert.match(JS, /var band = i >= safetyAt && safetyAt < ticks\.length \? ' danger' : \(i >= comfortAt && comfortAt < safetyAt \? ' comfort' : ''\);/, 'every tick is drawn, in its band: amber to safety, red beyond (09-06)');
     assert.match(JS, /"at Roon's comfort level \\u00b7 "/, 'and the readout says so, beneath the number');
     assert.doesNotMatch(CSS, /\.tick\.beyond/, 'no tick is hidden any more (09-06 supersedes 09-05)');
-    assert.match(CSS, /\.tick\.comfort\.is-lit, \.tick\.major\.comfort\.is-lit \{ stroke: #c9902e; stroke-opacity: \.92; \}/, 'amber from comfort to safety');
-  assert.match(CSS, /\.tick\.danger\.is-lit, \.tick\.major\.danger\.is-lit \{ stroke: rgb\(232, 84, 70\); stroke-opacity: \.94; \}/, 'red beyond safety');
+    assert.match(CSS, /\.tick\.comfort\.is-lit, \.tick\.major\.comfort\.is-lit \{ stroke: #c9902e; stroke-opacity: 1; \}/, 'amber from comfort to safety');
+  assert.match(CSS, /\.tick\.danger\.is-lit, \.tick\.major\.danger\.is-lit \{ stroke: rgb\(232, 84, 70\); stroke-opacity: 1; \}/, 'red beyond safety');
   assert.match(JS, /var over = volume\.value > bounds\.ceiling;/, 'a level set above the comfort level from Roon is shown where it is');
   assert.match(JS, /"above Roon's comfort level \\u00b7 "/, 'named in its band');
   assert.match(JS, /'above the safety limit set in Roon \\u00b7 '/, 'and the red band is named too');
@@ -1194,4 +1194,22 @@ test('the music cluster is one table, spread wide, and clear of the seek band', 
   const ROWS = [27, 45, 65];
   assert.ok(ROWS[1] - ROWS[0] >= 15 && ROWS[2] - ROWS[1] >= 15,
     'the axis pills stand clear of the transport — Peter, 09-08: "queue and browse clearly separate from play"');
+});
+
+
+/**
+ * ⚖️ EVERY MARK CARRIES ITS OWN DARK EDGE (Peter, 09-08: "marks are hard to
+ * make out against pattern backgrounds"). The scale lies on the album now, and
+ * takes its colour FROM that album, so on a busy sleeve no amount of opacity
+ * separates the two. Legibility comes from a halo, as it has for the progress
+ * arc since 09-03 — and the transparency moves to where it belongs, the UNLIT
+ * scale, which is what lets the cover show through.
+ */
+test('the lit scale is solid and reads on any sleeve, because each mark has a halo', () => {
+  assert.match(CSS, /\.tick-halo \{ stroke: rgba\(0, 0, 0, 0\); stroke-width: 2\.1;/, 'nothing until the run reaches it');
+  assert.match(CSS, /\.tick-halo\.is-lit \{ stroke: rgba\(0, 0, 0, \.62\); \}/);
+  assert.match(CSS, /\.tick\.is-lit \{ stroke: var\(--accent\); stroke-opacity: 1;/, 'the lit run itself is solid');
+  // the halo is painted BEFORE the marks, or it would sit on top of them
+  assert.match(JS, /haloLayer\.setAttribute\('class', 'tick-haloes'\);\s*detents\.appendChild\(haloLayer\);/);
+  assert.match(JS, /haloes\[i\]\.setAttribute\('class', 'tick-halo' \+ \(i < lit \? ' is-lit' : ''\)/, 'the halo tracks the lit run exactly');
 });

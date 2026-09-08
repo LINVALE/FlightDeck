@@ -130,6 +130,20 @@ detents.setAttribute('viewBox', '0 0 100 100');
  */
 var SCALE = 100;
 var ticks = [];
+/**
+ * ⚖️ EVERY MARK CARRIES ITS OWN DARK EDGE (Peter, 09-08: "marks are hard to
+ * make out against pattern backgrounds"). The scale now lies on the album, and
+ * its colour is READ FROM that album — so on a busy sleeve the accent can be
+ * within a few points of what is behind it, and no amount of opacity fixes
+ * that. The progress arc has solved this since 09-03 with `.prog-halo`: a
+ * hairline dark edge beneath the arc, which is what lets the accent stay the
+ * sleeve's own colour. Same idiom here — a wider, dark line under each tick,
+ * drawn first, shown only where the run is lit.
+ */
+var haloes = [];
+var haloLayer = document.createElementNS(SVG_NS, 'g');
+haloLayer.setAttribute('class', 'tick-haloes');
+detents.appendChild(haloLayer);
 for (var tick = 0; tick < SCALE; tick += 1) {
   var mark = document.createElementNS(SVG_NS, 'line');
   var tickAngle = ((tick / SCALE) * 360 - 90) * Math.PI / 180;   // twelve o'clock, clockwise
@@ -141,6 +155,14 @@ for (var tick = 0; tick < SCALE; tick += 1) {
   mark.setAttribute('y1', String(50 + inner * Math.sin(tickAngle)));
   mark.setAttribute('x2', String(50 + outer * Math.cos(tickAngle)));
   mark.setAttribute('y2', String(50 + outer * Math.sin(tickAngle)));
+  var halo = document.createElementNS(SVG_NS, 'line');
+  halo.setAttribute('class', 'tick-halo');
+  halo.setAttribute('x1', mark.getAttribute('x1'));
+  halo.setAttribute('y1', mark.getAttribute('y1'));
+  halo.setAttribute('x2', mark.getAttribute('x2'));
+  halo.setAttribute('y2', mark.getAttribute('y2'));
+  haloLayer.appendChild(halo);
+  haloes.push(halo);
   detents.appendChild(mark);
   ticks.push(mark);
 }
@@ -863,6 +885,7 @@ function lightDetents(fraction, label, ceiling, safety) {
     var major = i % 10 === 0;
     var band = i >= safetyAt && safetyAt < ticks.length ? ' danger' : (i >= comfortAt && comfortAt < safetyAt ? ' comfort' : '');
     ticks[i].setAttribute('class', (major ? 'tick major' : 'tick') + (i < lit ? ' is-lit' : '') + band);
+    haloes[i].setAttribute('class', 'tick-halo' + (i < lit ? ' is-lit' : '') + (major ? ' major' : ''));
   }
   if (fraction === null || label === undefined || label === null) { tickRead.style.display = 'none'; return; }
   var angle = ((lit / ticks.length) * 360 - 90) * Math.PI / 180;

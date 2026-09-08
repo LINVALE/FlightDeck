@@ -78,6 +78,12 @@ body {
  * is still set, just not heard.
  */
 .detents { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+/* The dark edge under a lit mark. Invisible until the run reaches it, so an
+   unlit scale stays a whisper on the sleeve rather than a row of dark specks. */
+.tick-halo { stroke: rgba(0, 0, 0, 0); stroke-width: 2.1; stroke-linecap: round; }
+.tick-halo.is-lit { stroke: rgba(0, 0, 0, .62); }
+.tick-halo.major.is-lit { stroke-width: 2.7; }
+
 .tick { stroke: rgba(242, 238, 230, .13); stroke-width: .45; stroke-linecap: round; }
 .tick.major { stroke: rgba(242, 238, 230, .30); stroke-width: .7; }
 /**
@@ -97,13 +103,15 @@ body {
  * as the puck"; and "the progress circle on the page is already nicely semi
  * transparent"). The progress ring has always been laid over its ground rather
  * than painted on it; the volume scale was the one reading still fully opaque.
- * It keeps its extra WIDTH, which is what carries the level across a room. At
- * .72 it read as washed out over a bright sleeve (Peter, 09-08: "a little less
- * transparent than this - more solid please"), so .88: the album is still
- * there underneath, and the reading is a reading again.
- * `fw/main/ui.c` holds the knob's rim at the same value.
+ * ⚠️ THE OPACITY WAS THE WRONG DIAL. .72, then .88, and the marks were still
+ * hard to read (Peter, 09-08: "marks are hard to make out against pattern
+ * backgrounds") — because the scale's colour is READ FROM the sleeve it is now
+ * drawn on, so on a busy cover it can be a few points from its own background
+ * and no opacity saves it. The lit run is SOLID again; legibility comes from
+ * `.tick-halo`, exactly as it does for the progress arc. What shows the album
+ * through is the UNLIT scale, which is where the transparency belongs.
  */
-.tick.is-lit { stroke: var(--accent); stroke-opacity: .88; stroke-width: 1.25; }
+.tick.is-lit { stroke: var(--accent); stroke-opacity: 1; stroke-width: 1.25; }
 .tick.major.is-lit { stroke-width: 1.7; }
 .rig.is-turning .tick.is-lit { stroke: #ffffff; stroke-opacity: 1; }
 .rig[data-muted="1"] .tick.is-lit { stroke-opacity: .38; }
@@ -116,9 +124,9 @@ body {
    ticks): amber from the comfort level to the safety level, red beyond; lit
    in full, unlit as a tint. The reading wears the band the level stands in. */
 .tick.comfort, .tick.major.comfort { stroke: rgba(201, 144, 46, .38); }
-.tick.comfort.is-lit, .tick.major.comfort.is-lit { stroke: #c9902e; stroke-opacity: .92; }
+.tick.comfort.is-lit, .tick.major.comfort.is-lit { stroke: #c9902e; stroke-opacity: 1; }
 .tick.danger, .tick.major.danger { stroke: rgba(232, 84, 70, .38); }
-.tick.danger.is-lit, .tick.major.danger.is-lit { stroke: rgb(232, 84, 70); stroke-opacity: .94; }
+.tick.danger.is-lit, .tick.major.danger.is-lit { stroke: rgb(232, 84, 70); stroke-opacity: 1; }
 .rig[data-band="comfort"] .tick-read { fill: #c9902e; }
 .rig[data-band="danger"] .tick-read { fill: rgb(232, 84, 70); }
 
