@@ -68,7 +68,7 @@ function head(nonce: string, title: string, styleHref: string, script: string, v
 export function renderWallPage(nonce: string, urls: readonly string[], version = ''): string {
   const numeric = urls.find((url) => /^https?:\/\/\d+\.\d+\.\d+\.\d+(\/|:|$)/.test(url));
   const reach = numeric ?? urls[0] ?? '';
-  const now = reach === '' ? '' : reach.replace(/\/$/, '') + '/now';
+  const room = reach === '' ? '' : reach.replace(/\/$/, '') + '/name';
   return head(nonce, 'FlightDeck', '/assets/wall.css', 'wall', version)
     + '<body><main class="wall" id="wall" data-state="connecting">'
     + '<div class="wall-startup" id="wall-startup" role="status" aria-live="polite">'
@@ -89,7 +89,7 @@ export function renderWallPage(nonce: string, urls: readonly string[], version =
     + '</div>'
     + '<div class="reach">'
     + (reach === '' ? '' : '<span class="url primary">' + reach + '</span>')
-    + (now === '' ? '' : '<span class="reach-note">Now Playing: <code>' + now + '</code></span>')
+    + (room === '' ? '' : '<span class="reach-note">Room display: <code>' + room + '</code> — use your room name</span>')
     + '</div>'
     + '</footer></main></body></html>';
 }

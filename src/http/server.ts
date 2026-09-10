@@ -481,8 +481,11 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
         assetVersion(deps.assetDir, 'face')), nonce);
       return;
     }
-    if (path.startsWith('/face/')) {
-      const token = decodeURIComponent(path.slice('/face/'.length));
+    // Short room bookmarks share the existing output binding, so /study follows
+    // the Study speaker through grouping. Built-in routes above keep their names.
+    const shortRoom = /^\/([A-Za-z0-9_-]+)\/?$/.exec(path);
+    if (path.startsWith('/face/') || shortRoom !== null) {
+      const token = shortRoom === null ? decodeURIComponent(path.slice('/face/'.length)) : shortRoom[1];
       const face = url.searchParams.get('face');
       // Accept a NAME as well as an id: /face/study is typeable on a remote,
       // /face/1601d5ff4c9a... is not.
@@ -493,8 +496,12 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const bound = snapshot === null ? null : resolveOutput(snapshot.zones, token);
       const resolved = bound !== null ? bound.zoneId
         : (snapshot === null ? null : resolveZone(snapshot.zones, token));
+      if (shortRoom !== null && snapshot !== null && resolved === null) {
+        json(response, 404, { error: 'room not found', message: 'Open / to choose a room from the Wall.' });
+        return;
+      }
       html(response, 200,
-        renderFacePage(nonce, resolved ?? token, face, url.searchParams.get('follow'), token,
+        renderFacePage(nonce, resolved ?? token, face, shortRoom === null ? url.searchParams.get('follow') : '0', token,
           bound === null ? null : bound.outputId, assetVersion(deps.assetDir, 'face')), nonce);
       return;
     }

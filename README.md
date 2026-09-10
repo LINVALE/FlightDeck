@@ -5,7 +5,7 @@ Display and control faces for **every Roon zone** — a Roon add-in, not a RHEOS
 FlightDeck pairs with your Roon Core as an ordinary extension and subscribes to zones, which is core-wide.
 That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing from RHEOS.
 
-- **Zone Face** `/face/<zoneId>` — a 10-foot now-playing screen for a TV, tablet or phone.
+- **Room Face** `/<room>` (for example `/study`) — a now-playing screen for a chosen room. Existing `/face/<zoneId>` bookmarks also work.
 - **House Wall** `/` — every zone at a glance, ordered by **most recently played**.
 
 *FlightDeck is not affiliated with or certified by Roon Labs. "for Roon" is descriptive only.*

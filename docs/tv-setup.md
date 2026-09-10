@@ -150,7 +150,7 @@ Add `?keys=1` to the URL. Every key you press then prints its name and keyCode o
 screen, and says whether FlightDeck acted on it:
 
 ```
-http://192.168.1.114/face/study?keys=1
+http://192.168.1.114/study?keys=1
 ```
 
 `(no .key) code=39 -> right` means the TV reports only a keyCode, which is
@@ -163,8 +163,10 @@ stops the page scrolling under you. If arrows still do nothing, the browser is
 consuming them before the page sees them at all — try the tap targets instead:
 tapping the cover returns to the album view.
 
-`/now` on the end of the URL gives a screen that follows whatever is playing,
-instead of pinning one room.
+Put the room name at the end of the address to choose its display, for example
+`http://192.168.1.114/study`. Remove spaces from the name: Living Room becomes
+`/livingroom`. The bare address opens the Wall. Existing `/face/study` bookmarks
+continue to work.
 
 ## 5. Why there is no native app
 

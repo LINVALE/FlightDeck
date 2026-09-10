@@ -74,8 +74,9 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   // Show or Android <= 11, so the address a TV shows has to be typeable there.
   assert.match(wallHtml, /192\.168\.1\.114/, 'the IP URL must be printed for TVs that cannot resolve .local');
   assert.equal((wallHtml.match(/class="url/g) ?? []).length, 1, 'one address, not three');
-  assert.match(wallHtml, new RegExp('Now Playing: <code>http://192\\.168\\.1\\.114:' + String(port) + '/now</code>'),
-    'the follow-screen note must print a complete typeable URL, not a path fragment');
+  assert.match(wallHtml, new RegExp('Room display: <code>http://192\\.168\\.1\\.114:' + String(port) + '/name</code>'),
+    'the footer explains a direct room address');
+  assert.doesNotMatch(wallHtml, /\/now|Now Playing:/, 'the auto-follow address is no longer advertised');
   // The QR was never once scanned successfully, so it does not take a corner of
   // the wall. qrSvg itself stays, for a click-to-show once a phone has read one.
   assert.doesNotMatch(wallHtml, /aria-label="QR code"/, 'no QR on the wall');
@@ -195,6 +196,25 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   assert.match(durable, /data-output="1701a"/,
     'a Wall link binds the physical room rather than its disposable zone');
 
+  for (const path of ['/study', '/Study/', '/study?face=dial&follow=1']) {
+    const response = await fetch(base + path);
+    assert.equal(response.status, 200);
+    const room = await response.text();
+    assert.match(room, /data-zone="1601abc"/);
+    assert.match(room, /data-output="1701a"/);
+    assert.match(room, /data-zone-slug="study"/);
+    assert.match(room, /data-follow="0"/, 'a room bookmark does not follow unrelated players');
+    if (path.includes('face=dial')) assert.match(room, /data-face-param="dial"/);
+  }
+  const member = await (await fetch(base + '/kitchen')).text();
+  assert.match(member, /data-output="1701b"/);
+  assert.match(member, /data-zone="1601abc"/, 'a room in a playing group resolves through its output name');
+  assert.equal((await fetch(base + '/not-a-room')).status, 404);
+  assert.equal((await fetch(base + '/favicon.ico')).status, 404);
+  const guide = await fetch(base + '/guide');
+  assert.equal(guide.status, 200, 'built-in pages retain precedence over short room names');
+  assert.doesNotMatch(await guide.text(), /data-zone=/);
+
   // Every tournament face is built now, so each is honoured...
   for (const face of ['presence', 'classic', 'dial', 'libretto', 'canvas']) {
     const page = await (await fetch(base + '/face/1601abc?face=' + face)).text();
@@ -214,7 +234,7 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   assert.ok(!nasty.includes('<script>x</script>'));
 });
 
-test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
+test('legacy auto-follow bookmarks work, and short room bookmarks can open before the first snapshot', async (t) => {
   const server = createFlightDeckServer({
     hub: new EventHub(), relay: new ArtRelay({ artworkUrl: () => '' }),
     ledger: new RecentLedger(null), assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null, mdns: () => null,
@@ -235,6 +255,9 @@ test('/now is the bookmarkable TV address: no zone, follow on', async (t) => {
   const pinned = await (await fetch(base + '/face/abc?follow=0')).text();
   assert.match(pinned, /data-follow="0"/);
   assert.match(pinned, /data-zone="abc"/);
+  const starting = await (await fetch(base + '/study')).text();
+  assert.match(starting, /data-zone-slug="study"/);
+  assert.match(starting, /data-follow="0"/);
 });
 
 test('the port ladder falls back, and says something useful when it cannot', async (t) => {

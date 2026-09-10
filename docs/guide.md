@@ -96,7 +96,14 @@ where it was.
 
 ## A room's Face — one room, full screen
 
-**Address:** `/face/<room>` — or tap a card twice on the Wall.
+**Address:** `/<room>` — for example `http://flightdeck.local/study` — or tap a
+card twice on the Wall. Use your server's address and your room name, with spaces
+removed: **Living Room** becomes `/livingroom`. Keep any port number in your
+server address. The display stays with that speaker when it joins a group.
+
+The bare address opens all rooms. Existing `/face/<room>` bookmarks still work.
+Names reserved for app pages, such as `/guide` and `/phone`, keep opening those
+pages; use `/face/<room>` if your room has one of those names.
 
 ![Presence, the default face](/assets/screens/face-presence.png)
 
