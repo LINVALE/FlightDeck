@@ -12,11 +12,19 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 ## Example screens
 
+- [House wall](assets/screens/wall.png)
+- [House wall with many rooms](assets/screens/wall-many.png)
+- [Presence face](assets/screens/face-presence.png)
+- [Dial face](assets/screens/face-dial.png)
+- [Face plate](assets/screens/face-plate.png)
+
 ![House wall](assets/screens/wall.png)
 
 ![House wall with many rooms](assets/screens/wall-many.png)
 
 ![Presence face](assets/screens/face-presence.png)
+
+![Dial face](assets/screens/face-dial.png)
 
 ## Why it exists
 
