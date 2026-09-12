@@ -79,20 +79,24 @@ The screen owns its zone and its face (URL + local memory); the server holds no 
 start and nothing to expire. A client-side 25-second no-frame watchdog closes and reopens the stream, because
 `EventSource` never notices a half-open TCP socket — which *is* the "freezes after 20 minutes" symptom.
 
-## Quick start (user friendly)
+## Quick install (2 minutes)
+
+FlightDeck is installable now from source. It is not in Roon Extension Manager yet.
 
 1. Install Node.js 24+.
-2. In this folder, run:
+2. Copy/paste:
 
 ```bash
+git clone https://github.com/LINVALE/FlightDeck.git
+cd FlightDeck
 npm install
 npm start
 ```
 
-3. In Roon, go to **Settings -> Extensions** and enable **FlightDeck**.
-4. Open the printed URL on your phone, tablet, or TV browser.
+3. In Roon: **Settings -> Extensions** -> enable **FlightDeck**.
+4. Open the URL printed in the terminal on your phone, tablet, or TV browser.
 
-If `flightdeck.local` does not resolve on a device, open the LAN IP URL instead (`http://<your-lan-ip>/`).
+If `flightdeck.local` does not resolve on a device, use the LAN IP URL instead (`http://<your-lan-ip>/`).
 
 ## Optional configuration
 
