@@ -31,14 +31,15 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 ## Control examples
 
 - [Face controls (non-puck, full chrome)](docs/face-controls.png) (transport, seek/progress, face switching, volume)
-- [Wall controls (live zones)](docs/wall-live-22-zones.png) (quick room actions and inline control rows)
-- [Classic controls (album sample)](docs/face-classic.png) (seek/progress + timing chrome)
-- [Dial controls (artist sample)](docs/face-dial-artist.png) (seek/progress + timing chrome)
+- [Face controls (revealed chrome)](docs/face-revealed.png) (transport row + volume scale over live art)
+- [Wall controls (live zones)](docs/wall-live-22-zones.png) (quick room actions + inline control rows)
 
 These views include the control chrome (transport + seek/progress + volume) so you can see how interaction works,
 not just the art direction.
 
 ![Face controls (non-puck, full chrome)](docs/face-controls.png)
+
+![Face controls (revealed chrome)](docs/face-revealed.png)
 
 ![Wall controls (live zones)](docs/wall-live-22-zones.png)
 
