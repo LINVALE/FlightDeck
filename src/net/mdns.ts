@@ -49,7 +49,7 @@ function ipv4Interfaces(): Iface[] {
     for (const entry of entries) {
       if (entry.family !== 'IPv4' || entry.internal) continue;
       // Never answer with a container bridge or a link-local address: a TV that
-      // gets 172.17.0.1 back is worse off than one that got no answer at all.
+      // gets the Docker bridge gateway back is worse off than one that got no answer at all.
       if (entry.address.startsWith('169.254.')) continue;
       if (name.startsWith('docker') || name.startsWith('br-') || name.startsWith('veth')) continue;
       found.push({ address: entry.address, name });

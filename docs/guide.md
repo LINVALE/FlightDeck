@@ -24,8 +24,9 @@ Roon so you can copy it to a tablet or a TV.
 Either way FlightDeck stays its own extension with its own settings. RHEOS is a
 convenience, not a requirement.
 
-**Finding it.** FlightDeck answers to `http://flightdeck.local:8080` on most
-networks. If a television cannot resolve that name, give it the server's IP
+**Finding it.** FlightDeck answers to `http://flightdeck.local` on most networks
+when it can use port 80, and to `http://flightdeck.local:8440` otherwise — the Docker
+image always uses 8440. If a television cannot resolve that name, give it the server's IP
 address instead, or add a short DNS record on the router so it is typeable on a
 remote. There is a step-by-step guide at `/setup`, and a five-minute check at
 `/drill`.

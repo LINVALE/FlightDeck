@@ -8,21 +8,22 @@ the three can have a real installed app without a store submission (see the end)
 
 Typing on a TV remote is the actual pain, not the browser. So make the address as
 short as it can be: add a **router DNS record** (UniFi → Settings → Networks →
-DNS → Create New Record, type `A`):
+DNS → Create New Record, type `A`). The examples on this page use `192.0.2.10` for
+the machine running FlightDeck; use that machine's own address:
 
 | Name | Points to | You type |
 |------|-----------|----------|
-| `fd` | `192.168.1.114` | **`fd/`** ← two characters |
-| `flightdeck` | `192.168.1.114` | `flightdeck/` |
+| `fd` | `192.0.2.10` | **`fd/`** ← two characters |
+| `flightdeck` | `192.0.2.10` | `flightdeck/` |
 
 Add both — `fd` for the remote, `flightdeck` for humans. This is ordinary unicast
 DNS, so it works on **every** device: Samsung, LG, Fire TV, Windows with mDNS
 locked down, the lot. `.local` does not, and never will on those TVs.
 
-⚠️ Pair it with a **DHCP reservation** for `192.168.1.114`, or the record rots the
+⚠️ Pair it with a **DHCP reservation** for that address, or the record rots the
 day the box gets a different lease.
 
-Without a DNS record the fallback is always `192.168.1.114/` — and the House Wall
+Without a DNS record the fallback is always the machine's address (`192.0.2.10/`) — and the House Wall
 prints it, with a QR, in its footer.
 
 ## 1. Samsung (Tizen)
@@ -150,7 +151,7 @@ Add `?keys=1` to the URL. Every key you press then prints its name and keyCode o
 screen, and says whether FlightDeck acted on it:
 
 ```
-http://192.168.1.114/study?keys=1
+http://192.0.2.10/study?keys=1
 ```
 
 `(no .key) code=39 -> right` means the TV reports only a keyCode, which is
@@ -164,7 +165,7 @@ consuming them before the page sees them at all — try the tap targets instead:
 tapping the cover returns to the album view.
 
 Put the room name at the end of the address to choose its display, for example
-`http://192.168.1.114/study`. Remove spaces from the name: Living Room becomes
+`http://192.0.2.10/study`. Remove spaces from the name: Living Room becomes
 `/livingroom`. The bare address opens the Wall. Existing `/face/study` bookmarks
 continue to work.
 

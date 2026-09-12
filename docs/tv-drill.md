@@ -27,18 +27,18 @@ Receipts, with denominators. A drill is not passed because it looked fine once.
       live data returns and `performance.timeOrigin` is unchanged, i.e. **the page healed in place with no
       reload**. This is the exact failure Roon's own Display cannot recover from. ⚠️ The Ethernet-pull variant
       (a real network partition rather than a refused connection) is still owed.
-- [x] 1 of 4: `getent hosts flightdeck.local` → 192.168.1.114, and `avahi-resolve` agrees. The responder
+- [x] 1 of 4: `getent hosts flightdeck.local` → the server's LAN address, and `avahi-resolve` agrees. The responder
       coexists with the host avahi and did **not** need to rename itself.
 - [x] **The publishing side is proven from the wire, not from this host's resolver:**
       `node scripts/mdns-probe.mjs flightdeck.local` — an RFC 6762 one-shot query from an ephemeral port,
-      what a TV or phone actually sends — answers `flightdeck.local -> 192.168.1.114`, no bridge address.
+      what a TV or phone actually sends — answers `flightdeck.local -> <the server's LAN address>`, no bridge address.
 - [ ] **The name, remaining 3 clients each recorded pass/fail:** an iPhone · a Windows laptop
       (`ping flightdeck.local`) · one Android-12+ TV.
       ⚠️ **2026-08-25: a wired Ubuntu/desktop machine on this LAN could NOT open `flightdeck.local`** while
       the probe above passed — i.e. the other machine was not doing mDNS lookups at all. Expect this to be
       the common case, not the exception.
 - [ ] **A router DNS record for `flightdeck`** → `http://flightdeck/` with no mDNS involved. This LAN already
-      serves unicast names (`asus-study.localdomain` via 192.168.1.1), so this is the route that reaches
+      serves unicast names from the router, so this is the route that reaches
       Tizen, webOS, Fire TV and any Windows machine with mDNS restricted. **This, not `.local`, is what
       should be written on the fridge.**
 - [x] **The responder no longer renames itself on restart.** It had reached `flightdeck-10.local` while
