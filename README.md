@@ -65,6 +65,15 @@ The screenshots below show both the browse controls and the hierarchy depth in l
 
 ![Browse alphabet rail](docs/browse-alphabet.png)
 
+## Audio quality metadata
+
+Sample rate and bit depth are not currently shown in FlightDeck.
+
+At the moment, the extension path used here provides now-playing lines, artwork, transport state, and seek/length,
+but not a stable sample-rate/bit-depth field in this UI model.
+
+If Roon exposes those fields to extensions in a future API path, FlightDeck can add them.
+
 ## Why it exists
 
 Roon's own Display is a **push** model: the Core owns the display session, the app starts it onto a zone, and
