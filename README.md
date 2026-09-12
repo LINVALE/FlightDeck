@@ -136,8 +136,7 @@ All five are **user-selectable** — the ranking below decides what loads first,
 `?face=` always wins; otherwise the screen remembers per zone. On a TV, arrow keys cycle faces.
 
 **⚖️ The cover is sacred.** No crop, tint, overlay, filter, transform or mask — on the cover *or any ancestor
-of it*. State lives in the copy around it. `npm run lint:floor` enforces this; two entries in the design
-tournament broke it while claiming they had not.
+of it*. State lives in the copy around it. `npm run lint:floor` enforces this across shipped assets.
 
 ## Browser floor
 
@@ -159,8 +158,8 @@ stands alone.
 
 ## Status
 
-I0 (pair) and I1 (spine, Wall, name) are built and tested offline; the Presence face is built. **No live Roon
-pairing has been run yet** — that is the first receipt to take. See `docs/tv-drill.md`.
+FlightDeck is available as an early public build with core screens, controls, and browse flows in place.
+For a live validation checklist, see `docs/tv-drill.md`.
 
 ## Licence
 
@@ -198,11 +197,11 @@ in the work stays with a single holder.
 
 FlightDeck targets **recent smart-TV browsers**. A TV whose built-in browser is too old is served by a **Fire TV
 stick or Roku**, not by a compatibility layer — transpiling and polyfilling the client is explicitly out of scope
-(ruling, 2026-08-30).
+for this project.
 
 The client uses template literals, `class`, spread, optional chaining, `fetch()` and `EventSource`. On a browser
 that predates those the script fails at **parse**, so the page paints its shell and sits on "connecting…" forever.
 **A stuck "connecting…" on an old TV is a SyntaxError, not a network or API fault** — don't debug it as one.
-Measured case: Samsung built-in browser, `Copyright 2010`, `BIN_B:170210_1.1.527`.
+Example observed case: Samsung built-in browser, `Copyright 2010`, `BIN_B:170210_1.1.527`.
 
 `/now` is not a lighter page — `/now`, `/face` and `/face/` all route to the same `renderFacePage`.
