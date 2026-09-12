@@ -26,6 +26,15 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 ![Dial face](assets/screens/face-dial.png)
 
+## Control examples
+
+- [Phone remote controls](assets/screens/phone-remote.png) (play/pause, next, previous, volume)
+- [Wall drawer controls](assets/screens/wall-drawer.png) (quick room actions)
+- [Puck controls](assets/screens/puck.png) (touch-friendly now-playing controls)
+
+These views include the control chrome (transport + seek/progress + volume) so you can see how interaction works,
+not just the art direction.
+
 ## Why it exists
 
 Roon's own Display is a **push** model: the Core owns the display session, the app starts it onto a zone, and
@@ -40,57 +49,28 @@ The screen owns its zone and its face (URL + local memory); the server holds no 
 start and nothing to expire. A client-side 25-second no-frame watchdog closes and reopens the stream, because
 `EventSource` never notices a half-open TCP socket — which *is* the "freezes after 20 minutes" symptom.
 
-## Run it
+## Quick start (user friendly)
+
+1. Install Node.js 24+.
+2. In this folder, run:
 
 ```bash
-npm install          # see "node_modules" below
+npm install
 npm start
 ```
 
-Then enable **FlightDeck** in Roon → Settings → Extensions. The log prints every URL to reach it.
+3. In Roon, go to **Settings -> Extensions** and enable **FlightDeck**.
+4. Open the printed URL on your phone, tablet, or TV browser.
 
-| Env | Default | Meaning |
-|-----|---------|---------|
-| `FLIGHTDECK_PORT` | `80`, falling back to `8440` | Only `:80` satisfies "reachable by name" |
-| `FLIGHTDECK_DATA` | `./data` | Roon pairing state and the last-played ledger |
-| `FLIGHTDECK_NAME` | `flightdeck` | Published as `flightdeck.local` |
+If `flightdeck.local` does not resolve on a device, open the LAN IP URL instead (`http://<your-lan-ip>/`).
 
-## Reaching it by name
+## Optional configuration
 
-FlightDeck runs its own zero-dependency mDNS/DNS-SD responder and claims `flightdeck.local`. It coexists with
-a host `avahi`.
+- `FLIGHTDECK_PORT`: defaults to `80` (falls back to `8440`)
+- `FLIGHTDECK_DATA`: defaults to `./data`
+- `FLIGHTDECK_NAME`: defaults to `flightdeck`
 
-### If another device cannot find `flightdeck.local`
-
-Diagnose the publishing side first — this asks the way a TV or phone does, from an
-ephemeral port, rather than through this host's own resolver (which can succeed
-while a remote query fails):
-
-```bash
-node scripts/mdns-probe.mjs flightdeck.local
-```
-
-An answer of `flightdeck.local -> <the LAN IP>` means FlightDeck is publishing
-correctly and the *other* device is not doing mDNS lookups. That is common:
-Windows with mDNS restricted by policy, Linux without `nss-mdns`, and every TV
-listed below.
-
-**The fix that reaches everything is a router DNS record.** This LAN already
-serves unicast names for its hosts (`asus-study.localdomain -> 192.168.1.114`
-via 192.168.1.1), so adding `flightdeck -> <the LAN IP>` makes
-**`http://flightdeck/`** work on Tizen, webOS, Fire TV, Windows-under-policy and
-everything else, with no mDNS involved at all. In UniFi: Settings → Networks →
-DNS → add a local DNS record.
-
-⚠️ **`.local` is not universal, so the IP is always printed too.** It resolves on Windows 10 1903+/11, Apple
-devices, Android 12+ (including Chromecast with Google TV) and Linux with nss-mdns. It does **not** resolve on
-Fire OS / Echo Show / Android ≤ 11 (including Nvidia Shield), and is unverified on Samsung Tizen and LG webOS
-— exactly the TV class a Zone Face targets. The House Wall therefore prints the IP URL and a QR code, and
-`/api/v1/health` reports the claimed name. For a name on *every* TV, give the host a DHCP hostname of
-`flightdeck` or a static entry on the router.
-
-Binding `:80` unprivileged: systemd `AmbientCapabilities=CAP_NET_BIND_SERVICE`, or root in a host-network
-container. Never require the host-wide sysctl. Bridge networking cannot carry mDNS at all.
+Advanced network setup notes are in `docs/tv-setup.md`.
 
 ## On a TV
 
