@@ -12,19 +12,21 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 ## Example screens
 
-- [House wall](assets/screens/wall.png)
-- [House wall with many rooms](assets/screens/wall-many.png)
-- [Presence face](assets/screens/face-presence.png)
-- [Dial face](assets/screens/face-dial.png)
-- [Face plate](assets/screens/face-plate.png)
+- [House wall (live 22 zones)](docs/wall-live-22-zones.png)
+- [Presence face (live album art)](docs/face-presence-live.png)
+- [Dial face (artist sample)](docs/face-dial-artist.png)
+- [Classic face (album sample)](docs/face-classic.png)
+- [Libretto face (album sample)](docs/face-libretto.png)
 
-![House wall](assets/screens/wall.png)
+![House wall (live 22 zones)](docs/wall-live-22-zones.png)
 
-![House wall with many rooms](assets/screens/wall-many.png)
+![Presence face (live album art)](docs/face-presence-live.png)
 
-![Presence face](assets/screens/face-presence.png)
+![Dial face (artist sample)](docs/face-dial-artist.png)
 
-![Dial face](assets/screens/face-dial.png)
+![Classic face (album sample)](docs/face-classic.png)
+
+![Libretto face (album sample)](docs/face-libretto.png)
 
 ## Control examples
 
