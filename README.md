@@ -30,15 +30,17 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 ## Control examples
 
-- [Phone remote controls](assets/screens/phone-remote.png) (play/pause, next, previous, volume)
-- [Wall drawer controls](assets/screens/wall-drawer.png) (quick room actions)
-- [Puck controls](assets/screens/puck.png) (touch-friendly now-playing controls)
 - [Face controls (non-puck, full chrome)](docs/face-controls.png) (transport, seek/progress, face switching, volume)
+- [Wall controls (live zones)](docs/wall-live-22-zones.png) (quick room actions and inline control rows)
+- [Classic controls (album sample)](docs/face-classic.png) (seek/progress + timing chrome)
+- [Dial controls (artist sample)](docs/face-dial-artist.png) (seek/progress + timing chrome)
 
 These views include the control chrome (transport + seek/progress + volume) so you can see how interaction works,
 not just the art direction.
 
 ![Face controls (non-puck, full chrome)](docs/face-controls.png)
+
+![Wall controls (live zones)](docs/wall-live-22-zones.png)
 
 ## Why it exists
 
