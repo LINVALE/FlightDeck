@@ -13,6 +13,7 @@ import { RecentLedger } from './ledger/recent.ts';
 import { buildSnapshot, structuralSignature } from './model/snapshot.ts';
 import { createFlightDeckServer, listenWithLadder } from './http/server.ts';
 import { PullCoordinator } from './control/pull.ts';
+import { HOST_SWITCH_POLL_MS, readHostSwitch, waitWhileSwitchedOff } from './host-switch.ts';
 import { buildSettingsLayout, saveSettingsValues } from './settings.ts';
 import type { SeekFrame, Snapshot } from './model/types.ts';
 import { networkInterfaces } from 'node:os';
@@ -210,6 +211,8 @@ const server = createFlightDeckServer(deps);
 let altServer: ReturnType<typeof createFlightDeckServer> | null = null;
 
 async function main(): Promise<void> {
+  // A host that runs FlightDeck beside itself (RHEOS) may have switched it off: wait before any port, name or Roon.
+  await waitWhileSwitchedOff(() => readHostSwitch(DATA_DIR), log);
   boundPort = await listenWithLadder(server, PORTS, log);
   log('http listening on :' + String(boundPort));
 
@@ -254,6 +257,16 @@ async function main(): Promise<void> {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+
+  // Switched off while running: leave cleanly. In a container, Docker restarts FlightDeck straight into the wait above.
+  const hostSwitch = setInterval(() => {
+    const note = readHostSwitch(DATA_DIR);
+    if (note.on) return;
+    clearInterval(hostSwitch);
+    log(`switched off by ${note.host} — shutting down`);
+    shutdown();
+  }, HOST_SWITCH_POLL_MS);
+  hostSwitch.unref();
 }
 
 void main().catch((error: unknown) => {
