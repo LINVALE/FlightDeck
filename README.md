@@ -135,21 +135,20 @@ All five are **user-selectable** — the ranking below decides what loads first,
 
 `?face=` always wins; otherwise the screen remembers per zone. On a TV, arrow keys cycle faces.
 
-**⚖️ The cover is sacred.** No crop, tint, overlay, filter, transform or mask — on the cover *or any ancestor
-of it*. State lives in the copy around it. `npm run lint:floor` enforces this across shipped assets.
+We preserve album art unchanged except in the puck interface.
 
 ## Browser floor
 
 Chromium 63 (Samsung 2019+, LG 2020+) and iPadOS Safari 15. That rules out `clamp()`, container queries,
-`aspect-ratio`, `conic-gradient`, `backdrop-filter`, flex `gap`, `?.` and `??`. `npm run lint:floor` checks
-every shipped asset. The progress ring is SVG `stroke-dashoffset`; blur is a tiny canvas scaled up.
+`aspect-ratio`, `conic-gradient`, `backdrop-filter`, flex `gap`, `?.` and `??`. The progress ring is SVG
+`stroke-dashoffset`; blur is a tiny canvas scaled up.
 
 ## Development
 
 ```bash
-npm test              # projection, SSE semantics, end-to-end HTTP
-npm run lint:floor    # browser floor + cover-sacred
-node scripts/preview.ts   # the real server on fixtures — no Roon pairing needed
+npm test
+npm run lint:floor
+node scripts/preview.ts
 ```
 
 `node_modules` is currently a symlink to the RHEOS tree for the three Roon packages
