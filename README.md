@@ -10,6 +10,14 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 *FlightDeck is not affiliated with or certified by Roon Labs. "for Roon" is descriptive only.*
 
+## Example screens
+
+![House wall](assets/screens/wall.png)
+
+![House wall with many rooms](assets/screens/wall-many.png)
+
+![Presence face](assets/screens/face-presence.png)
+
 ## Why it exists
 
 Roon's own Display is a **push** model: the Core owns the display session, the app starts it onto a zone, and
