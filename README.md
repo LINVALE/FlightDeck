@@ -43,6 +43,28 @@ not just the art direction.
 
 ![Wall controls (live zones)](docs/wall-live-22-zones.png)
 
+## Browse examples (controls + depth)
+
+- [Browse genres](docs/browse-genres.png) (top-level category controls)
+- [Browse composers](docs/browse-composers.png) (deeper catalog branch)
+- [Browse albums](docs/browse-albums.png) (cover-rich result level)
+- [Browse alphabet rail](docs/browse-alphabet.png) (fast jump control for large libraries)
+
+Typical depth looks like:
+
+- Genres -> Artists -> Albums -> Tracks
+- Composers -> Works -> Recordings
+
+The screenshots below show both the browse controls and the hierarchy depth in live navigation states.
+
+![Browse genres](docs/browse-genres.png)
+
+![Browse composers](docs/browse-composers.png)
+
+![Browse albums](docs/browse-albums.png)
+
+![Browse alphabet rail](docs/browse-alphabet.png)
+
 ## Why it exists
 
 Roon's own Display is a **push** model: the Core owns the display session, the app starts it onto a zone, and
