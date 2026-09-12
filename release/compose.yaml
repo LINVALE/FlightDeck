@@ -1,0 +1,20 @@
+# FlightDeck on its own, with Docker Compose. See release/INSTALL-DOCKER.md.
+#
+# Set FLIGHTDECK_IMAGE to the published image, pinned by digest (repository@sha256:…), for example in a .env file
+# beside this one. RHEOS users do not need this file: RHEOS's installer adds the same image beside RHEOS.
+services:
+  flightdeck:
+    image: "${FLIGHTDECK_IMAGE:?set FLIGHTDECK_IMAGE to the FlightDeck image, repository@sha256:...}"
+    # Roon discovery and the flightdeck.local name both need the LAN itself, not a Docker bridge network.
+    network_mode: host
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp
+    volumes:
+      # FlightDeck keeps its Roon pairing, remembered displays and play history here. Owned by uid 1000.
+      - ./data:/data
+    stop_grace_period: 10s

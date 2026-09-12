@@ -4,8 +4,17 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  HOST_SWITCH_FILE, parseHostSwitch, readHostSwitch, waitWhileSwitchedOff, type HostSwitch,
+  HOST_SWITCH_FILE, healthVerdict, parseHostSwitch, readHostSwitch, waitWhileSwitchedOff, type HostSwitch,
 } from '../src/host-switch.ts';
+
+test('healthcheck: a switched-off FlightDeck is healthy without probing; a running one must answer', async () => {
+  let probes = 0;
+  assert.equal(await healthVerdict(false, async () => { probes += 1; return false; }), 0);
+  assert.equal(probes, 0, 'switched off by the host serves nothing by design — not a fault');
+  assert.equal(await healthVerdict(true, async () => true), 0);
+  assert.equal(await healthVerdict(true, async () => false), 1);
+  assert.equal(await healthVerdict(true, async () => { throw new Error('ECONNREFUSED'); }), 1);
+});
 
 test('standalone: no note means FlightDeck runs', () => {
   assert.deepEqual(parseHostSwitch(null), { on: true, host: null });

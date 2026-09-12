@@ -107,6 +107,9 @@ npm start
 
 If `flightdeck.local` does not resolve on a device, use the LAN IP URL instead (`http://<your-lan-ip>/`).
 
+**With Docker:** one image, on port 8440, for amd64 and arm64 — see [release/INSTALL-DOCKER.md](release/INSTALL-DOCKER.md).
+RHEOS's installer adds the same image beside RHEOS, with an On/Off switch in RHEOS's settings.
+
 ## Optional configuration
 
 - `FLIGHTDECK_PORT`: defaults to `80` (falls back to `8440`)

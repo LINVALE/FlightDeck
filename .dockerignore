@@ -1,0 +1,12 @@
+# Allowlist: the image carries only what FlightDeck runs and serves.
+# Never data/ (it holds the Roon pairing token), logs/, test/, scripts/, handovers or unserved docs.
+*
+!package.json
+!package-lock.json
+!LICENSE
+!THIRD-PARTY-NOTICES.md
+!src
+!assets
+!docs/guide.md
+!docs/tv-setup.md
+!docs/tv-drill.md

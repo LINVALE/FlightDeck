@@ -39,6 +39,15 @@ export function readHostSwitch(dataDir: string): HostSwitch {
   return parseHostSwitch(text);
 }
 
+/**
+ * The container healthcheck's verdict: 0 healthy, 1 unhealthy. A FlightDeck a host switched off serves nothing by
+ * design, so it is healthy; otherwise the health endpoint has to answer.
+ */
+export async function healthVerdict(switchedOn: boolean, probe: () => Promise<boolean>): Promise<0 | 1> {
+  if (!switchedOn) return 0;
+  try { return (await probe()) ? 0 : 1; } catch { return 1; }
+}
+
 /** Resolves once FlightDeck may run: at once when nothing switched it off, otherwise when the host switches it on. */
 export async function waitWhileSwitchedOff(
   read: () => HostSwitch,
