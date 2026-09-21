@@ -187,7 +187,13 @@ export class QueueGateway {
     const nextService = asService(serviceValue);
     if (nextService !== this.service) {
       this.epoch += 1;
-      for (const entry of this.entries.values()) this.retire(entry);
+      // No service means the Core is gone, and its subscriptions went with the
+      // connection. Unsubscribing would write to a closing socket from inside
+      // the SDK's own clean-up and crash it (moo.js:206, 09-13 and 09-20).
+      for (const entry of this.entries.values()) {
+        if (nextService === null) this.forget(entry);
+        else this.retire(entry);
+      }
       this.entries.clear();
       this.service = nextService;
     }
@@ -347,6 +353,12 @@ export class QueueGateway {
       entry.revision += 1;
       return;
     }
+    if (event === 'NetworkError') {
+      // The SDK's word for "the connection closed": nothing is left to end.
+      this.entries.delete(entry.zoneId);
+      this.forget(entry);
+      return;
+    }
     if (event === 'Unsubscribed') {
       this.entries.delete(entry.zoneId);
       // The Core has already ended this subscription; fence its callback without
@@ -364,6 +376,12 @@ export class QueueGateway {
     if (entry.retired) return;
     entry.retired = true;
     this.unsubscribe(entry);
+  }
+
+  /** Fence a subscription whose connection has already closed; sends nothing. */
+  private forget(entry: QueueEntry): void {
+    entry.retired = true;
+    entry.unsubscribeCalled = true;
   }
 
   /** A malformed delta has no safe partial interpretation; ask for a fresh full window. */

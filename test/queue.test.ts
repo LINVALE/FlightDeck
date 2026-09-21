@@ -193,7 +193,8 @@ test('zone successors, service epochs and unpair retire each subscription exactl
   gateway.reconcile(null, ['study']);
   gateway.reconcile(null, []);
   gateway.dispose();
-  assert.equal(current.unsubscribes, 1, 'unpair and later disposal cannot double-unsubscribe');
+  // 09-21: unpair means the connection is gone; unsubscribing into it crashed the SDK (moo.js:206).
+  assert.equal(current.unsubscribes, 0, 'unpair forgets its subscriptions and sends nothing, and disposal adds nothing');
   assert.equal(gateway.available(), false);
   assert.equal(gateway.snapshot('study'), null);
 });
@@ -247,7 +248,8 @@ test('subscription errors retire the cache and late callbacks stay fenced', () =
   gateway.reconcile(harness.service, ['study']);
   const failed = harness.calls[0];
   failed.callback('NetworkError', { message: 'gone' });
-  assert.equal(failed.unsubscribes, 1);
+  // 09-21: a network error means the connection closed; there is nothing to end.
+  assert.equal(failed.unsubscribes, 0);
   assert.equal(gateway.snapshot('study'), null);
   failed.callback('Subscribed', { items: [raw(8)] });
   assert.equal(gateway.snapshot('study'), null);
