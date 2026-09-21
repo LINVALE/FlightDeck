@@ -1,4 +1,7 @@
 import './compat.js';
+import { startPuckStatus } from './puck-status.js';
+import { createPuckCompanion } from './puck-companion.js';
+import { startController, controllerVolume, controllerPreview } from './controller-link.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
@@ -63,7 +66,7 @@ var SVG_NS = 'http://www.w3.org/2000/svg';
 /** Close to the rim: the art runs under it, so the rings read as the edge. */
 var PROG_R = 42;
 var PROG_C = 2 * Math.PI * PROG_R;
-var BEZEL_RATIO = 0.085;
+var BEZEL_RATIO = 0.028;
 
 /**
  * ⚖️ OUTER = VOLUME, INNER = POSITION, in the HAND and not only in the drawing
@@ -289,8 +292,8 @@ var homeMark = el('span', 'homemark');
 homeMark.appendChild(glyph('back'));
 homeMark.setAttribute('title', ON_PHONE ? 'all rooms' : 'back to every room');
 homeMark.setAttribute('aria-label', ON_PHONE ? 'all rooms' : 'go to the whole house');
-var faceDoor = el('span', 'cog', ON_PHONE ? 'remote' : 'faces');
-faceDoor.setAttribute('title', ON_PHONE ? 'this room as the remote' : 'this room on the screen, and its other faces');
+var faceDoor = el('span', 'cog', 'faces');
+faceDoor.setAttribute('title', 'Choose another face for this room');
 outside.appendChild(homeMark);
 outside.appendChild(faceDoor);
 /**
@@ -861,11 +864,11 @@ function paintVolume() {
   var band = bandOf(shown, { comfort: bounds.ceiling, safety: bounds.safety });
   rig.setAttribute('data-band', band);
   var span = Math.max(1, bounds.max - bounds.min);
-  lightDetents((shown - bounds.min) / span, String(Math.round(shown)), (bounds.ceiling - bounds.min) / span, (bounds.safety - bounds.min) / span);
+  lightDetents((shown - bounds.min) / span, String(Number(shown.toFixed(2))), (bounds.ceiling - bounds.min) / span, (bounds.safety - bounds.min) / span);
   // The number always; "muted" is said beneath it, not instead of it — and so
   // is Roon's limit, when the level has reached or passed it.
   var atLimit = bounds.ceiling < bounds.max && shown >= bounds.ceiling;
-  volReadValue.textContent = String(Math.round(shown));
+  volReadValue.textContent = String(Number(shown.toFixed(2)));
   volReadLabel.textContent = (volume.muted ? 'muted \u00b7 ' : (band === 'danger' ? 'above the safety limit set in Roon \u00b7 ' : (over ? "above Roon's comfort level \u00b7 " : (atLimit ? "at Roon's comfort level \u00b7 " : 'volume \u00b7 ')))) + output.name;
   // The glyph never changes; the disc's fill is the state.
   if (volume.muted) { btnMute.setAttribute('data-on', '1'); btnMute.setAttribute('title', 'muted \u2014 tap to unmute'); }
@@ -1303,16 +1306,8 @@ faceDoor.addEventListener('click', function (event) {
   event.stopPropagation();
   forgetPuckAsFace();
   var token = wantedSlug !== '' ? wantedSlug : (boundOutputId !== null ? boundOutputId : '');
-  // On a phone the door leads to this room's remote, not to a television's
-  // faces — by the ZONE the puck is showing, which is what the remote resolves
-  // (an output id is not).
-  if (ON_PHONE) {
-    var here = currentZone();
-    var room = here !== null ? here.id : wantedSlug;
-    window.location.href = '/phone' + (room === '' ? '' : '/' + encodeURIComponent(room));
-    return;
-  }
-  window.location.href = token === '' ? '/face' : '/face/' + encodeURIComponent(token);
+  // An explicit chooser works at phone sizes too and cannot reopen a remembered puck.
+  window.location.href = (token === '' ? '/face' : '/face/' + encodeURIComponent(token)) + '?ui=tv&panel=faces';
 });
 press(btnUp, function () { axis(-1); });
 press(btnDown, function () { axis(1); });
@@ -1360,14 +1355,14 @@ function tapBezel(degrees) {
   wake();   // raise the readout; a dot has a place, so the tap itself acts
   var now = Date.now();
   var bounds = volumeBounds(output);
-  var value = levelAtAngle(degrees, bounds.min, bounds.max, ticks.length);
+  var value = levelAtAngle(degrees, bounds.min, bounds.max, ticks.length, bounds.step);
   if (value === null) return;
   // ⚖️ ROON'S TWO LIMITS (Peter, 09-06): a tap above the comfort level asks for
   // the comfort level; a SECOND tap inside the window asks for what it touched;
   // above the safety level nothing is asked and the scale does not respond.
   // The double-tap window replaces the old 300ms debounce there; below comfort
   // the debounce stands.
-  var limits = { min: bounds.min, comfort: bounds.ceiling, safety: bounds.safety };
+  var limits = limitsOf(output.volume);
   var twice = value > bounds.ceiling && bezelTaps.press('scale', now);
   if (!twice) {
     if (now - lastBezelTap < 300 && value <= bounds.ceiling) return;
@@ -1426,8 +1421,8 @@ function dragLevel(degrees, final) {
   dragPending = { output: output.id, value: value };
   // The target, painted at once; the room's answer catches up.
   var span = Math.max(1, bounds.max - bounds.min);
-  lightDetents((value - bounds.min) / span, String(Math.round(value)), (bounds.ceiling - bounds.min) / span);
-  volReadValue.textContent = String(Math.round(value));
+  lightDetents((value - bounds.min) / span, String(Number(value.toFixed(2))), (bounds.ceiling - bounds.min) / span);
+  volReadValue.textContent = String(Number(value.toFixed(2)));
   showTurning();
   flushDrag(final === true);
 }
@@ -1490,6 +1485,7 @@ window.addEventListener('wheel', function (event) {
 /* ---------- the keyboard: the same three verbs, for a desk ---------- */
 
 window.addEventListener('keydown', function (event) {
+  if(document.querySelector('.controller-settings'))return;
   var key = event.key;
   var open = browse.isOpen();
   if (key === 'ArrowDown') {
@@ -1532,3 +1528,33 @@ render();
 if (root.getAttribute('data-chrome-param') === '1') wake();
 var wantBrowse = root.getAttribute('data-browse-param');
 if (wantBrowse) browse.open(wantBrowse);
+
+var puckController=startController({
+  read:function(){var v=browse.controllerView(),z=currentZone(),o=currentOutput();v.output=o?o.id:'';v.room=z?z.name:'';v.volume=o?o.volume:null;controllerVolume(o,false);return v;},
+  wake:wake,
+  command:function(type,value,output){
+    if(type==='rooms'){location.href='/';return;}
+    if(type==='browse'||type==='queue'){browse.open(type);return;}
+    if(type==='playing'){browse.close();return;}
+    if(type==='back'){browse.back();return;}
+    if(type==='options'){puckController.settings();return;}
+    if(type==='search'){browse.open('search');return;}
+    if(type==='preview'){controllerPreview(value);return;}
+    var z=currentZone();if(!z)return;
+    if(type==='volume'){controllerVolume(currentOutput(),true);command({action:'volume',output:output,steps:Math.max(-20,Math.min(20,value)),override:false});return;}
+    if(type==='mute'){controllerVolume(currentOutput(),true);command({action:'mute',output:output,muted:value===1});return;}
+    if(type==='seek'){controllerPreview(-1);command({action:'seek',zone:z.id,seconds:value});return;}
+    if(['playpause','play','pause','next','previous','shuffle','repeat'].indexOf(type)>=0)command({action:type,zone:z.id});
+  }
+});
+
+// The companion face uses the same browse stack, output binding and guarded volume owner.
+var companion = createPuckCompanion({
+  root:root,rig:rig,glass:glass,browse:browse,glyph:glyph,
+  read:function(){var z=currentZone(),s=store.snapshot();return {zone:z,output:currentOutput(),generation:s?s.generation:'',position:z?store.positionSec(z):null};},
+  transport:transport,turn:turn,send:command,flash:flash,
+  scroll:function(event,rotate){var delta=event.deltaY;if(event.deltaMode===1)delta*=33;else if(event.deltaMode===2)delta*=100;volumeGate.scroll(delta,rotate);},
+  settings:function(){puckController.settings();},faces:function(){faceDoor.click();},home:goHome
+});
+
+startPuckStatus(function(){var z=currentZone();return [{host:root,outputs:z?z.outputs.map(function(o){return o.id;}):[]}];});

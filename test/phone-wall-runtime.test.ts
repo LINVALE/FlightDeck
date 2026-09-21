@@ -66,7 +66,8 @@ test('the puck is an option on a phone: a way in from the remote, and a way back
   assert.match(PUCK, /var ON_PHONE = decideUi\(window, location\.search, uiStorage\) === 'phone';/);
   assert.match(PUCK, /root\.setAttribute\('data-outside', outsidePx >= 72 \? '1' : \(ON_PHONE && belowPx >= 48 \? '2' : '0'\)\);/, 'on a phone held upright the outside is below the circle');
   assert.match(PUCK, /window\.location\.href = ON_PHONE \? '\/phone' : '\/';/, 'a phone\'s home is the phone wall');
-  assert.match(PUCK, /if \(ON_PHONE\) \{\s*var here = currentZone\(\);\s*var room = here !== null \? here\.id : wantedSlug;\s*window\.location\.href = '\/phone' \+ \(room === '' \? '' : '\/' \+ encodeURIComponent\(room\)\);/, 'the door leads to the remote by the ZONE, which the remote resolves');
+  // 09-14 (docs/puck-companion-face.md): the door is the face chooser on every screen, phones included.
+  assert.match(PUCK, /window\.location\.href = \(token === '' \? '\/face' : '\/face\/' \+ encodeURIComponent\(token\)\) \+ '\?ui=tv&panel=faces';/, 'the door opens this room\'s face chooser, even on a phone');
   assert.match(PUCK_CSS, /\.puck\[data-outside="2"\] \.outside \{ display: -webkit-flex; display: flex; top: auto; bottom: 16px;/);
 });
 

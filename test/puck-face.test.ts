@@ -221,7 +221,7 @@ test('the bezel dots read the volume; the glass ring is progress alone', () => {
   assert.match(JS, /createElementNS\(SVG_NS, 'line'\)/, 'radials, not dots');
     assert.match(JS, /function lightDetents\(fraction, label, ceiling, safety\)[\s\S]{0,900}\(i < lit \? ' is-lit' : ''\)/);
   assert.match(JS, /var DETENT_DEG = 12;/, 'the DRAG keeps the board\'s own detent, which the gate was budgeted for');
-  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\)/, 'lit with both of Roon\'s limits (09-06)');
+  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Number\(shown\.toFixed\(2\)\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\)/, 'lit with both of Roon\'s limits (09-06)');
   assert.match(JS, /var progHalo = arcOf\('prog-halo', PROG_R, PROG_C\);\s*var progArc = arcOf\('prog-arc', PROG_R, PROG_C\)/,
     'a hairline halo under the arc: legibility from the halo, colour from the sleeve');
   assert.match(CSS, /\.prog-halo \{ fill: none; stroke: rgba\(0, 0, 0, \.40\); stroke-width: 4\.2;/);
@@ -283,7 +283,7 @@ test('every path to a volume request goes through the gate', () => {
   assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,400}wake\(\);   \/\/ raise the readout; a dot has a place/,
     'a tap on a dot acts on the first touch');
     assert.match(JS, /if \(now - lastBezelTap < 300 && value <= bounds\.ceiling\) return;/, 'and never faster than one every 300 ms below comfort — a double tap above it is the one exception (09-06)');
-  assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, ticks\.length\);[\s\S]{0,900}command\(\{ action: 'volume', output: output\.id, value: asked\.value, override: twice \}\)/,
+  assert.match(JS, /var value = levelAtAngle\(degrees, bounds\.min, bounds\.max, ticks\.length, bounds\.step\);[\s\S]{0,900}command\(\{ action: 'volume', output: output\.id, value: asked\.value, override: twice \}\)/,
     'the dot under the finger, on the device\'s own range, as one absolute value — held to Roon\'s limits (09-06)');
   assert.match(JS, /var verdict = volumeGate\.step\(step\);/);
   // A wheel event is DISTANCE: the gate turns it into detents, and a page that
@@ -362,7 +362,7 @@ test('mute is on the cluster, and the readout keeps the number when muted', () =
   assert.match(CSS, /\.btn-mute\[data-on="1"\] \{\s*background: rgba\(216, 162, 74, \.5\); border-color: rgba\(216, 162, 74, \.75\); color: #f2eee6;/, 'muted = a subtler wash of FlightDeck\'s gold, never the sleeve\'s accent (grey on a monochrome sleeve)');
   assert.ok(hasGlyph('mute'));
   assert.match(JS, /press\(btnMute,[\s\S]{0,200}action: 'mute', output: output\.id, muted: !output\.volume\.muted/);
-    assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(band === 'danger' \? 'above the safety limit set in Roon \\u00b7 ' : \(over \? "above Roon's comfort level \\u00b7 " : \(atLimit \? "at Roon's comfort level \\u00b7 " : 'volume \\u00b7 '\)\)\)\) \+ output\.name;/);
+    assert.match(JS, /volReadValue\.textContent = String\(Number\(shown\.toFixed\(2\)\)\);\s*volReadLabel\.textContent = \(volume\.muted \? 'muted \\u00b7 ' : \(band === 'danger' \? 'above the safety limit set in Roon \\u00b7 ' : \(over \? "above Roon's comfort level \\u00b7 " : \(atLimit \? "at Roon's comfort level \\u00b7 " : 'volume \\u00b7 '\)\)\)\) \+ output\.name;/);
   assert.match(CSS, /\.puck\[data-vol="none"\] \.btn-mute \{ display: none; \}/);
 });
 
@@ -431,7 +431,7 @@ test('the ring is drawn on evidence, and a stop that leads nowhere says so', () 
 });
 
 test('the axis is the same at every depth, and its own session key', () => {
-  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,900}\n    if \(view\.queue \|\| view\.rooms\) park\(\); else close\(\);\n  \}/,
+  assert.match(BROWSE, /function back\(\)[\s\S]{0,1800}if \(view\.parent !== undefined && view\.parent !== null\) \{[\s\S]{0,1800}\n    if \(view\.queue \|\| view\.rooms\) park\(\); else close\(\);\n  \}/,
     'up restores the parent view; with no parent it walks out (the queue, without forgetting a parked library)');
   assert.match(BROWSE, /popLevels: 1/);
   assert.match(BROWSE, /var session = 'puck-'/,
@@ -610,7 +610,7 @@ test('the middle tier is pages on the ring, with next, prev, select and back to 
   // ⚖️ NOTHING ON THE PUCK GOES BACK TO THE WALL (Peter, 09-05): the return and the face options live OUTSIDE it
   assert.doesNotMatch(JS, /btnHome|glyph\('return'\)|btn-home/, 'no way back on the puck itself');
   assert.match(JS, /var outside = el\('div', 'outside'\);\s*var homeMark = el\('span', 'homemark'\);\s*homeMark\.appendChild\(glyph\('back'\)\);/, 'the Face\'s own mark, in the page\'s chrome');
-  assert.match(JS, /var faceDoor = el\('span', 'cog', ON_PHONE \? 'remote' : 'faces'\);/, 'and its faces door');
+  assert.match(JS, /var faceDoor = el\('span', 'cog', 'faces'\);/, 'and its faces door');
   assert.match(JS, /root\.appendChild\(rig\);\s*root\.appendChild\(outside\);/, 'outside the rig, not on the glass');
   assert.match(JS, /root\.setAttribute\('data-outside', outsidePx >= 72 \? '1' : \(ON_PHONE && belowPx >= 48 \? '2' : '0'\)\);/,
     'only where the viewport is wider than the puck — or, on a phone held upright, taller than it');
@@ -672,7 +672,7 @@ test('genres get their own pictures, and only on a genre level', () => {
  */
 test('the level shows large in the centre on a turn or a tap, then fades', () => {
   assert.match(JS, /var volRead = el\('div', 'vol-read'\);/);
-  assert.match(JS, /volReadValue\.textContent = String\(Math\.round\(shown\)\);/, 'the reading under the hand, bounded by the gate — the number even when muted');
+  assert.match(JS, /volReadValue\.textContent = String\(Number\(shown\.toFixed\(2\)\)\);/, 'the reading under the hand, bounded by the gate — the number even when muted');
     assert.match(JS, /function tapBezel\(degrees\)[\s\S]{0,1600}showTurning\(\);/, 'a tap on the wheel raises it');
   assert.match(JS, /function turn\(step\)[\s\S]{0,400}showTurning\(\);/, 'so does a turn');
   assert.match(CSS, /\.vol-read \{[\s\S]{0,600}top: 50%;[\s\S]{0,500}opacity: 0;[\s\S]{0,120}pointer-events: none;[\s\S]{0,200}transition: opacity \.55s ease-out;/);
@@ -729,7 +729,7 @@ test('the times ride the bead, the room name sits inside the ring, the wheel say
   assert.match(CSS, /\.prog-read \{[\s\S]{0,700}white-space: nowrap;[\s\S]{0,200}pointer-events: none;/);
   assert.match(CSS, /\.room \{[\s\S]{0,340}top: calc\(var\(--u\) \* 14\.2\);/, 'off the arc at twelve; at 14.2 the elapsed circle at twelve clears it');
   assert.match(JS, /var tickRead = document\.createElementNS\(SVG_NS, 'text'\);/);
-    assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\);/, 'lit with BOTH of Roon\'s limits (09-06)');
+    assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Number\(shown\.toFixed\(2\)\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\);/, 'lit with BOTH of Roon\'s limits (09-06)');
   assert.match(JS, /var TICK_READ_R = 44\.6;/);
   assert.match(CSS, /\.tick-read \{ fill: var\(--accent\);/);
 });
@@ -937,7 +937,7 @@ test('the wheel stops at Roon\'s comfort level and draws the scale past it in am
     assert.match(JS, /var limits = limitsOf\(volume\);\s*return \{ min: limits\.min, max: limits\.max, ceiling: limits\.comfort, safety: limits\.safety, step: limits\.step \};/, 'one reading of Roon\'s two limits, shared with every face (09-06)');
   assert.match(JS, /var asked = askedLevel\(value, limits, twice\);\s*if \(asked === null\) \{ flash\('above the safety limit set in Roon'\); return; \}\s*if \(asked\.held === 'comfort'\) flash\("at Roon's comfort level \\u2014 tap again to go above"\);/,
     'a tap past comfort asks for comfort and says so; a second tap passes it; past safety nothing is asked (09-06)');
-  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Math\.round\(shown\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\);/);
+  assert.match(JS, /lightDetents\(\(shown - bounds\.min\) \/ span, String\(Number\(shown\.toFixed\(2\)\)\), \(bounds\.ceiling - bounds\.min\) \/ span, \(bounds\.safety - bounds\.min\) \/ span\);/);
     assert.match(JS, /var band = i >= safetyAt && safetyAt < ticks\.length \? ' danger' : \(i >= comfortAt && comfortAt < safetyAt \? ' comfort' : ''\);/, 'every tick is drawn, in its band: amber to safety, red beyond (09-06)');
     assert.match(JS, /"at Roon's comfort level \\u00b7 "/, 'and the readout says so, beneath the number');
     assert.doesNotMatch(CSS, /\.tick\.beyond/, 'no tick is hidden any more (09-06 supersedes 09-05)');

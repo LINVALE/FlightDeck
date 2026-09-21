@@ -477,6 +477,10 @@ export function createBrowse(options) {
   queueKeys.appendChild(playQ);
   queueKeys.appendChild(nextQ);
   chosen.appendChild(queueKeys);
+  var radioQ = key('Radio', 'Toggle Roon Radio', function () {
+    var here = queueZone(); if (here && here.settings) act({ action: 'radio', zone: here.id });
+  });
+  radioQ.className = 'key key-radio-q'; queueKeys.appendChild(radioQ);
 
   function queueZone() {
     if (view === null || !view.queue) return null;
@@ -494,6 +498,9 @@ export function createBrowse(options) {
   function paintQueueKeys() {
     if (view === null || !view.queue) return;
     var here = queueZone();
+    radioQ.hidden = !here || !here.settings;
+    radioQ.textContent = here && here.settings && here.settings.autoRadio ? 'Radio on' : 'Radio off';
+    radioQ.setAttribute('aria-pressed', here && here.settings && here.settings.autoRadio ? 'true' : 'false');
     var playing = here !== null && (here.state === 'playing' || here.state === 'loading');
     var pick = itemAt(view.sel);
     prevQ.setAttribute('data-off', playing ? '0' : '1');
@@ -761,7 +768,7 @@ export function createBrowse(options) {
     else if (view.tier === 'rooms') drawRooms();
     else if (view.tier === 'local') drawLocalRing();
     else drawRing();
-    if (announce) {
+    if (announce && root.getAttribute('data-companion') !== '1') {
       announce = false;
       var lit = optWrap.querySelector('.opt-on');
       if (tip !== null && lit !== null && lit.getAttribute('data-tip')) tip.show(lit, 3000);
@@ -1791,9 +1798,19 @@ export function createBrowse(options) {
       var mine = epoch;
       busy = true;
       ask({ hierarchy: view.hierarchy, popLevels: 1 })
-        .then(function () {
-          busy = false;
+        .then(function (head) {
           if (!current(mine)) return;
+          if (head.isError) throw new Error(head.message || 'Could not go back');
+          return ask({ hierarchy: parent.hierarchy, load: true, offset: parent.base,
+            count: Math.max(PAGE, Math.min(200, parent.items.length)) });
+        })
+        .then(function (page) {
+          if (!current(mine) || !page) return;
+          parent.items = page.items || [];
+          if (page.list) parent.total = page.list.count;
+          if (parent.tier !== 'alpha') parent.sel = Math.max(parent.base, Math.min(parent.sel, parent.base + parent.items.length - 1));
+          parent.probes = {};
+          busy = false;
           view = parent;
           tick();
           draw();
@@ -2050,7 +2067,20 @@ export function createBrowse(options) {
   /* The cog never moves the highlight (Peter, 09-04): letters are reached by a
      tap on the alphabet round the outside, the list by ‹ ›, swipes and taps. */
 
+  function controllerView() {
+    var choices=[],v=view;
+    if(v){var first=v.tier==='alpha'?0:v.base;var n=v.tier==='alpha'?(v.letters||'').length:Math.min(v.total,v.base+v.items.length);
+      for(var i=first;i<n;i++)(function(index){var row=v.tier==='alpha'?{title:v.letters[index]}:itemAt(index);
+        choices.push({key:'row:'+index+':'+(row?(row.itemKey||row.title):''),title:row?row.title:'Loading…',subtitle:row?row.subtitle||'':'',
+          focus:function(){if(view===v)move(index-v.sel);},activate:commit});
+      })(i);
+      if(v.spell)[['Space',SPACE],['Delete',DELETE],['Clear',null],['Search',GO]].forEach(function(a){choices.push({key:'spell:'+a[0],title:a[0],activate:function(){if(view===v){if(a[1]===null){v.spell.query='';tick();draw();}else spellStop(a[1]);}}});});
+    }
+    return {position:v?v.sel:0,total:v?(v.tier==='alpha'?v.letters.length:v.total):0,open:!!v,mode:v?(v.spell?'spell':v.queue?'queue':v.rooms?'rooms':v.hierarchy):'playing',title:v?(v.spell?'Search: '+v.spell.query:v.title):'Now playing',face:v?(v.queue?2:1):0,busy:busy,choices:choices,selected:v&&choices[v.sel-first]?choices[v.sel-first].key:''};
+  }
+
   return {
+    controllerView: controllerView,
     open: open,
     close: close,
     park: park,
