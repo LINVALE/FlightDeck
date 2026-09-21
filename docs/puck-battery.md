@@ -1,6 +1,6 @@
 # Physical Puck battery indicators
 
-Physical Pucks report their battery sample and the durable output they are actually displaying. FlightDeck adds a compact battery badge to that output's room card, Face, Phone remote and browser Puck view. Grouped rooms match any member output; each physical Puck retains its own identity. Browser battery state is never used.
+Physical Pucks report their battery sample and the durable output they are actually displaying. FlightDeck adds a compact battery badge for that room **only on the screen the Puck is paired with** (its card on that screen's Deck, its Face, Phone remote or browser Puck view). Other screens showing the same room stay clean, and an unpaired Puck shows no badge (Peter, 2026-09-21). Grouped rooms match any member output; each physical Puck retains its own identity. Browser battery state is never used.
 
 A ~ prefix marks a voltage-based estimate. PWR means the supply reading is above the single-cell range and a battery percentage is unavailable; it does not claim active charging or full charge. A question mark means there is no valid battery reading. The tooltip identifies the Puck, explains the state and gives the measured supply voltage. Estimated levels at or below 20% use amber.
 

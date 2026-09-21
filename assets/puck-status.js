@@ -1,6 +1,14 @@
 /** Battery status comes from physical Pucks, never from this browser's battery. */
-export function devicesForOutputs(devices, outputs) {
-  return devices.filter(function(d){return d.output && outputs.indexOf(d.output)!==-1;});
+/**
+ * ⚖️ A PUCK'S BADGE BELONGS TO ITS SCREEN (Peter, 09-21: "the puck power is showing for all
+ * screens - should only show on the screen to which it is associated"). A badge appears only
+ * on the screen the Puck is paired with, for the room that Puck is showing; every other
+ * screen showing that room stays clean. An unpaired Puck shows no badge.
+ */
+export function devicesForOutputs(devices, outputs, display) {
+  return devices.filter(function(d){
+    return d.output && outputs.indexOf(d.output)!==-1 && !!display && d.display===display;
+  });
 }
 export function batteryLabel(battery) {
   if(battery && battery.estimated===true && typeof battery.percent==='number' && battery.percent>=0 && battery.percent<=100)return '~'+battery.percent+'%';
@@ -8,13 +16,14 @@ export function batteryLabel(battery) {
 }
 export function startPuckStatus(targets) {
   var link=document.createElement('link');link.rel='stylesheet';link.href='/assets/puck-status.css';document.head.appendChild(link);
-  var devices=[],received=0,busy=false;
+  var devices=[],received=0,busy=false,display='';
+  try{display=localStorage.getItem('flightdeck.display')||'';}catch(e){display='';}
   function paint(){
     var live=Date.now()-received<5000?devices:[];
     targets().forEach(function(t){
       var host=t.host.querySelector('.puck-batteries');
       if(!host){host=document.createElement('span');host.className='puck-batteries';t.host.appendChild(host);}
-      var matching=devicesForOutputs(live,t.outputs),key=JSON.stringify(matching);
+      var matching=devicesForOutputs(live,t.outputs,display),key=JSON.stringify(matching);
       host.hidden=matching.length===0;if(host.getAttribute('data-reading')===key)return;host.setAttribute('data-reading',key);host.textContent='';
       matching.forEach(function(d){
         var b=d.battery,label=batteryLabel(b),badge=document.createElement('span');badge.className='puck-battery';
