@@ -6,7 +6,7 @@ import { ArtRelay } from '../art/relay.ts';
 import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
-import { renderDocPage, renderFacePage, renderPhonePage, renderPhoneWallPage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { renderCheckPage, renderDocPage, renderFacePage, renderPhonePage, renderPhoneWallPage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
 import { ControllerSessions, ControllerError } from '../controllers/sessions.ts';
 import { normaliseScreen, type DisplayScreen } from '../displays/registry.ts';
 import { limitsOf, askedLevel, askedSteps } from '../model/volume-limits.ts';
@@ -320,6 +320,17 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       });
       return;
     }
+    // The screen check's result, written to this server's log for a TV that cannot copy text.
+    if (request.method === 'POST' && path === '/api/v1/check') {
+      void readJson(request, 1024).then((body) => {
+        const line = typeof body?.line === 'string' ? body.line.replace(/[\r\n]+/g, ' ').slice(0, 300) : '';
+        const ua = typeof body?.ua === 'string' ? body.ua.replace(/[\r\n]+/g, ' ').slice(0, 400) : '';
+        if (line === '') { json(response, 400, { error: 'no check line' }); return; }
+        log('screen check: ' + line + ' | ' + ua);
+        json(response, 200, { ok: true });
+      });
+      return;
+    }
     if (request.method !== 'GET' && request.method !== 'HEAD') {
       json(response, 405, { error: 'method not allowed' });
       return;
@@ -427,6 +438,12 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
 
     // ---- pages ----
     const nonce = randomBytes(18).toString('base64');
+
+    // The screen check: can this browser run FlightDeck? (docs: the call for testers)
+    if (path === '/check' || path === '/check/') {
+      html(response, 200, renderCheckPage(), nonce);
+      return;
+    }
 
     // Repo documents, rendered from their Markdown. Useful on the phone in your
     // hand while you stand in front of the TV you are setting up.

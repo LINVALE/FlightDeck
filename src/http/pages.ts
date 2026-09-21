@@ -301,6 +301,31 @@ export function renderPuckPage(
 }
 
 /**
+ * The screen check (/check): can this browser run FlightDeck? The verdict is
+ * written into the HTML first, so a browser that runs no script at all still
+ * gets an answer. External scripts only: an older browser that knows CSP but
+ * not nonces would block an inline one and report nothing.
+ */
+export function renderCheckPage(): string {
+  return '<!doctype html><html lang="en"><head>'
+    + '<meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>Screen check — FlightDeck</title>'
+    + '<link rel="stylesheet" href="/assets/check.css">'
+    + '</head><body><main>'
+    + '<div class="brand">FLIGHT<span>DECK</span> · screen check</div>'
+    + '<h1 id="verdict" class="fail">This browser did not run the check, so it cannot run FlightDeck.</h1>'
+    + '<p>Send this line, with the TV\'s brand, model and year:</p>'
+    + '<div class="line" id="line">FDC1 FAIL · no script</div>'
+    + '<table id="results"></table>'
+    + '<p class="note">Browser: <span id="ua"></span></p>'
+    + '<script src="/assets/check-syntax.js"></script>'
+    + '<script type="module" src="/assets/check-module.js"></script>'
+    + '<script src="/assets/check.js"></script>'
+    + '</main></body></html>';
+}
+
+/**
  * A repo document, rendered. Served from the Markdown at request time so the file
  * in docs/ stays the single source of truth — there is no generated copy to drift.
  */
