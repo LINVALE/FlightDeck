@@ -46,7 +46,7 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   const server = createFlightDeckServer({
     hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, commands: null, browseAccess: null,
     mdns: () => null,
-    urls: () => ['http://flightdeck.local:' + String(port) + '/', 'http://192.168.1.114:' + String(port) + '/'],
+    urls: () => ['http://flightdeck.local:' + String(port) + '/', 'http://192.0.2.10:' + String(port) + '/'],
     port: () => port,
   });
   port = await listenWithLadder(server, [0], () => {});
@@ -72,9 +72,9 @@ test('the whole spine serves a wall, a snapshot, a live stream and real artwork'
   assert.match(wallHtml, /FLIGHT<span>DECK<\/span>/);
   // ONE address, and the NUMERIC one: `.local` does not resolve on Fire OS, Echo
   // Show or Android <= 11, so the address a TV shows has to be typeable there.
-  assert.match(wallHtml, /192\.168\.1\.114/, 'the IP URL must be printed for TVs that cannot resolve .local');
+  assert.match(wallHtml, /192\.0\.2\.10/, 'the IP URL must be printed for TVs that cannot resolve .local');
   assert.equal((wallHtml.match(/class="url/g) ?? []).length, 1, 'one address, not three');
-  assert.match(wallHtml, new RegExp('Room display: <code>http://192\\.168\\.1\\.114:' + String(port) + '/name</code>'),
+  assert.match(wallHtml, new RegExp('Room display: <code>http://192\\.0\\.2\\.10:' + String(port) + '/name</code>'),
     'the footer explains a direct room address');
   assert.doesNotMatch(wallHtml, /\/now|Now Playing:/, 'the auto-follow address is no longer advertised');
   // The QR was never once scanned successfully, so it does not take a corner of

@@ -11,7 +11,7 @@
 polkit.addRule(function (action, subject) {
     if (action.id === "org.freedesktop.systemd1.manage-units"
         && action.lookup("unit") === "flightdeck.service"
-        && subject.user === "peter") {
+        && subject.user === "flightdeck") {   // ⚠️ the user that owns FlightDeck
         return polkit.Result.YES;
     }
 });

@@ -7,3 +7,6 @@ logs/*
 
 # agent worktrees and harness state — never part of the project
 .claude/
+
+# Internal working notes: kept on the development machine, never published
+notes/

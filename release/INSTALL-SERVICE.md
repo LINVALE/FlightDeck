@@ -6,31 +6,35 @@ out otherwise.
 
 Binding it needs one privileged step. This unit grants **only**
 `CAP_NET_BIND_SERVICE`, to **only** the FlightDeck process, still running as
-`peter` and with `NoNewPrivileges=yes`.
+its own user and with `NoNewPrivileges=yes`.
 
 > Do NOT use `setcap cap_net_bind_service=+ep /usr/bin/node` instead. That grants
 > the capability to *every* node process on the box — the RHEOS fleet included.
 
 ## Install
 
+The unit and the polkit rule are written for FlightDeck in `/opt/flightdeck`, run by a user called
+`flightdeck`, with node at `/usr/bin/node`. **Edit those three things in `release/flightdeck.service`, and the
+user in `release/50-flightdeck.rules`, to match your machine before copying them.**
+
 `data/` and `logs/` must exist before the first start — the unit lists them in
 `ReadWritePaths`, and systemd refuses to start a service whose ReadWritePath is
 missing:
 
 ```bash
-mkdir -p ~/dev/FlightDeck/data ~/dev/FlightDeck/logs
+mkdir -p /opt/flightdeck/data /opt/flightdeck/logs
 ```
 
 Stop the launcher-run copy first, so the two do not fight over the port:
 
 ```bash
-cd ~/dev/FlightDeck && ./flightdeck-launch.sh stop
+cd /opt/flightdeck && ./flightdeck-launch.sh stop
 ```
 
 Then:
 
 ```bash
-sudo cp ~/dev/FlightDeck/release/flightdeck.service /etc/systemd/system/
+sudo cp /opt/flightdeck/release/flightdeck.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now flightdeck
 ```
@@ -43,7 +47,7 @@ Every change under `src/` needs a restart, and typing `sudo` each time is the
 friction that makes people stop restarting. Install the polkit rule once:
 
 ```bash
-sudo cp ~/dev/FlightDeck/release/50-flightdeck.rules /etc/polkit-1/rules.d/
+sudo cp /opt/flightdeck/release/50-flightdeck.rules /etc/polkit-1/rules.d/
 ```
 
 That is scoped to **this unit and this user**, and grants nothing else.
@@ -100,7 +104,7 @@ same port. With the service installed, use systemd:
 ```bash
 sudo systemctl restart flightdeck
 sudo systemctl stop flightdeck
-journalctl -u flightdeck -f          # or: tail -f ~/dev/FlightDeck/logs/flightdeck.log
+journalctl -u flightdeck -f          # or: tail -f /opt/flightdeck/logs/flightdeck.log
 ```
 
 To go back to the launcher: `sudo systemctl disable --now flightdeck`.

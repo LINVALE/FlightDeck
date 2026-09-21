@@ -154,9 +154,7 @@ npm run lint:floor
 node scripts/preview.ts
 ```
 
-`node_modules` is currently a symlink to the RHEOS tree for the three Roon packages
-(`node-roon-api`, `-transport`, `-image`, all Apache-2.0). A real `npm install` is owed before this repo
-stands alone.
+The Roon packages (`node-roon-api`, `-transport`, `-browse`, `-settings`, all Apache-2.0) install with `npm install`.
 
 ## Status
 

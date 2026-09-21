@@ -179,7 +179,7 @@ const fixtureBrowse = {
 
 const server = createFlightDeckServer({
     hub, relay, ledger, assetDir: ASSETS, docDir: DOCS, mdns: () => null, commands, browseAccess: fixtureBrowse,
-    urls: () => ['http://flightdeck.local/', 'http://192.168.1.114/'],
+    urls: () => ['http://flightdeck.local/', 'http://192.0.2.10/'],
     port: () => bound,
   });
   bound = await listenWithLadder(server, [PORT], () => {});

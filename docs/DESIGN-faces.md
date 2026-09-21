@@ -1,13 +1,13 @@
 # FlightDeck — Faces: the display-first design (2026-08-25)
 
-**Read with:** `HANDOVER-2026-08-25-flightdeck-kickoff.md` (rulings + grounded API facts) and memory
-`project_2026_08_24_house_canvas_vision_and_cash_contribution`. This doc moves to the FlightDeck repo the day it exists.
+*The original design record for FlightDeck's Faces, kept as written in August 2026. Some names have changed since:
+the Wall is now **The Deck**, and the Dial face is now **Wheel**.*
 
-> ⭐ **BUILT 2026-08-25 — `~/dev/FlightDeck` (commit 9548899).** I0+I1 and the Presence face exist and run:
+> ⭐ **BUILT 2026-08-25 — commit 9548899.** I0+I1 and the Presence face exist and run:
 > 3483 lines, tests 20/20, floor lint clean, end-to-end over real HTTP against a stand-in Core. The Wall and
 > the Presence face were rendered at 1080p from the live server (`node scripts/preview.ts`).
 > ⚠️ **NO LIVE ROON PAIRING HAS BEEN RUN** — deliberately, to avoid touching the live Core mid-session. That
-> is the first receipt in `~/dev/FlightDeck/docs/tv-drill.md`. Also unverified: the hand-written QR encoder
+> is the first receipt in `docs/tv-drill.md`. Also unverified: the hand-written QR encoder
 > has never been scanned by a phone (no decoder available offline).
 
 ## 0. What this is
@@ -143,7 +143,7 @@ kitchen-tablet page — the verdict's ambient-house hypothesis — now for every
 
 ## 5. The spine
 
-**Repo:** **FlightDeck** (⚖️ Peter 08-25; location `~/dev/FlightDeck` suggested). **Stack:** Node 24 native TypeScript, ESM, `node:test` —
+**Repo:** **FlightDeck** (⚖️ Peter 08-25; its own repository). **Stack:** Node 24 native TypeScript, ESM, `node:test` —
 the rheos_v2 muscle memory, zero build step. **Deps:** `node-roon-api`, `-transport`, `-image` (Apache-2.0 — compatible
 with any FlightDeck licence). **Front end:** vanilla ES modules served as same-origin static assets; no framework day 1 — revisit at the control
 surface. ⚠️ **ES2018, not ES2020** — no `?.`, `??`, class fields or named regex groups (Samsung 2019 = Chromium 63).

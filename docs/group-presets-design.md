@@ -1,7 +1,6 @@
 # Group Presets — design
 
-*2026-08-27. Design only; nothing here is built. Companion to the "Presets" entry in
-`HANDOVER-2026-08-26-controls-grouping-and-the-wall.md`.*
+*2026-08-27. Design only; nothing here is built.*
 
 A preset is a named, **ordered** set of rooms that FlightDeck forms on demand and lets go of
 when nobody is listening any more. Roon has no such concept; this is entirely ours. The brief,

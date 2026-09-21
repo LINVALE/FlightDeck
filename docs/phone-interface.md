@@ -256,7 +256,7 @@ would, and that is a product decision, not a packaging one.
   though both are near-worthless here: the page without its server is a
   brick regardless, and push with no relay has no path to a locked phone
   anyway. No mDNS from the browser — first contact means typing `fd/` or
-  `192.168.1.114` once (the router-DNS record in tv-setup.md §0 is the real
+  `192.0.2.10` once (the router-DNS record in tv-setup.md §0 is the real
   fix). No hardware volume keys. iOS will not run the SSE stream in the
   background — reopening refetches, which the snapshot cache makes feel
   instant, but a paused phone is not a live remote in the pocket.

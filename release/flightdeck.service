@@ -15,13 +15,15 @@ StartLimitBurst=12
 
 [Service]
 Type=simple
-User=peter
-Group=peter
-WorkingDirectory=/home/peter/dev/FlightDeck
-# nvm-managed node: an absolute path, because a service has no nvm shims and no
-# login shell. ⚠️ This path carries the version — update it after a node upgrade
+# ⚠️ EDIT FOR YOUR MACHINE: the user, the /opt/flightdeck paths below, and the node
+# path. release/INSTALL-SERVICE.md walks through it.
+User=flightdeck
+Group=flightdeck
+WorkingDirectory=/opt/flightdeck
+# An absolute node path, because a service has no login shell. If node comes from
+# nvm the path carries the version: update it after a node upgrade
 # (`readlink -f "$(which node)"`), or the unit fails to start.
-ExecStart=/home/peter/.nvm/versions/node/v24.13.1/bin/node /home/peter/dev/FlightDeck/src/main.ts
+ExecStart=/usr/bin/node /opt/flightdeck/src/main.ts
 
 # ── The point of this unit ──────────────────────────────────────────────────
 # Bind :80 as a NON-ROOT user. Ambient capabilities survive NoNewPrivileges,
@@ -32,7 +34,7 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 NoNewPrivileges=yes
 
-Environment=FLIGHTDECK_DATA=/home/peter/dev/FlightDeck/data
+Environment=FLIGHTDECK_DATA=/opt/flightdeck/data
 Environment=FLIGHTDECK_NAME=flightdeck
 # Browse changes the registration Roon holds on file, so the FIRST start after
 # changing this parks the extension until a human re-enables FlightDeck in
@@ -43,14 +45,14 @@ Environment=FLIGHTDECK_BROWSE=1
 Restart=on-failure
 RestartSec=5
 
-StandardOutput=append:/home/peter/dev/FlightDeck/logs/flightdeck.log
-StandardError=append:/home/peter/dev/FlightDeck/logs/flightdeck.log
+StandardOutput=append:/opt/flightdeck/logs/flightdeck.log
+StandardError=append:/opt/flightdeck/logs/flightdeck.log
 
 # ── Hardening. Deliberately NOT PrivateNetwork/NetworkNamespacePath: mDNS needs
 # the real LAN, and multicast does not cross a namespace boundary. ──
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/peter/dev/FlightDeck/data /home/peter/dev/FlightDeck/logs
+ReadWritePaths=/opt/flightdeck/data /opt/flightdeck/logs
 PrivateTmp=yes
 ProtectKernelTunables=yes
 ProtectKernelModules=yes
