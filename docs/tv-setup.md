@@ -23,7 +23,7 @@ locked down, the lot. `.local` does not, and never will on those TVs.
 ⚠️ Pair it with a **DHCP reservation** for that address, or the record rots the
 day the box gets a different lease.
 
-Without a DNS record the fallback is always the machine's address (`192.0.2.10/`) — and the House Wall
+Without a DNS record the fallback is always the machine's address (`192.0.2.10/`) — and The Deck
 prints it, with a QR, in its footer.
 
 ## 1. Samsung (Tizen)
@@ -99,7 +99,7 @@ up to make space. All of it fades again after six seconds.
 |-----------|-----|
 | the **cover** | flips album ↔ artist |
 | the **title band** (beside the cover) | **browse** — change what is playing |
-| the **room**, top left | the **room selector**, and "the wall" for the whole house |
+| the **room**, top left | the **room selector**, and "the deck" for the whole house |
 | the **face name**, top right | the **faces** |
 | the **lower band** | the transport bar |
 | the **progress row** | **seeks** to that point in the track |
@@ -166,7 +166,7 @@ tapping the cover returns to the album view.
 
 Put the room name at the end of the address to choose its display, for example
 `http://192.0.2.10/study`. Remove spaces from the name: Living Room becomes
-`/livingroom`. The bare address opens the Wall. Existing `/face/study` bookmarks
+`/livingroom`. The bare address opens The Deck. Existing `/face/study` bookmarks
 continue to work.
 
 ## 5. Why there is no native app

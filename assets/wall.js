@@ -1696,8 +1696,8 @@ var unhideAllBtn = el('span', 'wall-act');
 unhideAllBtn.appendChild(glyph('restore'));
 unhideAllBtn.appendChild(el('span', 'wall-act-label', 'unhide all'));
 unhideAllBtn.hidden = true;
-unhideAllBtn.setAttribute('title', 'put every hidden room card back on the wall');
-unhideAllBtn.setAttribute('aria-label', 'put every hidden room card back on the wall');
+unhideAllBtn.setAttribute('title', 'put every hidden room card back on the deck');
+unhideAllBtn.setAttribute('aria-label', 'put every hidden room card back on the deck');
 tap(unhideAllBtn, unhideAll);
 var pauseAllBtn = el('span', 'wall-act wall-pause-all');
 pauseAllBtn.appendChild(glyph('pause'));
@@ -2530,7 +2530,7 @@ try {var storedDesign=JSON.parse(localStorage.getItem('flightdeck.wall-design')|
 function applyWallDesign(){root.setAttribute('data-art-style',wallDesign.art);root.setAttribute('data-toolbar-style',wallDesign.toolbar);try{localStorage.setItem('flightdeck.wall-design',JSON.stringify(wallDesign));}catch(e){}}
 applyWallDesign();
 function openWallSettings(trigger){
-  openWallPanel('Wall settings',trigger);
+  openWallPanel('Deck settings',trigger);
   wallPanelBody.appendChild(el('p','wall-menu-note','This display'));
   function choice(label,key,options,care){
     var row=el('label','wall-setting',label),select=el('select',''); select.setAttribute('aria-label',label);
@@ -2570,7 +2570,7 @@ function refreshWallRadio() {
 }
 function openWallRadio(trigger) {
   openWallPanel('Roon Radio by room',trigger); wallRadioRows = [];
-  wallPanelBody.appendChild(panelButton('Back to Wall settings',function(){openWallSettings(trigger);}));
+  wallPanelBody.appendChild(panelButton('Back to Deck settings',function(){openWallSettings(trigger);}));
   wallPanelBody.appendChild(el('p','wall-menu-note','Continue with related music when a room’s queue ends.'));
   var snapshot = store.snapshot();
   if (snapshot) snapshot.zones.forEach(function (zone) {
@@ -2590,7 +2590,7 @@ function openWallRadio(trigger) {
 function openWallStandby(trigger) {
   var snapshot = store.snapshot(), targets = standbyTargets(snapshot);
   openWallPanel('Standby all players',trigger);
-  wallPanelBody.appendChild(panelButton('Back to Wall settings',function(){openWallSettings(trigger);}));
+  wallPanelBody.appendChild(panelButton('Back to Deck settings',function(){openWallSettings(trigger);}));
   if (!targets.length) { wallPanelBody.appendChild(el('p','wall-menu-note','No awake players report a standby control.'));placeWallPanel();return; }
   wallPanelBody.appendChild(el('p','wall-menu-note','Put these players into standby? This can stop music in their rooms.'));
   targets.forEach(function(target){wallPanelBody.appendChild(el('div','wall-standby-player',target.name));});

@@ -90,7 +90,7 @@ export function createPuckCompanion(options) {
   tool('Shuffle',function(){options.transport('shuffle');});tool('Repeat',function(){options.transport('repeat');});
   var pullTool=tool('Pull from selected room',function(){var n=glass.querySelector('.key-pull');if(n&&browse.at()==='rooms')n.click();});
   var shiftTool=tool('Shift to selected room',function(){var n=glass.querySelector('.key-shift');if(n&&browse.at()==='rooms')n.click();});
-  tool('Connect puck',options.settings);tool('Other faces',options.faces);tool('Back to Wall',options.home);
+  tool('Connect puck',options.settings);tool('Other faces',options.faces);tool('Back to The Deck',options.home);
   var spelling=node('div','pc-spelling','',menu);
   ['Space','Delete','Clear','Search'].forEach(function(name){button('',name,function(){var v=browse.controllerView(),c=v.choices.filter(function(c){return c.key==='spell:'+name;})[0];if(c)c.activate();},spelling);});
   var svgNS='http://www.w3.org/2000/svg';

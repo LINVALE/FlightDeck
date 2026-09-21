@@ -36,7 +36,7 @@ import { chooseCoverEffect } from './cover-effects.js';
  *
  * A name only belongs here once its layout exists.
  */
-var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora'];
+var FACES = ['presence', 'classic', 'wheel', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora'];
 
 /**
  * ⚖️ A FACE IS A LAYOUT AND A BACKGROUND, and they are not the same choice
@@ -52,7 +52,7 @@ var FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate
  *
  * A face not named here lays itself out and has no ambient field.
  */
-var LAYOUT = { gallery: 'classic', aurora: 'orbit', folio: 'libretto', plate: 'libretto', rondo: 'libretto' };
+var LAYOUT = { wheel: 'dial', gallery: 'classic', aurora: 'orbit', folio: 'libretto', plate: 'libretto', rondo: 'libretto' };
 var FIELD = { canvas: 1, gallery: 1, aurora: 1, folio: 1 };
 
 /**
@@ -346,15 +346,24 @@ function pickFollowed(snapshot) {
 }
 
 /* ---------- which face ---------- */
+/**
+ * Dial was renamed Wheel on 2026-09-21 (MusicD Remote has its own dial). The
+ * layout keeps its old id, so only the name people choose, see and bookmark
+ * moved. A remembered or bookmarked "dial" still opens it.
+ */
+var FACE_ALIASES = { dial: 'wheel' };
+function canonicalFace(name) {
+  return name !== null && FACE_ALIASES[name] !== undefined ? FACE_ALIASES[name] : name;
+}
 function remembered() {
-  try { return localStorage.getItem(STORE_KEY_FACE + zoneId); } catch (error) { return null; }
+  try { return canonicalFace(localStorage.getItem(STORE_KEY_FACE + zoneId)); } catch (error) { return null; }
 }
 function remember(name) {
   try { localStorage.setItem(STORE_KEY_FACE + zoneId, name); } catch (error) { /* private mode */ }
 }
 // An explicit ?face= is the durable, pinnable form and always wins.
 var pinned = root.getAttribute('data-face-param');
-var current = pinned || remembered() || 'presence';
+var current = canonicalFace(pinned) || remembered() || 'presence';
 /**
  * ⚖️ THE PUCK IS A NORMAL FACE OPTION (Peter, 09-03, twice). It is NOT drawn
  * inside this page — face.css is `vw` for a 16:9 television and a circle sized
@@ -368,7 +377,7 @@ var STORE_KEY_FACE_BEFORE = 'flightdeck.face.before.';
 // changes the zone id (and therefore the remembered-face key).
 if (current === 'puck' && /[?&]panel=faces(?:&|$)/.test(location.search)) {
   current = 'presence';
-  try { current = localStorage.getItem(STORE_KEY_FACE_BEFORE + zoneId) || current; } catch (error) { /* private mode */ }
+  try { current = canonicalFace(localStorage.getItem(STORE_KEY_FACE_BEFORE + zoneId)) || current; } catch (error) { /* private mode */ }
   if (FACES.indexOf(current) === -1) current = 'presence';
   remember(current);
 }
@@ -3125,7 +3134,7 @@ function showPicker(mode, refreshing) {
         roomRow.appendChild(opt);
       })(zones[r]);
     }
-    var wall = el('span', 'opt', 'the wall');
+    var wall = el('span', 'opt', 'the deck');
     pressable(wall, goToWall, 'picker-wall');
     roomRow.appendChild(wall);
     nodes.push(roomRow);

@@ -103,11 +103,11 @@ try{
  await js("document.querySelector('.wall-panel [aria-pressed]').click()");await sleep(150);
  assert.deepEqual(sent.at(-1),['settings','group',{auto_radio:true}]);
  await js("document.querySelector('.wall-panel [aria-pressed]').click()");await sleep(150);
- await pressText('Back to Wall settings');await pressText('Standby all players…');
+ await pressText('Back to Deck settings');await pressText('Standby all players…');
  assert.equal(await js("document.querySelectorAll('.wall-standby-player').length"),1);
  await js("document.querySelector('.wall-standby-confirm').click()");await sleep(150);
  assert.deepEqual(sent.at(-1),['standby','living','amp']);
- console.log('PASS Wall settings, saved idle delay, playback protection, automatic wake, manual wake without click-through, Radio and reviewed standby');
+ console.log('PASS Deck settings, saved idle delay, playback protection, automatic wake, manual wake without click-through, Radio and reviewed standby');
  await go('/face/living?ui=tv',"!!globalThis.fdTest");await js("fdTest.openHierarchy('albums','Albums')");await sleep(400);
  await js("let l=document.querySelector('.browse-list');l.scrollTop=1300;");await sleep(150);
  const before=await js("Array.from(document.querySelectorAll('.browse-row')).filter(n=>n.getBoundingClientRect().bottom>document.querySelector('.browse-list').getBoundingClientRect().top)[3].textContent");

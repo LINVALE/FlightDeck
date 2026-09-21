@@ -1,7 +1,7 @@
 # FlightDeck — what the screens are, and how to use them
 
 FlightDeck gives every Roon zone in the house a display and a control surface.
-A wall of rooms on a tablet or a television, a full-screen face for one room, a
+The Deck, every room on a tablet or a television, a full-screen face for one room, a
 phone remote that fits in a hand, and a round face for the knob.
 
 It is a Roon extension. It reads the same zones Roon reads and sends the same
@@ -33,11 +33,11 @@ remote. There is a step-by-step guide at `/setup`, and a five-minute check at
 
 ---
 
-## The Wall — every room at once
+## The Deck — every room at once
 
 **Address:** `/`
 
-![The Wall, eight rooms](/assets/screens/wall.png)
+![The Deck, eight rooms](/assets/screens/wall.png)
 
 One card per Roon zone: what is playing, who it is by, and how far through it
 is. A room that is playing is marked **now**.
@@ -82,7 +82,7 @@ rooms do not become four enormous posters.
 
 **Hiding a room** takes it off this screen only. It is still a Roon zone and
 still plays. The hidden page has a **put every hidden room card back on the
-wall** button, so nothing is ever lost.
+deck** button, so nothing is ever lost.
 
 **Reorder is per screen.** The order you set on the kitchen tablet does not
 disturb the order on the television.
@@ -98,7 +98,7 @@ where it was.
 ## A room's Face — one room, full screen
 
 **Address:** `/<room>` — for example `http://flightdeck.local/study` — or tap a
-card twice on the Wall. Use your server's address and your room name, with spaces
+card twice on The Deck. Use your server's address and your room name, with spaces
 removed: **Living Room** becomes `/livingroom`. Keep any port number in your
 server address. The display stays with that speaker when it joins a group.
 
@@ -148,7 +148,7 @@ each screen remembers its own choice per room.
 |---|---|
 | **Presence** (default) | Blurred artist behind an untouched cover; progress is a runway of approach lamps |
 | Classic-Plus | Roon's own grammar done properly; the largest cover |
-| Dial | A ring instrument opposite the cover; remaining time and when the track ends; idle becomes a clock |
+| Wheel | A ring instrument opposite the cover; remaining time and when the track ends; idle becomes a clock |
 | Orbit | The circle to one side, the words to the other |
 | Libretto | Concert-programme typography |
 | Folio | A book page: the sleeve to the right, the credits set as text |
@@ -159,7 +159,7 @@ each screen remembers its own choice per room.
 | Aurora | Slow colour drawn from the sleeve |
 | Puck | Forwards to the round face — see below |
 
-![Dial](/assets/screens/face-dial.png)
+![Wheel](/assets/screens/face-dial.png)
 
 ![Plate](/assets/screens/face-plate.png)
 
@@ -185,9 +185,9 @@ Search finds artists, albums and tracks by name.
 FlightDeck detects a phone by the shape of the screen, not by what the browser
 calls itself, so a Fire TV is never mistaken for one.
 
-### The phone Wall — `/phone`
+### The phone Deck — `/phone`
 
-![The phone Wall](/assets/screens/phone-wall.png)
+![The phone Deck](/assets/screens/phone-wall.png)
 
 One card per room, alphabetical, sized for a thumb. Volume is a pair of large
 steps rather than a slider you cannot hit while walking. In landscape it stays
@@ -219,7 +219,7 @@ screen.
 This is the face the physical knob runs, and it is the same drawing in a browser
 so you can use it before the hardware is in your hand.
 
-- **The outer rim is the volume.** On the knob it is the wheel; on a screen you
+- **The outer rim is the volume.** On the knob it is the volume ring; on a screen you
   can tap or drag it.
 - **The inner ring is the position.** Touch the outer band anywhere to seek
   there.
@@ -248,7 +248,7 @@ in exactly one way, on every screen:
 - **Dragging stops at the comfort level** and says so.
 - **To go above it, press or tap again** — a deliberate second action.
 - **Nothing passes the safety limit.** Not a drag, not a double tap, not the
-  wheel. The server refuses it as well as the screen, so no client can talk a
+  volume ring. The server refuses it as well as the screen, so no client can talk a
   room past it.
 
 A quick spin of a scroll wheel cannot run a room up. There is a rate limit,

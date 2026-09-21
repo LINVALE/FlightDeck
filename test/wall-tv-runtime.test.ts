@@ -281,7 +281,7 @@ test('startup builds the first Wall behind a centred progress veil and reveals i
   const startupAt = PAGES.indexOf('<div class="wall-startup" id="wall-startup"');
   const headerAt = PAGES.indexOf('<header class="wall-head">');
   assert.ok(startupAt !== -1 && startupAt < headerAt, 'the preparation state is present before any Wall chrome');
-  assert.match(PAGES, /wall-startup-spinner[\s\S]{0,180}Preparing rooms[\s\S]{0,180}Finding devices and arranging the Wall…/);
+  assert.match(PAGES, /wall-startup-spinner[\s\S]{0,180}Preparing rooms[\s\S]{0,180}Finding devices and arranging The Deck…/);
   assert.match(CSS, /\.wall > \.wall-head, \.wall > \.grid, \.wall > \.wall-foot \{ visibility: hidden; \}/);
   assert.match(CSS, /\.wall\.is-ready > \.wall-head, \.wall\.is-ready > \.grid, \.wall\.is-ready > \.wall-foot \{ visibility: visible; \}/);
   assert.match(CSS, /\.wall-startup \{[\s\S]{0,420}justify-content: center[\s\S]{0,220}background: var\(--ink\)/);

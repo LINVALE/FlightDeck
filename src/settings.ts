@@ -39,7 +39,7 @@ export const IDLE_DELAY_CHOICES: readonly { readonly title: string; readonly val
   }));
 
 const FACE_NAMES = [
-  'presence', 'classic', 'dial', 'orbit', 'libretto', 'folio',
+  'presence', 'classic', 'wheel', 'dial', 'orbit', 'libretto', 'folio',
   'plate', 'rondo', 'canvas', 'gallery', 'aurora',
 ] as const;
 const FACE_SUFFIX = new RegExp('^(.*?)\\s*·\\s*(' + FACE_NAMES.join('|') + ')\\s*$', 'i');

@@ -6,23 +6,23 @@ FlightDeck pairs with your Roon Core as an ordinary extension and subscribes to 
 That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing from RHEOS.
 
 - **Room Face** `/<room>` (for example `/study`) — a now-playing screen for a chosen room. Existing `/face/<zoneId>` bookmarks also work.
-- **House Wall** `/` — every zone at a glance, ordered by **most recently played**.
+- **The Deck** `/` — every zone at a glance, ordered by **most recently played**.
 
 *FlightDeck is not affiliated with or certified by Roon Labs. "for Roon" is descriptive only.*
 
 ## Example screens
 
-- [House wall (live 22 zones)](docs/wall-live-22-zones.png)
+- [The Deck (live 22 zones)](docs/wall-live-22-zones.png)
 - [Presence face (live album art)](docs/face-presence-live.png)
-- [Dial face (artist sample)](docs/face-dial-artist.png)
+- [Wheel face (artist sample)](docs/face-dial-artist.png)
 - [Classic face (album sample)](docs/face-classic.png)
 - [Libretto face (album sample)](docs/face-libretto.png)
 
-![House wall (live 22 zones)](docs/wall-live-22-zones.png)
+![The Deck (live 22 zones)](docs/wall-live-22-zones.png)
 
 ![Presence face (live album art)](docs/face-presence-live.png)
 
-![Dial face (artist sample)](docs/face-dial-artist.png)
+![Wheel face (artist sample)](docs/face-dial-artist.png)
 
 ![Classic face (album sample)](docs/face-classic.png)
 
@@ -32,7 +32,7 @@ That means it serves RHEOS rooms and Roon Ready rooms alike, and needs nothing f
 
 - [Face controls (non-puck, full chrome)](docs/face-controls.png) (transport, seek/progress, face switching, volume)
 - [Face controls (revealed chrome)](docs/face-revealed.png) (transport row + volume scale over live art)
-- [Wall controls (live zones)](docs/wall-live-22-zones.png) (quick room actions + inline control rows)
+- [Deck controls (live zones)](docs/wall-live-22-zones.png) (quick room actions + inline control rows)
 
 These views include the control chrome (transport + seek/progress + volume) so you can see how interaction works,
 not just the art direction.
@@ -41,7 +41,7 @@ not just the art direction.
 
 ![Face controls (revealed chrome)](docs/face-revealed.png)
 
-![Wall controls (live zones)](docs/wall-live-22-zones.png)
+![Deck controls (live zones)](docs/wall-live-22-zones.png)
 
 ## Browse examples (controls + depth)
 
@@ -131,7 +131,7 @@ All five are **user-selectable** — the ranking below decides what loads first,
 | Face | `?face=` | Signature |
 |------|----------|-----------|
 | **Presence** (default) | `presence` | Blurred artist behind an untouched cover; progress is a runway of approach lamps |
-| Dial | `dial` | A ring instrument opposite the cover; remaining time and `ENDS hh:mm`; idle becomes a clock |
+| Wheel | `wheel` (old `dial` links still work) | A ring instrument opposite the cover; remaining time and `ENDS hh:mm`; idle becomes a clock |
 | Classic-Plus | `classic` | Roon's grammar done properly; the largest cover |
 | Ambient Canvas | `canvas` | A generative field in the cover's own colours |
 | Libretto | `libretto` | Concert-programme typography |

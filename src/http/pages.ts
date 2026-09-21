@@ -9,13 +9,14 @@ import { renderMarkdown } from './markdown.ts';
 // only belongs here once it renders differently from the others.
 // `puck` is a face OPTION but not a face LAYOUT: the Face page forwards to
 // /puck rather than drawing a circle inside its own 16:9 rules.
-const FACES = ['presence', 'classic', 'dial', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora', 'puck'] as const;
+const FACES = ['presence', 'classic', 'wheel', 'orbit', 'libretto', 'folio', 'plate', 'rondo', 'canvas', 'gallery', 'aurora', 'puck'] as const;
 export type FaceName = (typeof FACES)[number];
 export const DEFAULT_FACE: FaceName = 'presence';
 
 export function normalizeFace(raw: string | null): FaceName | null {
   if (raw === null) return null;
-  const lower = raw.toLowerCase();
+  // Dial was renamed Wheel on 2026-09-21; old bookmarks keep working.
+  const lower = raw.toLowerCase() === 'dial' ? 'wheel' : raw.toLowerCase();
   return (FACES as readonly string[]).includes(lower) ? (lower as FaceName) : null;
 }
 
@@ -75,7 +76,7 @@ export function renderWallPage(nonce: string, urls: readonly string[], version =
     + '<div class="wall-startup-brand">FLIGHT<span>DECK</span></div>'
     + '<span class="wall-startup-spinner" aria-hidden="true"></span>'
     + '<div class="wall-startup-title">Preparing rooms</div>'
-    + '<div class="wall-startup-copy">Finding devices and arranging the Wall…</div>'
+    + '<div class="wall-startup-copy">Finding devices and arranging The Deck…</div>'
     + '</div>'
     + '<header class="wall-head">'
     + '<nav class="wall-tabs" id="tabs" hidden></nav>'
@@ -313,7 +314,7 @@ export function renderDocPage(nonce: string, title: string, markdown: string): s
     + '<link rel="icon" type="image/png" sizes="192x192" href="/assets/icon-192.png">'
     + '</head><body><main>'
     + '<nav class="docnav"><span class="brand">FLIGHT<span>DECK</span></span>'
-    + '<a href="/">&larr; the Wall</a></nav>'
+    + '<a href="/">&larr; The Deck</a></nav>'
     + renderMarkdown(markdown)
     + '</main></body></html>';
 }

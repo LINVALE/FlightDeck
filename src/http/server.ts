@@ -512,7 +512,7 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
       const resolved = bound !== null ? bound.zoneId
         : (snapshot === null ? null : resolveZone(snapshot.zones, token));
       if (shortRoom !== null && snapshot !== null && resolved === null) {
-        json(response, 404, { error: 'room not found', message: 'Open / to choose a room from the Wall.' });
+        json(response, 404, { error: 'room not found', message: 'Open / to choose a room from The Deck.' });
         return;
       }
       html(response, 200,

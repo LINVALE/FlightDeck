@@ -204,7 +204,7 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
     assert.match(room, /data-output="1701a"/);
     assert.match(room, /data-zone-slug="study"/);
     assert.match(room, /data-follow="0"/, 'a room bookmark does not follow unrelated players');
-    if (path.includes('face=dial')) assert.match(room, /data-face-param="dial"/);
+    if (path.includes('face=dial')) assert.match(room, /data-face-param="wheel"/, 'a room link with ?face=dial opens Wheel');
   }
   const member = await (await fetch(base + '/kitchen')).text();
   assert.match(member, /data-output="1701b"/);
@@ -216,10 +216,13 @@ test('a face page pins its zone and honours an explicit ?face=', async (t) => {
   assert.doesNotMatch(await guide.text(), /data-zone=/);
 
   // Every tournament face is built now, so each is honoured...
-  for (const face of ['presence', 'classic', 'dial', 'libretto', 'canvas']) {
+  for (const face of ['presence', 'classic', 'wheel', 'libretto', 'canvas']) {
     const page = await (await fetch(base + '/face/1601abc?face=' + face)).text();
     assert.match(page, new RegExp('data-face-param="' + face + '"'), face + ' must be selectable');
   }
+  // Dial was renamed Wheel (2026-09-21): an old bookmark opens the same face.
+  const oldDial = await (await fetch(base + '/face/1601abc?face=dial')).text();
+  assert.match(oldDial, /data-face-param="wheel"/, 'a ?face=dial bookmark still opens Wheel');
   // ...but a name with no layout behind it is still refused, rather than becoming
   // a control that changes an attribute and nothing else.
   const unknownFace = await (await fetch(base + '/face/1601abc?face=hologram')).text();
