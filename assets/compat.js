@@ -18,3 +18,21 @@ if (typeof Element !== 'undefined' && Element.prototype.replaceChildren === unde
     },
   });
 }
+
+/**
+ * The FlightDeck TV app lays pages out at the television's real resolution.
+ *
+ * Android's WebView measures a page in density-independent pixels, so a 1080p
+ * Fire TV at 2x gave every page 960x540: The Deck drew half its cards and asked
+ * for half-size art. The app names the screen's real size in its user agent,
+ * `FlightDeckTV/<version> (<width>x<height>)`, and the page widens its viewport
+ * to that width, which the WebView then scales to fit exactly — one CSS pixel
+ * per screen pixel, as a Samsung or LG browser already gives. It runs first,
+ * before any page measures itself. Any other browser is untouched.
+ */
+(function () {
+  var match = /FlightDeckTV\/[\d.]+ \((\d+)x(\d+)\)/.exec(typeof navigator === 'undefined' ? '' : navigator.userAgent);
+  if (match === null) return;
+  var meta = document.querySelector('meta[name="viewport"]');
+  if (meta !== null) meta.setAttribute('content', 'width=' + match[1] + ',viewport-fit=cover');
+})();

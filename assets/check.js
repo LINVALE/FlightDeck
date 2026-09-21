@@ -98,7 +98,8 @@
     for (i = 0; i < results.length; i += 1) if (results[i].required && !results[i].ok) missing.push(results[i].name);
     var pass = missing.length === 0;
     var size = String(window.screen ? window.screen.width : 0) + 'x' + String(window.screen ? window.screen.height : 0)
-      + '@' + String(window.devicePixelRatio || 1);
+      + '@' + String(window.devicePixelRatio || 1)
+      + ' page ' + String(window.innerWidth || 0) + 'x' + String(window.innerHeight || 0);
     var where = platform(ua);
     var line = VERSION + ' ' + (pass ? 'PASS' : 'FAIL') + ' · ' + engine(ua) + (where ? ' · ' + where : '')
       + ' · ' + size + (pass ? '' : ' · missing: ' + missing.join(', '));
@@ -130,6 +131,14 @@
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.send(JSON.stringify({ line: line, ua: ua }));
     } catch (e) { /* the page already shows the answer */ }
+  }
+
+  // The same viewport rule as FlightDeck's pages (compat.js), so the size reported
+  // here is the size they actually lay out at inside the FlightDeck TV app.
+  var tv = /FlightDeckTV\/[\d.]+ \((\d+)x(\d+)\)/.exec(navigator.userAgent || '');
+  if (tv) {
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (meta) meta.setAttribute('content', 'width=' + tv[1]);
   }
 
   function run() {
