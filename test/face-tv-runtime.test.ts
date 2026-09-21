@@ -1073,3 +1073,15 @@ test('the Face\'s list reads the current row\'s sentence at its foot, for a remo
   assert.match(FACE, /installTips\(\{ size: '1\.9vh' \}\);/);
   assert.match(FACE_CSS2, /\.browse-why:empty \{ display: none; \}/);
 });
+
+// Peter 09-21: "what room is being shown… discreetly and elegantly, perhaps at bottom centre".
+test('every Face names its room quietly at the bottom, and steps aside while the chrome shows it', () => {
+  const FACE_SRC = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.js'), 'utf8');
+  const CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'face.css'), 'utf8');
+  assert.match(FACE_SRC, /var restRoom = el\('div', 'rest-room'\);/);
+  assert.match(FACE_SRC, /restRoom\.textContent = zoneName\.textContent;/, 'the same name the head shows');
+  assert.match(FACE_SRC, /root\.appendChild\(restRoom\);/);
+  assert.match(CSS, /\.rest-room \{[\s\S]{0,120}position: fixed; left: 50%; bottom: 1\.3vh;/);
+  assert.match(CSS, /\.face\.show-chrome \.rest-room \{ opacity: 0; \}/);
+  assert.match(CSS, /\.rest-room \{[\s\S]{0,400}pointer-events: none;/, 'never in the way of a press');
+});

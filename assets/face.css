@@ -2925,3 +2925,15 @@ html[data-android-rail] ::-webkit-scrollbar-thumb {
   min-height: 48px; border: 3px solid #0a0b0d; border-radius: 8px;
   background: rgba(242,238,230,.52); background-clip: padding-box;
 }
+
+/* The room, quietly, all the time (Peter, 09-21): bottom centre, below the lamps and
+   times, and out of the way while the chrome shows the room name at the top. */
+.rest-room {
+  position: fixed; left: 50%; bottom: 1.3vh; z-index: 3;
+  -webkit-transform: translateX(-50%); transform: translateX(-50%);
+  font-size: 0.9vw; letter-spacing: 0.3em; text-transform: uppercase; white-space: nowrap;
+  color: rgba(242,238,230,0.34); pointer-events: none;
+  -webkit-transition: opacity 0.4s; transition: opacity 0.4s;
+}
+.face.show-chrome .rest-room { opacity: 0; }
+.face[data-size] .rest-room { font-size: 11px; }

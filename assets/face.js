@@ -544,6 +544,15 @@ queueDoor.setAttribute('aria-label', 'show the Roon queue');
 pressable(queueDoor, openQueuePanel, 'header-queue');
 
 var zoneName = el('span', 'zone');
+/**
+ * ⚖️ THE ROOM, QUIETLY, ALL THE TIME (Peter, 09-21: "what room is being shown… on now
+ * playing it's still useful and can be done discreetly and elegantly, perhaps at bottom
+ * centre"). The head's room name only fades in with the chrome, so a screen at rest never
+ * said which room it was. This is its quiet twin: small, spaced, low-contrast, below
+ * everything, and it steps aside while the chrome (and its own room name) is up.
+ */
+var restRoom = el('div', 'rest-room');
+restRoom.setAttribute('aria-hidden', 'true');
 zoneName.setAttribute('title', 'choose a room to display');
 zoneName.setAttribute('aria-label', 'choose a room to display');
 // The name answers "which player am I looking at?"; the adjacent chain/count
@@ -587,6 +596,7 @@ headTools.appendChild(zoneName);
 headTools.appendChild(groupDoor);
 headTools.appendChild(chipHost);
 head.appendChild(headMark); head.appendChild(status); head.appendChild(headTools);
+root.appendChild(restRoom);
 
 var body = el('div', 'body');
 var cover = el('div', 'cover');
@@ -1198,6 +1208,7 @@ function render(snapshot, kind) {
      */
     var plus = /^(.*?)\s\+\s(\d+)$/.exec(zone.name);
     zoneName.textContent = plus === null ? zone.name : plus[1];
+    restRoom.textContent = zoneName.textContent;
     var island = zone.outputs.length > 0 ? zone.outputs[0].island : '';
     var canGroup = island !== '' && zone.outputs[0].groupableWith.length > 1;
     if (plus !== null) {
