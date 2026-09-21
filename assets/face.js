@@ -116,7 +116,7 @@ if (screenShape === 'phone') {
 // Silk inherits Android's fading overlay scrollbar, which is only a hairline on
 // a television. Mark that browser narrowly so Browse can keep a proper native
 // drag rail without changing the already-good Samsung and desktop renderings.
-if (/\bSilk\//i.test(String(navigator.userAgent || ''))) root.setAttribute('data-silk', '1');
+if (/\bSilk\/|FlightDeckTV\//i.test(String(navigator.userAgent || ''))) root.setAttribute('data-silk', '1');
 /** Where the strip lives on the faces that still use it as a strip. */
 var pickerHome = picker.parentNode;
 var zoneId = root.getAttribute('data-zone') || '';

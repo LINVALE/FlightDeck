@@ -2915,3 +2915,13 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
 
 .face[data-artist-fit="1"] .artistlayer { background-size: contain; }
 .row-display-care .opt { white-space: normal; }
+
+/* Android's overlay scrollbar fades to nothing, so on a Fire TV (Silk or the
+   FlightDeck TV app, marked by compat.js) every scrolling area gets a solid
+   rail: a long menu shows that more is below. Other browsers are unchanged. */
+html[data-android-rail] ::-webkit-scrollbar { width: 16px; }
+html[data-android-rail] ::-webkit-scrollbar-track { background: rgba(242,238,230,.07); border-radius: 8px; }
+html[data-android-rail] ::-webkit-scrollbar-thumb {
+  min-height: 48px; border: 3px solid #0a0b0d; border-radius: 8px;
+  background: rgba(242,238,230,.52); background-clip: padding-box;
+}

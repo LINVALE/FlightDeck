@@ -30,6 +30,16 @@ if (typeof Element !== 'undefined' && Element.prototype.replaceChildren === unde
  * per screen pixel, as a Samsung or LG browser already gives. It runs first,
  * before any page measures itself. Any other browser is untouched.
  */
+/**
+ * Android's overlay scrollbar is a hairline that fades away, so on a Fire TV a
+ * long menu gave no sign that more was below. Silk and the FlightDeck TV app
+ * are marked here, and face.css and wall.css give every scrolling area a solid
+ * rail on those browsers only. The Samsung and desktop renderings are unchanged.
+ */
+if (typeof navigator !== 'undefined' && /\bSilk\/|FlightDeckTV\//i.test(navigator.userAgent || '')) {
+  document.documentElement.setAttribute('data-android-rail', '1');
+}
+
 (function () {
   var match = /FlightDeckTV\/[\d.]+ \((\d+)x(\d+)\)/.exec(typeof navigator === 'undefined' ? '' : navigator.userAgent);
   if (match === null) return;

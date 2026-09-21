@@ -491,6 +491,14 @@ function buildTile(zone) {
       event.preventDefault(); event.stopPropagation();
     } else if (zoneLine.contains(event.target)) {
       openWallTools(zoneId, toolsB);
+    } else if (copy.contains(event.target) || event.target === tile || event.target === now
+        || event.target === head || event.target === stamp) {
+      // ⚖️ THE CARD ITSELF OPENS THE ROOM (Peter, 09-21, on the Fire TV: "pointing to a card I
+      // have to hit the album art… anywhere away from the other controls"). The song's words
+      // and the card's own space open the Face, as the art does. Controls, sliders and the
+      // room name keep their own jobs: a near miss on a volume bar must not leave the Deck.
+      event.preventDefault();
+      location.href = art.href;
     }
   });
 

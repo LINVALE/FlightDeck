@@ -386,3 +386,22 @@ test('the Wall\'s scale is drawn to the top in Roon\'s bands; a press is held at
   assert.match(CSS, /\.tile-rule\.vol i\.comfort\.on \{ background: #c9902e; \}/);
   assert.match(CSS, /\.tile-rule\.vol i\.danger\.on \{ background: rgb\(232, 84, 70\); \}/);
 });
+
+// Peter 09-21, on the Fire TV: "pointing to a card I have to hit the album art… would be better anywhere
+// away from the other controls". The words and the card's own space open the Face; controls keep their jobs.
+test('the card itself opens its room\'s Face, away from the controls', () => {
+  const WALL_SRC = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.js'), 'utf8');
+  assert.match(WALL_SRC, /\} else if \(copy\.contains\(event\.target\) \|\| event\.target === tile \|\| event\.target === now\s*\|\| event\.target === head \|\| event\.target === stamp\) \{/);
+  assert.match(WALL_SRC, /event\.preventDefault\(\);\s*location\.href = art\.href;/);
+});
+
+// On Android (Silk and the FlightDeck TV app) the overlay scrollbar fades to nothing; every list gets a rail.
+test('scrolling areas show a solid rail on Android TV browsers only', () => {
+  const COMPAT = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'compat.js'), 'utf8');
+  assert.match(COMPAT, /Silk\\\/\|FlightDeckTV\\\//);
+  assert.match(COMPAT, /setAttribute\('data-android-rail', '1'\)/);
+  for (const sheet of ['wall.css', 'face.css']) {
+    const css = readFileSync(resolve(import.meta.dirname, '..', 'assets', sheet), 'utf8');
+    assert.match(css, /html\[data-android-rail\] ::-webkit-scrollbar \{ width: 16px; \}/, sheet);
+  }
+});
