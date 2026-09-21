@@ -1,3 +1,4 @@
+import { ControllerSessions } from './controllers/sessions.ts';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -193,7 +194,9 @@ function saveSettings(values: Record<string, unknown>): void {
   log('settings saved from Roon');
 }
 
+const controllers = new ControllerSessions(DATA_DIR);
 const deps = {
+  controllers,
   hub, relay, ledger, islands, displays, pull,
   onIslandLabelled: (): void => { republish(); extension.refreshSettings(); },
   assetDir: ASSET_DIR,

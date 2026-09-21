@@ -1,0 +1,16 @@
+.puck-batteries { display:inline-flex;align-items:center;flex:0 0 auto;max-width:40%;overflow:hidden;vertical-align:middle; }
+.puck-batteries[hidden] { display:none!important; }
+.puck-battery { display:inline-flex;align-items:center;margin:0 6px;color:#a9bbb5;font:11px "Helvetica Neue",Helvetica,Arial,sans-serif;white-space:nowrap; }
+.puck-battery[data-low="1"] { color:#e1a069; }
+.puck-battery-icon { display:inline-block;position:relative;width:17px;height:10px;border:1px solid currentColor;border-radius:2px;padding:1px;margin-right:5px; }
+.puck-battery-icon:after { content:'';position:absolute;right:-3px;top:2px;width:2px;height:4px;background:currentColor; }
+.puck-battery-icon > span { display:block;height:100%;background:currentColor; }
+.puck > .puck-batteries { position:fixed;top:18px;right:12px;max-width:45%;z-index:25; }
+@media (max-width:600px) and (max-height:600px) { .puck > .puck-batteries { top:10px;right:6px; }.puck > .puck-batteries .puck-battery { font-size:10px;margin:0 3px; } }
+
+/* Room-card status must remain readable at normal TV viewing distance. */
+.wall .puck-battery { font-size:16px;font-weight:600;line-height:1.15; }
+.wall .puck-battery:not([data-low="1"]) { color:#d6e3dd; }
+.wall .puck-battery-icon { width:1.4em;height:.8em;flex:0 0 1.4em;margin-right:.45em; }
+.wall .puck-battery-icon:after { top:25%;height:50%; }
+@media (min-width:2200px) { .wall .puck-battery { font-size:20px; } }
