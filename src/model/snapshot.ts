@@ -90,6 +90,7 @@ function projectVolume(raw: unknown): OutputVolume | null {
     step: typeof volume.step === 'number' ? volume.step : null,
     muted: volume.is_muted === true,
     softLimit: typeof volume.soft_limit === 'number' && Number.isFinite(volume.soft_limit) ? volume.soft_limit : null,
+    hardLimitMin: typeof volume.hard_limit_min === 'number' && Number.isFinite(volume.hard_limit_min) ? volume.hard_limit_min : null,
     hardLimitMax: typeof volume.hard_limit_max === 'number' && Number.isFinite(volume.hard_limit_max) ? volume.hard_limit_max : null,
   };
 }
@@ -350,7 +351,7 @@ export function structuralSignature(snapshot: Snapshot): string {
     zone.id, zone.name, zone.state,
     // the output LIST is the group: forming or dissolving one must redraw
     zone.outputs.map((output) => output.id + ':' + output.name
-      + ':' + (output.volume === null ? '-' : String(output.volume.value) + '/' + String(output.volume.muted))).join(','),
+      + ':' + JSON.stringify([output.volume, output.power, output.groupableWith])).join(','),
     zone.nowPlaying === null ? '-' : [
       zone.nowPlaying.title, zone.nowPlaying.line2, zone.nowPlaying.line3,
       zone.nowPlaying.art === null ? '-' : zone.nowPlaying.art.key,
@@ -361,7 +362,7 @@ export function structuralSignature(snapshot: Snapshot): string {
     [zone.allowed.play, zone.allowed.pause, zone.allowed.next, zone.allowed.previous, zone.allowed.seek].join(''),
     // shuffle and repeat are drawn as lit or unlit buttons, so a change to either
     // has to reach the screen — without this the toggle would appear to do nothing
-    zone.settings === null ? '-' : String(zone.settings.shuffle) + '/' + zone.settings.loop,
+    zone.settings === null ? '-' : String(zone.settings.shuffle) + '/' + zone.settings.loop + '/' + String(zone.settings.autoRadio),
     String(zone.lastPlayedAt),
   ].join('~'));
   // A renamed island must reach every screen, not just the one that renamed it.

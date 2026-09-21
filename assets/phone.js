@@ -1,4 +1,6 @@
 import './compat.js';
+import { startPuckStatus } from './puck-status.js';
+import { captureListPosition, restoreListPosition } from './browse-position.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
@@ -782,7 +784,7 @@ function roomRow(zone, marked, right, onPress) {
  */
 var browse = {
   session: 'phone-' + String(Date.now()).slice(-8) + Math.random().toString(36).slice(2, 8),
-  hierarchy: 'browse', list: null, items: [], loading: false, error: null, query: '',
+  hierarchy: 'browse', list: null, items: [], loading: false, error: null, query: '', offset: 0, positions: [], epoch: 0,
 };
 var BROWSE_PAGE = 60;
 
@@ -810,57 +812,99 @@ function browseTitle() {
 }
 function browseCanBack() { return browse.hierarchy === 'search' || (browse.list !== null && browse.list.level > 0); }
 
-function browseShow() {
-  return ask({ hierarchy: browse.hierarchy, load: true, offset: 0, count: BROWSE_PAGE }).then(function (loaded) {
+function phoneBrowsePosition(item) {
+  var body = sheet.querySelector('.sheet-body'), rows = body ? body.querySelectorAll('.brow') : [];
+  var index = browse.items.indexOf(item);
+  return captureListPosition(body, '.brow', browse.offset, rows[index]);
+}
+function browseShow(position, mine) {
+  if (mine !== browse.epoch) return Promise.resolve();
+  var offset = position ? position.offset : 0;
+  return ask({ hierarchy: browse.hierarchy, load: true, offset: offset, count: BROWSE_PAGE }).then(function (loaded) {
+    if (mine !== browse.epoch) return;
     browse.list = loaded.list || null;
     browse.items = loaded.items || [];
-    browse.loading = false;
-    browse.error = null;
+    browse.offset = typeof loaded.offset === 'number' ? loaded.offset : offset;
+    browse.loading = false; browse.error = null;
     repaintSheet();
+    var body = sheet.querySelector('.sheet-body');
+    if (position && body) restoreListPosition(body, '.brow', position);
   });
 }
-function browseFailed(error) {
+function browseFailed(error, mine) {
+  if (mine !== browse.epoch) return;
   browse.loading = false;
   browse.error = String(error && error.message ? error.message : error);
   repaintSheet();
 }
-function browseBegin() { browse.loading = true; browse.error = null; repaintSheet(); }
+function browseBegin() { browse.loading = true; browse.error = null; repaintSheet(); return ++browse.epoch; }
 function browseRoot() {
-  browse.hierarchy = 'browse';
-  browseBegin();
-  return ask({ hierarchy: 'browse', popAll: true }).then(browseShow).catch(browseFailed);
+  browse.hierarchy = 'browse'; browse.positions = [];
+  var mine = browseBegin();
+  return ask({ hierarchy: 'browse', popAll: true }).then(function () { return browseShow(null, mine); }).catch(function (e) { browseFailed(e, mine); });
 }
 function browseInto(item) {
-  browseBegin();
+  if (browse.loading) return;
+  var position = phoneBrowsePosition(item), mine = browseBegin();
   return ask({ hierarchy: browse.hierarchy, itemKey: item.itemKey }).then(function (result) {
-    // An ACTION (Play Now, Add Next, Queue, Start Radio) is done the moment it
-    // is browsed into; Roon answers with nothing to list.
+    if (mine !== browse.epoch) return;
+    if (result.isError) throw new Error(result.message || 'Could not open that');
     if (item.hint === 'action' || result.action === 'none' || result.action === 'message') {
-      browse.loading = false;
-      flash(result.message || item.title);
-      closeSheet();
-      return null;
+      browse.loading = false; flash(result.message || item.title); closeSheet(); return null;
     }
-    return browseShow();
-  }).catch(browseFailed);
+    browse.positions.push(position);
+    return browseShow(null, mine);
+  }).catch(function (e) { browseFailed(e, mine); });
 }
 function browseBack() {
+  if (browse.loading) return;
   if (browse.hierarchy === 'search' && (browse.list === null || browse.list.level === 0)) return browseRoot();
-  browseBegin();
-  return ask({ hierarchy: browse.hierarchy, popLevels: 1 }).then(browseShow).catch(browseFailed);
+  var mine = browseBegin();
+  return ask({ hierarchy: browse.hierarchy, popLevels: 1 }).then(function (result) {
+    if (mine !== browse.epoch) return;
+    if (result.isError) throw new Error(result.message || 'Could not go back');
+    return browseShow(browse.positions.pop(), mine);
+  }).catch(function (e) { browseFailed(e, mine); });
 }
 function browseSearch(query) {
   if (query.trim() === '') return null;
-  browse.query = query.trim();
-  browse.hierarchy = 'search';
-  browseBegin();
-  return ask({ hierarchy: 'search', popAll: true, input: query.trim() }).then(browseShow).catch(browseFailed);
+  browse.query = query.trim(); browse.hierarchy = 'search'; browse.positions = [];
+  var mine = browseBegin();
+  return ask({ hierarchy: 'search', popAll: true, input: query.trim() }).then(function () { return browseShow(null, mine); }).catch(function (e) { browseFailed(e, mine); });
+}
+function browseEarlier() {
+  if (browse.loading || browse.offset <= 0) return;
+  var position = phoneBrowsePosition(null), mine = browse.epoch, oldBase = browse.offset;
+  var offset = Math.max(0, oldBase - BROWSE_PAGE);
+  browse.loading = true;
+  return ask({ hierarchy: browse.hierarchy, load: true, offset: offset, count: oldBase - offset }).then(function (loaded) {
+    if (mine !== browse.epoch) return;
+    browse.loading = false; browse.offset = offset;
+    browse.items = (loaded.items || []).concat(browse.items); repaintSheet();
+    var body = sheet.querySelector('.sheet-body');
+    if (body) {
+      var anchor = body.querySelectorAll('.brow')[position.offset - offset];
+      if (anchor) body.scrollTop += anchor.getBoundingClientRect().top - body.getBoundingClientRect().top - position.inset;
+    }
+  }).catch(function (e) { browseFailed(e, mine); });
 }
 function browseMore() {
-  return ask({ hierarchy: browse.hierarchy, load: true, offset: browse.items.length, count: BROWSE_PAGE }).then(function (loaded) {
+  if (browse.loading) return;
+  var position = phoneBrowsePosition(null), mine = browse.epoch;
+  browse.loading = true;
+  return ask({ hierarchy: browse.hierarchy, load: true, offset: browse.offset + browse.items.length, count: BROWSE_PAGE }).then(function (loaded) {
+    if (mine !== browse.epoch) return;
+    browse.loading = false;
+    if (!loaded.items || !loaded.items.length) { browse.list = Object.assign({}, browse.list, { count: browse.offset + browse.items.length }); }
     browse.items = browse.items.concat(loaded.items || []);
     repaintSheet();
-  }).catch(browseFailed);
+    var body = sheet.querySelector('.sheet-body');
+    if (body) {
+      // Appending keeps the existing window, so restore the old scroll directly.
+      var rows = body.querySelectorAll('.brow'), anchor = rows[position.offset - browse.offset];
+      if (anchor) body.scrollTop += anchor.getBoundingClientRect().top - body.getBoundingClientRect().top - position.inset;
+    }
+  }).catch(function (e) { browseFailed(e, mine); });
 }
 
 /** A row of the library: art if it has any, the words, a mark for what a tap does. */
@@ -918,9 +962,10 @@ function buildBrowse(body, headRow) {
   if (browse.error !== null) body.appendChild(el('div', 'sheet-note', browse.error));
   else if (browse.loading) body.appendChild(el('div', 'sheet-note', 'loading…'));
   else {
+    if (browse.offset > 0) { var earlier = el('button', 'browse-earlier', 'Earlier items'); earlier.type = 'button'; earlier.addEventListener('click', browseEarlier); body.appendChild(earlier); }
     for (var i = 0; i < browse.items.length; i += 1) body.appendChild(browseRow(browse.items[i]));
     if (browse.items.length === 0) body.appendChild(el('div', 'sheet-note', 'nothing here'));
-    if (browse.list !== null && browse.list.count > browse.items.length) {
+    if (browse.list !== null && browse.list.count > browse.offset + browse.items.length) {
       var more = el('div', 'brow-more', 'more · ' + String(browse.items.length) + ' of ' + String(browse.list.count));
       more.addEventListener('click', function () { browseMore(); });
       body.appendChild(more);
@@ -979,6 +1024,12 @@ function playFromQueue(item, index) {
 }
 
 function buildQueue(body) {
+  var zone = currentZone();
+  if (zone && zone.settings) {
+    var radio = el('button', 'brow queue-radio', 'Roon Radio · ' + (zone.settings.autoRadio ? 'On' : 'Off')); radio.type = 'button';
+    radio.setAttribute('aria-pressed', zone.settings.autoRadio ? 'true' : 'false');
+    radio.addEventListener('click', function () { command({ action: 'radio', zone: zone.id }); }); body.appendChild(radio);
+  }
   if (queue.error !== null) { body.appendChild(el('div', 'sheet-note', queue.error)); return; }
   if (queue.loading || queue.data === null) { body.appendChild(el('div', 'sheet-note', 'loading…')); return; }
   var items = queue.data.items || [];
@@ -1032,6 +1083,11 @@ function buildSheet() {
   if (sheetMode === 'queue') buildQueue(body);
 
   if (sheetMode === 'rooms') {
+    if (here) here.outputs.forEach(function (output) {
+      if (!output.power || !output.power.controlKey || output.power.asleep) return;
+      var sleep = el('button', 'brow', 'Standby · ' + output.name); sleep.type = 'button';
+      sleep.addEventListener('click', function () { command({ action: 'standby', output: output.id, controlKey: output.power.controlKey }); closeSheet(); }); body.appendChild(sleep);
+    });
     /**
      * What can be DONE with this room sits above which room to hold: the verbs
      * are why the sheet usually gets opened. Only the possible is offered.
@@ -1165,6 +1221,7 @@ function openSheet(mode) {
 }
 
 function closeSheet() {
+  browse.epoch += 1; browse.loading = false;
   sheetMode = null;
   groupPick = [];
   scrim.className = 'scrim';
@@ -1280,6 +1337,8 @@ function paint(kind) {
     if (sheetMode === 'rooms' || sheetMode === 'group' || sheetMode === 'transfer') buildSheet();
   }
 
+  var radioButton = sheet.querySelector('.queue-radio');
+  if (radioButton && zone.settings) { radioButton.textContent = 'Roon Radio · ' + (zone.settings.autoRadio ? 'On' : 'Off'); radioButton.setAttribute('aria-pressed', zone.settings.autoRadio ? 'true' : 'false'); }
   paintVolumeRows();
 
   var position = store.positionSec(zone);
@@ -1332,3 +1391,5 @@ if (/[?&]rooms=1/.test(window.location.search)) {
   store.subscribe(tryOpen);
   tryOpen();
 }
+
+startPuckStatus(function(){var z=currentZone();return [{host:head,outputs:z?z.outputs.map(function(o){return o.id;}):[]}];});

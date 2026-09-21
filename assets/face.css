@@ -2899,3 +2899,19 @@ body > #picker.picker.header-menu.mode-faces .row-faces span.opt { width: 100%; 
   border-top: 1px solid rgba(242, 238, 230, .10);
 }
 .browse-why:empty { display: none; }
+
+/* Quieter surfaces around the existing faces; large targets remain intact. */
+.face .picker { border-color: rgba(188,200,217,.22); border-radius: 16px; background: rgba(18,23,30,.98); box-shadow: 0 18px 60px rgba(0,0,0,.5); }
+.face .picker .opt { border-radius: 9px; border-color: rgba(188,200,217,.14); background: rgba(255,255,255,.025); text-transform: none; letter-spacing: .035em; }
+.face .picker .opt:hover,.face .picker .opt:focus { background: rgba(188,200,217,.12); border-color: rgba(188,200,217,.48); }
+.face .browse { border-color: rgba(188,200,217,.24); border-radius: 16px; background: #141a22; box-shadow: 0 20px 80px rgba(0,0,0,.65); }
+.face .browse-head { padding: 16px 20px; background: rgba(255,255,255,.025); }
+.face .browse-title { text-transform: none; letter-spacing: .025em; color: var(--bone); font-weight: 500; }
+.face .browse-row { margin: 4px 10px; border-radius: 9px; border-color: rgba(188,200,217,.08); padding: 16px 18px; align-items: center; }
+.face .browse-sub { max-width: 36%; text-align: right; color: #a4afbd; line-height: 1.4; }
+.face .browse-name { min-width: 0; line-height: 1.35; }
+.face .browse-row:hover { background: rgba(188,200,217,.085); }
+.face .browse [role="button"]:focus { outline-color: var(--accent); border-radius: 9px; }
+
+.face[data-artist-fit="1"] .artistlayer { background-size: contain; }
+.row-display-care .opt { white-space: normal; }

@@ -159,7 +159,7 @@ test('Wall 2 spends card slack on larger, easier control targets', () => {
     /\.tile-body \{[\s\S]{0,180}flex: 1 1 auto[\s\S]{0,180}\.wall\[data-rows="2"\] \.tile-body,[\s\S]{0,120}\.wall\[data-rows="3"\] \.tile-body \{[\s\S]{0,100}justify-content: center/,
     'taller cards keep the room strip at the top and centre only the body below it');
   assert.match(WALL,
-    /var body = el\(['"]div['"], ['"]tile-body['"]\);[\s\S]{0,1600}tile\.appendChild\(head\); tile\.appendChild\(body\)/,
+    /var body = el\(['"]div['"], ['"]tile-body['"]\);[\s\S]{0,2800}tile\.appendChild\(head\); tile\.appendChild\(body\)/,
     'the fixed room strip is outside the vertically centred card body');
 });
 
@@ -219,9 +219,9 @@ test('Wall progress is a seek control and consumes card navigation', () => {
 
 test('Wall card navigation follows a durable room after cards or topology move', () => {
   assert.match(WALL, /var faceId = zone\.outputs\.length > 0 \? zone\.outputs\[0\]\.id : zoneId/);
-  assert.match(WALL, /tile\.href = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/);
+  assert.match(WALL, /var faceHref = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/);
   assert.match(WALL,
-    /var faceId = zone\.outputs\.length > 0 \? zone\.outputs\[0\]\.id : zone\.id;[\s\S]{0,140}tile\.node\.href = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/,
+    /var faceId = zone\.outputs\.length > 0 \? zone\.outputs\[0\]\.id : zone\.id;[\s\S]{0,140}tile\.art\.href = ['"]\/face\/['"] \+ encodeURIComponent\(faceId\)/,
     'every render refreshes the anchor from the room currently painted on that card');
   assert.match(FACE,
     /if \(zoneId === ['"]['"] && boundOutputId === null\) \{[\s\S]{0,180}localStorage\.getItem\(STORE_KEY_ZONE \+ zoneId\)/,
@@ -319,7 +319,8 @@ test('a wall of fewer than four rooms is capped at a quarter each and centred', 
   assert.match(WALL, /var capped = count < 4;/);
   assert.match(WALL, /colPct = capped \? Math\.min\(100 \/ cols, 100 \/ 3\) : 100 \/ cols/,
     'a third of the width, so two rooms leave margin instead of spreading the transport row');
-  assert.match(WALL, /gridAutoRows = \(half \? 50 : 100 \/ rows\)/);
+  assert.match(WALL, /gridAutoRows = window\.innerHeight < 850/);
+  assert.match(WALL, /half \? '46%'/);
   assert.match(WALL, /justifyContent = capped \? 'center' : ''/);
   assert.match(WALL, /alignContent = half \? 'center' : ''/,
     'centring a grid that SCROLLS can put its first row out of reach, so only a wall short of its height (capped, or one row) is centred');
@@ -353,30 +354,17 @@ test('the empty Wall centres its mark, wordmark and the one fact it has to say',
  * the wall's foot), at a size a finger can take; the card keeps the room, the
  * music, its state and its position. The cover is sacred: nothing is scaled.
  */
-test('the controls live in a drawer that opens under the pointer, a tap or focus; the card at rest keeps the words', () => {
-  assert.match(WALL, /copy\.appendChild\(title\); copy\.appendChild\(line2\);\n/, 'the transport no longer sits beside the words');
-  assert.match(WALL, /var drawer = el\('div', 'tile-drawer'\);\s*drawer\.appendChild\(transport\); drawer\.appendChild\(volLine\);\s*drawer\.appendChild\(actions\); drawer\.appendChild\(openAs\); drawer\.appendChild\(detail\);/);
-  assert.match(WALL, /body\.appendChild\(now\); body\.appendChild\(progress\);\s*tile\.appendChild\(head\); tile\.appendChild\(body\); tile\.appendChild\(drawer\);/, 'the card keeps the music and its position');
-  assert.match(WALL, /if \(below\.bottom > wall\.bottom - 2\) \{\s*tile\.style\.setProperty\('--rise', '-' \+ Math\.ceil\(below\.bottom - wall\.bottom \+ 2\) \+ 'px'\);\s*tile\.classList\.add\('open-up'\);/, 'a drawer that would run off the wall lifts the card by the overrun instead');
-  assert.match(WALL, /if \(fromFinger && root\.hasAttribute\('data-drawer'\) && !tile\.classList\.contains\('is-open'\)\) \{\s*event\.preventDefault\(\); event\.stopPropagation\(\);\s*openCard\(tile, drawer\);/, 'a finger\'s first tap opens, never leaves');
-  assert.match(CSS, /\.tile-drawer \{\s*display: none;\s*position: absolute; left: -1px; right: -1px; top: 100%; z-index: 7;/);
-  assert.match(CSS, /\.wall\[data-drawer\] \.grid > \.tile:hover \.tile-drawer,\s*\.wall\[data-drawer\] \.grid > \.tile:focus-within \.tile-drawer,\s*\.wall\[data-drawer\] \.grid > \.tile\.is-open \.tile-drawer \{ display: block; \}/);
-  assert.match(CSS, /\.wall\[data-drawer\] \.grid > \.tile\.open-up:hover, \.wall\[data-drawer\] \.grid > \.tile\.open-up:focus-within, \.wall\[data-drawer\] \.grid > \.tile\.open-up\.is-open \{\s*top: var\(--rise, 0\);/, 'the risen card keeps words above controls, like every other row');
-  assert.doesNotMatch(CSS, /bottom: 100%/, 'no drawer opens upward any more');
-  assert.match(CSS, /\.tile-drawer \.tt \{ width: 3vw; height: 3vw; \}/, 'a size a finger can take');
-  assert.match(CSS, /\.wall\[data-drawer\] \.grid > \.tile \.tile-title \{ -webkit-line-clamp: 2; font-size: 1\.15vw; \}/, 'the words get the room the transport took');
-  assert.doesNotMatch(CSS, /\.tile-drawer[^\n]*transform/, 'the cover is sacred: the drawer is laid over, never scaled');
-  assert.match(WALL, /tile\.node\.className = classFor\(zone, isHero\) \+ kept;/, 'a paint keeps the classes a hand put there: an opened card, an upward drawer');
-  assert.match(WALL, /var fromFinger = event\.sourceCapabilities \? event\.sourceCapabilities\.firesTouchEvents === true : Date\.now\(\) - lastTouchAt < 700;/, 'the browser says whether a click came from a finger');
-  // Peter 09-06: two rows or fewer keep the old card; one row keeps the half-height card
-  assert.match(WALL, /var half = capped \|\| rows === 1;/, 'a one-row wall keeps the half-height card, centred');
-  assert.match(WALL, /var rowsClass = half \? 2 : rows;\s*root\.setAttribute\('data-rows', String\(rowsClass\)\);/, 'the size class never reads 1 any more');
-  assert.match(WALL, /var drawerMode = rowsClass >= 3;\s*if \(drawerMode\) root\.setAttribute\('data-drawer', '1'\); else root\.removeAttribute\('data-drawer'\);/, 'the drawer is for three rows or more');
-  assert.match(WALL, /function houseControls\(t, drawerMode\) \{\s*if \(t\.housed === drawerMode\) return;/, 'the controls have two homes and move only when the wall changes size');
-  assert.match(WALL, /t\.copy\.appendChild\(t\.transport\);\s*t\.body\.appendChild\(t\.volLine\); t\.body\.appendChild\(t\.actions\);/, 'the old card: transport under the credit, the rest below the progress');
-  assert.match(WALL, /houseControls\(tile, drawerMode\);/, 'every painted tile is housed for the wall it is on');
-  assert.match(CSS, /\.wall\[data-drawer\] \.grid > \.tile:hover \.tile-drawer,/, 'nothing opens on a wall without a drawer');
-  assert.doesNotMatch(CSS, /data-rows="1"/, 'size class 1 is gone with its rules, not out-specified');
+test('approved Wall layout separates metadata, playback and stacked scales with explicit room panels', () => {
+  assert.match(WALL, /var tile = el\('article', 'tile'\)/);
+  assert.match(WALL, /t\.body\.insertBefore\(t\.transport,t\.levels\); t\.levels\.appendChild\(t\.volLine\)/);
+  assert.match(WALL, /var drawerMode = false/);
+  assert.match(WALL, /openWallQueue\(zoneId,queueB\)/);
+  assert.match(WALL, /openWallTools\(zoneId,toolsB\)/);
+  assert.match(WALL, /data-toolbar-style/);
+  assert.match(WALL, /queueRevision:data\.revision/);
+  assert.match(WALL, /data\.generation!==snap\.generation/);
+  assert.match(WALL, /if\(index===0\)b\.disabled=true/);
+  assert.doesNotMatch(WALL, /tile\.addEventListener\('mouseenter'/);
 });
 
 
@@ -391,7 +379,7 @@ test('a phone is sent to the phone wall by shape, never by user agent; the Wall 
 
 // Peter 09-06: volume limits, the same on every face
 test('the Wall\'s scale is drawn to the top in Roon\'s bands; a press is held at comfort, a second press passes it, none passes safety', () => {
-  assert.match(WALL, /import \{ limitsOf, bandsOf, bandAtFraction, askedLevel, createDoubleTap \} from '\.\/volume-limits\.js';/);
+  assert.match(WALL, /import \{ limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap \} from '\.\/volume-limits\.js';/);
   assert.match(WALL, /var twice = volumeTaps\.press\(zoneId, Date\.now\(\)\);\s*var asked = volumeCommand\(zoneId, want, twice\);\s*if \(asked === null\) return;/, 'above safety the room does not respond');
   assert.match(WALL, /var asked = askedLevel\(limits\.min \+ level \* \(limits\.max - limits\.min\), limits, override === true\);/);
   assert.match(WALL, /nodes\[i\]\.className = \(on \? 'on' : ''\) \+ \(band === 'ok' \? '' : ' ' \+ band\);/, 'segments wear their band');

@@ -691,7 +691,7 @@ test('native Go focus wins and every late Browse callback is fenced to its exact
   assert.match(FACE,
     /function browseIsCurrent\(epoch, context, node\)[\s\S]{0,180}epoch !== browseEpoch[\s\S]{0,100}context !== browseCtx/);
   assert.match(FACE, /function closeBrowse\(\)[\s\S]{0,180}browseEpoch \+= 1/);
-  assert.match(FACE, /function browseDraw\(result, epoch, context\)[\s\S]{0,100}!browseIsCurrent\(epoch, context\)/);
+  assert.match(FACE, /function browseDraw\(result, epoch, context, position\)[\s\S]{0,100}!browseIsCurrent\(epoch, context\)/);
 
   const findLetter = /function findLetter\(hierarchy, letter, total, epoch, context, list, done\)([\s\S]*?)\n\}/
     .exec(FACE)?.[1] ?? '';
@@ -709,7 +709,7 @@ test('native Go focus wins and every late Browse callback is fenced to its exact
     /catch\(function \(\) \{[\s\S]{0,100}!browseIsCurrent\(epoch, context\)[\s\S]{0,180}closeBrowse\(\)/,
     'an old Search error cannot close a newly opened panel');
 
-  const draw = /function browseDraw\(result, epoch, context\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
+  const draw = /function browseDraw\(result, epoch, context, position\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
   assert.ok((draw.match(/browseIsCurrent\(epoch, context, list\)/g) || []).length >= 4,
     'initial load, alphabet jump, page load and errors all verify the live panel');
   assert.match(FACE,
@@ -970,7 +970,7 @@ test('browse closes successful leaf choices while hierarchy drill-down stays ope
     /if \(browseSelectionComplete\(item, result\)\)[\s\S]{0,180}closeBrowse\(\)[\s\S]{0,80}return/,
     'a successful final choice dismisses the browse window');
   assert.match(FACE,
-    /if \(result\.isError === true\)[\s\S]{0,120}return[\s\S]{0,120}context\.trail\.push[\s\S]{0,100}browseDraw\(result, epoch, context\)/,
+    /if \(result\.isError === true\)[\s\S]{0,120}return[\s\S]{0,300}context\.trail\.push[\s\S]{0,100}browseDraw\(result, epoch, context\)/,
     'errors stay put and non-terminal list rows continue down the hierarchy');
   assert.match(FACE, /shut\.setAttribute\(['"]aria-label['"], ['"]cancel browse['"]\)/,
     'the X remains an explicit cancel action');

@@ -112,3 +112,28 @@ test('an unminted or malformed token is refused', async () => {
   assert.equal(ArtRelay.tokenFromPath('/api/v1/art/' + '!'.repeat(20)), null);
   assert.equal(ArtRelay.tokenFromPath('/elsewhere/abc'), null);
 });
+
+
+test('artwork is cancelled as soon as its streaming body crosses the byte budget', async () => {
+  let reads = 0, cancelled = false;
+  const relay = new ArtRelay({ artworkUrl: () => 'http://mock/image', maxBytes: 1024,
+    fetchImpl: (async () => new Response(new ReadableStream({
+      pull(controller) { reads++; controller.enqueue(new Uint8Array(600)); },
+      cancel() { cancelled = true; },
+    }), { headers: { 'content-type': 'image/png' } })) as typeof fetch,
+  });
+  const ref = relay.pathFor('oversize', 'cover')!;
+  assert.equal(await relay.resolve(ArtRelay.tokenFromPath(ref.path)!), null);
+  assert.equal(cancelled, true); assert.ok(reads <= 3, 'the rest of an unbounded body is not buffered');
+});
+
+test('an oversized declared length is refused before reading its body', async () => {
+  let reads = 0;
+  const relay = new ArtRelay({ artworkUrl: () => 'http://mock/image', maxBytes: 1024,
+    fetchImpl: (async () => new Response(new ReadableStream({ pull(c) { reads++; c.enqueue(new Uint8Array(600)); } }, { highWaterMark: 0 }),
+      { headers: { 'content-type': 'image/png', 'content-length': '50000000' } })) as typeof fetch,
+  });
+  const ref = relay.pathFor('declared', 'cover')!;
+  assert.equal(await relay.resolve(ArtRelay.tokenFromPath(ref.path)!), null);
+  assert.equal(reads, 0);
+});

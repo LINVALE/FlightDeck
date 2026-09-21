@@ -221,6 +221,11 @@ export class FlightDeckExtension {
    * standby if needed", in the API's words — and that is what this is. It is a
    * no-op on a device that is awake, so it is safe to send ahead of every play.
    */
+  standby(outputId: string, controlKey: string): Promise<void> {
+    if (!controlKey) return Promise.reject(new Error('source control required'));
+    return this.transportCall((transport, done) => transport.standby(outputId, { control_key: controlKey }, done));
+  }
+
   wake(outputId: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const transport = this.transport;
@@ -260,7 +265,7 @@ export class FlightDeckExtension {
    * Core itself to cycle disabled -> loop -> loop_one — so the button never has
    * to guess the order, and two screens pressing it cannot disagree.
    */
-  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void> {
+  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next'; auto_radio?: boolean }): Promise<void> {
     const transport = this.transport;
     if (transport === null) return Promise.reject(new Error('no core'));
     return new Promise((resolve, reject) => {

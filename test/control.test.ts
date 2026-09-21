@@ -78,6 +78,7 @@ async function serve(
     groupOutputs: async (ids) => { sent.push({ kind: 'group', a: ids.join('+'), b: null }); },
     ungroupOutputs: async (ids) => { sent.push({ kind: 'ungroup', a: ids.join('+'), b: null }); },
     transferZone: async (from, to) => { sent.push({ kind: 'transfer', a: from, b: to }); },
+    standby: async (output, key) => { sent.push({ kind: 'standby', a: output, b: key }); },
     wake: async (output) => { sent.push({ kind: 'wake', a: output, b: null }); },
   };
   // the real registry: identity by overlap is the point of it, and a fake that
@@ -761,4 +762,38 @@ test('Play wakes every output that can sleep, then plays — and only those', as
     await post({ action, zone: 'zAmp' });
     assert.deepEqual(sent.map((s) => s.kind), ['control'], action);
   }
+});
+
+
+test('Roon Radio toggles the current Core setting without transport side effects', async (t) => {
+  const { post, sent } = await serve(t);
+  assert.equal((await post({ action: 'radio', zone: 'zPlay' })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'settings', a: 'zPlay', b: { auto_radio: true } }]);
+  assert.equal((await post({ action: 'radio', zone: 'zStop' })).status, 404);
+});
+
+test('standby requires the exact current source control and addresses just that output', async (t) => {
+  const zones = [{ zone_id: 'z', display_name: 'Group', state: 'playing', outputs: [
+    { output_id: 'a', display_name: 'Amp', source_controls: [{ supports_standby: true, status: 'selected', control_key: 'amp-power' }] },
+    { output_id: 'b', display_name: 'Other amp', source_controls: [{ supports_standby: true, status: 'selected', control_key: 'other-power' }] },
+  ] }];
+  const { post, sent } = await serve(t, zones);
+  for (const body of [{ action: 'standby', output: 'a' }, { action: 'standby', output: 'a', controlKey: 'old' }]) assert.equal((await post(body)).status, 409);
+  assert.equal(sent.length, 0);
+  assert.equal((await post({ action: 'standby', output: 'a', controlKey: 'amp-power' })).status, 200);
+  assert.deepEqual(sent, [{ kind: 'standby', a: 'a', b: 'amp-power' }]);
+});
+
+test('fractional absolute and grouped volume respect both bounds and comfort', async (t) => {
+  const vol = { type: 'db', min: -80, max: 0, step: .5, value: -20.5, hard_limit_min: -60, hard_limit_max: -10, soft_limit: -20 };
+  const zones = [{ zone_id: 'z', display_name: 'Group', state: 'playing', outputs: [
+    { output_id: 'a', display_name: 'A', volume: vol }, { output_id: 'b', display_name: 'B', volume: { ...vol, value: -30.5 } },
+  ] }];
+  const { post, sent } = await serve(t, zones);
+  assert.equal((await post({ action: 'volume', output: 'a', value: -20.5 })).status, 200);
+  assert.deepEqual(sent.pop(), { kind: 'setVolume', a: 'a', b: -20.5 });
+  assert.equal((await post({ action: 'volume', output: 'a', value: -70 })).status, 200);
+  assert.equal(sent.pop()?.b, -60);
+  assert.equal((await post({ action: 'group-volume', zone: 'z', level: 1 })).status, 200);
+  assert.deepEqual(sent.map((s) => s.b), [-20, -20], 'a group request beyond safety must still respect comfort without override');
 });

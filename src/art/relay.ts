@@ -24,10 +24,9 @@ const TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 export const SIZES = {
   cover: { width: 640, height: 640, scale: 'fit' },
   bg: { width: 1024, height: 576, scale: 'fit' },
-  // Foreground artist: `fill` returns an exact crop at the asked size (measured
-  // 2026-08-25), which is what a full-bleed 16:9 hero needs. Never used for the
-  // cover — cropping a cover is exactly what "sacred" forbids.
-  hero: { width: 1920, height: 1080, scale: 'fill' },
+  // Preserve the whole artist image; the browser can choose Fit or crop it with
+  // CSS cover for the existing full-bleed presentation.
+  hero: { width: 1920, height: 1080, scale: 'fit' },
   // Browse rows: small, many at once, and scrolled — the Core scales them, so a
   // list of two thousand albums never sends a full-size sleeve down the wire.
   thumb: { width: 160, height: 160, scale: 'fit' },
@@ -168,12 +167,25 @@ export class ArtRelay {
     const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs);
     try {
       const response = await this.opts.fetchImpl(url, { signal: controller.signal });
-      if (!response.ok) return null;
+      if (!response.ok) { controller.abort(); return null; }
       const contentType = (response.headers.get('content-type') ?? '').split(';')[0].trim();
-      if (!TYPES.has(contentType)) return null;
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.byteLength === 0 || buffer.byteLength > this.opts.maxBytes) return null;
-      return { contentType, bytes: buffer };
+      if (!TYPES.has(contentType)) { controller.abort(); return null; }
+      const declared = Number(response.headers.get('content-length'));
+      if (declared > this.opts.maxBytes || !response.body) { controller.abort(); return null; }
+      const reader = response.body.getReader();
+      const chunks: Buffer[] = [];
+      let length = 0;
+      try {
+        for (;;) {
+          const part = await reader.read();
+          if (part.done) break;
+          length += part.value.byteLength;
+          if (length > this.opts.maxBytes) { controller.abort(); await reader.cancel(); return null; }
+          chunks.push(Buffer.from(part.value));
+        }
+      } finally { reader.releaseLock(); }
+      if (length === 0) return null;
+      return { contentType, bytes: Buffer.concat(chunks, length) };
     } catch {
       return null;
     } finally {

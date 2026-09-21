@@ -67,3 +67,29 @@ test('a double tap is a second press of the same thing inside the window', () =>
   assert.equal(gate.press('vol', 5000), false);
   assert.equal(gate.press('vol', 5800), false, 'too late');
 });
+
+
+test('fractional dB steps and lower hard limits have identical browser/server behaviour', () => {
+  const volume = { ...ROON, min: -80, max: 0, value: -20.5, step: .5, hardLimitMin: -60.25, hardLimitMax: -10.25, softLimit: -20.25 };
+  const limits = limitsOf(volume);
+  assert.deepEqual(limits, { min: -60, max: -10.5, comfort: -20.5, safety: -10.5, step: .5 });
+  assert.deepEqual(limits, serverLimitsOf(volume));
+  assert.equal(askedLevel(-20.5, limits, false)?.value, -20.5);
+  assert.equal(askedLevel(-20.3, limits, false)?.value, -20.5);
+  assert.equal(askedLevel(-70, limits, true)?.value, -60);
+  assert.equal(askedLevel(-10, limits, true), null);
+  assert.equal(askedSteps(-59.5, -4, limits, false).steps, -1);
+  assert.equal(askedSteps(-60, -1, limits, true).steps, 0);
+  for (let i = -900; i <= 0; i++) {
+    const value = i / 10;
+    for (const override of [true, false]) {
+      const result = askedLevel(value, limits, override);
+      assert.deepEqual(result, serverAskedLevel(value, limits, override));
+      if (result) { assert.ok(result.value >= limits.min); assert.ok(result.value <= (override ? limits.safety : limits.comfort)); assert.equal(result.value * 2, Math.round(result.value * 2)); }
+      assert.deepEqual(askedSteps(value, -4, limits, override), serverAskedSteps(value, -4, limits, override));
+    }
+  }
+  const tenths = limitsOf({ ...volume, step: .1, hardLimitMin: -60, hardLimitMax: -10, softLimit: -20 });
+  assert.equal(askedLevel(-20.3, tenths, false)?.value, -20.3);
+  assert.equal(askedSteps(-20.3, 3, tenths, false).steps, 3);
+});

@@ -293,3 +293,20 @@ test('an output\'s soft_limit is carried as softLimit, null when Roon did not sa
   assert.equal(both?.outputs[0].volume?.hardLimitMax, 85);
   assert.equal(zone?.outputs[0].volume?.hardLimitMax, null, 'null when Roon did not say');
 });
+
+test('limit, power and Radio-only changes reach subscribed screens', () => {
+  const raw = { zone_id: 'room', display_name: 'Room', state: 'playing', settings: { auto_radio: false }, outputs: [
+    { output_id: 'amp', display_name: 'Amp', volume: { type: 'db', value: -20.5, min: -80, max: 0, step: .5, hard_limit_min: -60 },
+      source_controls: [{ supports_standby: true, status: 'selected', control_key: 'power' }] },
+  ] };
+  const snap = () => buildSnapshot({ generation: 'g', revision: 1, zones: [raw], coreName: 'C', corePaired: true, coreSinceAt: AT, at: AT }, art, noRecency);
+  const first = snap();
+  assert.equal(first.zones[0].outputs[0].volume?.hardLimitMin, -60);
+  let before = structuralSignature(first);
+  raw.outputs[0].volume.hard_limit_min = -50;
+  assert.notEqual(structuralSignature(snap()), before); before = structuralSignature(snap());
+  raw.settings.auto_radio = true;
+  assert.notEqual(structuralSignature(snap()), before); before = structuralSignature(snap());
+  raw.outputs[0].source_controls[0].status = 'standby';
+  assert.notEqual(structuralSignature(snap()), before);
+});

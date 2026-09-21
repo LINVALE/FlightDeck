@@ -1,4 +1,9 @@
 import './compat.js';
+import { startPuckStatus } from './puck-status.js';
+import { createScreensaver } from './screensaver.js';
+import { createDisplayCare, createWakePolicy } from './display-care.js';
+import { captureListPosition, restoreListPosition } from './browse-position.js';
+import { startController, controllerPreview, controllerVolume } from './controller-link.js';
 import { decideUi, screenReport } from './screen-shape.js';
 import { limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
 import { hintFor } from './browse-hints.js';
@@ -84,6 +89,16 @@ var TRANSITIONS = ['random', 'flip', 'slide', 'dissolve', 'lift', 'none'];
 var LAMP_MIN = 24, LAMP_MAX = 96;
 
 var root = document.getElementById('face');
+var displayCare = createDisplayCare(root, { getItem: function (key) { return localStorage.getItem(key); }, setItem: function (key, value) { localStorage.setItem(key, value); } });
+var faceBlanker = createScreensaver(displayCare, function () {
+  if (typeof store === 'undefined') return false;
+  var zone = currentZone();
+  return !!(zone && (zone.state === 'playing' || zone.state === 'loading'));
+}, function () {
+  displayCare.wake();
+  var zone = typeof store === 'undefined' ? null : currentZone();
+  if (zone && zone.nowPlaying) wakeIdleFace(null);
+});
 var picker = document.getElementById('picker');
 /**
  * ⚖️ A PHONE GETS THE REMOTE (Peter, 09-06). The Face's grammar is a
@@ -349,6 +364,14 @@ var current = pinned || remembered() || 'presence';
  * back from the puck lands on that face and not on the puck again.
  */
 var STORE_KEY_FACE_BEFORE = 'flightdeck.face.before.';
+// Opening the chooser is an explicit exit from Puck, even after regrouping
+// changes the zone id (and therefore the remembered-face key).
+if (current === 'puck' && /[?&]panel=faces(?:&|$)/.test(location.search)) {
+  current = 'presence';
+  try { current = localStorage.getItem(STORE_KEY_FACE_BEFORE + zoneId) || current; } catch (error) { /* private mode */ }
+  if (FACES.indexOf(current) === -1) current = 'presence';
+  remember(current);
+}
 function puckHref() {
   return '/puck/' + encodeURIComponent(boundOutputId || zoneId || '');
 }
@@ -1126,6 +1149,7 @@ function setBackdrop(zone) {
 }
 
 function render(snapshot, kind) {
+  if (faceBlanker) faceBlanker.check();
   if (snapshot === null) return;
   var was = shownZoneId;
   if (following) {
@@ -1137,6 +1161,8 @@ function render(snapshot, kind) {
   var zone = resolveZone(snapshot);
   if (zone !== null && zone.id !== was) kind = 'snapshot';
   refreshStructuralPicker(kind);
+  var radioButton = picker.querySelector('.queue-radio');
+  if (radioButton && zone && zone.settings) { radioButton.textContent = 'Roon Radio · ' + (zone.settings.autoRadio ? 'On' : 'Off'); radioButton.setAttribute('aria-pressed', zone.settings.autoRadio ? 'true' : 'false'); }
   if (zone === null) {
     /**
      * Hold, don't accuse. Through a regrouping the room really is in no zone for
@@ -1149,6 +1175,7 @@ function render(snapshot, kind) {
     return;
   }
   settlingUntil = 0;
+  if (entryPanel) {var requestedPanel=entryPanel;entryPanel='';setTimeout(function(){if(requestedPanel==='browse')openBrowseMenu();else if(requestedPanel==='queue')openQueuePanel();else if(requestedPanel==='faces')openPanel('faces');},0);}
 
   var away = snapshot.core.state !== 'paired';
   var state = away ? 'away' : zone.state;
@@ -1263,6 +1290,7 @@ function render(snapshot, kind) {
     }
   }
 
+  wakeForVolumeChange(zone);
   paintVolume();
 
   var position = store.positionSec(zone);
@@ -2753,6 +2781,12 @@ function queuePanelNodes() {
       + (queueView.atLimit ? ' \u00B7 current + next 49' : '');
   var guide = el('div', 'move-guide queue-guide', queueGuide);
   var row = el('div', 'row row-column queue-list');
+  if (queueZone && queueZone.settings) {
+    var radio = el('span', 'opt queue-radio', 'Roon Radio · ' + (queueZone.settings.autoRadio ? 'On' : 'Off'));
+    radio.setAttribute('aria-pressed', queueZone.settings.autoRadio ? 'true' : 'false');
+    pressable(radio, function () { command({ action: 'radio', zone: queueZone.id }); }, 'radio:' + queueZone.id);
+    row.appendChild(radio);
+  }
   if (queueView.loading) {
     row.appendChild(el('span', 'opt off queue-message', 'loading queue\u2026'));
   } else if (queueView.error !== '') {
@@ -3033,6 +3067,14 @@ function showPicker(mode, refreshing) {
    * the whole house is what you want.
    */
   if (mode === 'rooms') {
+    var powerZone = currentZone();
+    if (powerZone) powerZone.outputs.forEach(function (output) {
+      if (!output.power || !output.power.controlKey || output.power.asleep) return;
+      var powerRow = el('div', 'row');
+      var sleep = el('span', 'opt', 'Standby · ' + output.name);
+      pressable(sleep, function () { command({ action: 'standby', output: output.id, controlKey: output.power.controlKey }); closeSettings(); }, 'standby:' + output.id);
+      powerRow.appendChild(sleep); nodes.push(powerRow);
+    });
     // A room chooser is a scrollable LIST, not a centred face-card runway. The
     // old horizontal row clipped later rooms on TV viewports and made them look
     // absent even though they were present in the snapshot.
@@ -3241,6 +3283,7 @@ function showPicker(mode, refreshing) {
     var faceRow = el('div', 'row row-faces');
     for (var f = 0; f < FACES.length; f += 1) faceRow.appendChild(faceOption(FACES[f]));
     faceRow.appendChild(puckOption());
+    var connect=el('span','opt','Connect puck');pressable(connect,function(){closeSettings();faceController.settings();},'connect-puck');faceRow.appendChild(connect);
     nodes.push(faceRow);
     nodes.push(el('div', 'move-guide transition-guide',
       'Cover transition for ' + current + ' · Random never repeats immediately'));
@@ -3249,6 +3292,22 @@ function showPicker(mode, refreshing) {
       transitionRow.appendChild(transitionOption(TRANSITIONS[fx]));
     }
     nodes.push(transitionRow);
+    var careRow = el('div', 'row row-faces row-display-care');
+    function careOption(label, key, next) {
+      var option = el('span', 'opt', label);
+      pressable(option, function () { displayCare.set(key, next()); faceBlanker.activity(); showPicker('faces', true); keepAwake(); }, 'display-care:' + key);
+      careRow.appendChild(option);
+    }
+    careOption('Brightness · ' + displayCare.prefs.brightness + '%', 'brightness', function () { return displayCare.prefs.brightness === 100 ? 75 : displayCare.prefs.brightness === 75 ? 50 : 100; });
+    careOption('Gentle movement · ' + (displayCare.prefs.drift ? 'On' : 'Off'), 'drift', function () { return !displayCare.prefs.drift; });
+    careOption('Artist image · ' + (displayCare.prefs.artistFit ? 'Fit' : 'Fill'), 'artistFit', function () { return !displayCare.prefs.artistFit; });
+    careOption('Controls · ' + (displayCare.prefs.keepControls ? 'Keep visible' : 'Auto-hide'), 'keepControls', function () { return !displayCare.prefs.keepControls; });
+    careOption('Blank when idle · ' + (displayCare.prefs.blankMinutes ? displayCare.prefs.blankMinutes + ' min' : 'Never'), 'blankMinutes', function () { return [0,15,30,60][([0,15,30,60].indexOf(displayCare.prefs.blankMinutes)+1)%4]; });
+    var blankNow = el('span', 'opt', 'Blank display now');
+    pressable(blankNow, function () { closeSettings(); faceBlanker.sleep(); keepAwake(); }, 'display-blank-now');
+    careRow.appendChild(blankNow);
+    nodes.push(el('div', 'move-guide', 'Saved on this screen · stays visible while this room plays · touch to wake'));
+    nodes.push(careRow);
   }
 
   var actionRow = el('div', 'row row-actions');
@@ -4391,6 +4450,28 @@ function browseRows(list, items, onPick) {
 var PAGE = 100;
 var browsePaging = false;
 
+/** A restored window can page upward too; returning deep in a list never hides earlier items. */
+function browseEarlier(list, hierarchy, pick, epoch, context) {
+  if (!(list.browseOffset > 0)) return;
+  var more = el('button', 'browse-empty', 'Earlier items'); more.type = 'button';
+  pressable(more, function () {
+    if (browsePaging || !browseIsCurrent(epoch, context, list)) return;
+    var oldBase = list.browseOffset, offset = Math.max(0, oldBase - PAGE);
+    var anchor = list.querySelector('.browse-row'), top = anchor ? anchor.getBoundingClientRect().top : 0;
+    browsePaging = true; more.disabled = true;
+    browseCall({ hierarchy: hierarchy, load: true, offset: offset, count: oldBase - offset, sessionKey: browseSessionKey })
+      .then(function (data) {
+        if (!browseIsCurrent(epoch, context, list)) return;
+        list.removeChild(more); list.browseOffset = offset;
+        (data.items || []).forEach(function (item) { list.insertBefore(browseRow(item, pick), anchor); });
+        browseEarlier(list, hierarchy, pick, epoch, context);
+        if (anchor) list.scrollTop += anchor.getBoundingClientRect().top - top;
+        browsePaging = false;
+      }).catch(function () { if (browseIsCurrent(epoch, context, list)) { browsePaging = false; more.disabled = false; more.textContent = 'Retry earlier items'; } });
+  }, 'browse-earlier:' + list.browseOffset);
+  list.insertBefore(more, list.firstChild);
+}
+
 function browseAttachPaging(list, hierarchy, total, onPick, startOffset, epoch, context) {
   // After an alphabet jump the rows on screen begin partway down the list, so
   // paging continues from THERE rather than from the count of visible rows.
@@ -4492,7 +4573,7 @@ function alphabetRail(hierarchy, total, onPick) {
   return rail;
 }
 
-function browseDraw(result, epoch, context) {
+function browseDraw(result, epoch, context, position) {
   if (!browseIsCurrent(epoch, context) || context === null) return;
   // A new level owns its own pager. Any older list is detached and its fenced
   // completion cannot put the global paging latch back.
@@ -4509,6 +4590,8 @@ function browseDraw(result, epoch, context) {
   if (total > PAGE) heading += '   ' + total;
   var list = browseShell(heading, context.trail.length > 1);
   var pick = function (item) { browseInto(item); };
+  var start = position ? Math.max(0, Math.min(position.offset, Math.max(0, total - 1))) : 0;
+  list.browseOffset = start;
   // Only where it helps: a long list, and one Roon sorts alphabetically.
   var alphabetical = total > 150 && listInfo.hint !== 'action_list';
   if (alphabetical) {
@@ -4523,8 +4606,10 @@ function browseDraw(result, epoch, context) {
         browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: offset, sessionKey: browseSessionKey })
           .then(function (data) {
             if (!browseIsCurrent(epoch, context, list)) return;
+            list.browseOffset = offset;
             browseRows(list, data.items || [], pick);
             list.scrollTop = 0;
+            browseEarlier(list, hierarchy, pick, epoch, context);
             if (total > offset + (data.items || []).length) {
               browseAttachPaging(list, hierarchy, total, pick,
                 offset + (data.items || []).length, epoch, context);
@@ -4535,12 +4620,18 @@ function browseDraw(result, epoch, context) {
   } else {
     browsePanel.className = 'browse';
   }
-  browseCall({ hierarchy: hierarchy, load: true, count: PAGE, sessionKey: browseSessionKey })
+  browseCall({ hierarchy: hierarchy, load: true, count: PAGE, offset: start, sessionKey: browseSessionKey })
     .then(function (data) {
       if (!browseIsCurrent(epoch, context, list)) return;
       browseRows(list, data.items || [], pick);
-      if (total > (data.items || []).length) {
-        browseAttachPaging(list, hierarchy, total, pick, undefined, epoch, context);
+      browseEarlier(list, hierarchy, pick, epoch, context);
+      if (position) {
+        var restored = restoreListPosition(list, '.browse-row', position);
+        setBrowseNavigation(restored);
+        restoreListPosition(list, '.browse-row', position);
+      }
+      if (total > start + (data.items || []).length) {
+        browseAttachPaging(list, hierarchy, total, pick, start + (data.items || []).length, epoch, context);
       }
     })
     .catch(function () {
@@ -4664,6 +4755,11 @@ function browseInto(item) {
   if (browseCtx === null || browsePending) return;
   var context = browseCtx;
   var epoch = browseEpoch;
+  var parentList = browsePanel.querySelector('.browse-list');
+  var parentRows = parentList ? parentList.querySelectorAll('.browse-row') : [];
+  var selectedRow = browseNavigationCurrent;
+  for (var ri = 0; ri < parentRows.length; ri++) if (parentRows[ri].getAttribute('data-browse-key') === item.itemKey) selectedRow = parentRows[ri];
+  var position = captureListPosition(parentList, '.browse-row', parentList ? (parentList.browseOffset || 0) : 0, selectedRow);
   browsePending = true;
   var zone = currentZone();
   var call = { hierarchy: context.hierarchy, itemKey: item.itemKey, sessionKey: browseSessionKey };
@@ -4682,6 +4778,8 @@ function browseInto(item) {
       flash(result.message || 'could not select that');
       return;
     }
+    if (!context.positions) context.positions = [];
+    context.positions[context.trail.length - 1] = position;
     context.trail.push(item.title || 'Browse');
     browseDraw(result, epoch, context);
   }).catch(function () {
@@ -4696,13 +4794,14 @@ function browseBack() {
   if (browsePending) return;
   var context = browseCtx;
   var epoch = browseEpoch;
-  context.trail.pop();
   browsePending = true;
   browseCall({ hierarchy: context.hierarchy, popLevels: 1, sessionKey: browseSessionKey })
     .then(function (result) {
       if (!browseIsCurrent(epoch, context)) return;
       browsePending = false;
-      browseDraw(result, epoch, context);
+      if (result.isError) { flash(result.message || 'could not go back'); return; }
+      context.trail.pop();
+      browseDraw(result, epoch, context, context.positions && context.positions[context.trail.length - 1]);
     })
     .catch(function () {
       if (!browseIsCurrent(epoch, context)) return;
@@ -5596,6 +5695,7 @@ function isTextEntry(node) {
 }
 
 function onKey(event) {
+  if(document.querySelector('.controller-settings'))return;
   // A real search field owns every one of its keys. Without this early return,
   // typing "band" would trigger Previous, artwork, Next and volume behind it.
   var target = event.target;
@@ -5710,6 +5810,7 @@ function revealChrome(extend) {
   if (chromeTimer !== null && !extend) return;
   if (chromeTimer !== null) clearTimeout(chromeTimer);
   chromeTimer = setTimeout(function () {
+    if (displayCare.prefs.keepControls) { chromeTimer = null; return; }
     root.className = root.className.replace(' show-chrome', '');
     if (picker.className.indexOf('mode-transport') >= 0) picker.hidden = true;
     chromeTimer = null;
@@ -5978,16 +6079,19 @@ dialHit.setAttribute('title', 'press the ring to seek');
 document.addEventListener('touchstart', function () { revealChrome(true); }, true);
 
 /* ---------- keep the screen awake ---------- */
+var wakePolicy = createWakePolicy(function () { return navigator.wakeLock.request('screen'); });
 function keepAwake() {
-  if (!('wakeLock' in navigator) || !window.isSecureContext) return;
-  // webOS HANGS this promise rather than rejecting, so it is raced against a timeout.
-  var request = navigator.wakeLock.request('screen');
-  var timeout = new Promise(function (resolve) { setTimeout(resolve, 5000); });
-  Promise.race([request, timeout]).catch(function () { /* not available: the drill covers device setup */ });
+  if (!('wakeLock' in navigator) || !window.isSecureContext || store === undefined) return;
+  var zone = currentZone();
+  wakePolicy.update(!document.hidden && !faceBlanker.asleep());
 }
-document.addEventListener('visibilitychange', function () {
-  if (document.hidden) return;
+setInterval(function () {
   keepAwake();
+  if (displayCare.prefs.keepControls && picker.hidden && browsePanel === null && root.getAttribute('data-idle') !== '1') revealChrome(false);
+}, 1000);
+document.addEventListener('visibilitychange', function () {
+  keepAwake();
+  if (document.hidden) return;
   // TV engines throttle background timers. Reconcile against Date.now() when the
   // page becomes visible so a passed deadline lands immediately and honestly.
   var snapshot = store === undefined ? null : store.snapshot();
@@ -6004,6 +6108,8 @@ sayHello();
 // Every twenty seconds: cheap, and it is how a binding set in Roon arrives.
 setInterval(sayHello, 20000);
 if (debugKeys) { reportKey({ key: 'probe ready', keyCode: 0 }, ''); startPointerProbe(); }
+var entryMatch=/[?&]panel=(browse|queue|faces)(?:&|$)/.exec(location.search);
+var entryPanel=entryMatch?entryMatch[1]:'';
 var store = createStore(render);
 store.hydrate();
 var streamState = 'live';
@@ -6016,3 +6122,58 @@ setInterval(function () {
   var snapshot = store.snapshot();
   if (snapshot !== null) render(snapshot, 'seek');
 }, 500);
+
+/* The screen owns its browse stack and publishes a small window for its puck. */
+function controllerSearchKeys(){
+  if(!browsePanel||!faceController||!faceController.paired())return;
+  var input=browsePanel.querySelector('.browse-search-input');if(!input||browsePanel.querySelector('.controller-alphabet'))return;
+  var keys=el('div','controller-alphabet');
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').concat(['Space','Delete']).forEach(function(letter){
+    var key=el('span','opt',letter);key.setAttribute('data-browse-key','spell:'+letter);
+    pressable(key,function(){input.value=letter==='Delete'?input.value.slice(0,-1):input.value+(letter==='Space'?' ':letter);input.dispatchEvent(new Event('input',{bubbles:true}));},'spell-'+letter);keys.appendChild(key);
+  });input.parentNode.appendChild(keys);
+}
+var faceController=startController({
+  read:function(){
+    controllerSearchKeys();var z=currentZone(),output=z?displayedOutput(z):null,choices=[],selectedKey='',title='Now playing',mode='playing',face=0;
+    if(browsePanel){
+      var head=browsePanel.querySelector('.browse-title');title=head?head.textContent:'Browse';mode='browse';face=1;var typed=browsePanel.querySelector('.browse-search-input');if(typed)title='Search: '+(typed.value||'choose letters');
+      browseNavigationChoices().forEach(function(node){var key=browseNavigationIdentity(node);if(node===browseNavigationCurrent||node===document.activeElement)selectedKey=key;
+        choices.push({key:key,title:(node.querySelector('.browse-name')||node).textContent.trim(),subtitle:(node.querySelector('.browse-sub')||{textContent:''}).textContent,node:node,focus:function(){setBrowseNavigation(node);}});
+      });
+    } else if(!picker.hidden&&picker.className.indexOf('mode-transport')<0){
+      mode=picker.className;face=mode.indexOf('queue')>=0?2:1;title=face===2?'Queue':mode.indexOf('rooms')>=0?'Rooms':mode.indexOf('faces')>=0?'Display settings':'Browse';
+      pickerNavigationChoices().forEach(function(node){var key=pickerNavigationIdentity(node);if(node===pickerNavigationCurrent||node===document.activeElement)selectedKey=key;
+        var name=node.querySelector('.roomcard-name,.room-name,.queue-title');choices.push({key:key,title:(name||node).textContent.trim(),subtitle:(node.querySelector('.roomcard-np')||{textContent:node.getAttribute('data-tip')||''}).textContent,node:node,focus:function(){cancelDwell();setPickerNavigation(node);}});
+      });
+    }
+    controllerVolume(output,false);
+    return {output:output?output.id:'',volume:output?output.volume:null,room:z?z.name:'',open:mode!=='playing',mode:mode,title:title,face:face,choices:choices,selected:selectedKey,busy:(browsePanel&&browsePending)||(face===2&&queueView.loading)};
+  },
+  wake:function(){wakeIdleFace(null);chromeHeldUntil=0;revealChrome(true);if(browsePanel)browseAlive();if(pickerTimer!==null){clearTimeout(pickerTimer);pickerTimer=null;}},
+  command:function(type,value,output){
+    if(type==='rooms'){goToWall();return;}
+    if(type==='browse'){openBrowseMenu();return;}
+    if(type==='queue'){openQueuePanel(false);return;}
+    if(type==='options'){openPanel('faces');return;}
+    if(type==='search'){openRoonSearch();return;}
+    if(type==='playing'){closeSettings();return;}
+    if(type==='back'){if(browsePanel&&browseCtx&&browseCtx.trail.length>1)browseBack();else if(browsePanel){closeBrowse();showPicker('browse');}else closeSettings();return;}
+    if(type==='preview'){controllerPreview(value);return;}
+    var z=currentZone();if(!z)return;
+    if(type==='volume'){controllerVolume(outputById(output),true);command({action:'volume',output:output,steps:Math.max(-20,Math.min(20,value)),override:false});return;}
+    if(type==='mute'){controllerVolume(outputById(output),true);command({action:'mute',output:output,muted:value===1});return;}
+    if(type==='seek'){controllerPreview(-1);command({action:'seek',zone:z.id,seconds:value});return;}
+    if(['playpause','play','pause','next','previous','shuffle','repeat'].indexOf(type)>=0)command({action:type,zone:z.id});
+  }
+});
+
+var seenVolumeZone='',seenVolumes=null;
+function wakeForVolumeChange(zone) {
+  var previous=seenVolumeZone===zone.id?seenVolumes:null,next={},changed=null;
+  zone.outputs.forEach(function(output){var v=output.volume;if(!v)return;var value=String(v.value)+':'+v.muted;next[output.id]=value;if(previous&&previous[output.id]!==undefined&&previous[output.id]!==value)changed=output;});
+  seenVolumeZone=zone.id;seenVolumes=next;
+  if(changed){wakeIdleFace(null);chromeHeldUntil=0;revealChrome(true);controllerVolume(changed,true);}
+}
+
+startPuckStatus(function(){var z=currentZone();return [{host:headTools,outputs:z?z.outputs.map(function(o){return o.id;}):[]}];});

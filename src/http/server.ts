@@ -7,6 +7,7 @@ import type { EventHub } from './events.ts';
 import type { MdnsResponder } from '../net/mdns.ts';
 import type { RecentLedger } from '../ledger/recent.ts';
 import { renderDocPage, renderFacePage, renderPhonePage, renderPhoneWallPage, renderPuckPage, renderWallPage, resolveOutput, resolveZone } from './pages.ts';
+import { ControllerSessions, ControllerError } from '../controllers/sessions.ts';
 import { normaliseScreen, type DisplayScreen } from '../displays/registry.ts';
 import { limitsOf, askedLevel, askedSteps } from '../model/volume-limits.ts';
 import { PullError, type PullOutcome, type PullRequest } from '../control/pull.ts';
@@ -36,7 +37,8 @@ export interface Commands {
   changeVolume(outputId: string, steps: number, incremental: boolean): Promise<void>;
   /** Roon's convenience switch: brings a standby-capable output out of standby. Optional for older deps. */
   wake?(outputId: string): Promise<void>;
-  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next' }): Promise<void>;
+  standby?(outputId: string, controlKey: string): Promise<void>;
+  changeSettings(zoneId: string, settings: { shuffle?: boolean; loop?: 'next'; auto_radio?: boolean }): Promise<void>;
   groupOutputs(outputIds: readonly string[]): Promise<void>;
   ungroupOutputs(outputIds: readonly string[]): Promise<void>;
   transferZone(fromZoneId: string, toZoneOrOutputId: string): Promise<void>;
@@ -58,13 +60,13 @@ const probed: ProbedKey[] = [];
 const MAX_BODY = 2048;
 
 /** Read a small JSON body, refusing anything oversized rather than buffering it. */
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown> | null> {
+async function readJson(request: IncomingMessage, limit = MAX_BODY): Promise<Record<string, unknown> | null> {
   return new Promise((resolve) => {
     let size = 0;
     const chunks: Buffer[] = [];
     request.on('data', (chunk: Buffer) => {
       size += chunk.length;
-      if (size > MAX_BODY) { request.destroy(); resolve(null); return; }
+      if (size > limit) { request.destroy(); resolve(null); return; }
       chunks.push(chunk);
     });
     request.on('end', () => {
@@ -78,6 +80,7 @@ async function readJson(request: IncomingMessage): Promise<Record<string, unknow
 }
 
 export interface ServerDeps {
+  readonly controllers?: ControllerSessions;
   /** Names people have given the grouping islands; renaming republishes the snapshot. */
   readonly islands?: { label(id: string): string | null; setLabel(id: string, label: string): boolean };
   /** Called after a rename so the caller can republish; without it the name waits for the next zone change. */
@@ -288,6 +291,18 @@ export function createFlightDeckServer(deps: ServerDeps): Server {
           });
       });
       return;
+    }
+
+    if (path === '/api/v1/controllers') {
+      if (!deps.controllers) { json(response,503,{error:'Controllers unavailable'});return; }
+      if(request.method==='GET'){json(response,200,deps.controllers.list());return;}
+      if(request.method!=='POST'){json(response,405,{error:'Method not allowed'});return;}
+      const origin=request.headers.origin;
+      if(origin){try{if(new URL(origin).host!==request.headers.host){json(response,403,{error:'Cross-origin refused'});return;}}catch{json(response,403,{error:'Invalid origin'});return;}}
+      void readJson(request,8192).then(body=>{
+        if(!body){json(response,400,{error:'Invalid controller request'});return;}
+        try{json(response,200,deps.controllers!.request(body));}catch(error){json(response,error instanceof ControllerError?error.status:500,{error:error instanceof ControllerError?error.message:'Controller update failed'});}
+      });return;
     }
 
     if (request.method === 'POST' && path === '/api/v1/keyprobe') {
@@ -717,7 +732,7 @@ async function handleControl(
      * belong to another screen. Repeat asks the CORE to cycle, so the order of
      * off/all/one is Roon's and cannot drift between screens.
      */
-    if (action === 'shuffle' || action === 'repeat') {
+    if (action === 'shuffle' || action === 'repeat' || action === 'radio') {
       const zoneId = typeof body.zone === 'string' ? body.zone : '';
       if (zoneId === '') { json(response, 400, { error: 'zone required' }); return; }
       const snapshot = deps.hub.snapshot();
@@ -725,7 +740,8 @@ async function handleControl(
       if (zone === undefined) { json(response, 404, { error: 'unknown zone' }); return; }
       if (zone.settings === null) { json(response, 409, { error: 'this zone has no queue settings' }); return; }
       await commands.changeSettings(zoneId,
-        action === 'shuffle' ? { shuffle: !zone.settings.shuffle } : { loop: 'next' });
+        action === 'shuffle' ? { shuffle: !zone.settings.shuffle }
+          : action === 'radio' ? { auto_radio: !zone.settings.autoRadio } : { loop: 'next' });
       log(action + ' -> ' + zone.name);
       json(response, 200, { ok: true });
       return;
@@ -1036,11 +1052,11 @@ async function handleControl(
       for (let index = 0; index < movable.length; index += 1) {
         const o = movable[index];
         const target = Math.max(0, Math.min(1, levels[index] + delta));
-        const wantedValue = Math.round((o.volume!.min ?? 0) + target * span(o));
+        const wantedValue = (o.volume!.min ?? 0) + target * span(o);
         // Each room is held to ITS OWN comfort and safety (Peter, 09-06): a
         // group move never carries one room past its limits to satisfy the average.
         const limits = limitsOf(o.volume!);
-        const asked = askedLevel(wantedValue, limits, override);
+        const asked = askedLevel(Math.min(wantedValue, limits.safety), limits, override);
         const value = asked === null ? limits.safety : asked.value;
         await commands.setVolume(o.id, value);
       }
@@ -1093,6 +1109,21 @@ async function handleControl(
       await commands.seek(zoneId, target);
       log('seek ' + String(target) + 's -> ' + zone.name);
       json(response, 200, { ok: true, seconds: target, adjusted: target !== seconds });
+      return;
+    }
+
+    // Standby always names the advertised source control. Never broadcast to an output's other sources.
+    if (action === 'standby') {
+      const snapshot = deps.hub.snapshot();
+      const output = snapshot?.zones.flatMap((z) => z.outputs).find((o) => o.id === body.output);
+      if (!output) { json(response, 404, { error: 'unknown output' }); return; }
+      if (!output.power?.controlKey || output.power.controlKey !== body.controlKey) {
+        json(response, 409, { error: 'power control changed or is unavailable; reopen room controls' }); return;
+      }
+      if (output.power.asleep) { json(response, 200, { ok: true }); return; }
+      if (!commands.standby) { json(response, 503, { error: 'standby unavailable' }); return; }
+      await commands.standby(output.id, output.power.controlKey);
+      json(response, 200, { ok: true });
       return;
     }
 

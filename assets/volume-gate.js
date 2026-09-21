@@ -152,7 +152,7 @@ export function createVolumeGate(send, options) {
  * one move is refused, and the level stays where it was.
  */
 export function levelForDrag(degrees, bounds, last, detents) {
-  var value = levelAtAngle(degrees, bounds.min, bounds.max, detents);
+  var value = levelAtAngle(degrees, bounds.min, bounds.max, detents, bounds.step);
   if (value === null) return null;
   var ceiling = typeof bounds.ceiling === 'number' ? bounds.ceiling : bounds.max;
   if (value > ceiling) value = ceiling;
@@ -160,7 +160,7 @@ export function levelForDrag(degrees, bounds, last, detents) {
   return value;
 }
 
-export function levelAtAngle(degrees, min, max, detents) {
+export function levelAtAngle(degrees, min, max, detents, step) {
   if (typeof degrees !== 'number' || !isFinite(degrees)) return null;
   if (typeof min !== 'number' || typeof max !== 'number' || max <= min) return null;
   if (typeof detents !== 'number' || detents < 1) return null;
@@ -168,5 +168,6 @@ export function levelAtAngle(degrees, min, max, detents) {
   var dot = Math.round((turn / 360) * detents);
   if (dot >= detents) dot = detents;
   var fraction = dot / detents;
-  return Math.round(min + fraction * (max - min));
+  var size = typeof step === 'number' && step > 0 ? step : 1;
+  return Number((min + Math.round(fraction * (max - min) / size) * size).toFixed(9));
 }

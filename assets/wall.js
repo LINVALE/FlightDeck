@@ -1,10 +1,15 @@
 import './compat.js';
+import { startPuckStatus } from './puck-status.js';
+import { createScreensaver } from './screensaver.js';
+import { createDisplayCare, createWakePolicy } from './display-care.js';
+import { standbyTargets, standbyReviewed } from './wall-power.js';
+import { startController, controllerPreview, controllerVolume } from './controller-link.js';
 import { createStore, formatTime } from './store.js';
 import { createStream } from './stream.js';
 import { seekTargetSecond } from './seek-target.js';
 import { alphabeticalWallZones, applyWallSlotOrder, inheritWallOrder, joinedPreviousZones, wallOutputOwners, wallSlot } from './wall-order.js';
 import { decideUi } from './screen-shape.js';
-import { limitsOf, bandsOf, bandAtFraction, askedLevel, createDoubleTap } from './volume-limits.js';
+import { limitsOf, bandsOf, bandAtFraction, askedLevel, askedSteps, createDoubleTap } from './volume-limits.js';
 
 /** A second press on the same room's scale inside the window: the hand means above comfort. */
 var volumeTaps = createDoubleTap(700);
@@ -29,6 +34,18 @@ if (decideUi(window, location.search, storageOrNull) === 'phone') location.repla
  */
 
 var root = document.getElementById('wall');
+var wallCare = createDisplayCare(root, storageOrNull, 'flightdeck.wall-care');
+var wallBlanker = createScreensaver(wallCare, function () {
+  var snapshot = typeof store === 'undefined' ? null : store.snapshot();
+  return !!(wallCare.prefs.blankOnlySilent && snapshot && snapshot.core.state === 'paired' && snapshot.zones.some(function (zone) { return zone.state === 'playing' || zone.state === 'loading'; }));
+}, function () { wallCare.wake(); }, function () { closeWallPanel(false); });
+var wallWakePolicy = createWakePolicy(function () { return navigator.wakeLock.request('screen'); });
+function keepWallAwake() {
+  if (typeof store === 'undefined' || !navigator.wakeLock || !window.isSecureContext) return;
+  wallWakePolicy.update(!document.hidden && !wallBlanker.asleep());
+}
+setInterval(keepWallAwake, 1000);
+document.addEventListener('visibilitychange', keepWallAwake);
 var grid = document.getElementById('grid');
 var startupEl = document.getElementById('wall-startup');
 var summaryEl = document.getElementById('summary');
@@ -401,6 +418,7 @@ function glyph(name) {
   }
   // the two stroked marks: a chain for group, a box-and-arrow for send-to
   var strokes = {
+    faders: ['M6 4v16', 'M12 4v16', 'M18 4v16', 'M3 9h6', 'M9 15h6', 'M15 7h6'],
     group: ['M10.2 13.8a3.7 3.7 0 0 0 5.2 0l3.3-3.3a3.7 3.7 0 0 0-5.2-5.2l-1.4 1.4',
             'M13.8 10.2a3.7 3.7 0 0 0-5.2 0l-3.3 3.3a3.7 3.7 0 0 0 5.2 5.2l1.4-1.4'],
     groupall: ['M6.5 4.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
@@ -411,6 +429,8 @@ function glyph(name) {
                  'M6.5 15.5a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
                  'M17.5 10a2 2 0 1 1 0 4a2 2 0 1 1 0-4',
                  'M8.2 7.4l7.6 3.8', 'M8.2 16.6l7.6-3.8', 'M4 4l16 16'],
+    chevron: ['M6 9l6 6 6-6'],
+    queue: ['M4 5h12','M4 10h12','M4 15h7','M15 14l6 4-6 4z'],
     reorder: ['M5 7h14', 'M16 4l3 3-3 3', 'M19 17H5', 'M8 14l-3 3 3 3'],
     minimize: ['M5 17h14', 'M8 10l4 4 4-4'],
     restore: ['M5 17h14', 'M8 13l4-4 4 4'],
@@ -451,30 +471,33 @@ function glyph(name) {
 function buildTile(zone) {
   var zoneId = zone.id;
   var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zoneId;
-  var tile = el('a', 'tile');
+  var tile = el('article', 'tile');
   // A Roon zone id is disposable. The leader output is the durable room that
   // the card represents, so the link still reaches that room after topology
   // changes between the Wall frame and the click.
-  tile.href = '/face/' + encodeURIComponent(faceId);
+  var faceHref = '/face/' + encodeURIComponent(faceId);
   tile.setAttribute('data-zone', zoneId);
   var check = el('span', 'tile-check');
   tile.appendChild(check);
   tile.addEventListener('mousedown', function (event) {
-    startPress(event, { kind: 'zone', zoneId: zoneId, name: name.textContent });
+    if (event.target === name || zoneLine.contains(event.target)) startPress(event, { kind: 'zone', zoneId: zoneId, name: name.textContent });
   });
   tile.addEventListener('touchstart', function (event) {
-    startPress(event, { kind: 'zone', zoneId: zoneId, name: name.textContent });
+    if (event.target === name || zoneLine.contains(event.target)) startPress(event, { kind: 'zone', zoneId: zoneId, name: name.textContent });
   }, { passive: true });
   tile.addEventListener('click', function (event) {
     if (Date.now() < squelchUntil) { event.preventDefault(); event.stopPropagation(); return; }
     if (activateTile(zoneId)) {
       event.preventDefault(); event.stopPropagation();
+    } else if (zoneLine.contains(event.target)) {
+      openWallTools(zoneId, toolsB);
     }
   });
 
   /** A press on any control inside the card must never also follow it to the Face. */
   var quiet = function (node, run) {
     var last = 0;
+    if (node.tagName === 'SPAN') { node.tabIndex = 0; node.setAttribute('role', node.classList.contains('tile-rule')?'slider':'button'); node.addEventListener('keydown', function(e) { if(!node.classList.contains('tile-rule') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); node.click(); } }); }
     node.addEventListener('click', function (event) {
       event.preventDefault(); event.stopPropagation();
       if (drag !== null && drag.armed) return;
@@ -491,8 +514,16 @@ function buildTile(zone) {
   /* ── the head: room, its family, its members, and how long ago ──────────── */
   var head = el('div', 'tile-head');
   var zoneLine = el('div', 'tile-zone');
+  var statusDot = el('span', 'tile-status-dot');
+  statusDot.setAttribute('role', 'img');
+  zoneLine.appendChild(statusDot);
   var name = el('span', '', zone.name);
   zoneLine.appendChild(name);
+  zoneLine.tabIndex=0;zoneLine.setAttribute('role','button');zoneLine.setAttribute('title','Drag to group; use Reorder to move cards');
+  zoneLine.addEventListener('keydown',function(e){
+    if(reorderMode&&(e.key==='ArrowLeft'||e.key==='ArrowRight')){e.preventDefault();e.stopPropagation();moveWallRoom(zoneId,e.key==='ArrowLeft'?-1:1);return;}
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();if(!activateTile(zoneId))openWallTools(zoneId,toolsB);}
+  });
   var stamp = el('div', 'tile-stamp');
   var hideB = quiet(el('span', 'tile-hide'), function () { toggleHidden(zoneId); });
   hideB.appendChild(glyph('minimize'));
@@ -502,16 +533,22 @@ function buildTile(zone) {
 
   /* ── the art, with the music and the transport beside it ────────────────── */
   var now = el('div', 'tile-now');
-  var art = el('div', 'tile-art');
+  var art = el('a', 'tile-art');
+  art.href = faceHref;
+  art.setAttribute('aria-label', 'Open ' + zone.name);
+  art.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+  art.addEventListener('touchstart', function(e) { e.stopPropagation(); }, {passive:true});
   var img = document.createElement('img');
   img.alt = '';
   art.appendChild(img);
   var copy = el('div', 'tile-copy');
   var title = el('div', 'tile-title');
   var line2 = el('div', 'tile-line2');
+  var line3 = el('div', 'tile-line3');
   var transport = el('div', 'tile-transport');
   var act = function (mark, label, action) {
-    var b = el('span', 'tt');
+    var b = el('button', 'tt');
+    b.type = 'button';
     b.appendChild(glyph(mark));
     b.setAttribute('title', label);
     b.setAttribute('aria-label', label + ' \u00B7 ' + zone.name);
@@ -531,11 +568,11 @@ function buildTile(zone) {
   var repB = act('repeat', 'repeat', 'repeat');
   transport.appendChild(shufB); transport.appendChild(prevB); transport.appendChild(playB);
   transport.appendChild(nextB); transport.appendChild(repB);
-  copy.appendChild(title); copy.appendChild(line2);
+  copy.appendChild(title); copy.appendChild(line2); copy.appendChild(line3);
   now.appendChild(art); now.appendChild(copy);
 
   /* ── two bars, each the full width of the card, each with its reading ───── */
-  var progress = el('div', 'tile-bar-line');
+  var progress = el('div', 'tile-bar-line tile-progress-line');
   var elapsed = el('span', 'tile-t');
   var rule = el('span', 'tile-rule');
   var fill = el('i');
@@ -552,10 +589,22 @@ function buildTile(zone) {
     var seconds = seekTargetSecond(fraction, length);
     if (seconds !== null) post({ action: 'seek', zone: current.id, seconds: seconds });
   });
+  rule.addEventListener('keydown',function(e){
+    if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+    e.preventDefault();e.stopPropagation();var z=zoneOf(zoneId);
+    if(!z||!z.nowPlaying||!z.allowed.seek||!(z.nowPlaying.lengthSec>0))return;
+    var seconds=seekTargetSecond(((store.positionSec(z)||0)+(e.key==='ArrowRight'?5:-5))/z.nowPlaying.lengthSec,z.nowPlaying.lengthSec);
+    if(seconds!==null)post({action:'seek',zone:z.id,seconds:seconds});
+  });
+  var segments = el('span', 'art-progress');
+  segments.setAttribute('aria-hidden', 'true');
+  var progressSegments = [];
+  for(var ps=0;ps<80;ps++) { var tick=el('i'); segments.appendChild(tick); progressSegments.push(tick); }
+  rule.appendChild(segments);
   var total = el('span', 'tile-t total');
   progress.appendChild(elapsed); progress.appendChild(rule); progress.appendChild(total);
 
-  var volLine = el('div', 'tile-bar-line');
+  var volLine = el('div', 'tile-bar-line tile-volume-line');
   var volMark = el('span', 'tile-vol-mark');
   volMark.appendChild(glyph('speaker'));
   volMark.setAttribute('title', 'mute');
@@ -573,6 +622,12 @@ function buildTile(zone) {
     volSegments.push(segment);
     volBar.appendChild(segment);
   }
+  volBar.setAttribute('role','slider');volBar.setAttribute('aria-label','Volume for '+zone.name);volBar.setAttribute('aria-valuemin','0');volBar.setAttribute('aria-valuemax','100');
+  volBar.addEventListener('keydown',function(e){
+    if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight'&&e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+    e.preventDefault();e.stopPropagation();var z=zoneOf(zoneId),v=z?volumeLevel(z):null;if(v===null)return;
+    var up=e.key==='ArrowRight'||e.key==='ArrowUp';var asked=volumeCommand(zoneId,Math.max(0,Math.min(1,v.level+(up ? .02 : -.02))),false);if(asked!==null)post(asked.body);
+  });
   var volNum = el('span', 'tile-t total');
   quiet(volBar, function (event) {
     var box = volBar.getBoundingClientRect();
@@ -589,7 +644,27 @@ function buildTile(zone) {
     // ⚖️ Press to position, never drag (Peter, 08-28). One grammar with the Face.
     post(asked.body);
   });
-  volLine.appendChild(volMark); volLine.appendChild(volBar); volLine.appendChild(volNum);
+  function stepVolume(direction) {
+    var z=zoneOf(zoneId), level=z?volumeLevel(z):null;if(level===null)return;
+    var twice=volumeTaps.press(zoneId,Date.now());
+    var asked=volumeCommand(zoneId,Math.max(0,Math.min(1,level.level+direction*.02)),direction>0&&twice);
+    if(asked===null)return;
+    paintVolumeSegments(volSegments,asked.shown,false,level.bands);
+    volNum.textContent=String(Math.round(asked.shown*100));
+    post(asked.body);
+  }
+  var volDown=quiet(el('button','tile-volume-step volume-down','−'),function(){stepVolume(-1);});
+  var volUp=quiet(el('button','tile-volume-step volume-up','+'),function(){stepVolume(1);});
+  volDown.type='button';volUp.type='button';
+  volDown.setAttribute('aria-label','Lower volume in '+zone.name);volDown.title='Lower volume';
+  volUp.setAttribute('aria-label','Raise volume in '+zone.name);volUp.title='Raise volume';
+  var membersB = quiet(el('button', 'tile-header-action tile-members'), function () { openWallMembers(zoneId, membersB); });
+  membersB.type = 'button'; membersB.appendChild(glyph('faders'));
+  membersB.setAttribute('aria-label', 'Individual player volumes and mutes for ' + zone.name);
+  membersB.setAttribute('title', 'Individual player volumes and mutes');
+  membersB.setAttribute('aria-haspopup', 'dialog'); membersB.setAttribute('aria-expanded', 'false');
+  membersB.hidden = zone.outputs.length < 2;
+  volLine.appendChild(volMark);volLine.appendChild(volDown);volLine.appendChild(volBar);volLine.appendChild(volUp);volLine.appendChild(volNum);volLine.appendChild(membersB);
 
   /* ── and what to do with the room, along the bottom ─────────────────────── */
   var actions = el('div', 'tile-actions');
@@ -659,50 +734,23 @@ function buildTile(zone) {
   actions.appendChild(openB); actions.appendChild(infoB);
 
   var body = el('div', 'tile-body');
-  /**
-   * ⚖️ A CARD AT REST READS; A CARD REACHED FOR OPENS (Peter, 09-06: "with four
-   * rows the metadata lines become totally compressed and unreadable — in the
-   * compressed state that is more important than the bottom line; on hovering
-   * expand the card so all controls can be seen and touched easily; the rest
-   * of the time just show metadata, playing state and position, no controls").
-   * The card carries the room, the music and the position. The transport, the
-   * volume, the actions, the ways in and the details live in a DRAWER that
-   * opens under the pointer, under a finger's first tap, or under keyboard
-   * focus — larger than they ever were on the card, since they no longer share
-   * its height. A drawer that would run off the wall opens upward instead. The
-   * card's box is never scaled: the cover is sacred.
-   */
+  // Rare-action nodes retain their handlers; the three primary rows stay visible.
   var drawer = el('div', 'tile-drawer');
   drawer.appendChild(transport); drawer.appendChild(volLine);
   drawer.appendChild(actions); drawer.appendChild(openAs); drawer.appendChild(detail);
-  body.appendChild(now); body.appendChild(progress);
+  var levels = el('div', 'tile-levels' + (zone.outputs.length > 1 ? ' has-members' : ''));levels.appendChild(progress);levels.appendChild(volLine);
+  body.appendChild(now);body.appendChild(transport);body.appendChild(levels);
+  var queueB=quiet(el('button','tile-header-action'),function(){openWallQueue(zoneId,queueB);});
+  queueB.type='button';queueB.appendChild(glyph('queue'));queueB.setAttribute('aria-label','Queue for '+zone.name);queueB.setAttribute('title','Queue');queueB.setAttribute('aria-haspopup','dialog');
+  var toolsB=quiet(el('button','tile-header-action'),function(){openWallTools(zoneId,toolsB);});
+  toolsB.type='button';toolsB.appendChild(glyph('chevron'));toolsB.setAttribute('aria-label','Options for '+zone.name);toolsB.setAttribute('title','Room options');toolsB.setAttribute('aria-haspopup','dialog');
+  head.appendChild(queueB);head.appendChild(toolsB);
   tile.appendChild(head); tile.appendChild(body); tile.appendChild(drawer);
-  // Placed on every way in — a pointer, a mouse, a finger's tap, the keyboard —
-  // because a pointer entering under some drivers raises only one of these.
-  var place = function () { placeDrawer(tile, drawer); };
-  tile.addEventListener('pointerenter', place);
-  tile.addEventListener('mouseenter', place);
-  tile.addEventListener('mouseover', function (event) { if (!tile.classList.contains('placed')) { tile.classList.add('placed'); place(); } });
-  tile.addEventListener('mouseleave', function () { tile.classList.remove('placed'); });
-  tile.addEventListener('focusin', place);
-  // A finger has no hover: its first tap opens the drawer; a second tap on the
-  // open card leaves for the Face, as a click does.
-  var lastTouchAt = 0;
-  tile.addEventListener('touchstart', function () { lastTouchAt = Date.now(); }, { passive: true });
-  tile.addEventListener('click', function (event) {
-    // The browser says whether a click came from a finger; the touch's own
-    // timing is the fallback for an engine that does not.
-    var fromFinger = event.sourceCapabilities ? event.sourceCapabilities.firesTouchEvents === true : Date.now() - lastTouchAt < 700;
-    if (fromFinger && root.hasAttribute('data-drawer') && !tile.classList.contains('is-open')) {
-      event.preventDefault(); event.stopPropagation();
-      openCard(tile, drawer);
-    }
-  });
   return {
-    node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
-    line2: line2, fill: fill, stamp: stamp, hideB: hideB, state: state, check: check,
+    art: art, progressSegments: progressSegments, progressBar: segments, statusDot: statusDot, node: tile, img: img, name: name, zoneLine: zoneLine, title: title,
+    line2: line2, line3: line3, rule: rule, levels: levels, fill: fill, stamp: stamp, hideB: hideB, state: state, check: check,
     elapsed: elapsed, total: total, playB: playB, prevB: prevB, nextB: nextB,
-    volSegments: volSegments, volNum: volNum, volMark: volMark,
+    membersB: membersB, volDown: volDown, volUp: volUp, volBar: volBar, volSegments: volSegments, volNum: volNum, volMark: volMark,
     sendB: sendB, pullB: pullB, groupB: groupB,
     ungroupB: ungroupB,
     shufB: shufB, repB: repB,
@@ -713,27 +761,13 @@ function buildTile(zone) {
   };
 }
 
-/**
- * ⚖️ TWO HOMES FOR THE CONTROLS (Peter, 09-06: "two rows or less look too
- * spread out — keep the old layout for that"). At three rows or more the words
- * need the whole card, so the transport, the level, the actions and the details
- * live in the drawer that opens under the pointer. At two rows or fewer the card
- * has room for all of it and a drawer only spread the wall out — so the controls
- * sit in the card as they always did: the transport under the credit beside the
- * sleeve, the rest below the progress bar.
- */
+/** Keep metadata, transport and stacked scales in separate permanent rows. */
 function houseControls(t, drawerMode) {
-  if (t.housed === drawerMode) return;
-  t.housed = drawerMode;
-  if (drawerMode) {
-    t.drawer.appendChild(t.transport); t.drawer.appendChild(t.volLine);
-    t.drawer.appendChild(t.actions); t.drawer.appendChild(t.openAs); t.drawer.appendChild(t.detail);
-  } else {
-    t.node.classList.remove('is-open'); t.node.classList.remove('open-up'); t.node.style.removeProperty('--rise');
-    t.copy.appendChild(t.transport);
-    t.body.appendChild(t.volLine); t.body.appendChild(t.actions);
-    t.body.appendChild(t.openAs); t.body.appendChild(t.detail);
-  }
+  if (t.housed === false) return;
+  t.housed = false;
+  t.node.classList.remove('is-open'); t.node.classList.remove('open-up');
+  t.body.insertBefore(t.transport,t.levels); t.levels.appendChild(t.volLine);
+  t.drawer.appendChild(t.actions); t.drawer.appendChild(t.openAs); t.drawer.appendChild(t.detail);
 }
 
 /** Where a level press goes: one room sets its own, a group moves as one. */
@@ -1136,7 +1170,33 @@ function load(tile, path, attempt) {
   }
 }
 
+/** Size the contents from the actual grid tracks, including the short-screen scroll case. */
+function sizeWallCards(cols, rows, capped, half) {
+  var width = capped ? grid.clientWidth * Math.min(1 / cols, 1 / 3)
+    : (grid.clientWidth - (cols - 1) * 6) / cols;
+  var height = window.innerHeight < 850 ? 210
+    : (half ? grid.clientHeight * .46 : (grid.clientHeight - (rows - 1) * 6 - 10) / rows);
+  var play = Math.floor(Math.max(36, Math.min(64, height * .18)));
+  var available = Math.max(80, height - 88 - play);
+  var art = Math.floor(Math.max(72, Math.min(available, (width - 32) * .43, width - 186)));
+  // Four-row cards keep the artwork budget but give eight pixels back below the scales.
+  if (rows >= 4) play = Math.max(28, play - 8);
+  var copy = width - 32 - art;
+  var title = Math.floor(Math.max(16, Math.min(38, art * .18, copy * .11)));
+  var credit = Math.floor(Math.max(13, title * .68));
+  root.style.setProperty('--card-art', art + 'px');
+  root.style.setProperty('--card-play', play + 'px');
+  root.style.setProperty('--card-button', Math.round(play * .9) + 'px');
+  root.style.setProperty('--card-glyph', Math.round(play * .48) + 'px');
+  root.style.setProperty('--card-title', title + 'px');
+  root.style.setProperty('--card-credit', credit + 'px');
+  root.style.setProperty('--card-room', Math.min(26, Math.max(12, Math.round(title * .72))) + 'px');
+  root.style.setProperty('--card-time', Math.min(16, Math.max(10, Math.round(title * .5))) + 'px');
+}
+
 function render(snapshot, kind) {
+  if (wallBlanker) wallBlanker.check();
+  if (kind !== 'seek') { refreshWallMembers(); refreshWallRadio(); }
   if (snapshot === null) return;
   // A drag holds the wall still: tiles moving under a held finger would change
   // the drop target between the decision and the release. Redrawn on release.
@@ -1305,15 +1365,16 @@ function render(snapshot, kind) {
     grid.style.gridTemplateColumns = capped
       ? 'repeat(' + cols + ', ' + colPct.toFixed(4) + '%)'
       : 'repeat(' + cols + ', 1fr)';
-    grid.style.gridAutoRows = (half ? 50 : 100 / rows).toFixed(4) + '%';
+    grid.style.gridAutoRows = window.innerHeight < 850 ? '210px' : (half ? '46%' : 'calc((100% - ' + ((rows-1)*6+10) + 'px) / ' + rows + ')');
     // Centred only while the cards are short of the wall: the full wall fills its
     // tracks, and centring a grid that SCROLLS can put its first row out of reach.
     grid.style.justifyContent = capped ? 'center' : '';
     grid.style.alignContent = half ? 'center' : '';
     var rowsClass = half ? 2 : rows;
     root.setAttribute('data-rows', String(rowsClass));
+    sizeWallCards(cols, rows, capped, half);
     // ⚖️ THE DRAWER IS FOR THREE ROWS OR MORE; two or fewer keep the old card.
-    var drawerMode = rowsClass >= 3;
+    var drawerMode = false;
     if (drawerMode) root.setAttribute('data-drawer', '1'); else root.removeAttribute('data-drawer');
     // Density follows what is ON THE PAGE, which is now a family rather than the
     // house: three rooms in a tab should look like three rooms, not like a corner
@@ -1333,7 +1394,7 @@ function render(snapshot, kind) {
         + (tile.node.classList.contains('open-up') ? ' open-up' : '');
       tile.node.className = classFor(zone, isHero) + kept;
       var faceId = zone.outputs.length > 0 ? zone.outputs[0].id : zone.id;
-      tile.node.href = '/face/' + encodeURIComponent(faceId);
+      tile.art.href = '/face/' + encodeURIComponent(faceId);
       tile.node.setAttribute('data-zone', zone.id);
       if (selectMode) applySelect(tile, zone);
       else tile.check.textContent = '';
@@ -1350,10 +1411,18 @@ function render(snapshot, kind) {
       tile.fam.style.display = family === undefined ? 'none' : 'inline-block';
       if (family !== undefined) tile.fam.style.background = family;
       tile.name.textContent = zone.name;
+      var reported = snapshot.core.state==='paired' && streamState!=='catching-up' && kind!=='cache' ? zone.state : 'unknown';
+      tile.node.setAttribute('data-playback',reported);
+      tile.statusDot.setAttribute('aria-label',reported);
+      tile.statusDot.setAttribute('title',reported);
+      tile.playB.disabled = !zone.allowed.play && !zone.allowed.pause;
+      tile.prevB.disabled = !zone.allowed.previous;tile.nextB.disabled = !zone.allowed.next;
       setChips(tile, zone);
       var np = zone.nowPlaying;
       tile.title.textContent = np ? np.title : 'nothing played yet';
       tile.line2.textContent = np ? np.line2 : '';
+      tile.line3.textContent = np && np.line3 ? np.line3 : '';
+      tile.line3.hidden = !tile.line3.textContent;
       tile.stamp.textContent = stampFor(zone, now);
       tile.hideB.replaceChildren(glyph(showHiddenMode ? 'restore' : 'minimize'));
       tile.hideB.setAttribute('title', (showHiddenMode ? 'restore ' : 'hide ') + zone.name);
@@ -1364,6 +1433,10 @@ function render(snapshot, kind) {
       var vl = volumeLevel(zone);
       paintVolumeSegments(tile.volSegments, vl === null ? null : vl.level, vl !== null && vl.muted, vl === null ? null : vl.bands);
       tile.volNum.textContent = vl === null ? '' : String(Math.round(vl.level * 100));
+      tile.membersB.hidden = zone.outputs.length < 2;
+      tile.levels.classList.toggle('has-members', zone.outputs.length > 1);
+      tile.volDown.disabled=vl===null;tile.volUp.disabled=vl===null;
+      tile.volBar.setAttribute('aria-valuenow',vl===null?'0':String(Math.round(vl.level*100)));tile.volBar.setAttribute('aria-disabled',vl===null?'true':'false');
       var muted = muteState(zone);
       tile.volMark.className = muted === null ? 'tile-vol-mark off'
         : (muted ? 'tile-vol-mark muted' : 'tile-vol-mark');
@@ -1422,13 +1495,19 @@ function render(snapshot, kind) {
     var position = store.positionSec(azone);
     var length = azone.nowPlaying ? azone.nowPlaying.lengthSec : null;
     if (position !== null && length) {
-      atile.fill.style.width = Math.min(100, (position / length) * 100).toFixed(2) + '%';
+      var pct=Math.max(0,Math.min(100,(position/length)*100));
+      atile.fill.style.width = pct.toFixed(2) + '%';
+      atile.progressBar.hidden=false;
+      atile.rule.setAttribute('aria-valuemin','0');atile.rule.setAttribute('aria-valuemax',String(length));atile.rule.setAttribute('aria-valuenow',String(Math.floor(position)));atile.rule.setAttribute('aria-valuetext',formatTime(position)+' of '+formatTime(length));atile.rule.setAttribute('aria-disabled',azone.allowed.seek?'false':'true');
+      for(var pi=0;pi<atile.progressSegments.length;pi++) atile.progressSegments[pi].className=pi<Math.floor(pct*atile.progressSegments.length/100)?'lit':'';
       atile.elapsed.textContent = formatTime(position);
       atile.total.textContent = formatTime(length);
     } else {
       atile.fill.style.width = '0';
-      atile.elapsed.textContent = '';
-      atile.total.textContent = '';
+      atile.progressBar.hidden=false;atile.rule.setAttribute('aria-disabled','true');atile.rule.removeAttribute('aria-valuenow');atile.rule.removeAttribute('aria-valuetext');
+      for(var emptyTick=0;emptyTick<atile.progressSegments.length;emptyTick++)atile.progressSegments[emptyTick].className='';
+      atile.elapsed.textContent = '—';
+      atile.total.textContent = length ? formatTime(length) : '—';
     }
   }
 }
@@ -1465,6 +1544,8 @@ var selectMode = false;
 var selected = [];             // zone ids in the order chosen; the FIRST leads
 var pendingUngroupAll = null;   // exact grouped zone ids awaiting confirmation
 var reorderMode = false;
+var reorderIdleTimer=null;
+function armReorderIdle() { if(reorderIdleTimer!==null)clearTimeout(reorderIdleTimer); reorderIdleTimer=null; if(reorderMode && drag===null)reorderIdleTimer=setTimeout(function(){if(reorderMode && drag===null)saveReorder();},6000); }
 var draftSlots = [];
 var draftOrderScope = '';
 var selectTimer = null;
@@ -1535,6 +1616,7 @@ function post(body) {
 /** One press, however the device reports it — the wall's cousin of the face's pressable(). */
 function tap(node, onPress) {
   var fire = function (event) {
+    if(event.type==='keyup' && event.key!=='Enter' && event.key!==' ')return;
     var now = Date.now();
     if (now - lastTap < 400 || now < squelchUntil) return;
     lastTap = now;
@@ -1655,6 +1737,7 @@ tap(pauseAllBtn, pauseAllOnWall);
     cluster.appendChild(ungroupAllBtn);
 cluster.appendChild(unhideAllBtn);
     head.appendChild(cluster);
+    var settings=el('button','wall-settings');settings.type='button';settings.textContent='⚙';settings.setAttribute('aria-label','Display settings');settings.setAttribute('title','Display settings');settings.addEventListener('click',function(){openWallSettings(settings);});head.appendChild(settings);
   }
 })();
 
@@ -1682,7 +1765,8 @@ function beginReorder() {
   reorderMode = true;
   draftOrderScope = wallOrderScope();
   draftSlots = orderSlots.slice();
-  reorderLabel.textContent = 'save';
+  reorderLabel.textContent = 'save order';
+  armReorderIdle();
   reorderBtn.className = 'wall-act now';
   root.classList.add('is-reordering');
   var snapshot = store.snapshot();
@@ -1719,6 +1803,7 @@ function cancelReorder() {
 }
 
 function finishReorder() {
+  if(reorderIdleTimer!==null)clearTimeout(reorderIdleTimer);reorderIdleTimer=null;
   reorderMode = false;
   draftSlots = [];
   draftOrderScope = '';
@@ -1971,6 +2056,7 @@ function startPress(event, src) {
       if (drag !== null && !drag.armed) armDrag();
     }, HOLD_MS);
   }
+  if(reorderIdleTimer!==null)clearTimeout(reorderIdleTimer);reorderIdleTimer=null;
   bindDocs(isTouch);
   if (!isTouch) event.preventDefault();       // no text selection, no native link drag
 }
@@ -1998,6 +2084,7 @@ function cancelPress() {
   if (drag !== null && drag.timer !== null) clearTimeout(drag.timer);
   unbindDocs();
   drag = null;
+  armReorderIdle();
 }
 
 function docMove(event) {
@@ -2226,6 +2313,7 @@ function teardownDrag() {
     tiles[keys[i]].node.classList.remove('drop-ok', 'drop-no', 'drop-hot', 'drop-live', 'drag-src', 'drag-home');
   }
   dragLock = false;
+  armReorderIdle();
   updateBar();
   var snap = deferredFrame !== null ? deferredFrame : store.snapshot();
   deferredFrame = null;
@@ -2272,3 +2360,305 @@ setInterval(function () {
   var snapshot = store.snapshot();
   if (snapshot !== null) render(snapshot, 'seek');
 }, 500);
+
+/* The panel keeps output identities; a topology change closes it before another command. */
+var wallMembers = null;
+function memberFingerprint(zone) { return zone.outputs.map(function (o) { return o.id; }).join('|'); }
+function currentWallMember(outputId) {
+  if (!wallMembers || !wallPanel || wallPanel.hidden) return null;
+  var zone = zoneOf(wallMembers.zone);
+  if (!zone || memberFingerprint(zone) !== wallMembers.members) { closeWallPanel(true); say('The group changed — reopen player volumes'); return null; }
+  for (var i = 0; i < zone.outputs.length; i++) if (zone.outputs[i].id === outputId) return zone.outputs[i];
+  return null;
+}
+function refreshWallMembers() {
+  if (!wallMembers) return;
+  var state = wallMembers;
+  for (var i = 0; i < state.rows.length; i++) {
+    var row = state.rows[i], output = currentWallMember(row.id);
+    if (!output) return;
+    var v = output.volume, numeric = v !== null && v.type !== 'incremental' && typeof v.value === 'number';
+    row.name.textContent = output.name;
+    row.read.textContent = numeric ? String(Number(v.value.toFixed(2))) + (v.type === 'db' ? ' dB' : '') : (v ? 'Steps only' : (output.power && output.power.asleep ? 'Standby' : 'Fixed volume'));
+    row.mute.disabled = !v;
+    row.mute.setAttribute('aria-label', (v && v.muted ? 'Unmute ' : 'Mute ') + output.name);
+    row.mute.setAttribute('aria-pressed', v && v.muted ? 'true' : 'false');
+    row.mute.title = row.mute.getAttribute('aria-label');
+    row.down.disabled = !v; row.up.disabled = !v;
+    row.bar.hidden = !numeric;
+    row.bar.setAttribute('aria-disabled', numeric ? 'false' : 'true');
+    if (numeric) {
+      var limits = limitsOf(v);
+      row.bar.setAttribute('aria-valuemin', String(limits.min)); row.bar.setAttribute('aria-valuemax', String(limits.max)); row.bar.setAttribute('aria-valuenow', String(v.value));
+      paintVolumeSegments(row.segments, (v.value - limits.min) / Math.max(.000001, limits.max - limits.min), v.muted, bandsOf(limits));
+    }
+  }
+}
+function openWallMembers(zoneId, trigger) {
+  var zone = zoneOf(zoneId); if (!zone || zone.outputs.length < 2) return;
+  openWallPanel('Player volumes · ' + zone.name, trigger);
+  wallMembers = { zone: zone.id, members: memberFingerprint(zone), rows: [] };
+  zone.outputs.forEach(function (output) {
+    var row = el('div', 'wall-member'), name = el('div', 'wall-member-name', output.name), controls = el('div', 'wall-member-controls');
+    var read = el('span', 'wall-member-value');
+    function step(direction) {
+      var latest = currentWallMember(output.id); if (!latest || !latest.volume) return;
+      var override = direction > 0 && volumeTaps.press('member-step:' + output.id, Date.now());
+      var asked = latest.volume.type === 'incremental' ? { steps: direction } : askedSteps(latest.volume.value, direction, limitsOf(latest.volume), override);
+      if (asked.steps) post({ action: 'volume', output: latest.id, steps: asked.steps, override: override });
+    }
+    var mute = panelButton('', function () {
+      var latest = currentWallMember(output.id); if (latest && latest.volume) post({ action: 'mute', output: latest.id, muted: !latest.volume.muted });
+    }); mute.appendChild(glyph('speaker'));
+    var down = panelButton('−', function () { step(-1); }), up = panelButton('+', function () { step(1); });
+    down.setAttribute('aria-label', 'Lower volume for ' + output.name); up.setAttribute('aria-label', 'Raise volume for ' + output.name);
+    var bar = el('span', 'tile-rule vol wall-member-bar'), segments = [];
+    bar.tabIndex = 0; bar.setAttribute('role', 'slider'); bar.setAttribute('aria-label', 'Volume for ' + output.name);
+    for (var i = 0; i < 44; i++) { var segment = el('i'); segments.push(segment); bar.appendChild(segment); }
+    bar.addEventListener('keydown', function (e) {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp'].indexOf(e.key) < 0) return;
+      e.preventDefault(); e.stopPropagation(); step(e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : -1);
+    });
+    bar.addEventListener('click', function (e) {
+      var latest = currentWallMember(output.id), box = bar.getBoundingClientRect();
+      if (!latest || !latest.volume || latest.volume.type === 'incremental' || !box.width) return;
+      var limits = limitsOf(latest.volume), fraction = Math.max(0, Math.min(1, (e.clientX - box.left) / box.width));
+      var override = volumeTaps.press('member-bar:' + latest.id, Date.now());
+      var asked = askedLevel(limits.min + fraction * (limits.max - limits.min), limits, override);
+      if (asked) post({ action: 'volume', output: latest.id, value: asked.value, override: override });
+    });
+    controls.appendChild(mute); controls.appendChild(down); controls.appendChild(bar); controls.appendChild(up); controls.appendChild(read);
+    row.appendChild(name); row.appendChild(controls); wallPanelBody.appendChild(row);
+    wallMembers.rows.push({ id: output.id, name: name, read: read, mute: mute, down: down, up: up, bar: bar, segments: segments });
+  });
+  refreshWallMembers(); placeWallPanel();
+}
+
+/* Explicit room panels: basic controls stay on the card, details open on demand. */
+var wallPanel=null, wallPanelBody=null, wallPanelReturn=null, wallPanelEpoch=0;
+function closeWallPanel(focus) {
+  wallPanelEpoch++;
+  wallMembers = null;
+  wallRadioRows = null;
+  if(wallPanel) {wallPanel.hidden=true;wallPanelBody.replaceChildren();}
+  if(wallPanelReturn) {wallPanelReturn.setAttribute('aria-expanded','false');if(focus)wallPanelReturn.focus();}
+}
+function panelButton(label,run) {
+  var b=el('button','wall-menu-choice',label);b.type='button';b.addEventListener('click',run);return b;
+}
+function openWallPanel(title,trigger) {
+  closeWallPanel(false);
+  if(!wallPanel) {
+    wallPanel=el('section','wall-panel');wallPanel.setAttribute('role','dialog');wallPanel.setAttribute('aria-modal','true');wallPanel.setAttribute('aria-labelledby','wall-panel-title');
+    var head=el('div','wall-panel-head');var h=el('h2','');h.id='wall-panel-title';head.appendChild(h);
+    head.appendChild(panelButton('Close',function(){closeWallPanel(true);}));
+    wallPanelBody=el('div','wall-panel-body');wallPanel.appendChild(head);wallPanel.appendChild(wallPanelBody);document.body.appendChild(wallPanel);
+    function outsidePanel(e){if(!wallPanel.hidden&&!wallPanel.contains(e.target)&&(!wallPanelReturn||!wallPanelReturn.contains(e.target)))closeWallPanel(false);}
+    document.addEventListener('mousedown',outsidePanel);
+    document.addEventListener('touchstart',outsidePanel,{passive:true});
+    document.addEventListener('keydown',function(e){
+      if(wallPanel.hidden)return;
+      if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeWallPanel(true);}
+      if(e.key==='Tab') {var all=wallPanel.querySelectorAll('button:not([disabled]),a[href],select,[role=slider]:not([aria-disabled=true])');var first=all[0],last=all[all.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}
+    });
+  }
+  document.getElementById('wall-panel-title').textContent=title;
+  wallPanel.hidden=false;wallPanelReturn=trigger;if(trigger)trigger.setAttribute('aria-expanded','true');
+  wallPanel.querySelector('button').focus();placeWallPanel();return wallPanelEpoch;
+}
+function placeWallPanel(){if(!wallPanel||wallPanel.hidden)return;var r=wallPanelReturn?wallPanelReturn.getBoundingClientRect():{right:innerWidth-24,bottom:60};var w=wallPanel.offsetWidth,h=wallPanel.offsetHeight;wallPanel.style.left=Math.max(16,Math.min(r.right-w,innerWidth-w-16))+'px';wallPanel.style.top=Math.max(16,Math.min(r.bottom+8,innerHeight-h-16))+'px';wallPanel.style.right='auto';}
+window.addEventListener('resize',placeWallPanel);
+function moveWallRoom(zoneId,step){if(!reorderMode)return;var z=zoneOf(zoneId);if(!z)return;var slot=wallSlot(z),from=draftSlots.indexOf(slot),to=from+step;if(from<0||to<0||to>=draftSlots.length)return;draftSlots.splice(from,1);draftSlots.splice(to,0,slot);var snap=store.snapshot();if(snap)render(snap,'snapshot');armReorderIdle();if(tiles[zoneId])tiles[zoneId].zoneLine.focus();}
+function openWallTools(zoneId,trigger) {
+  var zone=zoneOf(zoneId),tile=tiles[zoneId];if(!zone||!tile)return;
+  openWallPanel(zone.name,trigger);
+  wallPanelBody.appendChild(el('p','wall-menu-note','Room controls'));
+  if (zone.settings) wallPanelBody.appendChild(panelButton('Roon Radio · ' + (zone.settings.autoRadio ? 'On' : 'Off'), function () {
+    if (!zoneOf(zoneId)) return; post({ action: 'radio', zone: zoneId }); closeWallPanel(true);
+  }));
+  zone.outputs.forEach(function (output) {
+    if (!output.power || !output.power.controlKey || output.power.asleep) return;
+    wallPanelBody.appendChild(panelButton('Standby · ' + output.name, function () {
+      post({ action: 'standby', output: output.id, controlKey: output.power.controlKey }); closeWallPanel(true);
+    }));
+  });
+  function existing(label,control){wallPanelBody.appendChild(panelButton(label,function(){if(!zoneOf(zoneId)){closeWallPanel(true);say('That room changed — reopen its options');return;}closeWallPanel(false);control.click();}));}
+  existing('Group rooms',tile.groupB);
+  if(zone.outputs.length>1)existing('Ungroup rooms',tile.ungroupB);
+  existing('Transfer music',tile.sendB);existing('Bring music here',tile.pullB);
+  var browse=el('a','wall-menu-choice','Browse music');browse.href=tile.art.href+'?panel=browse';wallPanelBody.appendChild(browse);
+  var face=el('a','wall-menu-choice','Open room face');face.href=tile.art.href;wallPanelBody.appendChild(face);
+  var phone=el('a','wall-menu-choice','Open phone controls');phone.href='/phone/'+encodeURIComponent(zoneId);wallPanelBody.appendChild(phone);
+  var puck=el('a','wall-menu-choice','Open puck view');puck.href=tile.art.href.replace('/face/','/puck/');wallPanelBody.appendChild(puck);
+  existing('Hide this room',tile.hideB);
+  wallPanelBody.appendChild(el('p','wall-menu-note',zone.outputs.map(function(o){return o.name;}).join(' · ')));placeWallPanel();
+}
+function openWallQueue(zoneId,trigger) {
+  var zone=zoneOf(zoneId);if(!zone)return;
+  var epoch=openWallPanel('Queue · '+zone.name,trigger);
+  wallPanelBody.appendChild(el('p','wall-menu-note','Reading queue…'));
+  function active(){return !wallPanel.hidden&&epoch===wallPanelEpoch&&zoneOf(zoneId)!==null;}
+  function load(attempt){
+    fetch('/api/v1/queue?zone='+encodeURIComponent(zoneId),{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('Queue unavailable');return r.json();}).then(function(data){
+      if(!active())return;
+      if(!data.ready&&attempt<8){setTimeout(function(){if(active())load(attempt+1);},250);return;}
+      wallPanelBody.replaceChildren();
+      if(!data.ready){wallPanelBody.appendChild(el('p','wall-menu-note','Queue is still loading. Close and reopen to retry.'));return;}
+      var items=Array.isArray(data.items)?data.items:[];
+      if(!items.length)wallPanelBody.appendChild(el('p','wall-menu-note','Nothing queued yet'));
+      items.forEach(function(item,index){
+        var b=panelButton('',function(){
+          var snap=store.snapshot();
+          if(!active()||!snap||data.generation!==snap.generation||!Number.isInteger(data.revision)||data.revision<0){say('The queue changed — reopen Queue');return;}
+          b.disabled=true;
+          fetch('/api/v1/queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({zone:zoneId,itemId:String(item.id||''),generation:data.generation,queueRevision:data.revision})}).then(function(r){
+            if(!active())return;
+            if(!r.ok){b.disabled=false;say('The queue changed — reading it again');load(0);return;}
+            closeWallPanel(true);say('Playing from '+(item.title||'this track'));
+          }).catch(function(){if(active()){b.disabled=false;say('Could not reach FlightDeck');}});
+        });
+        b.classList.add('wall-queue-row');b.appendChild(el('span','wall-queue-title',(index===0?'Now · ':'')+(item.title||'Untitled')));
+        b.appendChild(el('span','wall-queue-credit',item.subtitle||item.line2||''));
+        if(index===0)b.disabled=true;wallPanelBody.appendChild(b);
+      });placeWallPanel();
+    }).catch(function(e){if(active()){wallPanelBody.replaceChildren(el('p','wall-menu-note',e.message));}});
+  }
+  load(0);
+}
+var wallDesign={art:'overlay',toolbar:'labels'};
+try {var storedDesign=JSON.parse(localStorage.getItem('flightdeck.wall-design')||'{}');if(storedDesign.art==='circle')wallDesign.art='circle';if(storedDesign.toolbar==='icons')wallDesign.toolbar='icons';}catch(e){}
+function applyWallDesign(){root.setAttribute('data-art-style',wallDesign.art);root.setAttribute('data-toolbar-style',wallDesign.toolbar);try{localStorage.setItem('flightdeck.wall-design',JSON.stringify(wallDesign));}catch(e){}}
+applyWallDesign();
+function openWallSettings(trigger){
+  openWallPanel('Wall settings',trigger);
+  wallPanelBody.appendChild(el('p','wall-menu-note','This display'));
+  function choice(label,key,options,care){
+    var row=el('label','wall-setting',label),select=el('select',''); select.setAttribute('aria-label',label);
+    options.forEach(function(option){var o=el('option','',option[1]);o.value=String(option[0]);select.appendChild(o);});
+    select.value=String(care ? wallCare.prefs[key] : wallDesign[key]);
+    select.addEventListener('change',function(){
+      if(care){var value=(key==='brightness'||key==='blankMinutes')?Number(select.value):select.value==='true';wallCare.set(key,value);wallBlanker.activity();keepWallAwake();}
+      else {wallDesign[key]=select.value;applyWallDesign();}
+    });row.appendChild(select);wallPanelBody.appendChild(row);
+  }
+  choice('Dim when unattended','brightness',[[100,'Off'],[75,'75% brightness'],[50,'50% brightness']],true);
+  choice('Gentle movement','drift',[[false,'Off'],[true,'On']],true);
+  choice('Blank after inactivity','blankMinutes',[[0,'Never'],[15,'15 minutes'],[30,'30 minutes'],[60,'60 minutes']],true);
+  choice('Blank only when nothing is playing','blankOnlySilent',[[true,'Yes'],[false,'No · even while playing']],true);
+  wallPanelBody.appendChild(el('p','wall-menu-note','Dimming and movement begin after 30 seconds. Saved on this display.'));
+  wallPanelBody.appendChild(panelButton('Blank this display now',function(){closeWallPanel(true);wallBlanker.sleep();keepWallAwake();}));
+  wallPanelBody.appendChild(el('p','wall-menu-note','Touch or press a key to wake. Music keeps playing.'));
+  wallPanelBody.appendChild(el('p','wall-menu-note','Music and players'));
+  wallPanelBody.appendChild(panelButton('Roon Radio by room',function(){openWallRadio(trigger);}));
+  wallPanelBody.appendChild(panelButton('Standby all players…',function(){openWallStandby(trigger);}));
+  wallPanelBody.appendChild(el('p','wall-menu-note','Appearance and controls'));
+  choice('Artwork','art',[['overlay','Square · segmented progress'],['circle','Circular artwork · segmented progress']]);
+  choice('Toolbar','toolbar',[['labels','Icons with labels'],['icons','Icons only']]);
+  wallPanelBody.appendChild(panelButton('Connect puck',function(){closeWallPanel(false);wallController.settings();}));
+  placeWallPanel();
+}
+
+var wallRadioRows = null;
+function refreshWallRadio() {
+  if (!wallRadioRows) return;
+  wallRadioRows.forEach(function (row) {
+    var zone = zoneOf(row.id), available = zone && zone.settings;
+    row.button.disabled = row.pending || !available;
+    row.button.textContent = (zone ? zone.name : row.name) + ' · ' + (available ? (zone.settings.autoRadio ? 'On' : 'Off') : 'Unavailable');
+    row.button.setAttribute('aria-pressed', available && zone.settings.autoRadio ? 'true' : 'false');
+  });
+}
+function openWallRadio(trigger) {
+  openWallPanel('Roon Radio by room',trigger); wallRadioRows = [];
+  wallPanelBody.appendChild(panelButton('Back to Wall settings',function(){openWallSettings(trigger);}));
+  wallPanelBody.appendChild(el('p','wall-menu-note','Continue with related music when a room’s queue ends.'));
+  var snapshot = store.snapshot();
+  if (snapshot) snapshot.zones.forEach(function (zone) {
+    if (!zone.settings) return;
+    var row = { id:zone.id, name:zone.name, button:null, pending:false };
+    row.button = panelButton('',function(){
+      if(row.pending || !zoneOf(row.id)) return;
+      row.pending=true; refreshWallRadio();
+      post({action:'radio',zone:row.id}).then(function(){row.pending=false;refreshWallRadio();});
+    });
+    wallRadioRows.push(row);wallPanelBody.appendChild(row.button);
+  });
+  if (!wallRadioRows.length) wallPanelBody.appendChild(el('p','wall-menu-note','No rooms with Roon Radio settings are available.'));
+  refreshWallRadio();placeWallPanel();
+}
+
+function openWallStandby(trigger) {
+  var snapshot = store.snapshot(), targets = standbyTargets(snapshot);
+  openWallPanel('Standby all players',trigger);
+  wallPanelBody.appendChild(panelButton('Back to Wall settings',function(){openWallSettings(trigger);}));
+  if (!targets.length) { wallPanelBody.appendChild(el('p','wall-menu-note','No awake players report a standby control.'));placeWallPanel();return; }
+  wallPanelBody.appendChild(el('p','wall-menu-note','Put these players into standby? This can stop music in their rooms.'));
+  targets.forEach(function(target){wallPanelBody.appendChild(el('div','wall-standby-player',target.name));});
+  wallPanelBody.appendChild(el('p','wall-menu-note','Includes supported players across all rooms, including hidden cards. Players without standby support are left alone.'));
+  var confirm = panelButton('Confirm standby for '+targets.length+' players',function(){
+    if(confirm.disabled)return;confirm.disabled=true;
+    standbyReviewed(targets,snapshot.generation,function(){return store.snapshot();},post).then(function(result){
+      say(result.sent+' players sent to standby'+(result.skipped?' · '+result.skipped+' changed or already asleep':'')+(result.failed?' · '+result.failed+' failed':''));
+      if(confirm.isConnected)openWallStandby(trigger);
+    });
+  });confirm.classList.add('wall-standby-confirm');wallPanelBody.appendChild(confirm);placeWallPanel();
+}
+
+// Resizing changes the space available even when no new Roon frame arrives.
+window.addEventListener('resize', function () { var snap = store.snapshot(); if (snap !== null) render(snap, 'snapshot'); });
+
+/* The paired controller uses this Wall's existing room/house action owners. */
+var controllerWallFocus='',controllerMovingRoom='';
+function controllerWallTools(){
+  openWallPanel('Room tools',document.querySelector('.wall-settings'));
+  function action(label,run){wallPanelBody.appendChild(panelButton(label,function(){closeWallPanel(false);run();}));}
+  action('Group rooms',function(){enterSelect();});action('Pause all',pauseAllOnWall);action('Group all',beginGroupAll);action('Reorder rooms',beginReorder);
+  action('Show player',function(){var out=wallController.output();if(out)location.href='/face/'+encodeURIComponent(out);});
+  action('Connect puck',function(){wallController.settings();});placeWallPanel();
+}
+var wallController=startController({
+  read:function(output){
+    var snap=store.snapshot(),zone=zoneForOutputId(snap,output),choices=[],selectedKey='';
+    var member=zone?zone.outputs.filter(function(o){return o.id===output;})[0]:null;controllerVolume(member,false);
+    if(!reorderMode)controllerMovingRoom='';
+    if(wallPanel&&!wallPanel.hidden){
+      var nodes=wallPanel.querySelectorAll('button:not([disabled]),a[href],select,[role=slider]:not([aria-disabled=true])');
+      for(var n=0;n<nodes.length;n++)(function(node,index){
+        var key='panel:'+index+':'+node.textContent.trim();if(node===document.activeElement)selectedKey=key;
+        choices.push({key:key,title:node.textContent.trim(),node:node,activate:function(){if(node.tagName==='SELECT'){node.selectedIndex=(node.selectedIndex+1)%node.options.length;node.dispatchEvent(new Event('change',{bubbles:true}));}else node.click();}});
+      })(nodes[n],n);
+      return {output:output,volume:member?member.volume:null,room:zone?zone.name:'',open:true,mode:'wall-panel',title:document.getElementById('wall-panel-title').textContent,choices:choices,selected:selectedKey};
+    }
+    for(var i=0;i<order.length;i++)(function(z){if(!z||!tiles[z.id])return;var t=tiles[z.id],key='room:'+wallSlot(z);
+      if(!controllerWallFocus&&z.outputs.some(function(o){return o.id===output;}))controllerWallFocus=key;
+      if(t.node.contains(document.activeElement))controllerWallFocus=key;
+      choices.push({key:key,title:z.name,subtitle:reorderMode?(controllerMovingRoom===z.id?'Turn to move · tap to place':'Tap to move this room'):(selectMode?(selected.indexOf(z.id)>=0?'Selected · tap to remove':'Tap to add to group'):(z.nowPlaying?z.nowPlaying.title:z.state)),node:t.node,
+        focus:function(){controllerWallFocus=key;t.zoneLine.focus();},activate:function(){
+          if(reorderMode){controllerMovingRoom=controllerMovingRoom===z.id?'':z.id;armReorderIdle();return;}
+          if(!activateTile(z.id))location.href=t.art.href;
+        }});
+    })(zoneOf(order[i]));
+    if(selectMode||reorderMode||pendingSend||pendingPull||pendingUngroupAll){
+      var buttons=barActs.querySelectorAll('[role="button"],button,[tabindex]');
+      for(var j=0;j<buttons.length;j++)(function(node){choices.push({key:'action:'+node.textContent,title:node.textContent,node:node});})(buttons[j]);
+    }
+    choices.push({key:'tools',title:'Room tools',subtitle:'Group · pause all · reorder',activate:controllerWallTools});
+    return {output:output,volume:member?member.volume:null,room:zone?zone.name:'',open:true,mode:reorderMode?'reorder':selectMode?'group':'rooms',title:controllerMovingRoom?'Move '+(zoneOf(controllerMovingRoom)||{name:'room'}).name:selectMode?'Group rooms':'Rooms',choices:choices,selected:controllerWallFocus};
+  },
+  move:function(delta){if(reorderMode&&controllerMovingRoom){for(var i=0;i<Math.min(16,Math.abs(delta));i++)moveWallRoom(controllerMovingRoom,delta<0?-1:1);return true;}return false;},
+  command:function(type,value,output){
+    var snap=store.snapshot(),z=zoneForOutputId(snap,output);
+    if(type==='rooms'){closeWallPanel(false);return;}
+    if(type==='back'){if(wallPanel&&!wallPanel.hidden){closeWallPanel(true);return;}if(selectMode){exitSelect();return;}if(reorderMode){saveReorder();return;}type='playing';}
+    if(type==='options'){controllerWallTools();return;}
+    if(type==='playing'||type==='browse'||type==='queue'){if(output)location.href='/face/'+encodeURIComponent(output)+(type==='playing'?'':'?panel='+type);return;}
+    if(type==='preview'){controllerPreview(value);return;}
+    if(!z)return;
+    if(type==='volume'){controllerVolume(z.outputs.filter(function(o){return o.id===output;})[0],true);post({action:'volume',output:output,steps:Math.max(-20,Math.min(20,value)),override:false});return;}
+    if(type==='mute'){controllerVolume(z.outputs.filter(function(o){return o.id===output;})[0],true);post({action:'mute',output:output,muted:value===1});return;}
+    if(type==='seek'){controllerPreview(-1);post({action:'seek',zone:z.id,seconds:value});return;}
+    if(['playpause','play','pause','next','previous','shuffle','repeat'].indexOf(type)>=0)post({action:type,zone:z.id});
+  }
+});
+
+startPuckStatus(function(){var snap=store.snapshot();if(!snap)return [];return snap.zones.filter(function(z){return !!tiles[z.id];}).map(function(z){return {host:tiles[z.id].node.querySelector('.tile-head'),outputs:z.outputs.map(function(o){return o.id;})};});});
