@@ -1208,7 +1208,9 @@ function render(snapshot, kind) {
      */
     var plus = /^(.*?)\s\+\s(\d+)$/.exec(zone.name);
     zoneName.textContent = plus === null ? zone.name : plus[1];
-    restRoom.textContent = zoneName.textContent;
+    // Grouped, the quiet name is the GROUP's (Peter, 09-21): Roon's own "Study RHEOS + 5",
+    // leader and count, where the head splits the count off into its door.
+    restRoom.textContent = zone.name;
     var island = zone.outputs.length > 0 ? zone.outputs[0].island : '';
     var canGroup = island !== '' && zone.outputs[0].groupableWith.length > 1;
     if (plus !== null) {
