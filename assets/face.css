@@ -2941,10 +2941,11 @@ html[data-android-rail] ::-webkit-scrollbar-thumb {
 /* The key cursor: a pointer for a TV that sends keys but has none (assets/key-cursor.js). */
 .key-cursor {
   position: fixed; left: 50%; top: 50%; width: 34px; height: 40px; z-index: 9000;
-  pointer-events: none; opacity: 0; -webkit-transition: opacity .25s; transition: opacity .25s;
+  pointer-events: none; opacity: 0;
+  /* Eased, so a held arrow reads as a sweep across the cards rather than a series of hops. */
+  -webkit-transition: opacity .25s, left .08s linear, top .08s linear;
+  transition: opacity .25s, left .08s linear, top .08s linear;
   background-repeat: no-repeat; background-size: 100% 100%;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'><path d='M2 2 L2 31 L10 24 L15 37 L21 34 L16 22 L27 21 Z' fill='white' stroke='black' stroke-width='2.5' stroke-linejoin='round'/></svg>");
 }
 .key-cursor.on { opacity: 1; }
-/* What the key cursor has landed on, so a viewer can see where a press will go. */
-.key-cursor-target { outline: 3px solid var(--accent, #e8b04b); outline-offset: 2px; }
