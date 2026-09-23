@@ -163,8 +163,12 @@ test('room name chooses the displayed player while only the group badge opens th
 test('face picker has a direct control and D-pad face changes expose the choices', () => {
   assert.match(FACE, /pressable\(cog, function \(\) \{ openPanel\(['"]faces['"]\); \}, ['"]header-faces['"]\)/);
   assert.match(FACE, /event\.type === ['"]keyup['"][\s\S]*keyCode !== 13 && keyCode !== 32/);
-  assert.match(FACE, /name === ['"]left['"][\s\S]*cycleFace\(-1\)[\s\S]*showPicker\(['"]faces['"]\)/);
-  assert.match(FACE, /name === ['"]right['"][\s\S]*cycleFace\(1\)[\s\S]*showPicker\(['"]faces['"]\)/);
+  // 09-23: on a Face the remote is the ROOM's remote — left and right are the transport,
+  // and a face is chosen from the picker (or f/g on a keyboard), not with the arrows.
+  assert.match(FACE, /if \(name === 'left'\) transport\('previous'\);/);
+  assert.match(FACE, /else if \(name === 'right'\) transport\('next'\);/);
+  assert.match(FACE, /name === 'ok' && event\.repeat === true && !faceCursor\.visible\(\)/,
+    'holding OK raises the key cursor');
 });
 
 test('an open vertical face picker keeps its presentation and press identity across redraw', () => {
@@ -776,8 +780,8 @@ test('an open picker owns Fire TV Up, Down and Enter before global shortcuts', (
   const keysEnd = FACE.indexOf('// Capture on window AND document', keysStart);
   const keys = FACE.slice(keysStart, keysEnd);
   const local = keys.indexOf('handlePickerNavigation(name)');
-  assert.ok(local >= 0 && local < keys.indexOf("name === 'up'") && local < keys.indexOf('cycleFace(-1)'),
-    'picker-local navigation is decided before volume, artwork or face mappings');
+  assert.ok(local >= 0 && local < keys.indexOf("name === 'up'") && local < keys.indexOf("transport('previous')"),
+    'picker-local navigation is decided before volume or transport mappings');
   const pickerKeys = /function handlePickerNavigation\(name\)([\s\S]*?)\n\}/.exec(FACE)?.[1] ?? '';
   assert.match(pickerKeys, /picker\.hidden \|\| browsePanel !== null/);
   assert.match(pickerKeys, /name === ['"]up['"][\s\S]*name === ['"]down['"][\s\S]*name === ['"]ok['"]/);

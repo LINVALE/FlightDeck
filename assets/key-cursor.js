@@ -28,10 +28,11 @@ var KEY_ENTER = 13, KEY_SPACE = 32, KEY_ESC = 27, KEY_BACK = 461; // 461: webOS 
 function named(event) {
   var code = event.keyCode || event.which || 0;
   var key = event.key || '';
-  if (key === 'ArrowLeft' || code === KEY_LEFT) return 'left';
-  if (key === 'ArrowRight' || code === KEY_RIGHT) return 'right';
-  if (key === 'ArrowUp' || code === KEY_UP) return 'up';
-  if (key === 'ArrowDown' || code === KEY_DOWN) return 'down';
+  // 'Left' and friends are the old names some television engines still send.
+  if (key === 'ArrowLeft' || key === 'Left' || code === KEY_LEFT) return 'left';
+  if (key === 'ArrowRight' || key === 'Right' || code === KEY_RIGHT) return 'right';
+  if (key === 'ArrowUp' || key === 'Up' || code === KEY_UP) return 'up';
+  if (key === 'ArrowDown' || key === 'Down' || code === KEY_DOWN) return 'down';
   if (key === 'Enter' || code === KEY_ENTER) return 'ok';
   if (key === ' ' || code === KEY_SPACE) return 'space';
   if (key === 'Escape' || code === KEY_ESC || code === KEY_BACK || key === 'GoBack') return 'back';
@@ -112,7 +113,8 @@ export function startKeyCursor(options) {
   }
 
   function move(dx, dy) {
-    var step = held < 2 ? 22 : (held < 8 ? 44 : 78);
+    // Fine at a tap, quick when held (Peter, 09-23: "hard to be precise").
+    var step = held < 3 ? 12 : (held < 8 ? 30 : 64);
     held += 1;
     if (dy !== 0 && scrollUnder(dy)) { show(); return; }
     x = Math.max(2, Math.min(window.innerWidth - 2, x + dx * step));
@@ -133,8 +135,23 @@ export function startKeyCursor(options) {
     show();
   }
 
+  var probing = /[?&]keys=1/.test(location.search);
+  function report(name, acted) {
+    if (!probing) return;
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/v1/keyprobe', true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({ key: 'cursor ' + (event_key || '(no .key)'), code: event_code, acted: acted }));
+    } catch (error) { /* the probe is a convenience */ }
+  }
+  var event_key = '', event_code = 0;
+
   window.addEventListener('keydown', function (event) {
     var name = named(event);
+    event_key = event.key || '';
+    event_code = event.keyCode || event.which || 0;
+    report(name === '' ? 'IGNORED' : name, name === '' ? 'IGNORED' : name);
     if (name === '') return;
     if (claimed(name, shown)) return;
     if (name === 'back') {
@@ -162,5 +179,5 @@ export function startKeyCursor(options) {
     if (event.isTrusted && shown) hide();
   }, true);
 
-  return { visible: function () { return shown; }, hide: hide };
+  return { visible: function () { return shown; }, hide: hide, show: show };
 }

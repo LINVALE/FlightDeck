@@ -1,5 +1,6 @@
 import './compat.js';
 import { startPuckStatus } from './puck-status.js';
+import { startKeyCursor } from './key-cursor.js';
 import { createScreensaver } from './screensaver.js';
 import { createDisplayCare, createWakePolicy } from './display-care.js';
 import { captureListPosition, restoreListPosition } from './browse-position.js';
@@ -5753,20 +5754,31 @@ function onKey(event) {
     event.stopPropagation();
     return;
   }
-  if (name === 'left') {
-    cycleFace(-1);
-    if (picker.hidden || picker.className.indexOf('mode-faces') < 0) showPicker('faces');
-  } else if (name === 'right') {
-    cycleFace(1);
-    if (picker.hidden || picker.className.indexOf('mode-faces') < 0) showPicker('faces');
+  /**
+   * ⚖️ ON A FACE THE REMOTE IS THE ROOM'S REMOTE (Peter, 09-23, on the Vega stick:
+   * "prev next we have now in the old devices"). The same scheme the FlightDeck TV app
+   * gives a Fire TV, now for any television that delivers keys: ◀▶ previous and next,
+   * ▲▼ the room's volume, OK play/pause, and HOLDING OK raises the key cursor for
+   * browse, the queue and the controls. Faces are changed from the picker, or with
+   * f and g on a keyboard — they are a setup-time choice, unlike the transport.
+   */
+  // HOLDING OK raises the key cursor, for a television that sends keys and has no
+  // pointer of its own: browse, the queue and the controls are a pointer's work.
+  // It hands the keys back to the room when it goes.
+  if (name === 'ok' && event.repeat === true && !faceCursor.visible()) {
+    event.preventDefault(); event.stopPropagation();
+    faceCursor.show();
+    return;
   }
+  if (name === 'left') transport('previous');
+  else if (name === 'right') transport('next');
   // UP/DOWN IS VOLUME, not room. A TV steals the hard volume keys before the
   // browser ever sees them (Peter, 08-25: "seem to control tv volume"), and this
   // screen is BOUND to its room — changing room is a setup-time act, while volume
   // is reached for constantly. Room moved to the on-screen strip.
   else if (name === 'up') nudgeVolume(1);
   else if (name === 'down') nudgeVolume(-1);
-  else if (name === 'ok') cycleArtist();
+  else if (name === 'ok') transport('playpause');
   else if (name === 'playpause') transport('playpause');
   else if (name === 'next') transport('next');
   else if (name === 'previous') transport('previous');
@@ -6197,5 +6209,14 @@ function wakeForVolumeChange(zone) {
   seenVolumeZone=zone.id;seenVolumes=next;
   if(changed){wakeIdleFace(null);chromeHeldUntil=0;revealChrome(true);controllerVolume(changed,true);}
 }
+
+/**
+ * The key cursor is asleep on a Face: the remote is the room's remote until OK is
+ * HELD. While the cursor is up it owns the keys; when it goes, the room has them back.
+ */
+var faceCursor = startKeyCursor({
+  start: function () { return false; },
+  claim: function (name, shown) { return !shown; },
+});
 
 startPuckStatus(function(){var z=currentZone();return [{host:headTools,outputs:z?z.outputs.map(function(o){return o.id;}):[]}];});
