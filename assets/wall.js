@@ -1,5 +1,6 @@
 import './compat.js';
 import { startPuckStatus } from './puck-status.js';
+import { startKeyCursor } from './key-cursor.js';
 import { createScreensaver } from './screensaver.js';
 import { createDisplayCare, createWakePolicy } from './display-care.js';
 import { standbyTargets, standbyReviewed } from './wall-power.js';
@@ -2668,5 +2669,14 @@ var wallController=startController({
     if(['playpause','play','pause','next','previous','shuffle','repeat'].indexOf(type)>=0)post({action:type,zone:z.id});
   }
 });
+
+/**
+ * A television that sends keys but gives its pages no pointer (Vega, and others
+ * like it) drives a cursor with the arrows instead — otherwise the arrows are
+ * stuck in whichever volume bar holds focus (Peter, 09-22, on the first Vega
+ * stick). Samsung and LG never arrive here: they keep the keys and supply a real
+ * pointer. Neither does the FlightDeck TV app, which supplies its own.
+ */
+startKeyCursor({ start: function () { return true; }, claim: function () { return false; } });
 
 startPuckStatus(function(){var snap=store.snapshot();if(!snap)return [];return snap.zones.filter(function(z){return !!tiles[z.id];}).map(function(z){return {host:tiles[z.id].node.querySelector('.tile-head'),outputs:z.outputs.map(function(o){return o.id;})};});});

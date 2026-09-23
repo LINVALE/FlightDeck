@@ -405,3 +405,20 @@ test('scrolling areas show a solid rail on Android TV browsers only', () => {
     assert.match(css, /html\[data-android-rail\] ::-webkit-scrollbar \{ width: 16px; \}/, sheet);
   }
 });
+
+// Peter 09-22, first Vega stick: the arrows reached the page and stuck in a volume bar —
+// "unable to navigate away". A TV that sends keys but has no pointer gets one from the page.
+test('a TV that sends keys but has no pointer drives a cursor on The Deck', () => {
+  const WALL_SRC = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.js'), 'utf8');
+  const CURSOR = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'key-cursor.js'), 'utf8');
+  const CSS = readFileSync(resolve(import.meta.dirname, '..', 'assets', 'wall.css'), 'utf8');
+  assert.match(WALL_SRC, /import \{ startKeyCursor \} from '\.\/key-cursor\.js';/);
+  assert.match(WALL_SRC, /startKeyCursor\(\{ start: function \(\) \{ return true; \}/);
+  // Capture phase, so the focused control never sees the arrow first.
+  assert.match(CURSOR, /window\.addEventListener\('keydown', function \(event\) \{[\s\S]+\}, true\);/);
+  assert.match(CURSOR, /document\.elementFromPoint\(x, y\)/, 'clicks whatever it rests on');
+  assert.match(CURSOR, /mouse\('mousemove'\)/, 'the same movement a mouse makes, so chrome appears');
+  assert.match(CURSOR, /if \(event\.isTrusted && shown\) hide\(\);/, 'a real pointer wins');
+  assert.match(CSS, /\.key-cursor \{/);
+  assert.doesNotMatch(CURSOR, /\?\.|\?\?/, 'the Chromium 63 floor');
+});
