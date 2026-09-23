@@ -1165,8 +1165,9 @@ html[data-android-rail] ::-webkit-scrollbar-thumb {
   position: fixed; left: 50%; top: 50%; width: 34px; height: 40px; z-index: 9000;
   pointer-events: none; opacity: 0;
   /* Eased, so a held arrow reads as a sweep across the cards rather than a series of hops. */
-  -webkit-transition: opacity .25s, left .08s linear, top .08s linear;
-  transition: opacity .25s, left .08s linear, top .08s linear;
+  /* The travel is eased so a move between cards reads as a glide, not a hop. */
+  -webkit-transition: opacity .25s, left .17s ease-out, top .17s ease-out;
+  transition: opacity .25s, left .17s ease-out, top .17s ease-out;
   background-repeat: no-repeat; background-size: 100% 100%;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'><path d='M2 2 L2 31 L10 24 L15 37 L21 34 L16 22 L27 21 Z' fill='white' stroke='black' stroke-width='2.5' stroke-linejoin='round'/></svg>");
 }

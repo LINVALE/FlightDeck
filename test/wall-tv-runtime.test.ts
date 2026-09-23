@@ -417,10 +417,11 @@ test('a TV that sends keys but has no pointer drives a cursor on The Deck', () =
   // Capture phase, so the focused control never sees the arrow first.
   assert.match(CURSOR, /window\.addEventListener\('keydown', function \(event\) \{[\s\S]+\}, true\);/);
   assert.match(CURSOR, /document\.elementFromPoint\(x, y\)/, 'clicks whatever it rests on');
-  // 09-23: smooth movement, sized to cross the cards — jumping control to control was
-  // tried and rejected ("smooth pointer movement best, up down and side should go between cards").
-  assert.match(CURSOR, /var step = held < 1 \? 26 : \(held < 4 \? 64 : 116\);/);
-  assert.doesNotMatch(CURSOR, /function nearest\(/, 'no snapping');
+  // 09-23: an arrow moves between CARDS and the cursor glides there (landing
+  // control-to-control was rejected as "jumping"; gliding alone never arrived).
+  assert.match(CURSOR, /var CARDS = '\.tile, \.roomcard, \.browse-row, \.wall-menu-choice';/);
+  assert.match(CURSOR, /var target = nearest\(CARDS, dx, dy\) \|\| nearest\(THINGS, dx, dy\);/);
+  assert.match(CSS, /transition: opacity \.25s, left \.17s ease-out, top \.17s ease-out;/, 'the travel is eased');
   assert.match(CURSOR, /mouse\('mousemove'\)/, 'the same movement a mouse makes, so chrome appears');
   assert.match(CURSOR, /if \(event\.isTrusted && shown\) hide\(\);/, 'a real pointer wins');
   assert.match(CSS, /\.key-cursor \{/);

@@ -112,6 +112,50 @@ export function startKeyCursor(options) {
     return false;
   }
 
+  /**
+   * ⚖️ AN ARROW MOVES BETWEEN CARDS, SMOOTHLY (Peter, 09-23: "arrives between cards
+   * would be great… arrow to move between cards?"). Landing control-to-control was
+   * tried and rejected as "jumping"; pixel gliding alone never arrives anywhere. So
+   * each press aims at the next CARD in that direction and the cursor GLIDES there —
+   * the CSS eases the travel, so the eye follows it across.
+   *
+   * Second choice is any other pressable thing (the bar's buttons, a list row, a menu
+   * choice), and where there is nothing at all that way it simply glides on, which is
+   * what keeps a card's own controls and the edges of long lists reachable.
+   */
+  var CARDS = '.tile, .roomcard, .browse-row, .wall-menu-choice';
+  var THINGS = 'a[href], button, [role="button"], [role="slider"], [tabindex]:not([tabindex="-1"]), .opt';
+
+  function boxes(selector) {
+    var found = [];
+    var all = document.querySelectorAll(selector);
+    for (var i = 0; i < all.length; i += 1) {
+      var box = all[i].getBoundingClientRect();
+      if (box.width < 24 || box.height < 18) continue;
+      if (box.bottom < 4 || box.top > window.innerHeight - 4) continue;
+      if (box.right < 4 || box.left > window.innerWidth - 4) continue;
+      var style = window.getComputedStyle(all[i]);
+      if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) < 0.05) continue;
+      found.push({ cx: box.left + box.width / 2, cy: box.top + box.height / 2 });
+    }
+    return found;
+  }
+
+  /** The nearest one that way: distance along the arrow, with drift across it penalised. */
+  function nearest(selector, dx, dy) {
+    var list = boxes(selector);
+    var best = null, bestScore = Infinity;
+    for (var i = 0; i < list.length; i += 1) {
+      var along = (list[i].cx - x) * dx + (list[i].cy - y) * dy;
+      var across = Math.abs(dx !== 0 ? list[i].cy - y : list[i].cx - x);
+      if (along < 24) continue;
+      if (across > (dx !== 0 ? window.innerHeight : window.innerWidth) * 0.3) continue;
+      var score = along + across * 3;
+      if (score < bestScore) { bestScore = score; best = list[i]; }
+    }
+    return best;
+  }
+
   function move(dx, dy) {
     /**
      * ⚖️ SMOOTH, AND IT MUST CROSS THE CARDS (Peter, 09-23: "jumping isn't good —
@@ -124,8 +168,14 @@ export function startKeyCursor(options) {
     var step = held < 1 ? 26 : (held < 4 ? 64 : 116);
     held += 1;
     if (dy !== 0 && scrollUnder(dy)) { show(); return; }
-    x = Math.max(2, Math.min(window.innerWidth - 2, x + dx * step));
-    y = Math.max(2, Math.min(window.innerHeight - 2, y + dy * step));
+    var target = nearest(CARDS, dx, dy) || nearest(THINGS, dx, dy);
+    if (target !== null) {
+      x = Math.max(2, Math.min(window.innerWidth - 2, Math.round(target.cx)));
+      y = Math.max(2, Math.min(window.innerHeight - 2, Math.round(target.cy)));
+    } else {
+      x = Math.max(2, Math.min(window.innerWidth - 2, x + dx * step));
+      y = Math.max(2, Math.min(window.innerHeight - 2, y + dy * step));
+    }
     show();
     // The same movement a mouse makes: cards light, chrome appears, tips arm.
     mouse('mousemove');
