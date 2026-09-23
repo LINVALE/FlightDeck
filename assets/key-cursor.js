@@ -77,6 +77,7 @@ export function startKeyCursor(options) {
   }
 
   function hide() {
+    mark(null);
     clearTimeout(idleTimer);
     shown = false;
     held = 0;
@@ -112,13 +113,80 @@ export function startKeyCursor(options) {
     return false;
   }
 
+  /**
+   * ⚖️ THE ARROWS JUMP BETWEEN THINGS, they do not glide (Peter, 09-23, on the Vega
+   * stick: "hard to be precise… right left not moving in those directions"). A pixel
+   * cursor on a wall of cards asks for aim nobody has from a sofa. So each press looks
+   * for the nearest thing that can be pressed in that direction and lands on it, with
+   * the target outlined. Only when there is nothing that way does it glide, which is
+   * what makes the edges of long lists and plain pages still reachable.
+   */
+  var TARGETS = 'a[href], button, [role="button"], [role="slider"], [tabindex]:not([tabindex="-1"]), .tile, .browse-row, .roomcard';
+  var marked = null;
+
+  function mark(node) {
+    if (marked === node) return;
+    if (marked !== null) marked.classList.remove('key-cursor-target');
+    marked = node;
+    if (marked !== null) marked.classList.add('key-cursor-target');
+  }
+
+  /** Every pressable thing on screen, as boxes, ignoring what is hidden or off-screen. */
+  function candidates() {
+    var found = [];
+    var all = document.querySelectorAll(TARGETS);
+    for (var i = 0; i < all.length; i += 1) {
+      var box = all[i].getBoundingClientRect();
+      // A volume rail is ONE target, not its hundred ticks, and nothing smaller than a
+      // thumb is worth aiming at from a sofa.
+      if (box.width < 22 || box.height < 16) continue;
+      var rail = all[i].parentNode;
+      var inRail = false;
+      while (rail !== null && rail !== document.body) {
+        if (rail.getAttribute !== undefined && rail.getAttribute('role') === 'slider') { inRail = true; break; }
+        rail = rail.parentNode;
+      }
+      if (inRail) continue;
+      if (box.bottom < 0 || box.top > window.innerHeight || box.right < 0 || box.left > window.innerWidth) continue;
+      var style = window.getComputedStyle(all[i]);
+      if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) < 0.05) continue;
+      found.push({ node: all[i], cx: box.left + box.width / 2, cy: box.top + box.height / 2, box: box });
+    }
+    return found;
+  }
+
+  /** The nearest pressable thing that way: distance along the arrow, plus a penalty for drift. */
+  function nearest(dx, dy) {
+    var list = candidates();
+    var best = null, bestScore = Infinity;
+    for (var i = 0; i < list.length; i += 1) {
+      var item = list[i];
+      var along = (item.cx - x) * dx + (item.cy - y) * dy;
+      var across = Math.abs(dx !== 0 ? item.cy - y : item.cx - x);
+      if (along < 12) continue;                       // behind, or where we already are
+      if (across > (dx !== 0 ? window.innerHeight : window.innerWidth) * 0.42) continue;
+      var score = along + across * 2.4;
+      if (score < bestScore) { bestScore = score; best = item; }
+    }
+    return best;
+  }
+
   function move(dx, dy) {
     // Fine at a tap, quick when held (Peter, 09-23: "hard to be precise").
     var step = held < 3 ? 12 : (held < 8 ? 30 : 64);
     held += 1;
     if (dy !== 0 && scrollUnder(dy)) { show(); return; }
-    x = Math.max(2, Math.min(window.innerWidth - 2, x + dx * step));
-    y = Math.max(2, Math.min(window.innerHeight - 2, y + dy * step));
+    var target = nearest(dx, dy);
+    if (target !== null) {
+      x = Math.round(target.cx);
+      y = Math.round(target.cy);
+      mark(target.node);
+    } else {
+      // Nothing that way: glide, so the edge of a list or a plain page still gives.
+      mark(null);
+      x = Math.max(2, Math.min(window.innerWidth - 2, x + dx * step));
+      y = Math.max(2, Math.min(window.innerHeight - 2, y + dy * step));
+    }
     show();
     // The same movement a mouse makes: cards light, chrome appears, tips arm.
     mouse('mousemove');

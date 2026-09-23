@@ -417,6 +417,12 @@ test('a TV that sends keys but has no pointer drives a cursor on The Deck', () =
   // Capture phase, so the focused control never sees the arrow first.
   assert.match(CURSOR, /window\.addEventListener\('keydown', function \(event\) \{[\s\S]+\}, true\);/);
   assert.match(CURSOR, /document\.elementFromPoint\(x, y\)/, 'clicks whatever it rests on');
+  // 09-23: the arrows JUMP between pressable things; gliding is only the fallback.
+  assert.match(CURSOR, /function nearest\(dx, dy\)/);
+  assert.match(CURSOR, /var target = nearest\(dx, dy\);/);
+  assert.match(CURSOR, /mark\(target\.node\);/, 'the target is outlined');
+  assert.match(CURSOR, /if \(box\.width < 22 \|\| box\.height < 16\) continue;/, 'nothing smaller than a thumb');
+  assert.match(CURSOR, /role'\) === 'slider'[\s\S]{0,120}continue;/, 'a volume rail is one target, not its ticks');
   assert.match(CURSOR, /mouse\('mousemove'\)/, 'the same movement a mouse makes, so chrome appears');
   assert.match(CURSOR, /if \(event\.isTrusted && shown\) hide\(\);/, 'a real pointer wins');
   assert.match(CSS, /\.key-cursor \{/);
