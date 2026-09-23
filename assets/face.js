@@ -3604,6 +3604,10 @@ function endColumnDrag() {
   }
 }());
 var PRESS_ECHO_MS = 800;
+/** How long OK must be held before it becomes the key cursor rather than play/pause. */
+var OK_HOLD_MS = 600;
+var okHoldTimer = null;
+var okHandled = false;
 
 function pressable(node, onPress, pressKey) {
   var last = 0;
@@ -5762,12 +5766,22 @@ function onKey(event) {
    * browse, the queue and the controls. Faces are changed from the picker, or with
    * f and g on a keyboard — they are a setup-time choice, unlike the transport.
    */
-  // HOLDING OK raises the key cursor, for a television that sends keys and has no
-  // pointer of its own: browse, the queue and the controls are a pointer's work.
-  // It hands the keys back to the room when it goes.
-  if (name === 'ok' && event.repeat === true && !faceCursor.visible()) {
+  /**
+   * OK is TIMED, not counted (Peter, 09-23, on the Vega stick: holding it only
+   * toggled play). A television may not mark a repeated key at all, so the page
+   * measures the press itself: a quick press plays or pauses when it is RELEASED,
+   * and a press held past OK_HOLD_MS raises the key cursor instead — browse, the
+   * queue and the controls are a pointer's work. Releasing after that does nothing.
+   */
+  if (name === 'ok') {
     event.preventDefault(); event.stopPropagation();
-    faceCursor.show();
+    if (okHoldTimer === null && !okHandled) {
+      okHoldTimer = setTimeout(function () {
+        okHoldTimer = null;
+        okHandled = true;              // the release must not also toggle play
+        faceCursor.show();
+      }, OK_HOLD_MS);
+    }
     return;
   }
   if (name === 'left') transport('previous');
@@ -5778,7 +5792,7 @@ function onKey(event) {
   // is reached for constantly. Room moved to the on-screen strip.
   else if (name === 'up') nudgeVolume(1);
   else if (name === 'down') nudgeVolume(-1);
-  else if (name === 'ok') transport('playpause');
+
   else if (name === 'playpause') transport('playpause');
   else if (name === 'next') transport('next');
   else if (name === 'previous') transport('previous');
@@ -5806,6 +5820,19 @@ function releaseBrowseOk(event) {
 // Capture on window AND document: some TV browsers deliver to only one of them.
 window.addEventListener('keydown', onKey, true);
 document.addEventListener('keydown', onKey, true);
+/** OK released: a quick press is play/pause; a held one already raised the cursor. */
+function releaseOk(event) {
+  if (keyName(event) !== 'ok') return;
+  if (okHoldTimer !== null) { clearTimeout(okHoldTimer); okHoldTimer = null; }
+  if (okHandled) { okHandled = false; return; }
+  if (faceCursor.visible()) return;   // the cursor owns OK while it is up
+  var target = event.target;
+  if (isTextEntry(target) || isTextEntry(document.activeElement)) return;
+  if (browsePanel !== null || !picker.hidden) return;   // Browse and the picker own their own OK
+  transport('playpause');
+}
+window.addEventListener('keyup', releaseOk, true);
+document.addEventListener('keyup', releaseOk, true);
 window.addEventListener('keyup', releaseBrowseOk, true);
 document.addEventListener('keyup', releaseBrowseOk, true);
 // A page with nothing focusable can be skipped by a TV's key routing entirely.

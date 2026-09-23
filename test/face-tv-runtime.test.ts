@@ -167,8 +167,12 @@ test('face picker has a direct control and D-pad face changes expose the choices
   // and a face is chosen from the picker (or f/g on a keyboard), not with the arrows.
   assert.match(FACE, /if \(name === 'left'\) transport\('previous'\);/);
   assert.match(FACE, /else if \(name === 'right'\) transport\('next'\);/);
-  assert.match(FACE, /name === 'ok' && event\.repeat === true && !faceCursor\.visible\(\)/,
+  // 09-23: OK is timed, not counted — a quick press plays/pauses on release, a held
+  // press raises the key cursor (a TV may not mark a repeated key at all).
+  assert.match(FACE, /okHoldTimer = setTimeout\(function \(\) \{[\s\S]{0,160}faceCursor\.show\(\);[\s\S]{0,40}\}, OK_HOLD_MS\);/,
     'holding OK raises the key cursor');
+  assert.match(FACE, /function releaseOk\(event\)[\s\S]{0,900}transport\('playpause'\);/,
+    'a quick OK plays or pauses when it is released');
 });
 
 test('an open vertical face picker keeps its presentation and press identity across redraw', () => {
